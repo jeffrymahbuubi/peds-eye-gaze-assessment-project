@@ -449,11 +449,11 @@ points, not during tasks.
 ### 10.3 Session-level device facts in `metadata.json`
 
 The client already queries `PRODUCT_ID` (`VALUE`, `BUS`, `RATE`) and
-`SERIAL_ID` at connect (`src/inputs/gazepoint_client.py`, SPEC-ui-setup §23),
+`SERIAL_ID` at connect (`src/inputs/gazepoint_client.py`, `SPEC-ui-setup-task-selection.md` §23),
 but `metadata.json` keeps only `gazepoint_model`. Add:
 - `gazepoint_rate_hz`, `gazepoint_bus`, `gazepoint_serial`. The sampling
   rate (60 vs 150 Hz) changes fixation/saccade detection and belongs next
-  to the data. The measured rate from the §24 meter is a useful companion.
+  to the data. The measured rate from that SPEC's §24.4 meter is a useful companion.
 - From `SPEC-display-scaling-cursor-accuracy.md` §6: `device_pixel_ratio`
   (Windows scale) and the display refresh rate. `screen_*_px` (physical,
   from Gazepoint) and `canvas_*` (Qt logical) are ambiguous without the
