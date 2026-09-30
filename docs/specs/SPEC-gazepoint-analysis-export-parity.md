@@ -7,11 +7,11 @@ Analysis-layout `all_gaze.csv`), §6 (Bucket D: `SACCADE_MAG`/`SACCADE_DIR`
 + `fixations.csv`, derived at session close and golden-tested against the
 vendor's own export), and §4.2's geometry persistence are all built. The
 user waived §6's approval gate the same day ("§5 + full §6, skip the
-approval gate"), so Stage 1 and Stage 2 landed together. **Not yet
-committed.**
+approval gate"), so Stage 1 and Stage 2 landed together. **Committed as `4387319`,
+included in the `v1.0.0` tag** (see §10's 2026-09-30 entry).
 
 **Created:** 2026-09-17
-**Last updated:** 2026-09-17 (§9 — implemented)
+**Last updated:** 2026-09-30 (commit-status correction, §10)
 
 ## 1. Origin / what was asked
 
@@ -413,7 +413,7 @@ restored 4250 → `127.0.0.1:4242`.
   decided by `AskUserQuestion` (new Analysis-format `all_gaze.csv`).
   `docs/CLINICAL_DATA_REFERENCE.md`'s "planned next step" paragraph replaced
   with a pointer here; `docs/DATA_SCHEMA.md` given a one-line pointer to the
-  planned file. Uncommitted, ask-before-commit as always.
+  planned file. Committed as `9207e24` (verified 2026-09-30, see §10).
 
 - **2026-09-17, later — §4.2 added: monitor size, not canvas size, is the
   basis for pixel saccade metrics.** Answers the user's two follow-up
@@ -438,4 +438,12 @@ restored 4250 → `127.0.0.1:4242`.
   + geometry in `metadata.json` + `saccades` in `session_metrics.json`, and
   the Results page's Mean amplitude / Mean direction filled (§9.5). Suite
   219 / 218 / 1 pre-existing. `docs/DATA_SCHEMA.md` documents the new files
-  and fields. Uncommitted, ask-before-commit as always.
+  and fields. Committed as `4387319`, included in the `v1.0.0` tag
+  (verified 2026-09-30, see §10).
+
+- **2026-09-30 — corrected stale "uncommitted" claims.** §1 and the two log
+  entries above had said this work was still uncommitted; `git log` shows
+  both commits landed on 2026-09-17: `9207e24` (design-only, the first
+  entry above) and `4387319` (§9's implementation, folded into the
+  `v1.0.0` tag alongside `dbcd011`). No code or behaviour change, doc-only
+  correction.

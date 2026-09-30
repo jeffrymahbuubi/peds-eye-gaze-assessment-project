@@ -1,12 +1,13 @@
 # SPEC-compiled-release — Windows executable builds of the dashboard (v1.0.0)
 
-**Status: v1.0.0 BUILT, smoke-tested, tagged.** One-folder windowed
-PyInstaller build via `tools/pyinstaller/build_exe.py`, published to
-`compiled/PedsEyeGaze-1.0.0/` (+ `.zip`). This SPEC is the cumulative record
-for every future release build too — append a §5 entry per version.
+**Status: v1.0.0 BUILT, smoke-tested, tagged, confirmed working on a
+Python-less PC.** One-folder windowed PyInstaller build via
+`tools/pyinstaller/build_exe.py`, published to `compiled/PedsEyeGaze-1.0.0/`
+(+ `.zip`). This SPEC is the cumulative record for every future release
+build too — append a §5 entry per version.
 
 **Created:** 2026-09-17
-**Last updated:** 2026-09-17
+**Last updated:** 2026-09-30 (§6 — Python-less PC test confirmed)
 
 ## 1. Origin / what was asked
 
@@ -103,11 +104,13 @@ after the install, the qt-mcp footgun did not recur).
     with no Qt warnings; `_internal/PySide6/plugins/` carries platforms,
     styles, imageformats, multimedia, iconengines.
   - PyInstaller's warn file lists no missing module of ours.
-- **Not exercised:** a full Connect → Calibrate → Run → Results pass from
-  the exe against a device (the code path is identical to source, which was
-  live-validated the same day for the parity work), and running on a PC
-  without a Python install (the whole point of the bundle — worth one check
-  on the clinic machine; `logs/` will say what went wrong if anything).
+- **Running on a PC without a Python install** — the whole point of the
+  bundle — was confirmed working (see §6's 2026-09-30 entry). A full
+  Connect → Calibrate → Run → Results pass from the exe against a device was
+  not separately exercised; the user judged this unnecessary, since the
+  frozen and source code paths are identical there and the source path was
+  already live-validated the same day for the parity work (§9.5 of
+  `SPEC-gazepoint-analysis-export-parity.md`).
 
 ## 6. Log
 
@@ -115,3 +118,13 @@ after the install, the qt-mcp footgun did not recur).
   app changes §3 (+5 tests); tooling §4; smoke tests §5.1. README gained a
   "Building the Windows executable" section. Committed with the version
   bump, tagged `v1.0.0`, pushed with tags.
+
+- **2026-09-30 — Python-less PC test confirmed passing; device end-to-end
+  frozen-exe pass dropped as a requirement.** §5.1's "Not exercised" bullet
+  is resolved: the user ran `compiled/PedsEyeGaze-1.0.0/` on a machine with
+  no Python install and confirmed it works, closing the one open item from
+  the release. Separately, the user decided a full Connect → Calibrate →
+  Run → Results pass from the frozen exe against a real device is not
+  needed — the frozen and source code paths are identical there, and the
+  source path was already live-validated the same day for the export-parity
+  work (`SPEC-gazepoint-analysis-export-parity.md` §9.5). No code change.
