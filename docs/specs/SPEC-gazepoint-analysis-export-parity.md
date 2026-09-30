@@ -8,10 +8,12 @@ Analysis-layout `all_gaze.csv`), §6 (Bucket D: `SACCADE_MAG`/`SACCADE_DIR`
 vendor's own export), and §4.2's geometry persistence are all built. The
 user waived §6's approval gate the same day ("§5 + full §6, skip the
 approval gate"), so Stage 1 and Stage 2 landed together. **Committed as `4387319`,
-included in the `v1.0.0` tag** (see §10's 2026-09-30 entry).
+included in the `v1.0.0` tag** (see §11's 2026-09-30 entry). **§10 holds a
+v1.1 backlog (not implemented):** 3D eye position, per-eye POG, and device
+and display facts in `metadata.json`.
 
 **Created:** 2026-09-17
-**Last updated:** 2026-09-30 (commit-status correction, §10)
+**Last updated:** 2026-09-30 (§10 v1.1 backlog added)
 
 ## 1. Origin / what was asked
 
@@ -402,7 +404,85 @@ restored 4250 → `127.0.0.1:4242`.
 - The headless `--replay` path (`task_runner.run_headless_replay`) does
   not write `all_gaze.csv` — it has no client to drain. Unchanged.
 
-## 10. Log
+## 10. Backlog (v1.1) — API fields outside the Analysis export (added 2026-09-30, NOT implemented)
+
+§1's brief was "add every field the API exposes (except the biometrics-kit
+ones)". §5 built that as *the 62 Analysis-export columns*, so every API
+field that Gazepoint Analysis does not export was silently left out. An
+audit on 2026-09-30 (`_ENABLE_RECORDS` in `src/inputs/gazepoint_client.py`
+vs `docs/gazepoints/sources/gazepoint-api.md` §5) found three gaps worth
+closing. None is recorded by v1.0.0.
+
+### 10.1 3D eye position — `ENABLE_SEND_EYE_LEFT` / `_RIGHT`
+
+Fields (API §5.11/§5.12): `LEYEX/Y/Z`, `REYEX/Y/Z` (eye position relative
+to the camera focal point, **metres**), `LPUPILD`/`RPUPILD` (pupil diameter
+in metres, the same quantity as `LPMM`) and `LPUPILV`/`RPUPILV`. The
+manual's example is `LEYEZ="0.69235"`, i.e. the eye is 69 cm from the
+camera.
+
+Why it matters downstream:
+- **Real viewing distance per sample.** `metadata.json`'s
+  `viewing_distance_mm` is today the config constant 650 (§4.2), so every
+  degree value (`saccades.mean_amplitude_deg`) carries that assumption.
+  `LEYEZ` is measured *from the camera*, and the camera sits at the screen's
+  lower bezel, so it approximates eye-to-screen distance. Whether to correct
+  for the camera's offset from the screen plane is a design decision for
+  the implementation.
+- **Head movement / posture over the session.** This is clinically
+  relevant for children with CP (head control). It supports measures such
+  as total head travel, drift toward or away from the screen, and whether
+  failed trials line up with head movement.
+- **Data-quality filtering**, e.g. flagging samples where the head nears
+  the edge of the 35 × 22 cm head box (`gp3-hd-specifications.md`).
+
+### 10.2 Per-eye point of gaze — `ENABLE_SEND_POG_LEFT` / `_RIGHT`
+
+Fields (API §5.5/§5.6): `LPOGX/Y/V`, `RPOGX/Y/V`, the same screen-fraction
+convention as `FPOG`/`BPOG`. v1.0.0 records only `FPOG` (fixation-filtered)
+and `BPOG` (both eyes averaged). An average hides disagreement between the
+eyes; strabismus is common in CP, so per-eye gaze lets an analysis see
+non-converging eyes and which eye was tracked when only one was valid.
+`calibration.json` already has per-eye data, but only at the calibration
+points, not during tasks.
+
+### 10.3 Session-level device facts in `metadata.json`
+
+The client already queries `PRODUCT_ID` (`VALUE`, `BUS`, `RATE`) and
+`SERIAL_ID` at connect (`src/inputs/gazepoint_client.py`, SPEC-ui-setup §23),
+but `metadata.json` keeps only `gazepoint_model`. Add:
+- `gazepoint_rate_hz`, `gazepoint_bus`, `gazepoint_serial`. The sampling
+  rate (60 vs 150 Hz) changes fixation/saccade detection and belongs next
+  to the data. The measured rate from the §24 meter is a useful companion.
+- From `SPEC-display-scaling-cursor-accuracy.md` §6: `device_pixel_ratio`
+  (Windows scale) and the display refresh rate. `screen_*_px` (physical,
+  from Gazepoint) and `canvas_*` (Qt logical) are ambiguous without the
+  scale.
+
+### 10.4 Deliberately not added
+
+- `ENABLE_SEND_POG_AAC` (`APOGX/Y/V`): a moving-window average of `FPOG`
+  meant for cursor control (`AAC_FILTER`, Control's "Cursor Smoothing",
+  default 15 samples). No analysis value, since raw `FPOG` is recorded,
+  and the app smooths its own cursor. See the 2026-09-30 log entry for the
+  comparison with v1.0.0's smoothing.
+- Biometrics kit (`DIAL`, `GSR`, `HR*`, `TTL`): still excluded by the
+  user's 2026-09-17 decision.
+
+### 10.5 Constraints for the implementation
+
+- `all_gaze.csv` must keep its exact 62-column Analysis layout (§5.1).
+  10.1/10.2 go in a separate per-sample file (e.g. `eye_geometry.csv`,
+  keyed by `CNT`/`TIME` so it joins to `all_gaze.csv`) or as additive
+  columns in `gaze_stream.csv`. Decide at implementation time.
+- New `gazepoint.enable.*` keys (`eye_left`, `eye_right`, `pog_left`,
+  `pog_right`) default on, and must be extended in `_ENABLE_RECORDS` and
+  `tools/fake_gazepoint_server.py` so the path is testable without a
+  subject.
+- Additive only: `metadata.json` readers must tolerate the fields' absence
+  in v1.0.0 sessions.
+
+## 11. Log
 
 - **2026-09-17 — §1–§4 findings + §5–§6 plan written, via
   `/sparc:orchestrator`; design only, zero `src`/`tests` changes.** The
@@ -413,7 +493,7 @@ restored 4250 → `127.0.0.1:4242`.
   decided by `AskUserQuestion` (new Analysis-format `all_gaze.csv`).
   `docs/CLINICAL_DATA_REFERENCE.md`'s "planned next step" paragraph replaced
   with a pointer here; `docs/DATA_SCHEMA.md` given a one-line pointer to the
-  planned file. Committed as `9207e24` (verified 2026-09-30, see §10).
+  planned file. Committed as `9207e24` (verified 2026-09-30, see §11).
 
 - **2026-09-17, later — §4.2 added: monitor size, not canvas size, is the
   basis for pixel saccade metrics.** Answers the user's two follow-up
@@ -439,7 +519,7 @@ restored 4250 → `127.0.0.1:4242`.
   the Results page's Mean amplitude / Mean direction filled (§9.5). Suite
   219 / 218 / 1 pre-existing. `docs/DATA_SCHEMA.md` documents the new files
   and fields. Committed as `4387319`, included in the `v1.0.0` tag
-  (verified 2026-09-30, see §10).
+  (verified 2026-09-30, see §11).
 
 - **2026-09-30 — corrected stale "uncommitted" claims.** §1 and the two log
   entries above had said this work was still uncommitted; `git log` shows
@@ -447,3 +527,28 @@ restored 4250 → `127.0.0.1:4242`.
   entry above) and `4387319` (§9's implementation, folded into the
   `v1.0.0` tag alongside `dbcd011`). No code or behaviour change, doc-only
   correction.
+
+- **2026-09-30, later — §10 v1.1 backlog added (design only, no code).**
+  The user asked whether `LEYEZ`/`REYEZ` are recorded (they are not) and
+  which other downstream-relevant fields v1.0.0 lacks. Audited
+  `_ENABLE_RECORDS` against the API manual. Three gaps went into the
+  backlog on the user's instruction: 3D eye position (§10.1), per-eye POG
+  (§10.2), and rate/bus/serial plus display scale/refresh in
+  `metadata.json` (§10.3). `APOG` was deliberately excluded (§10.4).
+  - **Comparison asked by the user: `APOG` vs v1.0.0's cursor smoothing.**
+    v1.0.0 smooths `BPOG` (or `FPOG` when `BPOG` is invalid) with an
+    exponential moving average, `smoothing.alpha` 0.22
+    (`src/inputs/eye_input.py` `GazeSmoother`; chosen live,
+    `SPEC-gui-audit-2026-09-10.md` §4). It is updated per GUI tick,
+    adjustable live in the settings panel, and saved with each session's
+    settings.
+  - `APOG` is a 15-sample moving average of `FPOG` (API §5.8, Control
+    manual "Cursor Smoothing"). That is about 100 ms of window at 150 Hz,
+    on top of `FPOG`'s own fixation filter; `FPOG` holds still within a
+    fixation and is invalid during saccades.
+  - Verdict: **keep v1.0.0's smoothing.** The smoothing strength is
+    comparable. `APOG` would add a second filter and lag after every
+    saccade, which hurts `follow_moving`'s moving target. Its window is a
+    Control-wide setting the app does not record. Neither affects analysis
+    data: `gaze_stream.csv`/`all_gaze.csv` store the raw samples.
+  - Committed with this entry.
