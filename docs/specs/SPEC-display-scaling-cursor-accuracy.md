@@ -1,3 +1,15 @@
+---
+name: SPEC-display-scaling-cursor-accuracy
+title: Gaze cursor accuracy degrades on 15"/13" 1920×1080 laptops
+status: root-cause-confirmed, fix not implemented
+created: 2026-09-30
+last_updated: 2026-10-01
+next_step: implement §6 fix (logical-px geometry in _sync_gaze_geometry via QScreen / devicePixelRatio)
+related:
+  - SPEC-gui-audit-2026-09-10.md (item 5 introduced the regression)
+  - SPEC-gazepoint-analysis-export-parity.md (§10 holds the device_pixel_ratio metadata backlog)
+---
+
 # SPEC-display-scaling-cursor-accuracy — Gaze cursor accuracy degrades on 15"/13" 1920×1080 laptops
 
 **Status: ROOT CAUSE CONFIRMED by user A/B test (evaluation only, no code
@@ -318,3 +330,6 @@ degrees of visual angle.
   - Still no code changed. This SPEC, including every entry above
     previously marked "uncommitted", is committed with this entry (see
     `git log -- docs/specs/SPEC-display-scaling-cursor-accuracy.md`).
+
+- **2026-10-01 — YAML frontmatter added** (name, status, dates, next step,
+  related SPECs). No content change; still no code changed.
