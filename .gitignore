@@ -29,3 +29,6 @@ configs/local_state.json
 # Compiled app artifacts (tools/pyinstaller/build_exe.py) -- the git tag is the record, not the exe
 compiled/
 build/
+
+# Dev-only tooling (e.g. gh-axi) -- never part of the compiled/production app
+devtools/
