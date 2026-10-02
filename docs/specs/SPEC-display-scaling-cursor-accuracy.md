@@ -4,7 +4,7 @@ title: Gaze cursor accuracy degrades on 15"/13" 1920×1080 laptops
 status: root-cause-confirmed, fix brief approved (§8), not implemented
 created: 2026-09-30
 last_updated: 2026-10-02
-next_step: implement §8 in worktree dpi-cursor-fix
+next_step: implement §8 via a Sonnet 5.5 subagent launched from the Opus hub session (single terminal, no worktree)
 related:
   - SPEC-gui-audit-2026-09-10.md (item 5 introduced the regression)
   - SPEC-gazepoint-analysis-export-parity.md (§10 holds the device_pixel_ratio metadata backlog)
@@ -454,3 +454,13 @@ deviations.)
   per connect), §8.5 validation (simulate with `QT_SCALE_FACTOR` on the
   24"), and closing all of §7 as moot also chosen by the user. Committed
   and handed off to worktree `dpi-cursor-fix`.
+
+- **2026-10-02, later — implementation route changed; §8 still not
+  started.** The worktree handoff in the entry above never ran: launching
+  it hit Claude Code's per-folder trust dialog, and a worktree session
+  started in the repo folder lacks the top-level project's `/sparc:*`
+  commands, agents and `.mcp.json` (no qt-mcp for §8.5). The user removed
+  the `dpi-cursor-fix` worktree and branch and will implement §8 through a
+  Sonnet 5.5 subagent launched from the Opus hub session instead. §8's
+  content is unchanged. A background subagent cannot stop and ask, so for
+  §8.7 it records the question and returns instead.
