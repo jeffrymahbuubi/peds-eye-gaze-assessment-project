@@ -31,6 +31,7 @@ from .engine.calibration import (
     load_calibration_result,
     save_calibration_result,
 )
+from .engine.display_check import check_display
 from .engine.config import CONFIG_ROOT, deep_merge, load_task_config, load_theme
 from .engine.gaze_diagnostics import GazeDropoutLog, gaze_dropout_log_path
 from .engine.feedback import FeedbackBus
@@ -123,6 +124,7 @@ class AssessmentApp:
         assessment_date: str = "",
         sex: str = "",
         notes: str = "",
+        display_acknowledged: bool | None = None,
     ) -> None:
         """Build one task run.
 
@@ -312,6 +314,7 @@ class AssessmentApp:
             assessment_date=assessment_date,
             sex=sex,
             notes=notes,
+            display_nonstandard_acknowledged=display_acknowledged,
             # Provenance (SPEC-live-settings-panel.md S10.4). Before settings
             # persisted, a run was reproducible because every run started from
             # the same YAML defaults; S10.3 removes that guarantee, so the
@@ -637,6 +640,29 @@ class AssessmentApp:
             f"physical {meta.screen_physical_width_mm}x{meta.screen_physical_height_mm}mm, "
             f"viewing distance {meta.viewing_distance_mm}mm."
         )
+        display_line = self._record_display()
+        if display_line:
+            self.recorder.log(display_line)
+
+    def _record_display(self) -> str:
+        """Fill the display fields from the canvas's own screen (where the
+        task actually ran, SPEC-display-standard-check.md S4.5) and return the
+        one ``Display:`` session-log line ("" when there is no screen)."""
+        screen = self.canvas.screen()
+        if screen is None:
+            return ""
+        geo = screen.geometry()
+        check = check_display(geo.width(), geo.height(), screen.devicePixelRatio())
+        meta = self.metadata
+        meta.display_width_px = check.width_px
+        meta.display_height_px = check.height_px
+        meta.display_scale_percent = check.scale_percent
+        meta.display_standard = check.standard
+        text = f"Display: {check.width_px}x{check.height_px} at {check.scale_percent}%"
+        if check.standard:
+            return f"{text} (standard)."
+        ack = ", acknowledged by operator" if meta.display_nonstandard_acknowledged else ""
+        return f"{text} (NON-STANDARD{ack})."
 
     def _tick(self) -> None:
         if self._paused:

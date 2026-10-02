@@ -46,6 +46,7 @@ from ..engine.calibration import (
     save_calibration_result,
 )
 from ..engine.config import load_default
+from ..engine.display_check import DisplayCheck, check_display
 from ..engine.local_state import load_local_state, save_local_state
 from ..engine.settings_profile import known_subject_ids
 from ..inputs.gazepoint_client import DeviceInfo, GazepointClient
@@ -100,6 +101,26 @@ def _format_rate_warning(info: DeviceInfo | None) -> str:
         f"Tracker is running at {info.rate_hz} Hz{bus_text}. The GP3 HD only "
         "reaches 150 Hz on a USB 3.0 connection — move the data cable to a "
         "USB 3.0 port and reconnect for full-rate data."
+    )
+
+
+def _format_display_warning(check: DisplayCheck) -> str:
+    """Build the non-standard-display warning text (SPEC-display-standard-
+    check.md S4.3). Returns "" (hide the warning) when the display is the
+    recommended 1920x1080 at 100 %.
+    """
+    if check.standard:
+        return ""
+    return (
+        f"This display is {check.width_px}×{check.height_px} at "
+        f"{check.scale_percent}% scale. The recommended standard for data "
+        "collection is 1920×1080 at 100%. Other settings can make the task "
+        "screens lay out incorrectly (for example squeezed task cards at "
+        "150%), and sessions recorded on different displays are not directly "
+        "comparable.\n\n"
+        "To change it: Windows Settings → System → Display, set Display "
+        "resolution to 1920×1080 and Scale to 100%. This card updates "
+        "automatically."
     )
 
 
@@ -244,7 +265,13 @@ class SetupPage(QWidget):
         self._recheck_thread: _DeviceInfoRefreshThread | None = None
         self._calibration_thread: _CalibrationThread | None = None
         self._defaults = load_default()
+        # Display standard check (SPEC-display-standard-check.md S4.4): the
+        # last reading, the screen/window whose change signals are connected.
+        self._display_check: DisplayCheck | None = None
+        self._display_screen = None
+        self._display_window = None
         self._build_ui()
+        self._refresh_display()
 
     # -- accessors used by DashboardWindow ---------------------------------
 
@@ -280,6 +307,14 @@ class SetupPage(QWidget):
         output_root = self._defaults.get("recording", {}).get("output_root", "sessions")
         self._subject_completer_model.setStringList(known_subject_ids(output_root))
 
+    def display_acknowledged(self) -> bool:
+        """True only when the display is non-standard and the operator
+        ticked the Display card's box (recorded with the session)."""
+        return self._display_needs_ack() and self.display_ack_checkbox.isChecked()
+
+    def _display_needs_ack(self) -> bool:
+        return self._display_check is not None and not self._display_check.standard
+
     def can_continue(self) -> bool:
         return (
             self._client is not None
@@ -288,6 +323,7 @@ class SetupPage(QWidget):
             and bool(self.subject_id())
             and bool(self.assessment_date())
             and bool(self.sex())
+            and (not self._display_needs_ack() or self.display_ack_checkbox.isChecked())
         )
 
     # -- UI -----------------------------------------------------------------
@@ -317,6 +353,7 @@ class SetupPage(QWidget):
         scroll_layout.setSpacing(16)
         scroll_layout.addWidget(self._build_subject_card())
         scroll_layout.addWidget(self._build_tracker_card())
+        scroll_layout.addWidget(self._build_display_card())
         scroll_layout.addWidget(self._build_calibration_card())
         scroll_layout.addWidget(self._build_device_notice_card())
         scroll_layout.addStretch(1)
@@ -353,6 +390,36 @@ class SetupPage(QWidget):
         title = QLabel(text)
         title.setObjectName("wtmhSectionTitle")
         return title
+
+    def _build_display_card(self) -> QFrame:
+        """Display standard check (SPEC-display-standard-check.md S4.2):
+        green line when 1920x1080 at 100 %, else a warning plus an
+        acknowledgement box that gates Continue. Always visible."""
+        card, layout = self._card()
+        layout.addWidget(self._card_title("Display"))
+
+        self.display_ok_alert = QFrame()
+        self.display_ok_alert.setObjectName("wtmhAlertSuccess")
+        ok_layout = QVBoxLayout(self.display_ok_alert)
+        self.display_ok_label = QLabel("")
+        self.display_ok_label.setWordWrap(True)
+        ok_layout.addWidget(self.display_ok_label)
+        layout.addWidget(self.display_ok_alert)
+
+        self.display_warning_alert = QFrame()
+        self.display_warning_alert.setObjectName("wtmhAlertWarning")
+        warning_layout = QVBoxLayout(self.display_warning_alert)
+        self.display_warning_label = QLabel("")
+        self.display_warning_label.setWordWrap(True)
+        warning_layout.addWidget(self.display_warning_label)
+        layout.addWidget(self.display_warning_alert)
+
+        self.display_ack_checkbox = QCheckBox(
+            "Continue with this display anyway (recorded with the session)"
+        )
+        self.display_ack_checkbox.toggled.connect(self._on_state_changed)
+        layout.addWidget(self.display_ack_checkbox)
+        return card
 
     def _build_subject_card(self) -> QFrame:
         card, layout = self._card()
@@ -946,7 +1013,68 @@ class SetupPage(QWidget):
             missing.append("enter a Subject ID")
         if not self.sex():
             missing.append("select Sex")
+        if self._display_needs_ack() and not self.display_ack_checkbox.isChecked():
+            missing.append("acknowledge the non-standard display")
         return missing
+
+    # -- display check ------------------------------------------------------
+
+    def showEvent(self, event) -> None:  # noqa: N802 - Qt override
+        super().showEvent(event)
+        self._refresh_display()
+
+    def _refresh_display(self, *_args: object) -> None:
+        """Re-read the screen hosting this window and update the Display card.
+
+        Connected to QWindow.screenChanged (moved to another monitor) and the
+        current QScreen's geometryChanged / logicalDotsPerInchChanged
+        (resolution or scale changed in Windows while the app is open); the
+        screen signals are reconnected whenever the screen changes.
+        """
+        handle = self.window().windowHandle()
+        if handle is not None and handle is not self._display_window:
+            self._display_window = handle
+            handle.screenChanged.connect(self._refresh_display)
+        screen = self.screen()
+        if screen is not self._display_screen:
+            if self._display_screen is not None:
+                try:
+                    self._display_screen.geometryChanged.disconnect(self._refresh_display)
+                    self._display_screen.logicalDotsPerInchChanged.disconnect(self._refresh_display)
+                except (RuntimeError, TypeError):
+                    pass  # the old screen was already removed
+            self._display_screen = screen
+            if screen is not None:
+                screen.geometryChanged.connect(self._refresh_display)
+                screen.logicalDotsPerInchChanged.connect(self._refresh_display)
+        if screen is None:
+            return
+        geo = screen.geometry()
+        self._apply_display_check(check_display(geo.width(), geo.height(), screen.devicePixelRatio()))
+
+    def _apply_display_check(self, check: DisplayCheck) -> None:
+        """Show ``check`` on the Display card. Any change in W, H or S unticks
+        the acknowledgement, so the operator accepts the new display afresh
+        (SPEC-display-standard-check.md S4.4); becoming standard clears it."""
+        prev = self._display_check
+        changed = prev is None or (prev.width_px, prev.height_px, prev.scale_percent) != (
+            check.width_px,
+            check.height_px,
+            check.scale_percent,
+        )
+        self._display_check = check
+        if changed or check.standard:
+            self.display_ack_checkbox.setChecked(False)
+        warning_text = _format_display_warning(check)
+        self.display_ok_label.setText(
+            f"Display: {check.width_px}×{check.height_px} at {check.scale_percent}% "
+            "scale — recommended standard."
+        )
+        self.display_ok_alert.setVisible(check.standard)
+        self.display_warning_label.setText(warning_text)
+        self.display_warning_alert.setVisible(not check.standard)
+        self.display_ack_checkbox.setVisible(not check.standard)
+        self._on_state_changed()
 
     def _on_state_changed(self, *_args: object) -> None:
         missing = self._missing_requirements()

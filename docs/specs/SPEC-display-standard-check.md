@@ -1,10 +1,10 @@
 ---
 name: SPEC-display-standard-check
 title: Setup-page display check — recommend 1920×1080 at 100 % scale
-status: design approved (§2), wireframe done (§7 step 1), not implemented
+status: implemented, reviewed and live-validated (§7 steps 3-5); committed
 created: 2026-10-02
 last_updated: 2026-10-02
-next_step: user glances at docs/wireframes/setup.html (Display card), then the hub delegates §4–§6 to the spec-implementer subagent (§7 step 3)
+next_step: none for this SPEC (done)
 related:
   - SPEC-display-scaling-cursor-accuracy.md (cursor fix 5199a05; found the 150 % Tasks-page clipping)
   - SPEC-gazepoint-analysis-export-parity.md (§10.3's device_pixel_ratio item is absorbed by §4.5 here)
@@ -13,7 +13,7 @@ related:
 
 # SPEC-display-standard-check — Setup-page display check (1920×1080 at 100 %)
 
-**Status: design approved by the user (§2); wireframe done (`docs/wireframes/setup.md`, 2026-10-02); not implemented.** A new
+**Status: implemented, reviewed and live-validated 2026-10-02 (§7, §10).** A new
 "Display" card on the Setup page tells the operator (doctor/researcher)
 whether the screen is the recommended **1920×1080 at 100 % Windows scale**.
 If not, it warns, explains how to change it, and requires a tick-box
@@ -251,6 +251,29 @@ Out (do NOT change):
 (Implementer appends dated entries here: changes, test results,
 deviations.)
 
+- **2026-10-02 -- implemented §4-§6 (claude-sonnet-5-5, spec-implementer).**
+  Files: new `src/engine/display_check.py`; `src/ui/setup_page.py` (Display
+  card between Tracker and Calibration, `_format_display_warning()`,
+  `_refresh_display()` / `_apply_display_check()`, `display_acknowledged()`,
+  gate in `can_continue()` and `_missing_requirements()`, re-check on
+  `showEvent`, `QWindow.screenChanged`, `QScreen.geometryChanged` and
+  `QScreen.logicalDotsPerInchChanged`, screen signals reconnected when the
+  screen changes); `src/ui/dashboard_window.py` (passes
+  `display_acknowledged`); `src/app.py` (`display_acknowledged` kwarg,
+  `_record_display()` called from `_record_geometry()`, one `Display:` log
+  line); `src/data/schema.py` (five additive fields, `schema_version` not
+  bumped); `docs/specs/SPEC-gazepoint-analysis-export-parity.md` §10.3
+  pointer; new `tests/test_display_check.py` (14 tests, criteria 1-4).
+  Pytest: 260 passed, 1 failed (the known
+  `test_config_merges_task_over_default`). Notes: the OK line reuses the
+  existing `wtmhAlertSuccess` style; the signal names were verified by
+  PySide6 introspection (signatures `geometryChanged(QRect)`,
+  `logicalDotsPerInchChanged(double)`, `screenChanged(QScreen*)`), not via
+  qt-docs. `display_acknowledged()` returns False (not None) from the
+  dashboard on a standard display; None remains for the standalone path.
+  The ack box is also unticked whenever the display reads standard.
+  Not live-tested (per instructions). Deviations: none.
+
 ## 9. Implementer open questions
 
 (Implementer appends here, then stops and returns.)
@@ -273,3 +296,26 @@ deviations.)
   gate note extended. Rendered with wiremd (`clean`) and checked by a
   Playwright full-page screenshot. Next: the user looks at `setup.html`,
   then §7 step 3.
+
+- **2026-10-02, later — implemented, reviewed, live-validated.** The
+  `spec-implementer` (Sonnet 5.5) implemented §4–§6 with no §9 questions.
+  Hub review: the diff matches §4/§5. All §6 criteria are covered by
+  `tests/test_display_check.py` (14 tests). Hub pytest rerun: 261 passed,
+  1 failed (the known `test_config_merges_task_over_default`). The
+  implementer had reported 260 (a miscount). An empty stray file `None` in
+  the repo root was not recreated by pytest (it was likely from a shell
+  command) and was removed from the tree. Live (hub + user as subject, real
+  GP3HD, qt-mcp):
+  `QT_SCALE_FACTOR=1.5` → the amber warning read "1920×1080 at 150% scale",
+  and Continue's tooltip listed "acknowledge the non-standard display";
+  ticking the box enabled Continue. Session
+  `2026-10-02_DISP150_click_static_run1` recorded the five fields
+  (150, `standard: false`, `acknowledged: true`) and exactly one line
+  `Display: 1920x1080 at 150% (NON-STANDARD, acknowledged by operator).`
+  Unset → green line "1920×1080 at 100% scale — recommended standard", with
+  the checkbox hidden and Continue gated only by calibration. Session
+  `2026-10-02_DISP100_click_grid_run1` recorded `standard: true`,
+  `acknowledged: false` and `Display: 1920x1080 at 100% (standard).` The
+  user approved the card's look. The optional real-Windows-scale-change
+  check was not done.
+

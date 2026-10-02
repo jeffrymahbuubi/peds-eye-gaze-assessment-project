@@ -197,6 +197,16 @@ class SessionMetadata:
     screen_physical_width_mm: float | None = None
     screen_physical_height_mm: float | None = None
     viewing_distance_mm: float | None = None
+    # The display the task ran on (SPEC-display-standard-check.md S4.5):
+    # physical resolution, Windows scale, whether it is the recommended
+    # 1920x1080 at 100 %, and whether the operator acknowledged a
+    # non-standard one (None when not launched from the dashboard). Additive;
+    # ``schema_version`` deliberately not bumped, same reasoning as above.
+    display_width_px: int | None = None
+    display_height_px: int | None = None
+    display_scale_percent: int | None = None
+    display_standard: bool | None = None
+    display_nonstandard_acknowledged: bool | None = None
 
     def to_dict(self) -> dict[str, Any]:
         return {f.name: getattr(self, f.name) for f in fields(self)}

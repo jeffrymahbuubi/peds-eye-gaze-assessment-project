@@ -410,6 +410,7 @@ class DashboardWindow(QMainWindow):
                 assessment_date=self.setup_page.assessment_date(),
                 sex=self.setup_page.sex(),
                 notes=self.setup_page.notes(),
+                display_acknowledged=self.setup_page.display_acknowledged(),
             )
         except CalibrationFileError as exc:  # pragma: no cover - unreachable (no --calibration-file here)
             self.tasks_page.set_task_status(task_id, "Pending")

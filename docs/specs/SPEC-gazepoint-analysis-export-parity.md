@@ -458,6 +458,8 @@ but `metadata.json` keeps only `gazepoint_model`. Add:
   (Windows scale) and the display refresh rate. `screen_*_px` (physical,
   from Gazepoint) and `canvas_*` (Qt logical) are ambiguous without the
   scale.
+  (`device_pixel_ratio` is covered by `SPEC-display-standard-check.md` §4.5
+  as `display_scale_percent`.)
 
 ### 10.4 Deliberately not added
 
