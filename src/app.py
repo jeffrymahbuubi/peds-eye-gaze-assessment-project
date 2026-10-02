@@ -43,6 +43,7 @@ from .inputs.base import Pointer
 from .inputs.eye_input import DwellConfig, EyeInput, SmoothingConfig
 from .inputs.gazepoint_client import GazepointClient
 from .inputs.switch_input import SwitchInput
+from .tasks.base_task import gaze_geometry_from_screen, screen_size_mismatch
 from .ui.main_window import MainWindow, TaskRunView
 from .ui.settings_registry import apply_live_values_to_config, initial_live_values
 from .ui.task_settings_dialog import TaskSettingsDialog
@@ -555,6 +556,12 @@ class AssessmentApp:
         undershooting targets away from center (worst on whichever edge is
         furthest from the canvas's on-screen position).
 
+        The geometry comes from the canvas's ``QScreen`` in Qt logical
+        pixels, not from ``SCREEN_SIZE`` (physical): mixing the two broke
+        the cursor at 125/150 % display scale (SPEC-display-scaling-cursor-
+        accuracy.md D1). ``SCREEN_SIZE`` is only a sanity check, logged once
+        per device-info query (D2).
+
         A no-op (``BaseTask`` keeps its today-identical canvas-relative
         fallback) whenever ``SCREEN_SIZE`` wasn't reported -- replay mode,
         an unanswered query, or before any connect has happened.
@@ -562,10 +569,25 @@ class AssessmentApp:
         info = self.client.device_info
         if info is None or not info.screen_width or not info.screen_height:
             return
+        screen = self.canvas.screen()
+        if screen is None:
+            return
+        geo = screen.geometry()
+        if getattr(self, "_geometry_checked_info", None) is not info:
+            self._geometry_checked_info = info
+            dpr = screen.devicePixelRatio()
+            if screen_size_mismatch(geo.width(), geo.height(), dpr, info.screen_width, info.screen_height):
+                self.recorder.log(
+                    f"Gazepoint SCREEN_SIZE {info.screen_width}x{info.screen_height} does not match the "
+                    f"canvas's screen ({round(geo.width() * dpr)}x{round(geo.height() * dpr)} physical): "
+                    "the canvas may not be on the monitor Gazepoint Control tracks."
+                )
         canvas_origin = self.canvas.mapToGlobal(QPoint(0, 0))
-        offset_x = canvas_origin.x() - (info.screen_x or 0)
-        offset_y = canvas_origin.y() - (info.screen_y or 0)
-        self.task.set_gaze_geometry(info.screen_width, info.screen_height, offset_x, offset_y)
+        self.task.set_gaze_geometry(
+            *gaze_geometry_from_screen(
+                geo.x(), geo.y(), geo.width(), geo.height(), canvas_origin.x(), canvas_origin.y()
+            )
+        )
 
     def _record_geometry(self) -> None:
         """Persist the frames the recorded gaze maps onto (SPEC-gazepoint-

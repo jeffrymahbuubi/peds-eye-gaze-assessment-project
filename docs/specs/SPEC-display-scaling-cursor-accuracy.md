@@ -1,10 +1,10 @@
 ---
 name: SPEC-display-scaling-cursor-accuracy
 title: Gaze cursor accuracy degrades on 15"/13" 1920×1080 laptops
-status: root-cause-confirmed, fix brief approved (§8), not implemented
+status: implemented (§8), unit-tested and live-validated at simulated 150/125 % and real 100 %; real-laptop test pending
 created: 2026-09-30
 last_updated: 2026-10-02
-next_step: implement §8 via a Sonnet 5.5 subagent launched from the Opus hub session (single terminal, no worktree)
+next_step: user tests on a real 125/150 % laptop (needs a source checkout or a rebuilt exe); Tasks-page clipping at 150 % is a separate new item
 related:
   - SPEC-gui-audit-2026-09-10.md (item 5 introduced the regression)
   - SPEC-gazepoint-analysis-export-parity.md (§10 holds the device_pixel_ratio metadata backlog)
@@ -12,7 +12,11 @@ related:
 
 # SPEC-display-scaling-cursor-accuracy — Gaze cursor accuracy degrades on 15"/13" 1920×1080 laptops
 
-**Status: ROOT CAUSE CONFIRMED by user A/B test (evaluation only, no code
+**Status (2026-10-02): FIXED. §8 implemented, unit-tested, and
+live-validated with the real GP3HD at simulated 150 % and 125 % and at real
+100 % (see §8.6). Only the real-laptop test remains.**
+
+**Original status: ROOT CAUSE CONFIRMED by user A/B test (evaluation only, no code
 changed), 2026-09-30.** The user's hypothesis is **partly right**: the cursor
 calculation *does* behave differently per screen. The cause is not the
 physical screen size. It is the **Windows display scale** (100 % / 125 % /
@@ -24,7 +28,7 @@ scale otherwise. The 15" and 13.3" laptops set to 100 % became accurate
 handles scaling.
 
 **Created:** 2026-09-30
-**Last updated:** 2026-09-30
+**Last updated:** 2026-10-02
 
 ## 1. Origin / what was asked
 
@@ -358,6 +362,54 @@ Out (do NOT change):
 (Implementer appends dated entries here: changes, test results,
 deviations.)
 
+- **2026-10-02 -- implemented by
+  `claude-sonnet-5-5`.**
+  Files changed: `src/tasks/base_task.py` (new pure helpers
+  `gaze_geometry_from_screen()` and `screen_size_mismatch()`),
+  `src/app.py` (`_sync_gaze_geometry()` now a thin wrapper using
+  `self.canvas.screen().geometry()` in logical px; D2 mismatch log via
+  `self.recorder.log` once per device-info object, i.e. per connect/refresh,
+  tracked in `self._geometry_checked_info`; existing no-op when
+  `SCREEN_SIZE` is missing kept; also no-op if `canvas.screen()` is None),
+  new `tests/test_display_scaling.py` (24 tests: criteria 1-4, DPR
+  1.0/1.25/1.5 x 4 target positions, secondary monitor at x=1920, DPR 1.0
+  equals old output, mismatch tolerance, once-not-every-frame log).
+  pytest: 247 passed, 1 failed (223 baseline + 24 new) (only the known local-config
+  `test_config_merges_task_over_default`: 150 != 60).
+  Deviations: none. D3 (mixed-scale multi-monitor) is untested, as
+  planned. Live QT_SCALE_FACTOR validation (S8.5) not done (hub's job).
+  Note for `SPEC-gazepoint-analysis-export-parity.md` S10:
+  `_record_geometry()`'s `canvas_offset_*` mixes units the same way
+  (logical `mapToGlobal` minus physical `screen_x/y`); left unchanged per
+  S8.3.
+
+- **2026-10-02 -- hub review + live validation (Opus hub).** Diff and the
+  entry above checked against §8.4: all five criteria met. Hub reran pytest:
+  **247 passed, 1 failed** (the known `test_config_merges_task_over_default`).
+  Live, real GP3HD, the user as subject, dashboard maximized via qt-mcp,
+  calibrated fresh each run, corners + centre checked by the user:
+
+  | Run | Logical window | Session | Cursor (user) | D2 log |
+  |---|---|---|---|---|
+  | `QT_SCALE_FACTOR=1.5` | 1280×673 | `2026-10-02_DPI150_click_grid_run1` | on gaze | none (correct) |
+  | `QT_SCALE_FACTOR=1.25` | 1536×807 | `2026-10-02_DPI125_click_grid_run1` | on gaze | none (correct) |
+  | unset (100 %) | 1920×1009 | `2026-10-02_DPI100_click_grid_run1`/`run2` | on gaze | none (correct) |
+
+  At 100 % the canvas sits at +0,+75, the same layout as §4.2, so the 24"
+  is unchanged. Not tested: a real 125/150 % laptop (user, next) and D3
+  mixed-scale monitors.
+
+  Found during the live check, **not caused by this fix**:
+  (1) at 150 % the Tasks page does not fit 673 logical px: card titles are
+  clipped and the four card buttons lose their text. It fits at 125 %. A
+  real 150 % laptop shows the same, so it needs its own item.
+  (2) the `Geometry:` session-log line still mixes units ("monitor
+  1920x1080px" physical, "canvas 1000x621px" logical): the
+  `_record_geometry()` note above, for the export-parity SPEC §10.
+  (3) `DPI100_click_grid_run2` logged a 268.8 px calibration error marked
+  "valid", against 25-27 px in the other runs. That is the subject's
+  calibration, not this fix.
+
 ### 8.7 Implementer open questions
 
 (Implementer appends here, then stops and asks.)
@@ -464,3 +516,11 @@ deviations.)
   Sonnet 5.5 subagent launched from the Opus hub session instead. §8's
   content is unchanged. A background subagent cannot stop and ask, so for
   §8.7 it records the question and returns instead.
+
+- **2026-10-02, later -- §8 implemented, reviewed, live-validated,
+  committed.** The `spec-implementer` subagent (Sonnet 5.5) implemented D1-D4
+  with 24 new tests and no open questions. The hub reviewed it, reran pytest,
+  and ran the §8.5 live check with the user as subject: the cursor was on
+  gaze at simulated 150 % and 125 % and at real 100 % (table in §8.6). The
+  user approved the commit. Remaining: the real-laptop test, and a new item
+  for the 150 % Tasks-page clipping.

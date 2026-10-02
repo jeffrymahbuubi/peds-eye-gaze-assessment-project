@@ -24,6 +24,36 @@ from ..inputs.base import Pointer, circle_contains, norm_to_px
 from ..inputs.eye_input import DwellSelector
 
 
+def gaze_geometry_from_screen(
+    screen_x: float,
+    screen_y: float,
+    screen_w: float,
+    screen_h: float,
+    canvas_global_x: float,
+    canvas_global_y: float,
+) -> tuple[float, float, float, float]:
+    """Tracked-screen geometry for :meth:`BaseTask.set_gaze_geometry`
+    (SPEC-display-scaling-cursor-accuracy.md D1/D4).
+
+    All inputs are Qt *logical* global coordinates -- the hosting
+    ``QScreen.geometry()`` and ``canvas.mapToGlobal(0, 0)`` -- so scaled
+    displays (125 % / 150 %) stay in one unit system. Returns
+    ``(width, height, offset_x, offset_y)``, the offset being the canvas's
+    position relative to the screen's origin.
+    """
+    return screen_w, screen_h, canvas_global_x - screen_x, canvas_global_y - screen_y
+
+
+def screen_size_mismatch(
+    geo_w: float, geo_h: float, dpr: float, reported_w: float, reported_h: float, tol_px: float = 2.0
+) -> bool:
+    """True when the canvas's QScreen (logical size x ``dpr`` = physical)
+    differs from Gazepoint's ``SCREEN_SIZE`` by more than ``tol_px`` -- i.e.
+    the canvas is probably not on the monitor Gazepoint Control tracks
+    (SPEC-display-scaling-cursor-accuracy.md D2)."""
+    return abs(round(geo_w * dpr) - reported_w) > tol_px or abs(round(geo_h * dpr) - reported_h) > tol_px
+
+
 class Phase(Enum):
     READY = auto()
     SHOW_TARGET = auto()
