@@ -652,6 +652,10 @@ The 125% row is the one most likely to bite: Windows commonly defaults to 125% o
 
 ### 10.8.4 A second occurrence this decision does **not** cover
 
+> **RESOLVED — superseded by §10.10.4.** The scroll area was built inside
+> `OperatorPanel`, so the standalone `--task X --gui` `MainWindow` is fixed
+> too. Nothing below is open. Kept only as the record of the diagnosis.
+
 `showMaximized()` is on `DashboardWindow`. The standalone `python -m src.main --task X --gui` path builds a `MainWindow` instead, and with `configs/default.yaml`'s `app.fullscreen: false` it calls `self.resize(1280, 800)` (`main_window.py`) — a column of roughly **790 px** against the same 891 / 935 px, i.e. **permanently clipped, with no scrollbar and no maximize step to rescue it.** Setting `app.fullscreen: true` avoids it via `showFullScreen()`.
 
 Not fixed here because the report and the decision are both about the dashboard, and the standalone path is a developer entry point rather than the clinical one. Recorded so it is not mistaken for a new bug later.
@@ -745,8 +749,9 @@ reporting file existence.
 
 §10.7.3's "explicitly not decided" stands — an unmatched Subject ID still gets
 no warning louder than the badge reading "Task defaults". §10.7.4 stands too:
-profile *age* is still not surfaced as a staleness warning. §10.8.4's standalone
-`--task X --gui` `MainWindow` clipping is still not fixed, as decided.
+profile *age* is still not surfaced as a staleness warning. (§10.8.4's standalone
+`--task X --gui` `MainWindow` clipping was left unfixed here; §10.10.4 later
+fixed it.)
 
 ## 10.10 §10.8's fix did not work, and its measurement was wrong (2026-09-11)
 
@@ -1597,3 +1602,9 @@ server and dashboard processes killed, ports 4242/9142 confirmed closed,
 - **2026-09-17, later still — §10.12 approved and IMPLEMENTED; see §10.12.8.** Two departures from the design, both recorded there: the Load button's label is now derived from resolved state on every badge refresh (a handler-set confirmation would be wiped or go stale once the button stays enabled), and a selection whose file has vanished falls back to the newest version rather than to defaults; Subject-ID changes clear selections. Engine: per-task version folders with local-time timestamped filenames, `saved_at` stored with the local offset (fixing §10.12.2 at the source), newest-first listing by each file's own `saved_at` with filename tie-break, legacy flat file read as a version and never rewritten, same-second collision suffix. `load_settings_profile` keeps its signature (now "newest") so no caller changed. OperatorPanel says "Saved as 09/17 05:16" after a save instead of borrowing the "Loaded from…" wording. `metadata.json` gains `settings.profile_file`. **+9 tests; suite 200 collected, 199 passed, 1 pre-existing unrelated failure.** Live-validated via qt-mcp end to end **except the file-dialog pick itself, which the user drove by hand and confirmed** — my `SendKeys` automation typed into VS Code (the foreground window) instead of the dialog, and `AppActivate` by title did not find it; recorded in §10.12.8 so the next session activates the app window first or hands the dialog to a human. The reported greyed-out case is the row that matters and was observed directly: after an app restart with two versions on disk the badge read "Profile 09/17 · 8px error, 5pt" naming the newest file **and Load Settings was enabled**. "Next Run applies the chosen version" was not observed in the live app (the user closed it without running) and is covered by driving `_resolve_settings` offscreen against the two real files (older selected → 0.1; fresh → 0.3; carried wins; stale selection → newest). Cleanup done (HISTTEST artifacts, processes, ports, `local_state.json` untouched). **8 files dirty, §10.11+§10.12 together, not committed.**
 
 - **2026-09-17, end of session — `/spec-memory-audit`, then COMMITTED and PUSHED as `d26c8c7`** (§10.11 + §10.12 together, 8 files; `origin/main` was `0118357`). Audit: the three 2026-09-17 log entries are in order; every symbol §10.12.8 names resolves in `src/`; no `saved_at[:10]` or pre-§10.12 method names remain outside the docstring that explains the old bug; suite re-run at 200 collected / 199 passed / 1 pre-existing unrelated failure. One fix: §10.11.3 still described `set_task_load_settings_enabled` and its text-reset as current — annotated in place as superseded by §10.12.8, so a skimmer of §10.11 is not told the button works a way it no longer does. Memory: all real `[[links]]` resolve; the MAIN POINTER's index line had grown to 1,600 characters and was cut back to a pointer. No `Co-Authored-By` trailer, per this repo's `CLAUDE.md` (no `attribution.commit` set; none in history).
+
+- **2026-10-02 — §10.8.4 marked RESOLVED.** A SPEC scan listed the
+  standalone `--task X --gui` `MainWindow` clipping as still open, from
+  §10.8.4/§10.9.4's wording. It is not: §10.10.4 built the scroll area inside
+  `OperatorPanel`, which fixes that window too. §10.8.4 now opens with a
+  RESOLVED note and §10.9.4 points to §10.10.4, so the item is not re-raised.

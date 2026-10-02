@@ -15,11 +15,13 @@ the inset blends rather than reading as a second panel; §8.9's five-card
 recolour (still accurate as this round's starting point) is what it was
 built from. Committed and pushed to `origin/main` as `6583ed5` (the full S8
 line of work) and `05c229f` (an unrelated section-numbering fix to
-SPEC-scanning-task-design-port.md), via `/sparc:devops`. S4 (design system/
-palette) and S5 (window-structure notes) remain reference-only for
-everywhere else in `dev/`.
+SPEC-scanning-task-design-port.md), via `/sparc:devops`. S5 (window-
+structure notes) remains reference-only. **S4 (design system/palette) is
+RULED OUT by the user (2026-10-02): diki's colour palette and stylesheet
+will not be ported into `dev/`.** §4 stays only as a description of diki.
+It is not a backlog item.
 **Created:** 2026-09-07
-**Last updated:** 2026-09-08
+**Last updated:** 2026-10-02
 
 ## 1. Origin / what was asked
 
@@ -409,13 +411,10 @@ Not started — for the user to prioritize in a future session:
    (`background`, `target_default`, `cursor_color`, `progress_color`,
    `particle_color`) are confirmed from `ui/canvas.py`'s own `.get()` calls,
    but their actual configured values are not available in this copy.
-2. Decide whether to port the **stylesheet/palette only** (lowest-risk:
-   mostly self-contained in `dashboard.py:_STYLESHEET` + a few helper
-   functions), the **scene_spec() rendering mechanism** (moderate: touches
-   `BaseTask`, all four task subclasses, and `TaskCanvas`), or the **three-tab
-   window structure** (largest: reworks `dev/`'s current window/launch model)
-   — these are three independent, separately-portable pieces, not one
-   monolithic decision.
+2. ~~Decide which of three pieces to port.~~ Settled: the **scene_spec()
+   rendering mechanism** is ported (SPEC-scanning-task-design-port.md).
+   Porting the **stylesheet/palette** is **ruled out by the user
+   (2026-10-02)**. The three-tab window structure stays reference-only.
 3. If porting the drift/validation check (§6) is wanted, that's calibration
    *logic*, not UI — would need its own scoped design session against
    `dev/`'s own calibration engine, out of this audit's scope.
@@ -1196,3 +1195,9 @@ round's styling work.
   found in the working tree at the same time. `git log --oneline
   origin/main..HEAD` empty after the push — nothing from this line of work
   remains uncommitted.
+- **2026-10-02 — S4 palette/stylesheet port RULED OUT by the user.** The
+  user decided diki's colour palette and stylesheet will not be ported into
+  `dev/`, and asked for it to be removed as an open item so later sessions
+  do not re-raise it. Status header and §7 item 2 updated. Earlier Log
+  entries that call S4 "undone" were true when written and are superseded
+  by this entry.

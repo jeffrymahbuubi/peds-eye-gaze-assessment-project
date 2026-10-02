@@ -336,14 +336,13 @@ bug fix. **User chose: unify all four to `forest`.**
 - **All four tasks' `scene_spec()` rendering is now ported** — this item
   from the original pilot's open list is resolved; nothing left on the
   rendering-mechanism side of SPEC-diki-design-audit.md S3.
-- **diki's colour palette/QSS is still not ported** — explicitly out of
-  scope for this whole line of work (see S1). All three ported tasks render
+- **diki's colour palette/QSS: RULED OUT by the user (2026-10-02), will
+  not be ported.** It was out of scope for this line of work (see S1). All three ported tasks render
   their new shapes/cells/trail in the *existing* `dev/` theme colours
-  (`configs/themes/*.yaml`), not diki's maroon/cream system. This remains
-  the one undone piece of SPEC-diki-design-audit.md's three (task design /
-  design system / UX flow) — task design is now fully ported, design system
-  is not started, UX flow (the 3-window structure) was explicitly out of
-  scope for this line of work entirely.
+  (`configs/themes/*.yaml`), not diki's maroon/cream system, and that is
+  final. Of SPEC-diki-design-audit.md's three pieces (task design / design
+  system / UX flow), task design is fully ported, design system is ruled
+  out, and UX flow (the 3-window structure) was out of scope.
 - The QA-only slow fixture used for `scanning`'s live inspection
   (`gaze_replay_scanning_slow.jsonl`) lives only in that session's
   scratchpad, not the repo — never meant to be committed.
