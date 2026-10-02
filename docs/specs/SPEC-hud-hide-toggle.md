@@ -1,7 +1,7 @@
 ---
 name: SPEC-hud-hide-toggle
 title: Hide the operator HUD during a task (canvas expands)
-status: complete — implemented, reviewed, live-validated with the real GP3HD, committed
+status: complete — implemented, reviewed, live-validated with the real GP3HD, committed as 34d55da
 created: 2026-10-02
 last_updated: 2026-10-02
 next_step: none
@@ -173,7 +173,7 @@ Out (do NOT change):
    with the button, show with H, hide with H; confirm the cursor stays on
    gaze and hits still register after the resize; run a second task in the
    same sitting and confirm it starts hidden; check events/log/metadata.
-6. **DONE 2026-10-02 —** Commit, push, update memory.
+6. **DONE 2026-10-02 —** Commit, push, update memory (`34d55da`).
 
 ## 8. Impl log
 
