@@ -225,7 +225,7 @@ Out (do NOT change):
 5. Full pytest: 247 + new tests pass, with only the known local-config
    failure `test_config_merges_task_over_default`.
 
-## 7. Plan for the next session
+## 7. Plan
 
 1. ~~**Wireframe (hub, mandatory first)**~~ **DONE 2026-10-02:**
    `docs/wireframes/setup.md` / `setup.html` now has the Display card in
@@ -234,17 +234,17 @@ Out (do NOT change):
 2. ~~Commit the wireframe + this SPEC~~ **DONE 2026-10-02.** If the user's
    look at `setup.html` changes the wording, update §4.3 and the wireframe
    before step 3.
-3. **Implement (spec-implementer subagent, Sonnet 5.5):** §4–§6, run pytest,
-   append the §8 Impl log; ambiguities go to §9 and it returns. No commit.
-4. **Review (hub):** diff + Impl log against §6, rerun pytest.
-5. **Live check (hub + user, qt-mcp, maximized):** unset → green OK line,
+3. ~~**Implement (spec-implementer subagent, Sonnet 5.5)**~~ **DONE 2026-10-02**
+   (§8; no §9 questions).
+4. ~~**Review (hub)**~~ **DONE 2026-10-02** (261 passed + the known failure; §10).
+5. ~~**Live check**~~ **DONE 2026-10-02 (§10; optional real-scale-change check not done):** unset → green OK line,
    no checkbox, Continue gated only by the usual inputs;
    `QT_SCALE_FACTOR=1.5` → warning reads 1920×1080 at 150 %, Continue
    disabled until ticked; run a short task and confirm the five
    `metadata.json` fields and the `Display:` log line. Optional: change
    the real Windows scale while the app is open and confirm the card
    updates and the box unticks.
-6. Commit (hub, explicit paths), push, update memory.
+6. ~~Commit, push, update memory~~ **DONE 2026-10-02: `9412a03`.**
 
 ## 8. Impl log
 
