@@ -1,10 +1,10 @@
 ---
 name: SPEC-display-scaling-cursor-accuracy
 title: Gaze cursor accuracy degrades on 15"/13" 1920×1080 laptops
-status: root-cause-confirmed, fix not implemented
+status: root-cause-confirmed, fix brief approved (§8), not implemented
 created: 2026-09-30
-last_updated: 2026-10-01
-next_step: implement §6 fix (logical-px geometry in _sync_gaze_geometry via QScreen / devicePixelRatio)
+last_updated: 2026-10-02
+next_step: implement §8 in worktree dpi-cursor-fix
 related:
   - SPEC-gui-audit-2026-09-10.md (item 5 introduced the regression)
   - SPEC-gazepoint-analysis-export-parity.md (§10 holds the device_pixel_ratio metadata backlog)
@@ -50,7 +50,7 @@ cause, not implement**.
 
 | Candidate cause | Verdict | Size of effect |
 |---|---|---|
-| **A. Windows display scaling × mixed pixel units in `_sync_gaze_geometry()`** | **Primary cause (high confidence, one assumption unconfirmed, see §5)** | 0 mm at 100 %; **43 mm** (125 %) / **72 mm** (150 %) at screen centre for *perfect* gaze. Cursor lands off-canvas toward the right and bottom |
+| **A. Windows display scaling × mixed pixel units in `_sync_gaze_geometry()`** | **Primary cause. Confirmed by the user's 100 % A/B test (§5 step 4)** | 0 mm at 100 %; **43 mm** (125 %) / **72 mm** (150 %) at screen centre for *perfect* gaze. Cursor lands off-canvas toward the right and bottom |
 | B. Same angular device error → more pixels on a denser panel | Real but minor, and unavoidable | ≤ 11 mm on the glass on every screen (0.5–1° at 65 cm). Smaller than the target hitbox everywhere |
 | C. Physical screen size entering the cursor formula | **No.** Nothing in the pointer path reads mm, DPI or diagonal | 0 |
 | D. Gazepoint's own tracking degrading | Not supported. `FPOGX/Y` are fractions of the tracked screen and do not depend on the scale | 0 (see §5 for how to confirm) |
@@ -168,7 +168,7 @@ points toward the bottom-right. Scaling also partly *offsets* B: at 150 %,
 a 130-logical-px hitbox is 195 physical px ≈ 30 mm, close to the 24"'s
 36 mm.
 
-## 5. Unconfirmed assumption and how to settle it (no code needed)
+## 5. Assumption and how to settle it (no code needed) — settled 2026-09-30 by step 4
 
 The whole of §3/§4.3 depends on **Gazepoint Control reporting `SCREEN_SIZE`
 as 1920×1080 physical pixels on a 125/150 % display.** If Control were
@@ -197,7 +197,7 @@ Also worth recording for each test: whether calibration was re-run on that
 screen (Control calibrates the screen it is displayed on). Reusing a
 calibration across displays is a separate confounder.
 
-## 6. Fix direction (not implemented, for the follow-up task)
+## 6. Fix direction (superseded by the decisions in §8)
 
 - Put both sides in one unit system. The simplest option is to convert
   `SCREEN_SIZE` and `screen_x/y` to logical px with the tracked screen's
@@ -231,6 +231,7 @@ usual approaches:
 | **Require 100 % scaling** | PsychoPy: "people will need to ensure desktop scaling is at 100 %" (GitHub psychopy#4119). A Tobii gaze-to-mouse project lists the same as a known issue: "Window's scale setting must be set at 1:1 or 100 %, otherwise gaze coordinates will be offset" (BenLeech/tobii-eye-mouse-control README) | No. Pushed onto the operator |
 | **Fraction × the app's own window size, window full-screen** | `resources/diki` (colleague's app): `norm_to_px(pointer.x, pointer.y, self.screen_w, self.screen_h)` with `screen_w/h` = its canvas's own Qt size (`diki/tasks/base_task.py:149`, `diki/app.py:238`), canvas shown `showFullScreen()` (`diki/ui/main_window.py:34`). Both factors are logical, so the scale cancels | **Yes**, but only while the canvas covers the whole tracked screen |
 | **The platform owns the mapping (system-wide display setup, gaze delivered as OS screen coordinates or as the Windows mouse cursor)** | The Tobii Dynavox stack (PCEye, I-Series): a one-time *Display setup* in Tobii Dynavox Eye Tracking settings picks the monitor the tracker is mounted on and aligns it to the screen (help.tobii.com, *Display setup*). Apps on top (Look to Learn, EyeFX, Gaze Viewer, TD Snap, Communicator) consume gaze from the Tobii engine or via Windows Control's gaze-driven mouse. The older EyeX SDK documents its gaze point "as pixel coordinates on the screen" (Tobii EyeX Developer's Guide C/C++). Windows itself delivers cursor/screen coordinates in each app's own DPI context | **Yes.** The individual app never does the fraction-to-pixels step, so it cannot get it wrong. Gazepoint's analogue is Control's own *Gaze Pointer* (drives the Windows cursor) |
+| **All physical pixels, end to end** | **OptiKey** (open-source Windows eye-gaze keyboard/mouse, Gazepoint supported): gaze fraction × primary-screen size converted to physical px (`Static/Graphics.cs`: `SystemParameters.PrimaryScreenWidth × DpiX/96`), keys hit-tested with WPF `PointToScreen` (physical px). An OptiKey plugin ADR (yuanweize/OptiKey-ET5-Plugin, ADR-007, 2026) names this SPEC's exact symptom: "At 125% or 150% DPI, points drift or key hit detection misses". Primary monitor only | **Yes** |
 | **Fraction × the tracked screen's geometry in one consistent unit** | What a DPI-aware app does. Either everything logical (the OS/toolkit's screen geometry) or everything physical (declare per-monitor DPI awareness, `SetProcessDpiAwareness(2)`, and use physical coordinates throughout) | **Yes**, and it also handles a canvas that is not full-screen |
 
 **Where we sit:** this app used diki's approach until
@@ -254,16 +255,114 @@ factor**, although Qt exposes it (`QScreen.devicePixelRatio()`, 1.0 / 1.25
 since the fraction already accounts for it. It only matters for reporting
 degrees of visual angle.
 
-## 7. Open questions
+## 7. Open questions (re-triaged 2026-10-01; all closed 2026-10-02)
 
-- Actual Windows scale of the 15" and 13" laptops (§5 step 1).
-- Exact diagonals: 15" vs 15.6", 13" vs 13.3". This only changes the mm
-  column, not the verdict.
-- Was calibration re-run on each laptop screen?
-- Which cursor was judged: ours on the task canvas (assumed), or Control's
-  Gaze Pointer?
+Evaluation questions. **The user closed all four as moot on 2026-10-02**:
+none changes the fix, and the 100 % A/B test already proved the cause.
 
-## 8. Log
+- ~~Actual Windows scale of the 15" and 13" laptops (§5 step 1).~~
+  **Superseded** by the user's 100 % A/B test (§5 step 4, §9 second
+  entry), which settled §5's assumption in practice. The original scale
+  values were never read and are no longer needed.
+- Exact diagonals: 15" vs 15.6", 13" vs 13.3". **Unanswered, cosmetic**:
+  only changes §4's mm columns.
+- Was calibration re-run on each laptop screen? **Unanswered.** Moot for the
+  verdict (100 % scale alone fixed it), but record it in future tests.
+- Which cursor was judged: ours on the task canvas, or Control's Gaze
+  Pointer? **Assumed ours**, consistent with the 100 % fix (Control's pointer
+  would not be affected by our code).
+
+Implementation questions are **decided in §8** (D1–D4). Anything new the
+implementer hits goes in §8.7, not here.
+
+## 8. Implementation brief (D1–D4 chosen by the user 2026-10-02)
+
+### 8.1 Goal
+
+Make the drawn cursor and hit-testing correct at any Windows display scale
+(100 / 125 / 150 %), keeping gui-audit item 5's full-screen-geometry
+behaviour (canvas not full-screen: operator column + header).
+
+### 8.2 Decisions (the user chose these 2026-10-02; do not re-open)
+
+- **D1 — Source of the tracked-screen geometry: Qt, not `SCREEN_SIZE`.**
+  Use the `QScreen` that hosts the canvas (`self.canvas.screen()`): its
+  `geometry()` gives width, height and origin in Qt's **logical** global
+  coordinates, the same space `mapToGlobal` returns. So:
+  `gaze_w, gaze_h = geo.width(), geo.height()`;
+  `offset = canvas.mapToGlobal(0,0) − geo.topLeft()`.
+  Rejected: dividing `SCREEN_SIZE`/`screen_x/y` by `devicePixelRatio()`.
+  It is equivalent on one monitor, but Gazepoint's `screen_x/y` are
+  physical virtual-desktop coordinates, and Qt's logical global layout
+  with mixed per-monitor scales is not a single division of those.
+  The user chose D1 after the §6.1 comparison, including the OptiKey
+  row: every scale-robust app keeps **one** pixel unit end to end.
+  OptiKey uses all-physical; D1 is the all-logical mirror of that.
+- **D2 — `SCREEN_SIZE` is only a sanity check.** If
+  `round(geo.width() × dpr) ≠ screen_width` or the same for height
+  (tolerance ±2 px), log **once per connect** via `self.recorder.log(...)`:
+  the canvas is probably not on the monitor Gazepoint Control tracks.
+  Still use the QScreen geometry. The existing no-op when `SCREEN_SIZE` is
+  missing (replay, unanswered query) stays unchanged.
+- **D3 — Mixed-scale multi-monitor is covered by D1** (all-logical, one
+  screen). No extra work. Not live-tested; note it as untested in the
+  Impl log.
+- **D4 — Factor the arithmetic into a pure function** so it is unit-testable
+  without a real `QScreen`, e.g. in `src/tasks/base_task.py` or a small
+  helper module:
+  `gaze_geometry_from_screen(screen_x, screen_y, screen_w, screen_h,
+  canvas_global_x, canvas_global_y) -> (w, h, offset_x, offset_y)`.
+  `_sync_gaze_geometry()` becomes a thin Qt wrapper around it.
+
+### 8.3 Scope
+
+In: `src/app.py::_sync_gaze_geometry()`, the new helper, new tests under
+`tests/`.
+Out (do NOT change):
+- `_record_geometry()` / `metadata.json`. Its `screen_*_px` stays physical
+  (correct for saccade px/degrees). Adding `device_pixel_ratio` is
+  `SPEC-gazepoint-analysis-export-parity.md` §10. Note in the Impl log
+  that its `canvas_offset_*` mixes units the same way, for that SPEC.
+- `BaseTask.pointer_to_canvas_px` / `set_gaze_geometry` signatures,
+  `calibration.py`, the replay path.
+
+### 8.4 Acceptance criteria
+
+1. Unit test: physical 1920×1080 at DPR 1.0 / 1.25 / 1.5 (logical
+   1920×1080 / 1536×864 / 1280×720), the §4.2 layout scaled (canvas at
+   logical +0,+75, operator column 280 logical px). A perfect gaze sample
+   aimed at a target centre at (0.15,0.15), (0.5,0.5), (0.85,0.5),
+   (0.85,0.85) of the canvas lands within 1 logical px of it, i.e. a hit
+   at every DPR (the §4.3 table becomes all zeros).
+2. Unit test: a secondary monitor with a non-zero origin (e.g. logical
+   x = 1920) gives the same result.
+3. DPR 1.0 output is identical to today's (no regression on the 24").
+4. D2's mismatch warning fires once for a mismatched size, not every frame.
+5. Full pytest: 223 + new tests passed, plus only the known local-config
+   failure `test_config_merges_task_over_default`.
+
+### 8.5 Validation
+
+- pytest (above).
+- **Live on this PC (24" at 100 %), simulating a scaled laptop:** launch
+  the dashboard with `$env:QT_SCALE_FACTOR = "1.5"` (then `"1.25"`). Qt
+  goes logical (§4.1) while Gazepoint `SCREEN_SIZE` stays 1920×1080
+  physical, which is exactly the laptop condition. Real GP3HD + real
+  subject, maximize via qt-mcp first. Look at the four corners and the
+  centre: the cursor should sit on gaze, not drift bottom-right. Then
+  repeat without `QT_SCALE_FACTOR` (regression check).
+- Real 125/150 % laptop: user, after merge.
+
+### 8.6 Impl log
+
+(Implementer appends dated entries here: changes, test results,
+deviations.)
+
+### 8.7 Implementer open questions
+
+(Implementer appends here, then stops and asks.)
+
+## 9. Log
 
 - **2026-09-30 — evaluated, via `/sparc:orchestrator`; no code changed.**
   Traced the pointer path (`app.py:551-568` → `base_task.py:142-187`).
@@ -333,3 +432,25 @@ degrees of visual angle.
 
 - **2026-10-01 — YAML frontmatter added** (name, status, dates, next step,
   related SPECs). No content change; still no code changed.
+
+- **2026-10-01, later — §7 re-triaged, §8 implementation brief added; Log
+  renumbered §8 → §9.** The user noticed §7 still listed the evaluation
+  questions as open while the questions that block implementation (which
+  §6 option; mixed-scale monitors) were not listed anywhere. §7 now marks
+  each question superseded/unanswered/assumed; §8 records decisions D1–D4
+  (QScreen logical geometry, `SCREEN_SIZE` as a once-per-connect sanity
+  check, pure helper for tests), scope, acceptance criteria and a
+  `QT_SCALE_FACTOR` live check that reproduces the laptop condition on the
+  24". Stale "unconfirmed" wording in §2/§5/§6 headings updated.
+
+- **2026-10-02 — user decisions recorded; §8 approved for handoff.** Asked
+  the user's preferences. D1 (Qt screen geometry, all-logical) chosen after
+  a web comparison of other gaze software, added to §6.1: PsychoPy requires
+  100 % scaling; **OptiKey** keeps everything in physical px (new row);
+  Tobii Dynavox maps platform-side; diki is full-screen-logical. None
+  requires a specific resolution. Gazepoint's own guide (blog "Understanding
+  Screen Coordinates in Gazepoint Data", 2026-04-30) only gives
+  `pixel = FPOGX × screen width` and does not mention scaling. D2 (log once
+  per connect), §8.5 validation (simulate with `QT_SCALE_FACTOR` on the
+  24"), and closing all of §7 as moot also chosen by the user. Committed
+  and handed off to worktree `dpi-cursor-fix`.
