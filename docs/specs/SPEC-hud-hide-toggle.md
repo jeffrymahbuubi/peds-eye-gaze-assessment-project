@@ -1,10 +1,10 @@
 ---
 name: SPEC-hud-hide-toggle
 title: Hide the operator HUD during a task (canvas expands)
-status: design approved by the user (§2, §4 incl. hub-chosen details); wireframe not done; not implemented
+status: design + wireframe approved by the user; not implemented
 created: 2026-10-02
 last_updated: 2026-10-02
-next_step: hub wireframes the run view (§7 step 1), user looks, then spec-implementer (§7 step 3)
+next_step: spec-implementer implements §4–§6 (§7 step 3)
 related:
   - SPEC-diki-design-audit.md (§8.10: OperatorPanel = HUD cards in its own side column; canvas-overlay approach rejected §8.9)
   - SPEC-live-settings-panel.md (§10.3 per-sitting carry pattern in DashboardWindow)
@@ -13,7 +13,7 @@ related:
 
 # SPEC-hud-hide-toggle — hide the operator HUD during a task
 
-**Status: design approved by the user 2026-10-02 (§2, plus the hub-chosen H key and §4.4 recording); wireframe next; not implemented.**
+**Status: design approved by the user 2026-10-02 (§2, plus the hub-chosen H key and §4.4 recording); wireframe approved (`docs/wireframes/run.md`); not implemented.**
 The doctor can hide the operator side column (the HUD) at any time during a
 task, so it does not distract the child, and bring it back the same way. When
 hidden, the task canvas expands into the freed space.
@@ -162,9 +162,9 @@ Out (do NOT change):
 
 ## 7. Plan
 
-1. **Wireframe (hub, mandatory first):** the run view, shown vs hidden
+1. **DONE 2026-10-02 — Wireframe (hub, mandatory first):** `docs/wireframes/run.md`/`.html`; the run view, shown vs hidden
    (Controls card with "Hide HUD"; full-width canvas). The user takes a look.
-2. Commit this SPEC + wireframe (hub). (The display-check prerequisite is
+2. **DONE 2026-10-02 —** Commit this SPEC + wireframe (hub). (The display-check prerequisite is
    met: `9412a03`.)
 3. Implement (spec-implementer, Sonnet 5.5): §4–§6, pytest, §8 Impl log;
    ambiguities go to §9. No commit.
@@ -201,3 +201,9 @@ Out (do NOT change):
   the user looks at it, then the spec-implementer runs in the same session.
   The display-check prerequisite is met (`9412a03`).
 
+- **2026-10-02, later — wireframe approved.** The hub drew the run view in
+  `docs/wireframes/run.md` (+ rendered `run.html`): state A (HUD shown,
+  "Hide HUD" under End task in the Controls card) and state B (HUD hidden,
+  full-width canvas, nothing drawn in its place), as scaled block diagrams
+  plus the §4 behaviour notes. The user approved it as drawn ("approved, go
+  ahead"). Plan steps 1–2 done; next is step 3 (spec-implementer).
