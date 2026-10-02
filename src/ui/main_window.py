@@ -14,6 +14,8 @@ from __future__ import annotations
 
 from typing import Any
 
+from PySide6.QtCore import Qt, Signal
+from PySide6.QtGui import QKeySequence, QShortcut
 from PySide6.QtWidgets import QHBoxLayout, QMainWindow, QWidget
 
 from .canvas import TaskCanvas
@@ -21,6 +23,10 @@ from .operator_panel import OperatorPanel
 
 
 class TaskRunView(QWidget):
+    # Emitted only when the HUD's visibility actually changes (SPEC-hud-hide-
+    # toggle.md S4.1), so listeners can count it as one operator toggle.
+    hud_hidden_changed = Signal(bool)
+
     def __init__(
         self,
         theme: dict | None = None,
@@ -51,6 +57,31 @@ class TaskRunView(QWidget):
 
         layout.addWidget(self.canvas, stretch=1)
         layout.addWidget(self.operator_panel)
+
+        # H toggles the HUD both ways (SPEC-hud-hide-toggle.md S4.2). A
+        # shortcut on this view, not the canvas keyPressEvent patch, so it
+        # works with focus on the canvas or on any panel control.
+        self.hud_shortcut = QShortcut(QKeySequence(Qt.Key.Key_H), self)
+        self.hud_shortcut.setContext(Qt.ShortcutContext.WidgetWithChildrenShortcut)
+        self.hud_shortcut.activated.connect(self.toggle_hud)
+        self.operator_panel.hide_requested.connect(lambda: self.set_hud_hidden(True))
+
+    @property
+    def hud_hidden(self) -> bool:
+        return not self.operator_panel.isVisibleTo(self)
+
+    def set_hud_hidden(self, hidden: bool) -> None:
+        """Hide/show the operator column; the canvas takes (or gives back)
+        its width through the layout. Focus returns to the canvas so Space
+        and Esc keep working once the clicked button is gone."""
+        changed = hidden != self.hud_hidden
+        self.operator_panel.setVisible(not hidden)
+        self.canvas.setFocus()
+        if changed:
+            self.hud_hidden_changed.emit(hidden)
+
+    def toggle_hud(self) -> None:
+        self.set_hud_hidden(not self.hud_hidden)
 
 
 class MainWindow(QMainWindow):

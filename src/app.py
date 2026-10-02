@@ -125,6 +125,7 @@ class AssessmentApp:
         sex: str = "",
         notes: str = "",
         display_acknowledged: bool | None = None,
+        hud_hidden: bool = False,
     ) -> None:
         """Build one task run.
 
@@ -301,6 +302,9 @@ class AssessmentApp:
             self.view = self.window.view
         self.canvas = self.view.canvas
         self.operator_panel = self.view.operator_panel
+        # Applied before the first tick and before the change signal is
+        # connected below, so the starting state is not counted as a toggle.
+        self.view.set_hud_hidden(hud_hidden)
         self.canvas.show_cursor = bool(lv["dwell.visual_cursor"])
         self.canvas.show_progress_ring = bool(lv["dwell.progress_ring"])
         self.canvas.show_instant_feedback = bool(lv["dwell.instant_feedback"])
@@ -315,6 +319,7 @@ class AssessmentApp:
             sex=sex,
             notes=notes,
             display_nonstandard_acknowledged=display_acknowledged,
+            hud_hidden_at_start=bool(hud_hidden),
             # Provenance (SPEC-live-settings-panel.md S10.4). Before settings
             # persisted, a run was reproducible because every run started from
             # the same YAML defaults; S10.3 removes that guarantee, so the
@@ -355,6 +360,9 @@ class AssessmentApp:
         # _record_geometry); not at construction, when a widget still
         # reports 0x0 or its pre-layout default.
         self._geometry_recorded = False
+        # Last canvas size seen by _tick (None until the first tick sets the
+        # baseline); a change after that is a CANVAS_RESIZED event.
+        self._last_canvas_size: tuple[int, int] | None = None
 
         # Human-readable session narrative (SPEC-result-logic.md §8.3's
         # Session Log panel) -- connect()/calibrate() above both had to run
@@ -391,6 +399,7 @@ class AssessmentApp:
 
         self._paused = False
         self._wire_operator()
+        self.view.hud_hidden_changed.connect(self._on_hud_hidden_changed)
         self._install_key_handler()
 
         self._fps_frames = 0
@@ -505,6 +514,32 @@ class AssessmentApp:
     def _skip_trial(self) -> None:
         # Force a timeout on the current trial by rewinding its start time.
         self.task._trial_start_ns = 0  # noqa: SLF001 - deliberate operator override
+
+    def _on_hud_hidden_changed(self, hidden: bool) -> None:
+        """Record one operator HUD toggle (SPEC-hud-hide-toggle.md S4.4)."""
+        index = self.task._trial_index  # noqa: SLF001 - read-only, like _skip_trial
+        trial = index if index >= 0 else None
+        self.metadata.hud_toggle_count += 1
+        self.recorder.record_event("HUD_TOGGLED", time.time_ns(), hidden=hidden, trial=trial)
+        where = f" (trial {index + 1})" if trial is not None else ""
+        self.recorder.log(f"HUD {'hidden' if hidden else 'shown'} by operator{where}.")
+
+    def _check_canvas_resized(self, t_ns: int) -> None:
+        """Emit CANVAS_RESIZED when the canvas size differs from the last tick.
+
+        Done here, not in the toggle handler: the new size only exists after
+        Qt's layout pass. Same units as _record_geometry()'s ``canvas_*``.
+        """
+        size = (int(self.canvas.width()), int(self.canvas.height()))
+        if size[0] <= 0 or size[1] <= 0:
+            return
+        if self._last_canvas_size is None:
+            self._last_canvas_size = size
+            return
+        if size != self._last_canvas_size:
+            self._last_canvas_size = size
+            self.recorder.record_event("CANVAS_RESIZED", t_ns, canvas_w=size[0], canvas_h=size[1])
+            self.recorder.log(f"Canvas resized to {size[0]}x{size[1]}.")
 
     def _apply_setting(self, key: str, value: object) -> None:
         """Apply one live-settings-panel change to the object that actually
@@ -675,6 +710,7 @@ class AssessmentApp:
         self._sync_gaze_geometry()
         if not self._geometry_recorded:
             self._record_geometry()
+        self._check_canvas_resized(t_ns)
         if self._save_all_gaze:
             # Every raw <REC> since the last frame, at device rate -- the
             # per-frame gaze_stream.csv sample below is a different, coarser

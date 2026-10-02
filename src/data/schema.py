@@ -207,6 +207,12 @@ class SessionMetadata:
     display_scale_percent: int | None = None
     display_standard: bool | None = None
     display_nonstandard_acknowledged: bool | None = None
+    # Operator-HUD hiding (SPEC-hud-hide-toggle.md S4.4). The canvas widens
+    # when the HUD is hidden, so ``canvas_*_px`` above is the size at the FIRST
+    # TICK only; later size changes are CANVAS_RESIZED events. Additive;
+    # ``schema_version`` deliberately not bumped, same reasoning as above.
+    hud_hidden_at_start: bool | None = None
+    hud_toggle_count: int = 0
 
     def to_dict(self) -> dict[str, Any]:
         return {f.name: getattr(self, f.name) for f in fields(self)}

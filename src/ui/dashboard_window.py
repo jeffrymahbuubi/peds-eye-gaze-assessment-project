@@ -89,6 +89,11 @@ class DashboardWindow(QMainWindow):
         # exactly what was in effect, not a re-derivation. In-memory only;
         # the saved profile is what survives the app closing.
         self._task_live_overrides: dict[str, dict] = {}
+        # Whether the operator HUD is hidden, carried across runs in this
+        # sitting (SPEC-hud-hide-toggle.md S4.3). In-memory only: a new
+        # DashboardWindow always starts shown; never written to local_state
+        # or settings profiles.
+        self._hud_hidden = False
         # The saved version the operator explicitly chose via Load Settings
         # (S10.12), per task, for the next run only -- cleared when that run
         # finishes, because its ending values then become the carried entry
@@ -411,12 +416,14 @@ class DashboardWindow(QMainWindow):
                 sex=self.setup_page.sex(),
                 notes=self.setup_page.notes(),
                 display_acknowledged=self.setup_page.display_acknowledged(),
+                hud_hidden=self._hud_hidden,
             )
         except CalibrationFileError as exc:  # pragma: no cover - unreachable (no --calibration-file here)
             self.tasks_page.set_task_status(task_id, "Pending")
             print(f"Could not start task: {exc}")
             return
 
+        assessment.view.hud_hidden_changed.connect(self._on_hud_hidden_changed)
         self._active_assessment = assessment
         self._active_task_id = task_id
         self.tasks_page.set_task_status(task_id, "Running")
@@ -427,6 +434,9 @@ class DashboardWindow(QMainWindow):
         self.stack.addWidget(assessment.view)  # index _RUN_INDEX
         self.stack.setCurrentWidget(assessment.view)
         assessment.view.canvas.setFocus()
+
+    def _on_hud_hidden_changed(self, hidden: bool) -> None:
+        self._hud_hidden = hidden
 
     def _on_task_finished(self) -> None:
         task_id = self._active_task_id

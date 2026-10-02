@@ -158,6 +158,8 @@ class OperatorPanel(QWidget):
     pause_toggled = Signal(bool)
     skip_requested = Signal()
     end_requested = Signal()
+    # "Hide HUD" button (SPEC-hud-hide-toggle.md S4.2); the H key shows it again.
+    hide_requested = Signal()
     # Fired for every live setting the operator changes: (dotted key, new value).
     # Replaces the old one-signal-per-field pattern (a single
     # ``dwell_threshold_changed`` signal) so adding a new live-tunable field
@@ -276,6 +278,11 @@ class OperatorPanel(QWidget):
         self.end_button.setObjectName("danger")  # diki's stop_button (ui/dashboard.py:787)
         self.end_button.clicked.connect(self.end_requested.emit)
         controls_layout.addWidget(self.end_button)
+
+        self.hide_hud_button = QPushButton("Hide HUD")
+        self.hide_hud_button.setToolTip("Press H to show it again.")
+        self.hide_hud_button.clicked.connect(self.hide_requested.emit)
+        controls_layout.addWidget(self.hide_hud_button)
         layout.addWidget(controls_card)
 
         # -- Settings + Pacing card -------------------------------------------

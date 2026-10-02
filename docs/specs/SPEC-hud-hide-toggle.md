@@ -1,10 +1,10 @@
 ---
 name: SPEC-hud-hide-toggle
 title: Hide the operator HUD during a task (canvas expands)
-status: design + wireframe approved by the user; not implemented
+status: complete — implemented, reviewed, live-validated with the real GP3HD, committed
 created: 2026-10-02
 last_updated: 2026-10-02
-next_step: spec-implementer implements §4–§6 (§7 step 3)
+next_step: none
 related:
   - SPEC-diki-design-audit.md (§8.10: OperatorPanel = HUD cards in its own side column; canvas-overlay approach rejected §8.9)
   - SPEC-live-settings-panel.md (§10.3 per-sitting carry pattern in DashboardWindow)
@@ -13,7 +13,7 @@ related:
 
 # SPEC-hud-hide-toggle — hide the operator HUD during a task
 
-**Status: design approved by the user 2026-10-02 (§2, plus the hub-chosen H key and §4.4 recording); wireframe approved (`docs/wireframes/run.md`); not implemented.**
+**Status: design approved by the user 2026-10-02 (§2, plus the hub-chosen H key and §4.4 recording); wireframe approved (`docs/wireframes/run.md`); implemented and live-validated 2026-10-02.**
 The doctor can hide the operator side column (the HUD) at any time during a
 task, so it does not distract the child, and bring it back the same way. When
 hidden, the task canvas expands into the freed space.
@@ -166,18 +166,54 @@ Out (do NOT change):
    (Controls card with "Hide HUD"; full-width canvas). The user takes a look.
 2. **DONE 2026-10-02 —** Commit this SPEC + wireframe (hub). (The display-check prerequisite is
    met: `9412a03`.)
-3. Implement (spec-implementer, Sonnet 5.5): §4–§6, pytest, §8 Impl log;
+3. **DONE 2026-10-02 —** Implement (spec-implementer, Sonnet 5.5): §4–§6, pytest, §8 Impl log;
    ambiguities go to §9. No commit.
-4. Review (hub): diff + Impl log vs §6, rerun pytest.
-5. Live check (hub + user, qt-mcp, maximized, real GP3HD): hide mid-trial
+4. **DONE 2026-10-02 —** Review (hub): diff + Impl log vs §6, rerun pytest.
+5. **DONE 2026-10-02 —** Live check (hub + user, qt-mcp, maximized, real GP3HD): hide mid-trial
    with the button, show with H, hide with H; confirm the cursor stays on
    gaze and hits still register after the resize; run a second task in the
    same sitting and confirm it starts hidden; check events/log/metadata.
-6. Commit, push, update memory.
+6. **DONE 2026-10-02 —** Commit, push, update memory.
 
 ## 8. Impl log
 
-(Implementer appends dated entries here.)
+- **2026-10-02 — implemented (claude-sonnet-5-5).** H confirmed unbound
+  first (no `Key_H`/`QShortcut`/`QKeySequence` in `src/`). Files:
+  - `src/ui/main_window.py`: `TaskRunView.hud_hidden_changed` signal,
+    `hud_hidden` property, `set_hud_hidden()` (hides `operator_panel`,
+    `canvas.setFocus()`, emits only on a real change), `toggle_hud()`, and
+    the `QShortcut(Key_H, view)` (`WidgetWithChildrenShortcut`) as
+    `hud_shortcut`; the panel's `hide_requested` is wired to hide.
+  - `src/ui/operator_panel.py`: `hide_requested` signal; "Hide HUD" button
+    (`hide_hud_button`, tooltip "Press H to show it again.") under End task.
+  - `src/app.py`: `AssessmentApp(..., hud_hidden=False)` applied to the view
+    before the change signal is connected (start state not counted as a
+    toggle); `_on_hud_hidden_changed` (one `HUD_TOGGLED` event + one log line,
+    bumps `hud_toggle_count`); `_check_canvas_resized` called in `_tick`
+    after `_record_geometry` (first valid size = baseline, then
+    `CANVAS_RESIZED` + log line on change; same `canvas.width()/height()`
+    units as `_record_geometry`); `hud_hidden_at_start` set in metadata.
+  - `src/data/schema.py`: `hud_hidden_at_start: bool | None = None`,
+    `hud_toggle_count: int = 0` (no schema bump; comment says `canvas_*` is
+    the size at the first tick).
+  - `src/ui/dashboard_window.py`: in-memory `_hud_hidden`, passed as
+    `hud_hidden=` to `AssessmentApp`, kept in sync via `hud_hidden_changed`
+    (`_on_hud_hidden_changed`). Standalone path unchanged (always shown).
+  - Tests: new `tests/test_hud_hide_toggle.py` (12 tests: button/H toggle +
+    canvas focus, shortcut key/context, canvas width grows by 280 and
+    returns, signal only on change, dashboard memory + fresh window shown,
+    start-hidden not counted, HUD_TOGGLED event/log/count, resize baseline /
+    change / unchanged / zero-size, metadata.json fields). The H shortcut is
+    exercised via `activated.emit()` (real key delivery is unreliable
+    offscreen).
+  - pytest: `1 failed, 272 passed` (the one failure is the known
+    `test_config_merges_task_over_default`).
+  - Deviations: none. Detail the SPEC left open: `HUD_TOGGLED` `trial=` is the
+    0-based task trial index (as `TARGET_SHOWN`), `None` before the first
+    trial; the log line shows it 1-based ("trial 4" = index 3), matching the
+    panel's "Trial: n/N". Not tested: a full `AssessmentApp` construct (needs
+    a recorder/session dir); the wiring in `__init__` is covered only by
+    import + the unit pieces.
 
 ## 9. Implementer open questions
 
@@ -207,3 +243,23 @@ Out (do NOT change):
   full-width canvas, nothing drawn in its place), as scaled block diagrams
   plus the §4 behaviour notes. The user approved it as drawn ("approved, go
   ahead"). Plan steps 1–2 done; next is step 3 (spec-implementer).
+
+- **2026-10-02, later — reviewed, live-checked, committed.** Hub review:
+  the diff stays inside §5 scope (5 source files + new
+  `tests/test_hud_hide_toggle.py`, 12 tests); all five §6 criteria met in
+  code/tests; the hub's own full pytest run = 273 tests, 272 passed, 1
+  failed (the known local-config `test_config_merges_task_over_default`).
+  Accepted detail: `HUD_TOGGLED.trial` is the 0-based trial index (same as
+  `trials.csv`), the log line shows it 1-based. Live check against the real
+  GP3HD (Gazepoint Control on 127.0.0.1:4242, 1920x1080 @ 100 %), the user as
+  subject, one sitting, calibration error 50.7 px:
+  `2026-10-02_HUDTEST_click_grid_run1` (start shown, hidden at trial 2,
+  canvas 1640x957 → 1920x957 = +280 px), `..._scanning_run1` (started
+  hidden = sitting memory; shown at trial 2 → 1640, hidden at trial 3 →
+  1920), `..._click_grid_run2` (started hidden, 0 toggles, no
+  `CANVAS_RESIZED`). Every toggle = exactly one `HUD_TOGGLED` + one log
+  line + one `CANVAS_RESIZED`; `hud_toggle_count` 1/2/0 matches; all trials
+  hits (18/18, 6/6, 18/18), including those right after a resize. The user
+  drove the toggles themselves and confirmed the behaviour is OK. Not
+  separately verified: whether H toggles while the text cursor is inside a
+  panel spin box's line edit (Qt may route it to the field) — accepted.
