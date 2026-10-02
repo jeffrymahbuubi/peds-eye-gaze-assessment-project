@@ -46,6 +46,35 @@ Control Port
 
 ---
 
+### Display
+
+::: alert success
+Display: 1920×1080 at 100% scale — recommended standard.
+:::
+
+> **State A — standard (shown above):** one green line, no checkbox. Continue to Tasks is gated only by the usual inputs. (SPEC-display-standard-check.md §4.2)
+
+---
+
+### Display (non-standard state — illustrative)
+
+> **Design note:** the same card as above, shown in its other state. Only one of the two states is ever visible.
+
+::: alert warning
+This display is 1920×1080 at 150% scale. The recommended standard for data collection is 1920×1080 at 100%. Other settings can make the task screens lay out incorrectly (for example squeezed task cards at 150%), and sessions recorded on different displays are not directly comparable.
+
+To change it: Windows Settings → System → Display, set Display resolution to 1920×1080 and Scale to 100%. This card updates automatically.
+:::
+
+- [ ] Continue with this display anyway (recorded with the session)
+
+> **State B — non-standard:** amber warning with the detected values, plus an **unticked** checkbox. Continue to Tasks stays disabled until it is ticked (SPEC §4.4, decision D1).
+> **Live updates:** the card re-checks when the window moves to another monitor, or when resolution/scale change in Windows while the app is open. If the values change, the checkbox **unticks** and must be ticked again. Becoming standard switches to State A.
+> **Recorded:** every session stores resolution, scale, a standard flag and whether this box was ticked, in `metadata.json` and as one `Display:` session-log line (SPEC §4.5).
+> **Placement:** between Tracker Connection and Calibration, so the display is fixed before calibrating (decision D2). Always visible; does not need the tracker to be connected.
+
+---
+
 ### Calibration
 
 Point Count (1–9)
@@ -103,4 +132,4 @@ Confirm in Gazepoint Control that Lens Focusing and Automatic Gain Sweep are ena
 
 [Continue to Tasks →]*{state:disabled}
 
-> **Design note:** disabled until Tracker shows |connected|{.success} **and** a calibration result exists (via either path above) **and** Subject ID, Assessment Date, and Sex are filled. Notes is optional. The "Before You Start" reminder above does **not** factor into this gate.
+> **Design note:** disabled until Tracker shows |connected|{.success} **and** a calibration result exists (via either path above) **and** Subject ID, Assessment Date, and Sex are filled **and** the Display card is standard or its "Continue with this display anyway" box is ticked. Notes is optional. The "Before You Start" reminder above does **not** factor into this gate.

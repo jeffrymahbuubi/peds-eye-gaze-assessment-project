@@ -4,7 +4,7 @@ title: Gaze cursor accuracy degrades on 15"/13" 1920×1080 laptops
 status: implemented (§8), unit-tested and live-validated at simulated 150/125 % and real 100 %; real-laptop test pending
 created: 2026-09-30
 last_updated: 2026-10-02
-next_step: user tests on a real 125/150 % laptop (needs a source checkout or a rebuilt exe); Tasks-page clipping at 150 % is a separate new item
+next_step: user tests on a real 125/150 % laptop (needs a source checkout or a rebuilt exe). The 150 % Tasks-page clipping is NOT fixed (responsive layout deferred to a later version); the operator-facing display warning is SPEC-display-standard-check.md
 related:
   - SPEC-gui-audit-2026-09-10.md (item 5 introduced the regression)
   - SPEC-gazepoint-analysis-export-parity.md (§10 holds the device_pixel_ratio metadata backlog)
