@@ -3,8 +3,8 @@ name: SPEC-display-scaling-cursor-accuracy
 title: Gaze cursor accuracy degrades on 15"/13" 1920×1080 laptops
 status: implemented (§8), unit-tested and live-validated at simulated 150/125 % and real 100 %; real-laptop test pending
 created: 2026-09-30
-last_updated: 2026-10-02
-next_step: user tests on a real 125/150 % laptop (needs a source checkout or a rebuilt exe). The 150 % Tasks-page clipping is NOT fixed (responsive layout deferred to a later version); the operator-facing display warning is SPEC-display-standard-check.md
+last_updated: 2026-10-05
+next_step: §8.8 (canvas metadata in physical px, APPROVED 2026-10-05) via /spec-run; then user tests on a real 125/150 % laptop (needs a source checkout or a rebuilt exe). The 150 % Tasks-page clipping is NOT fixed (responsive layout deferred to a later version); the operator-facing display warning is SPEC-display-standard-check.md
 related:
   - SPEC-gui-audit-2026-09-10.md (item 5 introduced the regression)
   - SPEC-gazepoint-analysis-export-parity.md (§10 holds the device_pixel_ratio metadata backlog)
@@ -414,6 +414,88 @@ deviations.)
 
 (Implementer appends here, then stops and asks.)
 
+### 8.8 Follow-up: canvas fields in `metadata.json` in physical px (APPROVED 2026-10-05, not built)
+
+Raised as `/spec-backlog` item #5 on 2026-10-05. §8.3 put
+`_record_geometry()` out of scope and noted that its `canvas_offset_*` mixes
+units. That is still true at `src/app.py:711-727` (as of `5687ba8`):
+`canvas.mapToGlobal(0,0)` (Qt **logical**) minus `info.screen_x/y`
+(Gazepoint **physical**). `canvas_width/height_px` are logical, while
+`screen_*_px` (Gazepoint) and `display_*_px` (`check_display`) are
+physical. At 100 % every value is correct. At 125/150 % the canvas fields
+are off by the scale factor, and the offset is a mix of both units. Only
+the metadata and the session log are wrong. The cursor and hit-testing
+were fixed in §8 and are not touched here.
+
+**User decision (2026-10-05, `AskUserQuestion`): all physical.** Every
+pixel field in `metadata.json` uses one unit, Gazepoint's physical px, so
+an analysis can use `FPOGX × screen_width_px − canvas_offset_x_px` directly
+against `all_gaze.csv` at any scale.
+
+#### 8.8.1 Design
+
+- **Pure helper** (unit-testable without a real `QScreen`), next to
+  `gaze_geometry_from_screen` (§8.2 D4):
+  `canvas_geometry_physical(screen_x, screen_y, canvas_global_x,
+  canvas_global_y, canvas_w, canvas_h, dpr) -> (w, h, offset_x, offset_y)`,
+  with all inputs in Qt logical px and the result in physical px:
+  `offset = round((canvas_global − screen_origin) × dpr)`,
+  `w/h = round(canvas_w/h × dpr)`. The origin is the canvas's `QScreen`
+  `geometry().topLeft()` (logical, the same as D1), **not**
+  `info.screen_x/y`.
+- `_record_geometry()` uses it for `canvas_width_px`,
+  `canvas_height_px`, `canvas_offset_x_px` and `canvas_offset_y_px`. With no
+  `QScreen`, keep today's raw logical values (this cannot happen with a
+  shown canvas). `screen_*_px` (from `SCREEN_SIZE`), physical mm and
+  viewing distance stay as they are. In replay the monitor fields stay
+  `None` as today; the canvas fields use the same helper.
+- **`CANVAS_RESIZED` events** (`_check_canvas_resized`,
+  `SPEC-hud-hide-toggle.md` §4.4) record `canvas_w`/`canvas_h` in the
+  same physical px. The change-detection compares physical sizes too, so
+  the first-tick baseline matches `metadata.json`.
+- **Session log `Geometry:` line**: print the physical values. When the
+  scale is not 100 %, append "(physical px; Windows scale N %)" so the
+  line is unambiguous.
+- **`metadata.json` gains `canvas_units: "physical"`** (string, default
+  `None`). A reader can then tell new sessions from older ones, whose
+  canvas fields were logical (identical at 100 %).
+- `docs/DATA_SCHEMA.md`: state that all geometry px fields are physical,
+  explain `canvas_units`, and note that sessions without it recorded
+  logical canvas values (only differs at 125/150 %).
+
+#### 8.8.2 Scope
+
+In: `src/app.py` (`_record_geometry`, `_check_canvas_resized`), the helper
+module that holds `gaze_geometry_from_screen`, `src/data/schema.py`,
+`docs/DATA_SCHEMA.md`, tests.
+Out: `_sync_gaze_geometry` / `BaseTask` (cursor and hit-testing: §8 is
+correct, do not touch), `pointer_to_canvas_px`, calibration, the
+Results page, the responsive layout (deferred), `configs/`.
+
+#### 8.8.3 Acceptance criteria
+
+1. Helper unit tests at dpr 1.0 / 1.25 / 1.5: e.g. canvas 1640×957
+   logical at global (0,75) on a screen at logical origin (0,0), dpr 1.5,
+   gives (2460, 1436, 0, 112). Also a screen with a non-zero origin
+   (second monitor).
+2. At dpr 1.0, `_record_geometry()` output is identical to today's (test
+   with a fake canvas and screen).
+3. At dpr 1.5, `metadata.json` canvas fields equal the physical values,
+   `canvas_units == "physical"`, and the `Geometry:` log line names the
+   scale.
+4. `CANVAS_RESIZED` carries physical sizes; at dpr 1.0 the events are
+   unchanged.
+5. A v1.0.0 `metadata.json` without `canvas_units` still loads.
+6. Full pytest suite passes.
+7. Live check (hub + user): one dashboard run at real 100 %, where the
+   values must equal today's, and one at `QT_SCALE_FACTOR=1.5`, where the
+   canvas fields must be ≈1.5× the logical size, with the offset y ≈ 1.5 ×
+   the title/HUD height.
+
+#### 8.8.4 Impl log (implementer appends here)
+
+#### 8.8.5 Open questions (implementer writes here and returns)
+
 ## 9. Log
 
 - **2026-09-30 — evaluated, via `/sparc:orchestrator`; no code changed.**
@@ -524,3 +606,10 @@ deviations.)
   gaze at simulated 150 % and 125 % and at real 100 % (table in §8.6). The
   user approved the commit. Remaining: the real-laptop test, and a new item
   for the 150 % Tasks-page clipping.
+
+- **2026-10-05 — §8.8 added and APPROVED (design only, not built).**
+  `/spec-backlog` item #5: `_record_geometry()`'s canvas fields mix Qt
+  logical and Gazepoint physical px. The user chose "all physical" via
+  `AskUserQuestion` and approved the §8.8 text ("approve both, go ahead").
+  Next: `spec-implementer` builds §8.8, then a live check at real 100 % and
+  `QT_SCALE_FACTOR=1.5`.

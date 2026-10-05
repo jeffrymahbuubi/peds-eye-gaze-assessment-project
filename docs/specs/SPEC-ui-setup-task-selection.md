@@ -2882,6 +2882,72 @@ operator_panel.py`, `tests/test_sample_rate.py` (new), `tools/
 fake_gazepoint_server.py`, this SPEC doc. **Left uncommitted**, matching
 this project's ask-before-commit pattern.
 
+## 25. Loop rate from the device (`app.target_fps: auto`): APPROVED 2026-10-05, not built
+
+§24 deferred this ("auto-deriving `target_fps` from the device's own
+rate"). It was raised as `/spec-backlog` item #2 on 2026-10-05. Today the
+app's `QTimer` loop always runs at `app.target_fps` from config (150), and
+so does `LatencyTracker`'s window (`src/app.py:476`, `:493-496`). Headless
+replay paces with the same number (`src/engine/task_runner.py:80-81`). On
+a 60 Hz (USB2) device, 150 polls a second mostly re-read stale samples.
+
+**User decision (2026-10-05, `AskUserQuestion`): device rate, config can
+override.**
+
+### 25.1 Design
+
+- **Pure resolver** (new small function, e.g. in `src/engine/sample_rate.py`
+  or a new `src/engine/loop_rate.py`):
+  `resolve_target_fps(config_value, device_rate_hz, is_live) -> (fps: int, source: str)`.
+  - A positive number in config gives `(int(value), "config")`. An explicit
+    number always wins.
+  - `"auto"` (case-insensitive) or a missing key gives
+    `(device_rate_hz, "device")` when the client is live and the rate is
+    known and positive. Otherwise it gives `(60, "fallback")`.
+  - Anything else (0, negative, an unparsable string) gives
+    `(60, "fallback")` plus a warning in the session log. It must not crash.
+- `AssessmentApp` resolves once, after the client's `device_info` is
+  available (the dashboard connects at Setup, so it is known when Run is
+  pressed; the standalone path connects in `__init__` before the timer).
+  The resolved fps drives both the `QTimer` interval and the
+  `LatencyTracker` window.
+- **Recorded:** `metadata.json` gains `loop_fps` (int) and `loop_fps_source`
+  (`"config"`/`"device"`/`"fallback"`), both defaulting to `None`. Add one
+  `session.log` line, e.g. "Loop rate: 150 Hz (from device)."
+- **Headless replay** (`run_headless_replay`): a number keeps today's
+  behaviour; `"auto"` or a missing key gives 60 (`is_live` False).
+- **Config:** the committed `configs/default.yaml` changes
+  `app.target_fps: 150` to `app.target_fps: auto`, with a comment
+  explaining the override. **The hub makes this edit and stages it**
+  (skip-worktree). The hub also sets the local copy to `auto` so this
+  machine uses the new behaviour. The implementer does not touch
+  `configs/`.
+- Out of scope: the on-screen FPS / device-rate meter, the USB2/60 Hz
+  Setup warning (§24), the display refresh rate, and any change to dwell
+  timing logic.
+
+### 25.2 Acceptance criteria
+
+1. Unit tests of the resolver: a number gives config; `auto` or missing,
+   live with 150 or 60, gives the device rate; `auto` when not live or
+   with an unknown rate gives 60; bad values give 60 with no exception.
+2. `AssessmentApp` uses the resolved value for the timer interval and the
+   latency window. Test it with a fake client whose `device_info.rate_hz`
+   is 60 and config `auto`, and check the timer interval is ≈16 ms.
+3. `metadata.json` and `session.log` record the value and its source; a
+   v1.0.0 `metadata.json` without the fields still loads.
+4. Headless replay with `auto` runs at 60 and with a number runs at that
+   number. If any existing replay test's outcome changes because the
+   default moves from 150 to `auto` (= 60 in replay), the implementer
+   reports it in §25.4 and does not adjust assertions on its own.
+5. Full pytest suite passes.
+6. Live check (hub + user, real GP3HD at 150 Hz on USB3): one dashboard run
+   shows "Loop rate: 150 Hz (from device)" and `loop_fps_source: "device"`.
+
+### 25.3 Impl log (implementer appends here)
+
+### 25.4 Open questions (implementer writes here and returns)
+
 ## Log
 
 - **2026-09-08** — Session opened via `/sparc:orchestrator`; user described
@@ -3646,3 +3712,12 @@ this project's ask-before-commit pattern.
   SPEC doc) committed as one commit, `5f7ef96`, pushed to `origin/main`
   (`1eb1086..5f7ef96`). `git status` clean after push — nothing from
   this whole device-info/rate-meter line of work remains uncommitted.
+
+- **2026-10-05 — §25 added and APPROVED (design only, not built).**
+  `/spec-backlog` item #2, §24's deferred "auto-derive `target_fps` from
+  the device". The user chose "device rate, config number overrides" via
+  `AskUserQuestion` and approved the §25 text ("approve both, go ahead").
+  Next: `spec-implementer` builds §25 after
+  `SPEC-display-scaling-cursor-accuracy.md` §8.8 (both touch `src/app.py`).
+  The hub changes `app.target_fps` to `auto` in the committed and local
+  `configs/default.yaml`.
