@@ -410,6 +410,8 @@ class DashboardWindow(QMainWindow):
                 ),
                 client=self.setup_page.client,
                 preset_calibration_result=self.setup_page.calibration_result,
+                preset_calibration_source=self.setup_page.calibration_source,
+                preset_calibration_file=self.setup_page.calibration_file,
                 embedded=True,
                 on_finished=self._on_task_finished,
                 assessment_date=self.setup_page.assessment_date(),

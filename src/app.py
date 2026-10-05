@@ -104,6 +104,43 @@ class GuiFeedback(FeedbackBus):
         pass
 
 
+def resolve_calibration_source(
+    *,
+    calibration_file: str | None,
+    preset_present: bool,
+    preset_source: str | None,
+    preset_file: str | None,
+    ran_fresh: bool,
+    is_stub: bool = False,
+) -> tuple[str, str | None]:
+    """Where a run's calibration came from: ``(source, file)``.
+
+    ``source`` is ``"measured"``, ``"loaded"`` or ``"not run"``
+    (SPEC-result-logic.md S12.2). A ``--calibration-file`` always wins; a
+    preset with no stated source (any caller but the dashboard) counts as
+    loaded; a fresh run is measured unless it was the stub.
+    """
+    if calibration_file is not None:
+        return "loaded", calibration_file
+    if preset_present:
+        return (preset_source or "loaded"), preset_file
+    if ran_fresh and is_stub:
+        return "not run", None
+    return "measured", None
+
+
+def calibration_log_line(cal: CalibrationResult, source: str, file: str | None) -> str:
+    """The Session Log's calibration line (SPEC-result-logic.md S12.2)."""
+    if source == "loaded":
+        label = f"loaded from {Path(file).name}" if file else "loaded"
+    else:
+        label = source
+    if cal.valid:
+        error_txt = f"{cal.mean_error_px:.1f}px" if cal.mean_error_px is not None else "n/a"
+        return f"Calibration {label} — {cal.n_points} points, mean error {error_txt}, valid."
+    return f"Calibration {label} — {cal.n_points} points, invalid or unmeasured."
+
+
 class AssessmentApp:
     def __init__(
         self,
@@ -126,6 +163,8 @@ class AssessmentApp:
         notes: str = "",
         display_acknowledged: bool | None = None,
         hud_hidden: bool = False,
+        preset_calibration_source: str | None = None,
+        preset_calibration_file: str | None = None,
     ) -> None:
         """Build one task run.
 
@@ -225,6 +264,7 @@ class AssessmentApp:
         # --calibration-file or handed in directly by the dashboard) skips
         # this device interaction entirely -- there's nothing to poll for.
         cal_cfg = self.config.get("calibration", {})
+        fresh_is_stub = False
         if preset_calibration is not None:
             cal = preset_calibration
             # Recorded into THIS run's own session dir too, even though it
@@ -245,6 +285,7 @@ class AssessmentApp:
                 timing_log_path=calibration_timing_log_path(output_root),
             )
             cal = calibration.run()
+            fresh_is_stub = calibration.is_stub
             if not calibration.is_stub:
                 # A real calibration just ran (not the no-hardware/disabled
                 # stub) -- auto-save it so a later launch can reuse it via
@@ -373,12 +414,17 @@ class AssessmentApp:
         self.recorder.log(f"Session started: {session_id}")
         if self._owns_client:
             self.recorder.log("Connected to Gazepoint Control.")
-        if cal.valid:
-            error_txt = f"{cal.mean_error_px:.1f}px" if cal.mean_error_px is not None else "n/a"
-            self.recorder.log(f"Calibration measured — {cal.n_points} points, mean error {error_txt}, valid.")
-        else:
-            self.recorder.log(f"Calibration measured — {cal.n_points} points, invalid or unmeasured.")
+        cal_source, cal_file = resolve_calibration_source(
+            calibration_file=calibration_file,
+            preset_present=preset_calibration is not None,
+            preset_source=preset_calibration_source,
+            preset_file=preset_calibration_file,
+            ran_fresh=preset_calibration is None,
+            is_stub=fresh_is_stub,
+        )
+        self.recorder.log(calibration_log_line(cal, cal_source, cal_file))
 
+        self.metadata.calibration_source = cal_source
         self.metadata.calibration_points = cal.n_points
         self.metadata.calibration_error_px = cal.mean_error_px
 

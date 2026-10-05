@@ -573,7 +573,7 @@ Keep `qt_wait_for` timeouts well under 30 s and poll instead.
 dashboard + fake server killed, ports 4250/9142 confirmed closed,
 `configs/local_state.json` restored 4250 → `127.0.0.1:4242`.
 
-## 12. Calibration source in the Session Log + stale `target_fps` test (2026-10-05) — APPROVED, not yet built
+## 12. Calibration source in the Session Log + stale `target_fps` test (2026-10-05) — DONE, live-validated
 
 Two small backlog items from `/spec-backlog` (2026-10-05, items #4 and #5),
 designed with the user via `AskUserQuestion` the same day. No UI layout
@@ -655,6 +655,21 @@ Out: any UI layout/text change on the Setup page; any change to
    says `"loaded"`; one run after Do Calibration → "measured".
 
 ### 12.6 Impl log (implementer appends here)
+
+- **2026-10-05 — claude-sonnet-5-5.** Files changed: `src/app.py` (new
+  module-level `resolve_calibration_source()` + `calibration_log_line()`,
+  new `preset_calibration_source`/`preset_calibration_file` kwargs, log line
+  and `metadata.calibration_source` use them), `src/data/schema.py`
+  (`SessionMetadata.calibration_source`), `src/ui/setup_page.py` (source/file
+  tracking + `calibration_source`/`calibration_file` properties, cleared on
+  invalid run and failed load), `src/ui/dashboard_window.py` (passes both),
+  `tests/test_task_pipeline.py` (B: compares against `default.yaml` via
+  `yaml.safe_load`). New `tests/test_calibration_source.py` (14 tests: helpers,
+  SetupPage tracking, and AssessmentApp end-to-end via the replay fixture for
+  preset-loaded, preset-measured, `--calibration-file`, stub). Mutation check:
+  with the app.py log/metadata wiring reverted the 4 end-to-end tests fail.
+  Full suite: `284 passed in 100.58s` (0 failures; the old `target_fps`
+  failure is gone). Deviations: none. Left undone: live check (criterion 7).
 
 ### 12.7 Open questions (implementer writes here and returns; does not decide)
 
@@ -815,3 +830,20 @@ Out: any UI layout/text change on the Setup page; any change to
   field; compare the test against `default.yaml`). Correction recorded:
   the `target_fps` test failure is not local config drift; the committed
   `default.yaml` has `150` too. Next: `spec-implementer` builds §12.
+
+- **2026-10-05, later — §12 implemented, reviewed, live-validated.**
+  Implemented by `spec-implementer` (claude-sonnet-5-5, §12.6). Hub review:
+  diff in scope, every §12.5 criterion met, hub's own full run **284
+  passed, 0 failed** (the long-standing `target_fps` failure is gone).
+  Live (real GP3HD, user as subject, dashboard, subject `HUDTEST`):
+  `click_static_run1` (Load Calibration File) → `Calibration loaded from
+  calibration_5pt.json — 5 points, mean error 50.7px, valid.` +
+  `"calibration_source": "loaded"`; `run2` (Do Calibration, then the user
+  clicked Save and Load) → "loaded", correctly, since the last action was a
+  load; `run3` (Do Calibration only) → `Calibration measured — 5 points,
+  mean error 18.6px, valid.` + `"measured"`. **Separate bug found during
+  the live check, not part of §12:** all four calibrations that day ended
+  `calib_result_never` at the 11.47 s fallback (`_diagnostics/
+  calibration_timing.jsonl`), so `per_point` is empty (View Calibration
+  Details shows no table) and the reported error may be a retained earlier
+  value. Diagnosed in its own SPEC (`SPEC-calibration-result-timeout.md`).

@@ -261,6 +261,10 @@ class SetupPage(QWidget):
         super().__init__(parent)
         self._client: GazepointClient | None = None
         self._calibration_result: CalibrationResult | None = None
+        # Where the current result came from (SPEC-result-logic.md S12.2):
+        # "measured" / "loaded" / None, plus the file it was loaded from.
+        self._calibration_source: str | None = None
+        self._calibration_file: str | None = None
         self._connect_thread: _ConnectThread | None = None
         self._recheck_thread: _DeviceInfoRefreshThread | None = None
         self._calibration_thread: _CalibrationThread | None = None
@@ -282,6 +286,14 @@ class SetupPage(QWidget):
     @property
     def calibration_result(self) -> CalibrationResult | None:
         return self._calibration_result
+
+    @property
+    def calibration_source(self) -> str | None:
+        return self._calibration_source
+
+    @property
+    def calibration_file(self) -> str | None:
+        return self._calibration_file
 
     def subject_id(self) -> str:
         return self.subject_id_edit.text().strip()
@@ -855,6 +867,8 @@ class SetupPage(QWidget):
         self._calibration_thread = None
         self.do_calibration_button.setEnabled(True)
         self._calibration_result = result
+        self._calibration_source = "measured"
+        self._calibration_file = None
         self.calibration_details_section.setVisible(False)  # collapse any stale prior breakdown
         if result.valid:
             error_txt = f"{result.mean_error_px:.0f}px" if result.mean_error_px is not None else "n/a"
@@ -864,6 +878,8 @@ class SetupPage(QWidget):
             )
         else:
             self._calibration_result = None
+            self._calibration_source = None
+            self._calibration_file = None
             self._set_calibration_alert(
                 "error", "Calibration did not produce a valid result. Try again or adjust point count."
             )
@@ -918,10 +934,14 @@ class SetupPage(QWidget):
                 )
         except CalibrationFileError as exc:
             self._calibration_result = None
+            self._calibration_source = None
+            self._calibration_file = None
             self._set_calibration_alert("error", str(exc))
             self._on_state_changed()
             return
         self._calibration_result = saved.result
+        self._calibration_source = "loaded"
+        self._calibration_file = path
         self.calibration_details_section.setVisible(False)  # collapse any stale prior breakdown
         error_txt = f"{saved.result.mean_error_px:.0f}px" if saved.result.mean_error_px is not None else "n/a"
         self._set_calibration_alert(

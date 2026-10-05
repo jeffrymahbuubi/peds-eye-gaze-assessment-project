@@ -171,6 +171,9 @@ class SessionMetadata:
     input_mode: str = "eye"
     calibration_error_px: float | None = None
     calibration_points: int | None = None
+    # "measured" / "loaded" / "not run" (SPEC-result-logic.md S12.2). Additive;
+    # older sessions lack it, and ``schema_version`` is deliberately NOT bumped.
+    calibration_source: str | None = None
     tasks: list[str] = field(default_factory=list)
     notes: str = ""
     assessment_date: str = ""

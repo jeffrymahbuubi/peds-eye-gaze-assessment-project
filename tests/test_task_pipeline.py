@@ -6,8 +6,9 @@ import json
 from pathlib import Path
 
 import pytest
+import yaml
 
-from src.engine.config import load_task_config
+from src.engine.config import CONFIG_ROOT, load_task_config
 from src.engine.feedback import NullFeedback
 from src.engine.task_runner import TASK_REGISTRY, build_task, run_headless_replay
 from src.inputs.base import Pointer
@@ -35,7 +36,10 @@ def test_config_merges_task_over_default():
     assert cfg["task"]["task_id"] == "click_static"
     # default.yaml keys survive the merge
     assert "dwell" in cfg
-    assert cfg["app"]["target_fps"] == 60
+    # Compared against default.yaml itself, so this checks the merge and not
+    # whichever target_fps the config is currently tuned to.
+    default_cfg = yaml.safe_load((CONFIG_ROOT / "default.yaml").read_text(encoding="utf-8"))
+    assert cfg["app"]["target_fps"] == default_cfg["app"]["target_fps"]
 
 
 def test_config_unknown_task_raises():
