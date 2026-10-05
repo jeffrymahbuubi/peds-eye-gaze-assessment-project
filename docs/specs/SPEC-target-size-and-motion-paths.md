@@ -4,7 +4,7 @@ title: Target size presets (Small/Medium/Large by visual angle), grid fit, and n
 status: approved by the user 2026-10-06 (incl. hub decisions §4.4 speed, §4.4 corner diagonals, §4.2 size-wins, §5 phasing); wireframe next
 created: 2026-10-06
 last_updated: 2026-10-06
-next_step: wireframe of the Task settings dialog (§4.5) -> implement Phase A + C (/spec-run)
+next_step: /spec-run — user approves wireframe docs/wireframes/task-settings.html, then implement Phase A + C
 related:
   - SPEC-live-settings-panel.md (§4/§5.3 structural settings + TaskSettingsDialog; §10 settings profiles store the structural block)
   - SPEC-follow-moving-selection.md (selection window, attempts; unchanged here)
@@ -303,3 +303,12 @@ cannot be baked in at `build_targets` time.
   decisions (equal px/s across straight paths, corner-to-corner
   diagonals, `size` wins over `radius_px`, Phase B deferred). SPEC
   committed; wireframe of the Task settings dialog (§4.5) next.
+- **2026-10-06** — Wireframe written and rendered:
+  `docs/wireframes/task-settings.md` (+ `.html`, WTMH-themed via
+  `tools/apply_wtmh_wireframe_theme.py`). Shows the Grid Click dialog
+  (Target size combo with deg + px per item, shrink hint) and the Follow &
+  Click dialog (Movement path combo, 5 values), plus an ASCII sketch of
+  the five paths. Note found while drawing it: on a ~1000 px tall canvas a
+  6x6 cell fits ≈ 111 px, so even Small (≈ 123 px) is shrunk slightly in
+  6x6 — expected under T3. Wireframe committed; the user's look at it is
+  the /spec-run wireframe gate.

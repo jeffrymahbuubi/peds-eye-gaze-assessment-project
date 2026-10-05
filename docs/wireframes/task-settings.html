@@ -1,0 +1,655 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>wiremd Mockup</title>
+  <link rel="icon" href="../../configs/assets/branding/WTMH.ico">
+  <style>
+a.wmd-button { text-decoration: none; color: inherit; }
+
+.wmd-tab-headers { display: flex; gap: 0; border-bottom: 2px solid #e0e0e0; margin-bottom: 12px; }
+.wmd-tab-header { display: inline-block; padding: 8px 16px; border: none; border-bottom: 2px solid transparent; margin-bottom: -2px; font-size: 14px; font-weight: 500; color: #5C7684; background: transparent; cursor: pointer; font-family: inherit; transition: color 0.15s; }
+.wmd-tab-header:hover { color: #122B3A; }
+.wmd-tab-header.wmd-active { border-bottom-color: currentColor; color: #1A6F95; font-weight: 600; }
+.wmd-tab-panel[hidden] { display: none; }
+.wmd-tab-panels { padding: 12px 0; }
+
+.wmd-row { display: flex; align-items: center; gap: 0.75rem; flex-wrap: wrap; }
+.wmd-row > .wmd-grid-item { flex: 0 1 auto; min-width: 0; }
+.wmd-row.wmd-right { justify-content: flex-end; }
+.wmd-row.wmd-center { justify-content: center; }
+.wmd-align-left { margin-right: auto; }
+.wmd-align-right { margin-left: auto; }
+.wmd-align-center { margin: auto; }
+.wmd-container-button-group > .wmd-input,
+.wmd-container-button-group > .wmd-select,
+.wmd-row > .wmd-grid-item > .wmd-input,
+.wmd-row > .wmd-grid-item > .wmd-select { display: inline-block; width: auto; }
+
+.wmd-demo { display: grid; grid-template-columns: 1fr 1fr; border: 1px solid #d0d0d0; border-radius: 6px; overflow: hidden; margin: 1rem 0; }
+.wmd-demo-preview { padding: 1.5rem; border-right: 1px solid #d0d0d0; }
+.wmd-demo-code { background: #f6f8fa; overflow: auto; display: flex; flex-direction: column; }
+.wmd-demo-code-toolbar { display: flex; justify-content: flex-end; padding: 0.5rem 0.75rem 0; }
+.wmd-demo-copy { background: none; border: 1px solid #ccc; border-radius: 4px; padding: 2px 8px; font-size: 0.75em; color: #666; cursor: pointer; font-family: inherit; }
+.wmd-demo-copy:hover { background: #e8e8e8; color: #333; }
+.wmd-demo-code pre { margin: 0; padding: 0.75rem 1.5rem 1.25rem; font-size: 0.8em; font-family: 'Courier New', Courier, monospace; line-height: 1.6; white-space: pre; }
+.wmd-demo-code code { display: block; color: #444; }
+
+/* wiremd Clean Style - Minimal modern wireframes */
+* {
+  box-sizing: border-box;
+}
+
+body.wmd-root {
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+  background: #F5F9FB;
+  color: #122B3A;
+  padding: 40px;
+  margin: 0;
+  line-height: 1.6;
+}
+
+/* Headings */
+.wmd-h1, .wmd-h2, .wmd-h3, .wmd-h4, .wmd-h5, .wmd-h6 {
+  font-weight: 600;
+  margin: 1.5em 0 0.75em;
+  color: #122B3A;
+  letter-spacing: -0.02em;
+}
+
+.wmd-h1 { font-size: 2.5em; border-bottom: 2px solid #DBE6EC; padding-bottom: 0.3em; }
+.wmd-h2 { font-size: 2em; }
+.wmd-h3 { font-size: 1.5em; }
+.wmd-h4 { font-size: 1.25em; }
+.wmd-h5 { font-size: 1.1em; }
+.wmd-h6 { font-size: 1em; }
+
+/* Paragraph */
+.wmd-paragraph {
+  margin: 0.75em 0;
+  color: #5C7684;
+}
+
+/* Buttons */
+.wmd-button {
+  display: inline-block;
+  padding: 10px 20px;
+  margin: 6px;
+  background: transparent;
+  color: #122B3A;
+  border: 1px solid #DBE6EC;
+  border-radius: 6px;
+  font-family: inherit;
+  font-size: 14px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.wmd-button:hover {
+  background: #DCF0F5;
+  border-color: #1F7A9C;
+}
+
+.wmd-button-primary, .wmd-button.wmd-primary {
+  background: linear-gradient(90deg, #2FA8C4, #1A6F95);
+  color: #fff;
+  border-color: #1A6F95;
+}
+
+.wmd-button-primary:hover, .wmd-button.wmd-primary:hover {
+  background: #1A6F95;
+}
+
+.wmd-button-secondary, .wmd-button.wmd-secondary {
+  background: #DCF0F5;
+  color: #0F5670;
+  border: 2px solid #DCF0F5;
+}
+
+.wmd-button-danger, .wmd-button.wmd-danger {
+  background: #E15353;
+  color: #fff;
+  border-color: #C23E3E;
+}
+
+.wmd-button[disabled], .wmd-button.wmd-state-disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+/* Pills / Badges */
+.wmd-badge {
+  display: inline-block;
+  padding: 2px 10px;
+  margin: 0 2px;
+  border-radius: 12px;
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  background: #E6EDF1;
+  color: #5C7684;
+}
+.wmd-badge-primary { background: #DCF0F5; color: #0F5670; }
+.wmd-badge-success { background: #2F9E6E; color: #ffffff; }
+/* warning/error badges here mark INACTIVE states ("not connected", "none") --
+   per the WTMH palette these read as neutral, not alarm colors. */
+.wmd-badge-warning { background: #E6EDF1; color: #5C7684; }
+.wmd-badge-error { background: #E6EDF1; color: #5C7684; }
+/* reserved for a real danger state (e.g. a future "SIGNAL LOST" badge) --
+   unused by setup.md/tasks.md today. */
+.wmd-badge-danger { background: #E15353; color: #ffffff; }
+
+/* Inputs */
+.wmd-input, .wmd-textarea, .wmd-select {
+  display: block;
+  width: 100%;
+  max-width: 400px;
+  padding: 10px 12px;
+  margin: 6px 0;
+  font-family: inherit;
+  font-size: 14px;
+  background: #FFFFFF;
+  color: #122B3A;
+  border: 1px solid #DBE6EC;
+  border-radius: 6px;
+  transition: border-color 0.2s;
+}
+
+.wmd-input:focus, .wmd-textarea:focus, .wmd-select:focus {
+  outline: none;
+  border-color: #1F7A9C;
+  box-shadow: 0 0 0 3px rgba(31, 122, 156, 0.15);
+}
+
+.wmd-input[disabled], .wmd-input.wmd-state-disabled,
+.wmd-textarea[disabled], .wmd-textarea.wmd-state-disabled,
+.wmd-select[disabled], .wmd-select.wmd-state-disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+  background: #E6EDF1;
+  border-color: #DBE6EC;
+}
+
+.wmd-textarea {
+  resize: vertical;
+  min-height: 100px;
+}
+
+/* Checkboxes and Radios */
+.wmd-checkbox, .wmd-radio {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin: 8px 0;
+  cursor: pointer;
+}
+
+.wmd-checkbox input[type="checkbox"],
+.wmd-radio input[type="radio"] {
+  width: 18px;
+  height: 18px;
+  cursor: pointer;
+}
+
+/* Icons */
+.wmd-icon {
+  display: inline-block;
+  width: 1.2em;
+  height: 1.2em;
+  margin: 0 4px;
+  vertical-align: middle;
+  color: #666;
+}
+
+
+/* Containers */
+.wmd-container-hero, .wmd-container-card, .wmd-container-modal {
+  background: #F5F9FB;
+  border: 1px solid #DBE6EC;
+  border-radius: 8px;
+  padding: 32px;
+  margin: 24px 0;
+}
+
+/* alerts (::: alert ...) get no dedicated rule from wiremd's "clean" style at
+   all -- confirmed by reading src/renderer/styles.ts and the rendered output,
+   the warning/info/success word after "alert" isn't captured as a CSS class
+   either, so per-severity coloring isn't available. One consistent
+   informational card treatment is used for all of them instead. */
+.wmd-container-alert {
+  background: #DCF0F5;
+  border: 1px solid #BFE3ED;
+  border-left: 4px solid #1F7A9C;
+  border-radius: 6px;
+  padding: 16px 20px;
+  margin: 16px 0;
+  color: #122B3A;
+}
+
+.wmd-container-hero {
+  background: linear-gradient(135deg, #F5F9FB 0%, #DCF0F5 100%);
+  text-align: center;
+  padding: 60px 32px;
+}
+
+.wmd-container-card {
+  background: #FFFFFF;
+  box-shadow: 0 2px 8px rgba(18,43,58,0.08);
+}
+
+.wmd-container-modal {
+  max-width: 500px;
+  margin: 40px auto;
+  background: #FFFFFF;
+  box-shadow: 0 4px 16px rgba(18,43,58,0.15);
+}
+
+/* Radio Groups */
+.wmd-radio-group {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  margin: 12px 0;
+}
+
+.wmd-radio-group-inline {
+  flex-direction: row;
+  flex-wrap: wrap;
+  gap: 16px;
+}
+
+.wmd-radio-group-inline .wmd-radio {
+  margin: 0;
+}
+
+/* Icons */
+.wmd-icon {
+  display: inline-block;
+  font-size: 1.1em;
+  line-height: 1;
+  vertical-align: middle;
+  margin: 0 0.25em;
+}
+
+/* Navigation */
+.wmd-nav {
+  background: #12374A;
+  border: 1px solid #1B4A61;
+  border-radius: 8px;
+  padding: 16px 24px;
+  margin: 24px 0;
+  box-shadow: 0 1px 3px rgba(0,0,0,0.2);
+}
+
+.wmd-nav-content {
+  display: flex;
+  align-items: center;
+  gap: 24px;
+  flex-wrap: wrap;
+}
+
+.wmd-brand {
+  font-weight: 600;
+  font-size: 1.25em;
+  margin-right: auto;
+  color: #CFE6EE;
+  display: inline-flex;
+  align-items: center;
+}
+
+.wmd-nav-item {
+  display: inline-flex;
+  align-items: center;
+  color: #CFE6EE;
+  text-decoration: none;
+  font-weight: 500;
+  padding: 8px 16px;
+  background: rgba(255,255,255,0.08);
+  border: 1px solid rgba(255,255,255,0.16);
+  border-radius: 6px;
+  transition: all 0.2s;
+}
+
+.wmd-nav-item:hover {
+  background: rgba(255,255,255,0.16);
+  border-color: rgba(255,255,255,0.32);
+  transform: translateY(-1px);
+  box-shadow: 0 2px 4px rgba(0,0,0,0.2);
+}
+
+.wmd-nav-item.wmd-active {
+  background: rgba(255,255,255,0.08);
+  color: #ffffff;
+  border-color: transparent;
+  border-bottom: 3px solid #2FA8C4;
+}
+
+.wmd-brand-logo {
+  height: 28px;
+  width: auto;
+  margin-right: 4px;
+  vertical-align: middle;
+}
+
+.wmd-breadcrumbs {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-wrap: wrap;
+  margin: 8px 0;
+  font-size: 0.9em;
+}
+
+.wmd-breadcrumb-item a {
+  color: #495057;
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+
+.wmd-breadcrumb-current {
+  font-weight: 600;
+  color: #212529;
+}
+
+.wmd-breadcrumb-sep {
+  color: #adb5bd;
+}
+
+/* Sidebar */
+.wmd-container-sidebar {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  width: 180px;
+  padding: 12px;
+  background: #DCF0F5;
+  border: 2px solid #1F7A9C;
+  border-radius: 8px;
+}
+.wmd-container-sidebar .wmd-button { display: block; width: 100%; text-align: left; margin: 0; }
+.wmd-container-sidebar .wmd-h4 { margin: 12px 0 4px; font-size: 0.85em; opacity: 0.6; text-transform: uppercase; }
+.wmd-container-sidebar .wmd-separator { margin: 8px 0; }
+
+/* Layout: sidebar-main */
+.wmd-container-layout.wmd-sidebar-main {
+  display: grid;
+  grid-template-columns: 220px 1fr;
+  gap: 16px;
+  align-items: start;
+}
+.wmd-layout-sidebar {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+.wmd-layout-sidebar .wmd-container-sidebar { width: 100%; }
+.wmd-layout-sidebar .wmd-button { display: block; width: 100%; text-align: left; margin: 2px 0; }
+.wmd-layout-sidebar .wmd-h4 { margin: 12px 0 4px; font-size: 0.85em; opacity: 0.6; text-transform: uppercase; }
+.wmd-layout-sidebar .wmd-separator { margin: 8px 0; }
+.wmd-layout-main { min-width: 0; }
+
+/* Grid */
+.wmd-grid {
+  display: grid;
+  grid-template-columns: repeat(var(--grid-columns, 3), 1fr);
+  gap: 24px;
+  margin: 32px 0;
+  align-items: center;
+}
+
+.wmd-grid-item { min-width: 0; }
+
+.wmd-col-span-1 { grid-column: span 1; }
+.wmd-col-span-2 { grid-column: span 2; }
+.wmd-col-span-3 { grid-column: span 3; }
+.wmd-col-span-4 { grid-column: span 4; }
+
+.wmd-grid-item-card {
+  background: #FFFFFF;
+  border: 1px solid #DBE6EC;
+  border-radius: 8px;
+  padding: 24px;
+  transition: box-shadow 0.2s;
+}
+.wmd-grid-item-card:hover {
+  box-shadow: 0 4px 12px rgba(0,0,0,0.08);
+}
+
+/* Lists */
+.wmd-list {
+  margin: 16px 0;
+  padding-left: 28px;
+}
+
+.wmd-list-item {
+  margin: 6px 0;
+}
+
+/* Blockquote */
+.wmd-blockquote {
+  border-left: 3px solid #1F7A9C;
+  padding-left: 20px;
+  margin: 20px 0;
+  color: #5C7684;
+}
+
+/* Code */
+.wmd-code-inline {
+  background: #f5f5f5;
+  border: 1px solid #e0e0e0;
+  border-radius: 3px;
+  padding: 2px 6px;
+  font-family: 'SF Mono', Monaco, Consolas, monospace;
+  font-size: 0.9em;
+  color: #d63384;
+}
+
+.wmd-code-block {
+  background: #f8f9fa;
+  border: 1px solid #e0e0e0;
+  border-radius: 6px;
+  padding: 16px;
+  margin: 16px 0;
+  overflow-x: auto;
+}
+
+.wmd-code-block code {
+  font-family: 'SF Mono', Monaco, Consolas, monospace;
+  font-size: 0.9em;
+  color: #1a1a1a;
+}
+
+/* Separator */
+.wmd-separator {
+  border: none;
+  border-top: 1px solid #DBE6EC;
+  margin: 32px 0;
+}
+
+/* State Containers */
+.wmd-container-loading-state {
+  background: #f5f7fa;
+  border: 1px solid #d0d0d0;
+  border-radius: 8px;
+  padding: 40px;
+  margin: 24px 0;
+  text-align: center;
+  position: relative;
+}
+
+.wmd-container-loading-state::before {
+  content: '';
+  display: block;
+  width: 40px;
+  height: 40px;
+  margin: 0 auto 20px;
+  border: 3px solid #e0e0e0;
+  border-top-color: #0066cc;
+  border-radius: 50%;
+  animation: spin 1s linear infinite;
+}
+
+.wmd-container-empty-state {
+  background: #fafafa;
+  border: 1px dashed #d0d0d0;
+  border-radius: 8px;
+  padding: 60px 40px;
+  margin: 24px 0;
+  text-align: center;
+  color: #888;
+}
+
+.wmd-container-empty-state::before {
+  content: '📭';
+  display: block;
+  font-size: 72px;
+  margin-bottom: 20px;
+  opacity: 0.4;
+  filter: grayscale(30%);
+}
+
+.wmd-container-error-state {
+  background: #fff5f5;
+  border: 1px solid #dc3545;
+  border-radius: 8px;
+  padding: 40px;
+  margin: 24px 0;
+  text-align: center;
+  box-shadow: 0 2px 8px rgba(220, 53, 69, 0.1);
+}
+
+.wmd-container-error-state::before {
+  content: '⚠️';
+  display: block;
+  font-size: 48px;
+  margin-bottom: 20px;
+}
+
+/* Responsive */
+@media (max-width: 768px) {
+  body.wmd-root {
+    padding: 20px;
+  }
+
+  .wmd-grid {
+    grid-template-columns: 1fr !important;
+  }
+
+  .wmd-col-span-1,
+  .wmd-col-span-2,
+  .wmd-col-span-3,
+  .wmd-col-span-4 {
+    grid-column: span 1;
+  }
+
+  .wmd-nav-content {
+    flex-direction: column;
+    align-items: stretch;
+  }
+}
+
+@keyframes spin {
+  from { transform: rotate(0deg); }
+  to { transform: rotate(360deg); }
+}
+
+  </style>
+</head>
+<body class="wmd-root wmd-clean">
+  <nav class="wmd-nav">
+  <div class="wmd-nav-content">
+    <img src="../../configs/assets/branding/wtmh_logo.png" alt="WTMH logo" class="wmd-brand-logo">
+    <div class="wmd-brand">Pediatric Eye-Gaze Assessment</div>
+    <a href="./setup.html" class="wmd-nav-item">Setup</a>
+    <a href="./tasks.html" class="wmd-nav-item">Tasks</a>
+    <a href="./results.html" class="wmd-nav-item">Results</a>
+  </div>
+</nav>
+<h2 class="wmd-h2">Task settings dialog — target size presets and movement paths</h2>
+<blockquote class="wmd-blockquote">
+  <p class="wmd-paragraph">SPEC-target-size-and-motion-paths.md §4.5. The pre-launch dialog opened by <strong>Run</strong> on the Tasks page. Two new dropdown controls replace a px slider (Grid Click) or add a choice that today exists only in YAML (Follow & Click). All other rows (sliders with a number box) are unchanged. Numbers below are for a 24" 1920x1080 monitor at 650 mm.</p>
+</blockquote>
+<hr class="wmd-separator" />
+<div class="wmd-grid wmd-grid-2" style="--grid-columns: 2">
+  <div class="wmd-grid-item wmd-card wmd-grid-item-card">
+    <h3 class="wmd-h3">A · Grid Click</h3>
+    <div class="wmd-container-form-group">
+  Number of trials
+  <input type="number" class="wmd-input" placeholder="18" style="width: 27ch; max-width: 27ch;" />
+</div>
+    <div class="wmd-container-form-group">
+  Target size
+  <select class="wmd-select">
+    <option value="" disabled selected>Medium — 5° (≈ 205 px)</option>
+    <option value="Small — 3° (≈ 123 px)">Small — 3° (≈ 123 px)</option>
+    <option value="Medium — 5° (≈ 205 px)">Medium — 5° (≈ 205 px)</option>
+    <option value="Large — 8° (≈ 328 px)">Large — 8° (≈ 328 px)</option>
+  </select>
+</div>
+    <div class="wmd-container-form-group">
+  Grid rows
+  <input type="number" class="wmd-input" placeholder="6" style="width: 28ch; max-width: 28ch;" />
+</div>
+    <div class="wmd-container-form-group">
+  Grid cols
+  <input type="number" class="wmd-input" placeholder="6" style="width: 28ch; max-width: 28ch;" />
+</div>
+    <span class="wmd-badge wmd-badge-warning">Will be shrunk to ≈ 111 px to fit a 6 x 6 grid (approximate)</span>
+    <div class="wmd-container-button-group">
+  <button class="wmd-button wmd-button-primary">Start task</button>
+  <button class="wmd-button wmd-outline">Cancel</button>
+</div>
+  </div>
+  <div class="wmd-grid-item wmd-card wmd-grid-item-card">
+    <h3 class="wmd-h3">B · Follow &amp; Click</h3>
+    <div class="wmd-container-form-group">
+  Number of trials
+  <input type="number" class="wmd-input" placeholder="6" style="width: 28ch; max-width: 28ch;" />
+</div>
+    <div class="wmd-container-form-group">
+  Target radius (px)
+  <input type="number" class="wmd-input" placeholder="100" style="width: 26ch; max-width: 26ch;" />
+</div>
+    <div class="wmd-container-form-group">
+  Movement path
+  <select class="wmd-select">
+    <option value="" disabled selected>Circular</option>
+    <option value="Circular">Circular</option>
+    <option value="Horizontal ↔">Horizontal ↔</option>
+    <option value="Vertical ↕">Vertical ↕</option>
+    <option value="Diagonal ↘ (top-left ↔ bottom-right)">Diagonal ↘ (top-left ↔ bottom-right)</option>
+    <option value="Diagonal ↙ (top-right ↔ bottom-left)">Diagonal ↙ (top-right ↔ bottom-left)</option>
+  </select>
+</div>
+    <div class="wmd-container-form-group">
+  Selection window (ms)
+  <input type="number" class="wmd-input" placeholder="2500" style="width: 25ch; max-width: 25ch;" />
+</div>
+    <div class="wmd-container-button-group">
+  <button class="wmd-button wmd-button-primary">Start task</button>
+  <button class="wmd-button wmd-outline">Cancel</button>
+</div>
+  </div>
+</div>
+<blockquote class="wmd-blockquote">
+  <p class="wmd-paragraph"><strong>A — Target size:</strong> replaces the old "Target radius (px)" slider for Grid Click only (Phase A). Each item names the preset, its visual angle, and the diameter on <em>this</em> monitor, so the operator can picture it. Default = the task YAML's <code>target.size</code> (Medium).</p>
+  <p class="wmd-paragraph"><strong>A — Shrink hint:</strong> shown only when the chosen size is estimated not to fit the chosen rows x cols (in a 6 x 6 grid even Small is shrunk slightly: a cell fits ≈ 111 px on a ~1000 px tall canvas). It updates live when the size, rows or cols change, and is hidden otherwise. It is an estimate from the screen height; the real fit is applied per frame during the run (target + hitbox kept inside the cell) and the size actually used is saved per trial.</p>
+  <p class="wmd-paragraph"><strong>B — Movement path:</strong> new; default = the task YAML's <code>motion.path</code> (Circular). Every straight path moves at the same on-screen speed (the live "Target speed" slider keeps its meaning). Follow & Click still uses the px radius in this round — it moves to Small/Medium/Large in Phase B.</p>
+  <p class="wmd-paragraph"><strong>Both:</strong> the chosen values are recorded in the session's metadata and stored in / restored from a settings profile, like every other dialog value.</p>
+</blockquote>
+<hr class="wmd-separator" />
+<h3 class="wmd-h3">Movement paths (Follow &amp; Click)</h3>
+<pre class="wmd-code-block"><code> Circular            Horizontal            Vertical            Diagonal TL-BR        Diagonal TR-BL
+ +-----------+       +-----------+         +-----------+       +-----------+         +-----------+
+ |   .---.   |       |           |         |     ^     |       | o         |         |         o |
+ |  /     \  |       |           |         |     |     |       |   \       |         |       /   |
+ | |   +   | |       | o&lt;-------&gt;|         |     |     |       |     \     |         |     /     |
+ |  \     /  |       |           |         |     |     |       |       \   |         |   /       |
+ |   &#039;---&#039;   |       |           |         |     v     |       |         v |         | v         |
+ +-----------+       +-----------+         +-----------+       +-----------+         +-----------+
+ unchanged           y random/trial        x random/trial      corner to corner      corner to corner
+                                                               (bounces back)        (bounces back)</code></pre>
+</body>
+</html>
