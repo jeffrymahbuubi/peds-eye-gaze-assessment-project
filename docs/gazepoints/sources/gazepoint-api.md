@@ -21,6 +21,12 @@ parser_corrections:  # NetMind mangled these identifiers; corrected against a pd
   - { from: "LONOLONG", to: "LONGLONG", occurrences: 1 }
   - { from: "TRACKhtWINDOW", to: "TRACK_WINDOW", occurrences: 1 }
   - { from: "VALIDPOINTS", to: "VALID_POINTS", occurrences: 1 }
+  # added 2026-10-06 by an occurrence-level check (the first pass missed these):
+  - { from: "CALIBRATE_show", to: "CALIBRATE_SHOW", occurrences: 4 }
+  - { from: "TIME_TICK frequency", to: "TIME_TICK_FREQUENCY", occurrences: 3 }
+  - { from: "ENABLE_SEND_POG BEST", to: "ENABLE_SEND_POG_BEST", occurrences: 1 }
+  - { from: "VALID Points", to: "VALID_POINTS", occurrences: 1 }
+  - { from: "group_core_utils", to: "group__core__utils", occurrences: 1 }
 ---
 OPEN GAZE API
 BY GAZEPOINT
@@ -233,9 +239,9 @@ CLIENT SEND: <SET ID="CALIBRATE_START" STATE ="1" /> SERVER SEND: <ACK ID="CALIB
 
 **Example:**
 
-CLIENT SEND: <GET ID="CALIBRATE_show" /> SERVER SEND: <ACK ID="CALIBRATE_show" STATE="0" />
+CLIENT SEND: <GET ID="CALIBRATE_SHOW" /> SERVER SEND: <ACK ID="CALIBRATE_SHOW" STATE="0" />
 
-CLIENT SEND: <SET ID="CALIBRATE_show" STATE="1" /> SERVER SEND: <ACK ID="CALIBRATE_show" STATE="1" />
+CLIENT SEND: <SET ID="CALIBRATE_SHOW" STATE="1" /> SERVER SEND: <ACK ID="CALIBRATE_SHOW" STATE="1" />
 
 ## 3.5 CALIBRATE_TIMEOUT
 
@@ -271,7 +277,7 @@ CLIENT SEND: <GET ID="CALIBRATE_DELAY" /> SERVER SEND: <ACK ID="CALIBRATE_DELAY"
 
 **Parameter:** AVE_ERROR (average error over all calibration points in pixels)
 
-**Parameter:** VALID Points (number of successful calibration points)
+**Parameter:** VALID_POINTS (number of successful calibration points)
 
 **Permissions:** Read only
 
@@ -359,7 +365,7 @@ SERVER SEND: <ACK ID="TRACKER_DISPLAY" STATE="1" />
 CLIENT SEND: <SET ID="TRACKER_DISPLAY" STATE ="0" /> 
 SERVER SEND: <ACK ID="TRACKER_DISPLAY" STATE ="0" />
 
-### 3.13 TIME_TICK frequency
+### 3.13 TIME_TICK_FREQUENCY
 
 **Description:** Get the time-tick frequency to convert the TIME_TICK variable to seconds
 
@@ -371,8 +377,8 @@ SERVER SEND: <ACK ID="TRACKER_DISPLAY" STATE ="0" />
 
 **Example:**
 
-CLIENT SEND: <GET ID="TIME_TICK frequency" /> 
-SERVER SEND: <ACK ID="TIME_TICK frequency" FREQ="4704405731611246592" />
+CLIENT SEND: <GET ID="TIME_TICK_FREQUENCY" /> 
+SERVER SEND: <ACK ID="TIME_TICK_FREQUENCY" FREQ="4704405731611246592" />
 
 ## 3.14 SCREEN_SIZE
 
@@ -682,7 +688,7 @@ In this example there is one data field CNT with a value of 1484. Each data fiel
 
 ## 5.3 Time Tick
 
-**Description:** This is a signed 64-bit integer which indicates the number of CPU time ticks for high precision synchronization with other data collected on the same CPU. The time tick is from the OpenCV library: https://docs.opencv.org/master/db/de0/group_core_utils.html#gae73f58000611a1af25dd36d496bf4487
+**Description:** This is a signed 64-bit integer which indicates the number of CPU time ticks for high precision synchronization with other data collected on the same CPU. The time tick is from the OpenCV library: https://docs.opencv.org/master/db/de0/group__core__utils.html#gae73f58000611a1af25dd36d496bf4487
 
 **Parameter ID:** TIME_TICK
 **Parameter type:** LONGLONG
@@ -769,7 +775,7 @@ FPOGD="0.49280" FPOGID="1599" FPOGV="1" />
 | Parameter ID: | BPOGV |
 | Parameter type: | boolean |
 | Parameter description: | The valid flag with value of 1 if the data is valid, and 0 if it is not. |
-| Enable: | ENABLE_SEND_POG BEST |
+| Enable: | ENABLE_SEND_POG_BEST |
 | Example: |  |
 
 ## 5.8 Assistive Communication POG

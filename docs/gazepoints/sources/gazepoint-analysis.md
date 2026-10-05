@@ -15,6 +15,8 @@ parser_corrections:  # NetMind mangled these identifiers; corrected against a pd
   - { from: "{DATETIME_label}", to: "{DATETIME_LABEL}", occurrences: 1 }
   - { from: "WEB TITLE", to: "WEB_TITLE", occurrences: 1 }
   - { from: "Revisors", to: "Revisitors", occurrences: 1 }
+  # added 2026-10-06 by an occurrence-level check (the first pass missed these):
+  - { from: "group_core_utils", to: "group__core__utils", occurrences: 1 }
 ---
 GAZEPOINT ANALYSIS
 USER MANUAL
@@ -363,7 +365,7 @@ The sequence data fields are used to indicate the sequence of recorded data reco
 |---|---|---|---|---|
 | CNT | Counter | Integer | 45 | The counter data variable is incremented by 1 for each data record sent by the server. Useful to determine if any data packets are missed by the client. |
 | TIME(DATE) | Time | Decimal | 4.99716 | The time elapsed in seconds since the start of the recording. Note that the DATE in the header is the computer date and time (e.g. TIME(2024/08/22 08:28:26.460) when the recording started (e.g. at TIME=0) which can be used to synchronize with data collection by other systems that also record the computer date and time (e.g. EEG, etc). |
-| TIME_TICK(f) | Time Tick | Integer | 2096547271623 | This is a signed 64-bit integer which indicates the number of CPU time ticks for high precision synchronization with other data collected on the same CPU. The (f) parameter is the frequency of the clock ticks i.e. TIME_TICK(f=10000000). The time tick is from the OpenCV library: https://docs.opencv.org/master/db/de0/group_core_utils.html#gae73f58000611a1af25dd36d496bf4487 |
+| TIME_TICK(f) | Time Tick | Integer | 2096547271623 | This is a signed 64-bit integer which indicates the number of CPU time ticks for high precision synchronization with other data collected on the same CPU. The (f) parameter is the frequency of the clock ticks i.e. TIME_TICK(f=10000000). The time tick is from the OpenCV library: https://docs.opencv.org/master/db/de0/group__core__utils.html#gae73f58000611a1af25dd36d496bf4487 |
 
 ### 3.1.3 Point of Gaze Fields
 

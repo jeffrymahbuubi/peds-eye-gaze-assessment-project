@@ -60,11 +60,18 @@ streams the Analysis display to observers on another machine.
   `TIME_TICK` as `TIME tick`, `VALID_POINTS` as `VALIDPOINTS`, `CALIBRATE_SHOW` as `CALIBRATEShow`,
   `AOI_EXPORT` as `AOIXPORT`, and `NSURLSession WebSocket` as `NSIROLSession WSocket`. Because exact
   identifier spelling is the entire value of an API corpus, every affected token was cross-checked
-  against an independent `pdftotext` extraction and corrected — **39 occurrences across three
-  files**, concentrated in the API manual. Each correction is itemised in that file's
-  `parser_corrections` frontmatter, so the edits are auditable rather than silent. A verification
-  pass confirms every `SCREAMING_SNAKE` identifier present in the PDF text layer is present in the
-  corpus. This is the one respect in which `sources/` is not byte-verbatim.
+  against an independent `pdftotext` extraction and corrected — **39 occurrences across three files** in the first
+  pass, concentrated in the API manual, plus **9 more occurrences in the API manual**
+  (`CALIBRATE_show`, `TIME_TICK frequency`, `ENABLE_SEND_POG BEST`, `VALID Points`) and a corrupted
+  OpenCV URL in two files, found on 2026-10-06. The first pass compared identifier *sets*, which
+  cannot see a mangled occurrence when the correct spelling also appears elsewhere in the same file;
+  an occurrence-level check can. Each correction is itemised in that file's `parser_corrections`
+  frontmatter, so the edits are auditable rather than silent. A verification pass now confirms that
+  every `SCREAMING_SNAKE` identifier in the PDF text layer is present in the corpus with no mangled
+  variant left, and that every link is backed by the PDFs' text or link annotations. This is the one
+  deliberate respect in which `sources/` is not byte-verbatim; one unrecorded non-identifier
+  deviation is known: the parser turned the vendor's "they are compensate for head movement" into
+  "compensated" in `gazepoint-analysis.md`.
 - **Figures are not extracted.** Each image is marked `[FIGURE]` with its original caption retained
   where the document had one. Several procedures (mount assembly, Control UI) reference figures
   that are not reproduced here — consult the source PDF when a step is visual.
