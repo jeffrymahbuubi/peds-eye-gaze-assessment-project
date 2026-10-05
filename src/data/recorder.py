@@ -8,6 +8,7 @@ Writes one directory per session::
         session.log        # human-readable timeline
         gaze_stream.csv    # per-frame gaze samples
         all_gaze.csv       # every raw <REC>, Gazepoint Analysis export layout (optional)
+        eye_geometry.csv   # 3D eye position + per-eye POG per raw <REC> (optional)
         trials.csv         # one row per trial
         events.jsonl       # discrete events (DWELL_START, TARGET_SHOWN, ...)
 
@@ -23,7 +24,14 @@ from datetime import datetime
 from pathlib import Path
 from typing import Any, TextIO
 
-from .analysis_export import ALL_GAZE_FILENAME, all_gaze_header, rec_to_all_gaze_row
+from .analysis_export import (
+    ALL_GAZE_FILENAME,
+    EYE_GEOMETRY_COLUMNS,
+    EYE_GEOMETRY_FILENAME,
+    all_gaze_header,
+    rec_to_all_gaze_row,
+    rec_to_eye_geometry_row,
+)
 from .schema import GazeSample, SessionMetadata, TrialRecord
 
 _GAZE_HEADER = [
@@ -65,6 +73,12 @@ class SessionRecorder:
         self._all_gaze_time_origin_s: float | None = None
         self._all_gaze_since_flush = 0
 
+        # Optional third per-sample file, device rate like all_gaze.csv and
+        # sharing its TIME origin (SPEC S10.6.2) -- opened by open_eye_geometry().
+        self._eye_file: TextIO | None = None
+        self._eye_writer: Any = None
+        self._eye_since_flush = 0
+
     # -- lifecycle ---------------------------------------------------------
 
     def __enter__(self) -> SessionRecorder:
@@ -101,32 +115,63 @@ class SessionRecorder:
         self._all_gaze_writer = csv.writer(self._all_gaze_file)
         self._all_gaze_writer.writerow(all_gaze_header(datetime.now(), tick_frequency))
 
+    def open_eye_geometry(self) -> None:
+        """Start ``eye_geometry.csv`` (SPEC S10.6.2). Call after :meth:`open`;
+        rows come from :meth:`record_raw`, like ``all_gaze.csv``."""
+        if self._eye_file is not None:
+            return
+        self._eye_file = (self.session_dir / EYE_GEOMETRY_FILENAME).open(
+            "w", newline="", encoding="utf-8"
+        )
+        self._eye_writer = csv.writer(self._eye_file)
+        self._eye_writer.writerow(EYE_GEOMETRY_COLUMNS)
+
+    def flush_eye_geometry(self) -> None:
+        """Push buffered ``eye_geometry.csv`` rows to disk (so it can be read
+        back before :meth:`close`)."""
+        if self._eye_file is not None:
+            self._eye_file.flush()
+
+    def flush_all_gaze(self) -> None:
+        """Same for ``all_gaze.csv``."""
+        if self._all_gaze_file is not None:
+            self._all_gaze_file.flush()
+
     # -- writers -----------------------------------------------------------
 
     def record_raw(self, t_ns: int, attrs: dict[str, str]) -> None:
-        """Append one raw ``<REC>`` to ``all_gaze.csv``; a no-op unless
-        :meth:`open_all_gaze` was called, so callers need not branch.
+        """Append one raw ``<REC>`` to ``all_gaze.csv`` and/or
+        ``eye_geometry.csv``; a no-op unless :meth:`open_all_gaze` /
+        :meth:`open_eye_geometry` was called, so callers need not branch.
 
         ``TIME`` is rewritten relative to the first record (the export's
         convention), from the device's own ``TIME`` when present, else from
         ``t_ns`` -- the two are never mixed within one file.
         """
-        if self._all_gaze_writer is None:
+        if self._all_gaze_writer is None and self._eye_writer is None:
             return
         device_time = _parse_float(attrs.get("TIME"))
         now_s = device_time if device_time is not None else t_ns / 1e9
         if self._all_gaze_time_origin_s is None:
             self._all_gaze_time_origin_s = now_s
-        row = rec_to_all_gaze_row(
-            attrs,
-            time_s=now_s - self._all_gaze_time_origin_s,
-            media_name=self._all_gaze_media_name,
-        )
-        self._all_gaze_writer.writerow(list(row.values()))
-        self._all_gaze_since_flush += 1
-        if self._all_gaze_since_flush >= self._gaze_flush_every:
-            self._all_gaze_file.flush()
-            self._all_gaze_since_flush = 0
+        time_s = now_s - self._all_gaze_time_origin_s
+        if self._all_gaze_writer is not None:
+            row = rec_to_all_gaze_row(
+                attrs,
+                time_s=time_s,
+                media_name=self._all_gaze_media_name,
+            )
+            self._all_gaze_writer.writerow(list(row.values()))
+            self._all_gaze_since_flush += 1
+            if self._all_gaze_since_flush >= self._gaze_flush_every:
+                self._all_gaze_file.flush()
+                self._all_gaze_since_flush = 0
+        if self._eye_writer is not None:
+            self._eye_writer.writerow(rec_to_eye_geometry_row(attrs, time_s=time_s))
+            self._eye_since_flush += 1
+            if self._eye_since_flush >= self._gaze_flush_every:
+                self._eye_file.flush()
+                self._eye_since_flush = 0
 
     def record_gaze(self, sample: GazeSample) -> None:
         if self._gaze_writer is None:
@@ -177,7 +222,13 @@ class SessionRecorder:
         # metadata is (re)written on close so late fields (calibration error,
         # task list) are captured.
         self.write_metadata()
-        for fh in (self._gaze_file, self._all_gaze_file, self._events_file, self._log_file):
+        for fh in (
+            self._gaze_file,
+            self._all_gaze_file,
+            self._eye_file,
+            self._events_file,
+            self._log_file,
+        ):
             if fh is not None:
                 fh.flush()
                 fh.close()

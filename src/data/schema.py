@@ -216,6 +216,18 @@ class SessionMetadata:
     # ``schema_version`` deliberately not bumped, same reasoning as above.
     hud_hidden_at_start: bool | None = None
     hud_toggle_count: int = 0
+    # Device facts and measured quality (SPEC-gazepoint-analysis-export-
+    # parity.md S10.6.3). Rate/bus/serial come from the connect-time device
+    # query (placeholders already filtered to None); the refresh rate is the
+    # canvas's QScreen; the measured rate and eye distance are filled at
+    # session end. All None when unknown (replay, older sessions). Additive;
+    # ``schema_version`` deliberately not bumped, same reasoning as above.
+    gazepoint_rate_hz: int | None = None
+    gazepoint_bus: str | None = None
+    gazepoint_serial: str | None = None
+    display_refresh_hz: float | None = None
+    measured_sample_rate_hz: float | None = None
+    measured_eye_distance_mm_median: float | None = None
 
     def to_dict(self) -> dict[str, Any]:
         return {f.name: getattr(self, f.name) for f in fields(self)}

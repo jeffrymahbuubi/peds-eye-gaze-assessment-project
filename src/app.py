@@ -19,7 +19,13 @@ from PySide6.QtCore import Qt, QPoint, QTimer, QUrl
 from PySide6.QtMultimedia import QSoundEffect
 from PySide6.QtWidgets import QApplication, QDialog
 
-from .data.analysis_export import finalize_all_gaze
+from .data.analysis_export import (
+    ALL_GAZE_FILENAME,
+    EYE_GEOMETRY_FILENAME,
+    finalize_all_gaze,
+    measured_sample_rate_hz,
+    median_eye_distance_mm,
+)
 from .data.exporter import write_session_metrics
 from .data.recorder import SessionRecorder
 from .data.schema import SessionMetadata
@@ -390,6 +396,12 @@ class AssessmentApp:
         self.recorder.open()
         recording_cfg = self.config.get("recording", {})
         self._save_all_gaze = bool(recording_cfg.get("save_all_gaze", True))
+        self._save_eye_geometry = bool(recording_cfg.get("save_eye_geometry", True))
+        if self._save_all_gaze or self._save_eye_geometry:
+            # Raw records queued since Connect / Setup / calibration are not
+            # part of this run: start both raw files, and their TIME origin,
+            # at the run's first record (SPEC S10.6.9).
+            self.client.clear_raw()
         if self._save_all_gaze:
             # Gazepoint Analysis export layout (SPEC-gazepoint-analysis-
             # export-parity.md S5): the task id stands in for Analysis's
@@ -399,6 +411,10 @@ class AssessmentApp:
                 media_name=task_id,
                 tick_frequency=info.tick_frequency if info is not None else None,
             )
+        # Device-rate 3D eye position + per-eye POG (SPEC-gazepoint-analysis-
+        # export-parity.md S10.6.2); on unless explicitly disabled.
+        if self._save_eye_geometry:
+            self.recorder.open_eye_geometry()
         # Filled once the canvas has its real on-screen size (see
         # _record_geometry); not at construction, when a widget still
         # reports 0x0 or its pre-layout default.
@@ -700,6 +716,11 @@ class AssessmentApp:
             meta.screen_height_px = info.screen_height
             offset_x -= info.screen_x or 0
             offset_y -= info.screen_y or 0
+        if info is not None:
+            # Already placeholder-filtered by the client (S24.1).
+            meta.gazepoint_rate_hz = info.rate_hz
+            meta.gazepoint_bus = info.bus
+            meta.gazepoint_serial = info.serial
         meta.canvas_width_px = int(self.canvas.width())
         meta.canvas_height_px = int(self.canvas.height())
         meta.canvas_offset_x_px = int(offset_x)
@@ -741,6 +762,7 @@ class AssessmentApp:
         meta.display_height_px = check.height_px
         meta.display_scale_percent = check.scale_percent
         meta.display_standard = check.standard
+        meta.display_refresh_hz = round(float(screen.refreshRate()), 1)
         text = f"Display: {check.width_px}x{check.height_px} at {check.scale_percent}%"
         if check.standard:
             return f"{text} (standard)."
@@ -759,7 +781,7 @@ class AssessmentApp:
         if not self._geometry_recorded:
             self._record_geometry()
         self._check_canvas_resized(t_ns)
-        if self._save_all_gaze:
+        if self._save_all_gaze or self._save_eye_geometry:
             # Every raw <REC> since the last frame, at device rate -- the
             # per-frame gaze_stream.csv sample below is a different, coarser
             # view and stays as it was.
@@ -821,6 +843,28 @@ class AssessmentApp:
         if self.task.is_done:
             self._shutdown()
 
+    def _record_session_end_quality(self) -> None:
+        """Fill the measured-quality metadata fields (SPEC-gazepoint-analysis-
+        export-parity.md S10.6.3) just before ``metadata.json`` is rewritten
+        on close: the device rate from the raw file's count / time span (live
+        sessions only) and
+        the session median eye distance from ``eye_geometry.csv``."""
+        meta = self.metadata
+        if self.client.is_live:
+            # Records / device-time span of the raw file, not the on-screen
+            # meter (capped by the GUI frame rate) -- SPEC S10.6.9.
+            self.recorder.flush_eye_geometry()
+            self.recorder.flush_all_gaze()
+            raw_name = EYE_GEOMETRY_FILENAME if self._save_eye_geometry else ALL_GAZE_FILENAME
+            raw_path = self.recorder.session_dir / raw_name
+            if self._save_eye_geometry or self._save_all_gaze:
+                meta.measured_sample_rate_hz = measured_sample_rate_hz(raw_path)
+        if self._save_eye_geometry:
+            self.recorder.flush_eye_geometry()
+            meta.measured_eye_distance_mm_median = median_eye_distance_mm(
+                self.recorder.session_dir / EYE_GEOMETRY_FILENAME
+            )
+
     def _update_fps(self, t_ns: int) -> None:
         self._fps_frames += 1
         if t_ns - self._fps_last_ns >= 1_000_000_000:
@@ -849,7 +893,7 @@ class AssessmentApp:
             # Flush a dropout still open at the end, so one that never
             # recovered is recorded rather than silently lost.
             self._dropout_log.close(time.time_ns())
-        if self._save_all_gaze:
+        if self._save_all_gaze or self._save_eye_geometry:
             for raw_t_ns, attrs in self.client.drain_raw():  # whatever arrived since the last tick
                 self.recorder.record_raw(raw_t_ns, attrs)
         trials_path = self.recorder.write_trials(self.task.trials)
@@ -867,6 +911,7 @@ class AssessmentApp:
                     f"SCREEN_SIZE unknown; saccade pixels scaled by configured {width}x{height}."
                 )
             self.recorder.log(f"Saccade metrics scaled by {width}x{height}px.")
+        self._record_session_end_quality()
         self.recorder.close()
         if self._save_all_gaze:
             finalize_all_gaze(self.recorder.session_dir, width, height)

@@ -10,14 +10,14 @@ user waived §6's approval gate the same day ("§5 + full §6, skip the
 approval gate"), so Stage 1 and Stage 2 landed together. **Committed as `4387319`,
 included in the `v1.0.0` tag** (see §11's 2026-09-30 entry). **§10 holds a
 v1.1 backlog:** 3D eye position, per-eye POG, and device and display facts
-in `metadata.json`. **§10.6 is the APPROVED implementation design (user,
-2026-10-05, `9879c95`), not yet built. Next: `/spec-run` → `spec-implementer`
-builds §10.6, then hub review, then a live check with the real GP3HD.** The
-hub must stage the four new `gazepoint.enable.*` keys in the committed
-`configs/default.yaml` itself (skip-worktree gotcha, §10.6.1).
+in `metadata.json`. **§10.6 is IMPLEMENTED, tested and live-validated
+with the real GP3HD (2026-10-05):** `eye_geometry.csv` plus device and
+display facts in `metadata.json`, with two live-check fixes (§10.6.9),
+including a pre-run raw-record leak that also affected `all_gaze.csv` since
+the dashboard. Nothing in this SPEC is open.
 
 **Created:** 2026-09-17
-**Last updated:** 2026-10-05 (§10.6: §10 approved for implementation)
+**Last updated:** 2026-10-05 (§10.6 implemented + live-validated, §10.6.9 fixes)
 
 ## 1. Origin / what was asked
 
@@ -408,7 +408,7 @@ restored 4250 → `127.0.0.1:4242`.
 - The headless `--replay` path (`task_runner.run_headless_replay`) does
   not write `all_gaze.csv` — it has no client to drain. Unchanged.
 
-## 10. Backlog (v1.1) — API fields outside the Analysis export (added 2026-09-30, NOT implemented)
+## 10. Backlog (v1.1) — API fields outside the Analysis export (added 2026-09-30; §10.1–§10.3 implemented via §10.6 on 2026-10-05)
 
 §1's brief was "add every field the API exposes (except the biometrics-kit
 ones)". §5 built that as *the 62 Analysis-export columns*, so every API
@@ -488,7 +488,7 @@ but `metadata.json` keeps only `gazepoint_model`. Add:
 - Additive only: `metadata.json` readers must tolerate the fields' absence
   in v1.0.0 sessions.
 
-### 10.6 Approved implementation design (2026-10-05) — APPROVED, not yet built
+### 10.6 Approved implementation design (2026-10-05) — IMPLEMENTED + live-validated 2026-10-05
 
 The user moved §10 from backlog to implementation on 2026-10-05 (via
 `/spec-backlog` → `/spec-run`, item #1) and settled §10.5's open choices
@@ -599,7 +599,80 @@ using the new data; the `_record_geometry()` physical/logical unit mix;
 
 #### 10.6.7 Impl log (implementer appends here)
 
+- **2026-10-05 — claude-sonnet-5-5.** §10.6.1–§10.6.6 implemented (criteria
+  1–5; 6 = suite below; 7 = live check left to hub + user).
+  - Files: `src/inputs/gazepoint_client.py` (4 new `_ENABLE_RECORDS` keys;
+    enable = all-True defaults updated by the config dict), `src/data/analysis_export.py`
+    (`EYE_GEOMETRY_*`, `rec_to_eye_geometry_row`, `median_eye_distance_mm`),
+    `src/data/recorder.py` (`open_eye_geometry`, `flush_eye_geometry`;
+    `record_raw` writes both files from one shared TIME), `src/data/schema.py`
+    (6 optional metadata fields), `src/app.py` (opens the file when
+    `recording.save_eye_geometry` is not false; drain loops run if either
+    `save_all_gaze` or `save_eye_geometry`; device facts + refresh rate in
+    `_record_geometry`/`_record_display`; measured rate + median distance in
+    new `_record_session_end_quality()` called before `recorder.close()`),
+    `tools/fake_gazepoint_server.py` (`eye_geometry_attrs`, tracks the
+    `ENABLE_SEND_*` ids the client sets), `docs/DATA_SCHEMA.md`,
+    `tests/test_display_check.py` (fake screen gained `refreshRate`).
+    `src/engine/task_runner.py` untouched: headless replay writes no
+    `all_gaze.csv`, so it writes no `eye_geometry.csv` either.
+  - Tests added: `tests/test_eye_geometry.py` (19).
+  - pytest: `309 passed` (baseline 290 + 19; the known local-config failure
+    did not occur this run).
+  - Deviations: none. Judgement calls within the text: `CNT` is written as
+    received, empty when absent (all_gaze.csv writes `0` there); metadata
+    median stored as a float (e.g. `640.0`); `measured_sample_rate_hz` is
+    rounded to 0.1 Hz.
+  - Left undone: criterion 7 (live GP3HD check); `configs/default.yaml` keys
+    (hub).
+
+- **2026-10-05, later — claude-sonnet-5-5. §10.6.9 fixes implemented.**
+  - (1) `GazepointClient.clear_raw()` added; `AssessmentApp.__init__` calls it
+    before `open_all_gaze` / `open_eye_geometry` (when either raw file is
+    enabled), so both files and the TIME origin start at the run's first
+    record. (2) `measured_sample_rate_hz(path)` in `analysis_export.py`:
+    `(n-1)/(TIME_last-TIME_first)`, 0.1 Hz, from `eye_geometry.csv` else
+    `all_gaze.csv`, `None` for <2 rows; `_record_session_end_quality` uses it
+    (live only; `SampleRateTracker`/on-screen meter untouched). Recorder gained
+    `flush_all_gaze()`. `docs/DATA_SCHEMA.md` field wording updated.
+  - Files: `src/inputs/gazepoint_client.py`, `src/data/analysis_export.py`,
+    `src/data/recorder.py`, `src/app.py`, `docs/DATA_SCHEMA.md`,
+    `tests/test_eye_geometry.py` (+4 tests).
+  - pytest: `313 passed` (309 + 4).
+  - Deviations: none. The pre-run regression test is client+recorder level
+    plus a source-order check on `AssessmentApp.__init__` (no full app
+    construction). If both raw files are off, no rate is written.
+
 #### 10.6.8 Open questions (implementer writes here and returns; does not decide)
+
+#### 10.6.9 Live-check findings and approved fixes (2026-10-05, user-decided)
+
+The first live run (`sessions/2026-10-05_EYEGEOM_click_static_run1`, real
+GP3HD, 150 Hz USB3) showed everything §10.6.6 asks for: both files have
+12 512 rows, `CNT`/`TIME` match on every row, the median eye distance is
+554 mm, and rate/bus/serial/refresh are filled. It also found two defects,
+both fixed in this round on the user's decision (`AskUserQuestion`):
+
+1. **Pre-run records leak into the run's raw files. The bug predates §10.6
+   and also affects `all_gaze.csv` / `fixations.csv` / saccade metrics since
+   the dashboard.** `GazepointClient._raw_queue` is filled from Connect
+   onwards and is never emptied when a run starts. In the run above, the
+   first 2 953 rows (~20 s, Connect → Do Calibration) come from before the
+   task. They are followed by a 48.8 s `TIME` jump (calibration, when the
+   reader is paused) and then the 64 s task. §9.3's assumption ("the reader
+   thread only starts at run start, so nothing pre-run leaks") no longer
+   holds. **Fix:** discard the queued raw records when a run starts
+   recording (before `open_all_gaze` / `open_eye_geometry`), so the files'
+   first row and the `TIME` origin are the run's first record. Add a
+   regression test.
+2. **`measured_sample_rate_hz` read 63.9 Hz on a 150 Hz device.** The
+   §24.4 meter (`SampleRateTracker`) counts distinct samples seen once per
+   GUI frame, so the display refresh (60 Hz) caps it. **Fix:** at session
+   close, compute `measured_sample_rate_hz` from the raw records instead,
+   as **records ÷ device-time span**: `(n − 1) / (TIME_last −
+   TIME_first)` from `eye_geometry.csv` (or `all_gaze.csv` if only that one
+   is written), rounded to 0.1. Live sessions only; `None` if fewer than 2
+   rows. The on-screen meter is left unchanged.
 
 ## 11. Log
 
@@ -680,3 +753,27 @@ using the new data; the `_record_geometry()` physical/logical unit mix;
   `viewing_distance_mm` unchanged. New `enable` keys default on when
   missing from config. Next: `spec-implementer` builds §10.6 after
   `SPEC-result-logic.md` §12.
+
+- **2026-10-05, later — §10.6 IMPLEMENTED, reviewed, live-validated, via
+  `/spec-run`.** `spec-implementer` built §10.6.1–§10.6.6 (log in
+  §10.6.7, no §10.6.8 questions). Hub review: every change in scope, suite
+  309 / 0. Live run 1 (`sessions/2026-10-05_EYEGEOM_click_static_run1`,
+  real GP3HD 150 Hz USB3) met every criterion (12 512 rows in both raw
+  files, `CNT`/`TIME` equal on every row, median eye distance 554 mm,
+  rate/bus/serial/refresh filled) but found two defects. The user chose to
+  fix both now (§10.6.9): (1) raw records queued since Connect leaked into
+  the run's raw files (~20 s pre-run + a 48.8 s calibration gap); this bug
+  predates §10.6 and affects every dashboard session's `all_gaze.csv` /
+  `fixations.csv` / saccade metrics recorded before this fix; (2)
+  `measured_sample_rate_hz` read 63.9 Hz, because the GUI-frame meter is
+  capped by the 60 Hz display, so it is now records ÷ device-time span of
+  the raw file. Suite after the fixes **313 passed / 0 failed** (hub rerun).
+  Live run 2 (`..._click_grid_run1`): 5 520 rows in both files, no `CNT`
+  gaps, max `TIME` step 45 ms, file span 37.2 s vs task 36.3 s,
+  `measured_sample_rate_hz` 148.5, median eye distance 535 mm. The hub
+  added the four `gazepoint.enable.*` keys and `recording.save_eye_geometry`
+  to the committed `configs/default.yaml` (HEAD + additive keys only;
+  skip-worktree kept). Not tested: `save_eye_geometry: false` and the
+  `all_gaze.csv`-only rate path live (unit-tested only); run 1's metadata
+  has the wrong sex (the hub changed the Sex field to enable Continue); both
+  `EYEGEOM` sessions are test data.

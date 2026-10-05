@@ -9,6 +9,7 @@ sessions/2026-07-15_P001_click_static/
   gaze_stream.csv    # per-frame gaze samples
   all_gaze.csv       # every raw <REC>, Gazepoint Analysis 62-column export layout
   fixations.csv      # one row per fixation, same layout (written at session close)
+  eye_geometry.csv   # per raw <REC>: 3D eye position + per-eye POG (device rate)
   trials.csv         # one row per trial (analysis-ready)
   events.jsonl       # discrete events (TARGET_SHOWN, HIT, TIMEOUT, MISS_CLICK)
   session_metrics.json  # rolled-up result (summary / fixation_saccade / saccades)
@@ -101,6 +102,42 @@ Geometry fields in `metadata.json` (all additive, `null` when unknown):
 (config, else the OS/EDID value), `viewing_distance_mm` (config). These let
 `session_metrics.json`'s `saccades` block report amplitude in degrees of
 visual angle as well as px.
+
+## eye_geometry.csv
+
+3D eye position and per-eye point of gaze, one row per raw `<REC>` at device
+rate — the same rows as `all_gaze.csv`, joinable on `CNT` and aligned on
+`TIME` (same session-relative seconds, same origin and rule). Off with
+`recording.save_eye_geometry: false` (default on).
+`specs/SPEC-gazepoint-analysis-export-parity.md` §10.6.
+
+Columns, in order: `CNT`, `TIME`, `LEYEX`, `LEYEY`, `LEYEZ`, `LPUPILD`,
+`LPUPILV`, `REYEX`, `REYEY`, `REYEZ`, `RPUPILD`, `RPUPILV`, `LPOGX`, `LPOGY`,
+`LPOGV`, `RPOGX`, `RPOGY`, `RPOGV`.
+
+- `*EYEX/Y/Z`: eye position relative to the camera focal point, **metres**
+  (`LEYEZ` ≈ 0.65 means the eye is 65 cm from the camera); `*PUPILD`: pupil
+  diameter in metres; `*PUPILV`: 1 when that eye's data is valid.
+- `*POGX/Y`: that eye's point of gaze, screen fractions like `FPOG`/`BPOG`;
+  `*POGV`: 1 when valid.
+- Values are written as the device sent them; an attribute the device did
+  not send (e.g. `--replay` fixtures, or a record disabled under
+  `gazepoint.enable.eye_left`/`eye_right`/`pog_left`/`pog_right`) is an
+  **empty cell**.
+- Headless `--replay` (no GUI) writes neither this file nor `all_gaze.csv`.
+
+## Device and quality fields in metadata.json
+
+All additive and `null` when unknown (older sessions lack them):
+
+| field | type | notes |
+|-------|------|-------|
+| `gazepoint_rate_hz` | int\|null | device sampling rate from `PRODUCT_ID` (60 vs 150 Hz) |
+| `gazepoint_bus` | str\|null | e.g. `USB3` |
+| `gazepoint_serial` | str\|null | `SERIAL_ID`; placeholder `0` becomes null |
+| `display_refresh_hz` | float\|null | refresh rate of the canvas's screen, 0.1 Hz |
+| `measured_sample_rate_hz` | float\|null | records ÷ device-time span of the raw file, `(n-1)/(TIME_last-TIME_first)` over `eye_geometry.csv` (or `all_gaze.csv` if only that is written), 0.1 Hz; live sessions only; null with fewer than 2 rows. Not the on-screen meter, which is capped by the GUI frame rate |
+| `measured_eye_distance_mm_median` | float\|null | median over `eye_geometry.csv` rows of the mean of the valid eyes' `*EYEZ` (valid = `*PUPILV` 1 and value > 0), mm, rounded to 1 mm; null with no valid rows. `viewing_distance_mm` (config) is still what degree maths uses |
 
 ## events.jsonl
 

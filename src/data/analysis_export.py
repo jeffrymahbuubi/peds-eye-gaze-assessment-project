@@ -80,6 +80,19 @@ _API_ALIASES: dict[str, str] = {
 
 ALL_GAZE_FILENAME = "all_gaze.csv"
 FIXATIONS_FILENAME = "fixations.csv"
+EYE_GEOMETRY_FILENAME = "eye_geometry.csv"
+
+# eye_geometry.csv (SPEC S10.6.2): 3D eye position + per-eye POG, one row per
+# raw <REC>. Not part of Analysis's export, so it keeps the API's own names;
+# CNT/TIME join it to all_gaze.csv. Values are written as received (metres for
+# *EYE*/*PUPILD, screen fractions for *POG*, 0/1 for *V).
+EYE_GEOMETRY_COLUMNS: tuple[str, ...] = (
+    "CNT", "TIME",
+    "LEYEX", "LEYEY", "LEYEZ", "LPUPILD", "LPUPILV",
+    "REYEX", "REYEY", "REYEZ", "RPUPILD", "RPUPILV",
+    "LPOGX", "LPOGY", "LPOGV",
+    "RPOGX", "RPOGY", "RPOGV",
+)
 
 
 def all_gaze_header(start_wallclock: datetime, tick_frequency: int | None) -> list[str]:
@@ -131,6 +144,78 @@ def rec_to_all_gaze_row(
             raw = attrs.get(_API_ALIASES.get(name, name))
             row[name] = raw if raw not in (None, "") else _ABSENT_DEFAULTS.get(name, "0")
     return row
+
+
+def rec_to_eye_geometry_row(attrs: dict[str, str], *, time_s: float) -> list[str]:
+    """One ``eye_geometry.csv`` row from a parsed ``<REC>``; an attribute the
+    device did not send is an empty cell (never a made-up 0)."""
+    return [
+        f"{time_s:.5f}" if name == "TIME" else attrs.get(name, "")
+        for name in EYE_GEOMETRY_COLUMNS
+    ]
+
+
+def measured_sample_rate_hz(path: str | Path) -> float | None:
+    """Device sample rate from a raw per-record CSV (``eye_geometry.csv`` or
+    ``all_gaze.csv``): records / device-time span, ``(n - 1) / (TIME_last -
+    TIME_first)``, rounded to 0.1 Hz. ``None`` when the file is missing, has
+    fewer than 2 rows, or the span is not positive. Unlike the on-screen
+    meter this is not capped by the GUI frame rate (S10.6.9)."""
+    path = Path(path)
+    if not path.exists():
+        return None
+    with path.open("r", newline="", encoding="utf-8") as fh:
+        reader = csv.reader(fh)
+        header = next(reader, None)
+        if header is None:
+            return None
+        col = next((i for i, h in enumerate(header) if base_column(h) == "TIME"), None)
+        if col is None:
+            return None
+        first = last = None
+        n = 0
+        for row in reader:
+            if col >= len(row) or row[col] == "":
+                continue
+            try:
+                t = float(row[col])
+            except ValueError:
+                continue
+            if first is None:
+                first = t
+            last = t
+            n += 1
+    if n < 2 or first is None or last is None or last <= first:
+        return None
+    return round((n - 1) / (last - first), 1)
+
+
+def median_eye_distance_mm(path: str | Path) -> float | None:
+    """Session median eye-to-camera distance from an ``eye_geometry.csv``.
+
+    Per row: the mean of the valid eyes' ``*EYEZ`` (valid = ``*PUPILV`` is 1
+    and the value is > 0), in metres; the median over rows, x1000, rounded to
+    1 mm. ``None`` when the file is missing or no row has a valid eye.
+    """
+    path = Path(path)
+    if not path.exists():
+        return None
+    per_row: list[float] = []
+    with path.open("r", newline="", encoding="utf-8") as fh:
+        for row in csv.DictReader(fh):
+            zs = []
+            for eye in ("L", "R"):
+                z = _to_float(row.get(f"{eye}EYEZ"))
+                if _to_float(row.get(f"{eye}PUPILV")) == 1.0 and z > 0.0:
+                    zs.append(z)
+            if zs:
+                per_row.append(sum(zs) / len(zs))
+    if not per_row:
+        return None
+    per_row.sort()
+    n = len(per_row)
+    median = per_row[n // 2] if n % 2 else (per_row[n // 2 - 1] + per_row[n // 2]) / 2
+    return float(round(median * 1000.0))
 
 
 # -- reading back ----------------------------------------------------------

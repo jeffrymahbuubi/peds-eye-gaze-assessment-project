@@ -68,6 +68,13 @@ gazepoint:
     pupil_right_px: true         # RPCX/RPCY/RPD/RPS/RPV
     blink: true                  # BKID/BKDUR/BKPMIN
     pix: true                    # PIXS/PIXV
+    # 3D eye position + per-eye POG, recorded only to eye_geometry.csv
+    # (SPEC-gazepoint-analysis-export-parity.md S10.6). A key missing here
+    # also means on; set false to disable.
+    eye_left: true               # LEYEX/Y/Z (m), LPUPILD/LPUPILV
+    eye_right: true              # REYEX/Y/Z (m), RPUPILD/RPUPILV
+    pog_left: true               # LPOGX/LPOGY/LPOGV
+    pog_right: true              # RPOGX/RPOGY/RPOGV
 
 recording:
   output_root: "sessions"
@@ -76,6 +83,9 @@ recording:
   # Gazepoint Analysis's own 62-column export layout, next to -- never
   # replacing -- gaze_stream.csv. ~3 MB/min at 150 Hz.
   save_all_gaze: true
+  # eye_geometry.csv: 3D eye position + per-eye POG per raw <REC>, joined
+  # to all_gaze.csv on CNT/TIME (S10.6.2).
+  save_eye_geometry: true
   save_screen_capture: false   # requires opencv (gui extra)
 
 theme:

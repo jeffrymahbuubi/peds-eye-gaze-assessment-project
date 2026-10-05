@@ -84,7 +84,26 @@ DEVICE_INFO_REPLIES = {
 }
 
 
-def send_rec_loop(conn: socket.socket, stop_event: threading.Event) -> None:
+def eye_geometry_attrs(x: float, y: float, enabled: set[str]) -> str:
+    """REC attributes for the ENABLE_SEND_EYE_* / ENABLE_SEND_POG_* records the
+    client asked for (SPEC-gazepoint-analysis-export-parity.md S10.6.4):
+    eyes at +-0.03 m on X and ~0.65 m from the camera, per-eye POG = the
+    fixation point plus a small fixed offset."""
+    out = ""
+    if "ENABLE_SEND_EYE_LEFT" in enabled:
+        out += 'LEYEX="-0.03000" LEYEY="0.01000" LEYEZ="0.65000" LPUPILD="0.00300" LPUPILV="1" '
+    if "ENABLE_SEND_EYE_RIGHT" in enabled:
+        out += 'REYEX="0.03000" REYEY="0.01000" REYEZ="0.65000" RPUPILD="0.00300" RPUPILV="1" '
+    if "ENABLE_SEND_POG_LEFT" in enabled:
+        out += f'LPOGX="{x - 0.005:.5f}" LPOGY="{y:.5f}" LPOGV="1" '
+    if "ENABLE_SEND_POG_RIGHT" in enabled:
+        out += f'RPOGX="{x + 0.005:.5f}" RPOGY="{y:.5f}" RPOGV="1" '
+    return out
+
+
+def send_rec_loop(
+    conn: socket.socket, stop_event: threading.Event, enabled: set[str] | None = None
+) -> None:
     """Streams an always-valid REC at REC_RATE_HZ, stepping through
     WAYPOINTS one fixation at a time, until the connection drops or
     stop_event is set (SPEC S24.4 / result-logic S9 QA support).
@@ -94,7 +113,11 @@ def send_rec_loop(conn: socket.socket, stop_event: threading.Event) -> None:
     uses to segment real device output into fixations/saccades, so this
     produces genuine (if synthetic) fixation/saccade counts rather than the
     single perpetual fixation a truly fixed point would give.
+
+    ``enabled`` is the live set of ``ENABLE_SEND_*`` ids the client has
+    switched on (shared with the connection handler, read per record).
     """
+    enabled = enabled if enabled is not None else set()
     t0 = time.monotonic()
     interval_s = 1.0 / REC_RATE_HZ
     waypoint_index = -1
@@ -124,7 +147,8 @@ def send_rec_loop(conn: socket.socket, stop_event: threading.Event) -> None:
             f'RPCX="0.82296" RPCY="0.37728" RPD="19.28113" RPS="1.20453" RPV="1" '
             f'BKID="0" BKDUR="0.00000" BKPMIN="19" '
             f'LPMM="3.00000" LPMMV="1" RPMM="3.00000" RPMMV="1" '
-            f'PIXS="0.00000" PIXV="0" />\r\n'
+            f'PIXS="0.00000" PIXV="0" '
+            f'{eye_geometry_attrs(x, y, enabled)}/>\r\n'
         )
         counter += 1
         try:
@@ -137,6 +161,7 @@ def handle_client(conn: socket.socket) -> None:
     conn.settimeout(0.2)
     buffer = ""
     stop_rec = threading.Event()
+    enabled: set[str] = set()  # ENABLE_SEND_* ids the client switched on
     rec_thread: threading.Thread | None = None
     print("[fake-server] client connected", flush=True)
     try:
@@ -162,9 +187,15 @@ def handle_client(conn: socket.socket) -> None:
                     conn.sendall(ack.encode("ascii"))
                     print(f"[fake-server] sent: {ack.strip()}", flush=True)
                     continue
+                if "<SET" in line and 'ID="ENABLE_SEND_' in line:
+                    record_id = line.split('ID="', 1)[1].split('"', 1)[0]
+                    if 'STATE="1"' in line:
+                        enabled.add(record_id)
+                    else:
+                        enabled.discard(record_id)
                 if 'ID="ENABLE_SEND_DATA"' in line and 'STATE="1"' in line and rec_thread is None:
                     rec_thread = threading.Thread(
-                        target=send_rec_loop, args=(conn, stop_rec), daemon=True
+                        target=send_rec_loop, args=(conn, stop_rec, enabled), daemon=True
                     )
                     rec_thread.start()
                     print(f"[fake-server] streaming REC at {REC_RATE_HZ:.0f} Hz", flush=True)

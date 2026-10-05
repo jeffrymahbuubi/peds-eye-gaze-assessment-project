@@ -135,6 +135,7 @@ def _fake_app(width: int, height: int, dpr: float, ack: bool | None):
     screen = SimpleNamespace(
         geometry=lambda: geo,
         devicePixelRatio=lambda: dpr,
+        refreshRate=lambda: 59.94,
         physicalSize=lambda: SimpleNamespace(width=lambda: 527.0, height=lambda: 296.0),
     )
     canvas = SimpleNamespace(

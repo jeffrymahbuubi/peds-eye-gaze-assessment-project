@@ -69,6 +69,12 @@ _ENABLE_RECORDS = {
     "pupil_right_px": "ENABLE_SEND_PUPIL_RIGHT",
     "blink": "ENABLE_SEND_BLINK",
     "pix": "ENABLE_SEND_PIX",
+    # 3D eye position + per-eye POG, recorded to eye_geometry.csv
+    # (SPEC-gazepoint-analysis-export-parity.md S10.6).
+    "eye_left": "ENABLE_SEND_EYE_LEFT",
+    "eye_right": "ENABLE_SEND_EYE_RIGHT",
+    "pog_left": "ENABLE_SEND_POG_LEFT",
+    "pog_right": "ENABLE_SEND_POG_RIGHT",
 }
 
 # Upper bound on raw <REC> records buffered between drain_raw() calls -- ~70s
@@ -396,7 +402,11 @@ class GazepointClient:
         replay_path: str | Path | None = None,
         reconnect_interval_s: float = 1.0,
     ) -> None:
-        self._enable = enable or {k: True for k in _ENABLE_RECORDS}
+        # Every known record defaults on; the config dict only overrides, so a
+        # key missing from it (e.g. one added after a local config was
+        # written) means "on" and an explicit false disables (S10.6.1).
+        self._enable = {k: True for k in _ENABLE_RECORDS}
+        self._enable.update(enable or {})
         self._replay_path = replay_path
         self._reconnect_interval_s = reconnect_interval_s
         self._host = "127.0.0.1"
@@ -583,6 +593,14 @@ class GazepointClient:
             items = list(self._raw_queue)
             self._raw_queue.clear()
         return items
+
+    def clear_raw(self) -> None:
+        """Discard raw records queued so far. Called when a run starts
+        recording so records from Connect / Setup / calibration (the queue
+        fills from connect onwards) never reach the run's raw files
+        (SPEC-gazepoint-analysis-export-parity.md S10.6.9)."""
+        with self._lock:
+            self._raw_queue.clear()
 
     def stop(self) -> None:
         self._stop_event.set()
