@@ -14,10 +14,12 @@ in `metadata.json`. **§10.6 is IMPLEMENTED, tested and live-validated
 with the real GP3HD (2026-10-05):** `eye_geometry.csv` plus device and
 display facts in `metadata.json`, with two live-check fixes (§10.6.9),
 including a pre-run raw-record leak that also affected `all_gaze.csv` since
-the dashboard. **Committed as `61f1ee6`.** Nothing in this SPEC is open.
+the dashboard. **Committed as `61f1ee6`.** §10.6.10 (same day, `0af29e0`)
+completed that leak fix: the dashboard reader now starts at Connect.
+Nothing in this SPEC is open.
 
 **Created:** 2026-09-17
-**Last updated:** 2026-10-05 (§10.6 implemented + live-validated, §10.6.9 fixes)
+**Last updated:** 2026-10-05 (§10.6 implemented + live-validated, §10.6.9 + §10.6.10 fixes)
 
 ## 1. Origin / what was asked
 

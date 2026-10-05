@@ -1,7 +1,7 @@
 ---
 name: SPEC-display-scaling-cursor-accuracy
 title: Gaze cursor accuracy degrades on 15"/13" 1920×1080 laptops
-status: implemented (§8), unit-tested and live-validated at simulated 150/125 % and real 100 %; real-laptop test pending
+status: implemented (§8 + §8.8 canvas metadata in physical px, 2d49f44), unit-tested and live-validated at simulated 150/125 % and real 100 %; real-laptop test pending
 created: 2026-09-30
 last_updated: 2026-10-05
 next_step: user tests on a real 125/150 % laptop (needs a source checkout or a rebuilt exe). The 150 % Tasks-page clipping is NOT fixed (responsive layout deferred to a later version); the operator-facing display warning is SPEC-display-standard-check.md
@@ -14,7 +14,9 @@ related:
 
 **Status (2026-10-02): FIXED. §8 implemented, unit-tested, and
 live-validated with the real GP3HD at simulated 150 % and 125 % and at real
-100 % (see §8.6). Only the real-laptop test remains.**
+100 % (see §8.6). §8.8 (2026-10-05, `2d49f44`) also fixed the canvas
+fields in `metadata.json` (now physical px). Only the real-laptop test
+remains.**
 
 **Original status: ROOT CAUSE CONFIRMED by user A/B test (evaluation only, no code
 changed), 2026-09-30.** The user's hypothesis is **partly right**: the cursor
