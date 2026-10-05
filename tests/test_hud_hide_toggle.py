@@ -122,7 +122,7 @@ class _FakeRecorder:
         self.lines.append(message)
 
 
-def _fake_app(trial_index=3):
+def _fake_app(trial_index=3, dpr=1.0):
     app = SimpleNamespace(
         recorder=_FakeRecorder(),
         metadata=SessionMetadata(subject_id="P001", session_id="s", started_ns=0),
@@ -132,6 +132,10 @@ def _fake_app(trial_index=3):
     app.canvas = SimpleNamespace(size=(1640, 1003))
     app.canvas.width = lambda: app.canvas.size[0]
     app.canvas.height = lambda: app.canvas.size[1]
+    geo = SimpleNamespace(topLeft=lambda: SimpleNamespace(x=lambda: 0, y=lambda: 0))
+    screen = SimpleNamespace(geometry=lambda: geo, devicePixelRatio=lambda: dpr)
+    app.canvas.screen = lambda: screen
+    app.canvas.mapToGlobal = lambda _p: SimpleNamespace(x=lambda: 0, y=lambda: 75)
     return app
 
 
@@ -165,6 +169,15 @@ def test_canvas_resized_baseline_then_only_on_change():
     AssessmentApp._check_canvas_resized(app, 4)  # unchanged again
     assert app.recorder.events == [("CANVAS_RESIZED", 3, {"canvas_w": 1920, "canvas_h": 1003})]
     assert app.recorder.lines == ["Canvas resized to 1920x1003."]
+
+
+def test_canvas_resized_carries_physical_px_at_150_percent():
+    app = _fake_app(dpr=1.5)
+    AssessmentApp._check_canvas_resized(app, 1)
+    assert app._last_canvas_size == (2460, 1504)  # 1640x1003 logical x 1.5
+    app.canvas.size = (1920, 1003)
+    AssessmentApp._check_canvas_resized(app, 2)
+    assert app.recorder.events == [("CANVAS_RESIZED", 2, {"canvas_w": 2880, "canvas_h": 1504})]
 
 
 def test_canvas_resized_ignores_zero_size_before_layout():

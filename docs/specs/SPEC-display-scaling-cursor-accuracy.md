@@ -4,7 +4,7 @@ title: Gaze cursor accuracy degrades on 15"/13" 1920×1080 laptops
 status: implemented (§8), unit-tested and live-validated at simulated 150/125 % and real 100 %; real-laptop test pending
 created: 2026-09-30
 last_updated: 2026-10-05
-next_step: §8.8 (canvas metadata in physical px, APPROVED 2026-10-05) via /spec-run; then user tests on a real 125/150 % laptop (needs a source checkout or a rebuilt exe). The 150 % Tasks-page clipping is NOT fixed (responsive layout deferred to a later version); the operator-facing display warning is SPEC-display-standard-check.md
+next_step: user tests on a real 125/150 % laptop (needs a source checkout or a rebuilt exe). The 150 % Tasks-page clipping is NOT fixed (responsive layout deferred to a later version); the operator-facing display warning is SPEC-display-standard-check.md
 related:
   - SPEC-gui-audit-2026-09-10.md (item 5 introduced the regression)
   - SPEC-gazepoint-analysis-export-parity.md (§10 holds the device_pixel_ratio metadata backlog)
@@ -414,7 +414,7 @@ deviations.)
 
 (Implementer appends here, then stops and asks.)
 
-### 8.8 Follow-up: canvas fields in `metadata.json` in physical px (APPROVED 2026-10-05, not built)
+### 8.8 Follow-up: canvas fields in `metadata.json` in physical px (APPROVED 2026-10-05; IMPLEMENTED + live-validated 2026-10-05)
 
 Raised as `/spec-backlog` item #5 on 2026-10-05. §8.3 put
 `_record_geometry()` out of scope and noted that its `canvas_offset_*` mixes
@@ -493,6 +493,29 @@ Results page, the responsive layout (deferred), `configs/`.
    the title/HUD height.
 
 #### 8.8.4 Impl log (implementer appends here)
+
+- **2026-10-05 -- implemented by `claude-sonnet-5-5`.**
+  Files changed: `src/tasks/base_task.py` (new pure
+  `canvas_geometry_physical()` next to `gaze_geometry_from_screen`),
+  `src/app.py` (module-level `_canvas_physical(canvas)` wrapper used by
+  `_record_geometry` and `_check_canvas_resized`; `Geometry:` line prints
+  physical values and appends "(physical px; Windows scale N %)" when the
+  scale is not 100 %; sets `canvas_units = "physical"` when a QScreen exists,
+  otherwise falls back to raw logical values with `canvas_units` left None),
+  `src/data/schema.py` (`canvas_units: str | None = None`),
+  `docs/DATA_SCHEMA.md`, new `tests/test_canvas_geometry_physical.py` (11
+  tests: criteria 1-3, 5, second monitor, replay, metadata.json round trip),
+  plus a `test_canvas_resized_carries_physical_px_at_150_percent` test in
+  `tests/test_hud_hide_toggle.py`. Existing fakes in
+  `tests/test_display_check.py` and `tests/test_hud_hide_toggle.py` gained
+  `topLeft` / `screen()` / `mapToGlobal` / `devicePixelRatio` stubs because
+  the code under test now reads them.
+  pytest (`-o addopts="" -q`): **324 passed** in 1:46 (313 baseline + 11 new;
+  the known local-config failure did not appear in this run).
+  Deviations: none. Not done: live check (criterion 7, hub + user).
+  Note: Python `round()` is banker's rounding; the SPEC example
+  (2460, 1436, 0, 112) matches it. A stray 0-byte file `original` sits in the
+  repo root, not created by this task.
 
 #### 8.8.5 Open questions (implementer writes here and returns)
 
@@ -613,3 +636,18 @@ Results page, the responsive layout (deferred), `configs/`.
   `AskUserQuestion` and approved the §8.8 text ("approve both, go ahead").
   Next: `spec-implementer` builds §8.8, then a live check at real 100 % and
   `QT_SCALE_FACTOR=1.5`.
+
+- **2026-10-05, later — §8.8 IMPLEMENTED, reviewed, live-validated.**
+  `spec-implementer` built it (log §8.8.4, no questions). Hub review: in
+  scope, suite 324 / 0 at that point (362, then 365, after the next two
+  fixes landed in the same tree). Live with the real GP3HD:
+  `sessions/2026-10-05_UNITS100_click_static_run1` (real 100 %): canvas
+  1640×957 at +0,+75, identical to before; `canvas_units: "physical"`;
+  `CANVAS_RESIZED` 1920×957 / 1640×957.
+  `..._UNITS150_click_static_run1` (`QT_SCALE_FACTOR=1.5`): canvas
+  1500×932 at +0,+100 physical (= 1.5 × the logical window), log line
+  "(physical px; Windows scale 150 %)", `CANVAS_RESIZED` 1920×932 /
+  1500×932. Side note, not this fix: calibration error at simulated 150 %
+  was 55.8 px against 21.3 px at 100 % (valid). Committed separately from
+  `SPEC-ui-setup-task-selection.md` §25 and export-parity §10.6.10, which
+  were validated in the same runs.

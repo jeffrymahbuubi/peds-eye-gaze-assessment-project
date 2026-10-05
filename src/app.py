@@ -50,10 +50,27 @@ from .inputs.base import Pointer
 from .inputs.eye_input import DwellConfig, EyeInput, SmoothingConfig
 from .inputs.gazepoint_client import GazepointClient
 from .inputs.switch_input import SwitchInput
-from .tasks.base_task import gaze_geometry_from_screen, screen_size_mismatch
+from .tasks.base_task import canvas_geometry_physical, gaze_geometry_from_screen, screen_size_mismatch
 from .ui.main_window import MainWindow, TaskRunView
 from .ui.settings_registry import apply_live_values_to_config, initial_live_values
 from .ui.task_settings_dialog import TaskSettingsDialog
+
+
+def _canvas_physical(canvas) -> tuple[int, int, int, int, float | None]:
+    """``(width, height, offset_x, offset_y, dpr)`` of the canvas in physical
+    px, the offset relative to its own QScreen's origin (SPEC-display-scaling-
+    cursor-accuracy.md S8.8). With no QScreen (cannot happen for a shown
+    canvas) returns the raw logical values and ``dpr`` None."""
+    origin = canvas.mapToGlobal(QPoint(0, 0))
+    screen = canvas.screen()
+    if screen is None:
+        return int(canvas.width()), int(canvas.height()), int(origin.x()), int(origin.y()), None
+    top_left = screen.geometry().topLeft()
+    dpr = float(screen.devicePixelRatio())
+    w, h, off_x, off_y = canvas_geometry_physical(
+        top_left.x(), top_left.y(), origin.x(), origin.y(), canvas.width(), canvas.height(), dpr
+    )
+    return w, h, off_x, off_y, dpr
 
 
 class GuiFeedback(FeedbackBus):
@@ -592,11 +609,12 @@ class AssessmentApp:
         """Emit CANVAS_RESIZED when the canvas size differs from the last tick.
 
         Done here, not in the toggle handler: the new size only exists after
-        Qt's layout pass. Same units as _record_geometry()'s ``canvas_*``.
+        Qt's layout pass. Physical px, same as _record_geometry()'s ``canvas_*``
+        (SPEC-display-scaling-cursor-accuracy.md S8.8).
         """
-        size = (int(self.canvas.width()), int(self.canvas.height()))
-        if size[0] <= 0 or size[1] <= 0:
+        if int(self.canvas.width()) <= 0 or int(self.canvas.height()) <= 0:
             return
+        size = _canvas_physical(self.canvas)[:2]
         if self._last_canvas_size is None:
             self._last_canvas_size = size
             return
@@ -709,22 +727,23 @@ class AssessmentApp:
         info = self.client.device_info
         app_cfg = self.config.get("app", {})
         meta = self.metadata
-        canvas_origin = self.canvas.mapToGlobal(QPoint(0, 0))
-        offset_x, offset_y = canvas_origin.x(), canvas_origin.y()
+        # Canvas fields are physical px relative to the canvas's own QScreen
+        # origin (S8.8) -- the same unit as ``screen_*_px``.
+        canvas_w, canvas_h, offset_x, offset_y, dpr = _canvas_physical(self.canvas)
         if info is not None and info.screen_width and info.screen_height:
             meta.screen_width_px = info.screen_width
             meta.screen_height_px = info.screen_height
-            offset_x -= info.screen_x or 0
-            offset_y -= info.screen_y or 0
         if info is not None:
             # Already placeholder-filtered by the client (S24.1).
             meta.gazepoint_rate_hz = info.rate_hz
             meta.gazepoint_bus = info.bus
             meta.gazepoint_serial = info.serial
-        meta.canvas_width_px = int(self.canvas.width())
-        meta.canvas_height_px = int(self.canvas.height())
-        meta.canvas_offset_x_px = int(offset_x)
-        meta.canvas_offset_y_px = int(offset_y)
+        meta.canvas_width_px = canvas_w
+        meta.canvas_height_px = canvas_h
+        meta.canvas_offset_x_px = offset_x
+        meta.canvas_offset_y_px = offset_y
+        if dpr is not None:
+            meta.canvas_units = "physical"
         physical_w = app_cfg.get("screen_physical_width_mm")
         physical_h = app_cfg.get("screen_physical_height_mm")
         if physical_w is None or physical_h is None:
@@ -738,9 +757,13 @@ class AssessmentApp:
         distance = app_cfg.get("viewing_distance_mm")
         meta.viewing_distance_mm = float(distance) if distance else None
         self._geometry_recorded = True
+        scale_note = ""
+        if dpr is not None and round(dpr * 100) != 100:
+            scale_note = f" (physical px; Windows scale {round(dpr * 100)} %)"
         self.recorder.log(
             f"Geometry: monitor {meta.screen_width_px}x{meta.screen_height_px}px, canvas "
-            f"{meta.canvas_width_px}x{meta.canvas_height_px}px at +{offset_x},+{offset_y}, "
+            f"{meta.canvas_width_px}x{meta.canvas_height_px}px at +{offset_x},+{offset_y}"
+            f"{scale_note}, "
             f"physical {meta.screen_physical_width_mm}x{meta.screen_physical_height_mm}mm, "
             f"viewing distance {meta.viewing_distance_mm}mm."
         )

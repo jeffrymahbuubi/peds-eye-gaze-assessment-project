@@ -197,6 +197,11 @@ class SessionMetadata:
     canvas_height_px: int | None = None
     canvas_offset_x_px: int | None = None
     canvas_offset_y_px: int | None = None
+    # "physical" when the canvas fields above are in physical px, the same
+    # unit as ``screen_*_px`` (SPEC-display-scaling-cursor-accuracy.md S8.8).
+    # None on older sessions, whose canvas fields were Qt logical px (the
+    # same numbers at 100 % scale). Additive; ``schema_version`` not bumped.
+    canvas_units: str | None = None
     screen_physical_width_mm: float | None = None
     screen_physical_height_mm: float | None = None
     viewing_distance_mm: float | None = None

@@ -103,6 +103,15 @@ Geometry fields in `metadata.json` (all additive, `null` when unknown):
 `session_metrics.json`'s `saccades` block report amplitude in degrees of
 visual angle as well as px.
 
+All geometry px fields are **physical** pixels (Gazepoint's unit), so at any
+Windows display scale `FPOGX × screen_width_px − canvas_offset_x_px` is the
+gaze position inside the canvas. `canvas_offset_*` is relative to the origin of
+the screen the canvas was on. `canvas_units` is `"physical"` for these
+sessions; it is absent (`null`) on older sessions, whose `canvas_*` fields
+were Qt logical px (identical to physical at 100 % scale, different only at
+125/150 %). `CANVAS_RESIZED` events carry `canvas_w`/`canvas_h` in physical px
+too.
+
 ## eye_geometry.csv
 
 3D eye position and per-eye point of gaze, one row per raw `<REC>` at device

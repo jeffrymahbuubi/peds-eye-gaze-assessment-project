@@ -44,6 +44,31 @@ def gaze_geometry_from_screen(
     return screen_w, screen_h, canvas_global_x - screen_x, canvas_global_y - screen_y
 
 
+def canvas_geometry_physical(
+    screen_x: float,
+    screen_y: float,
+    canvas_global_x: float,
+    canvas_global_y: float,
+    canvas_w: float,
+    canvas_h: float,
+    dpr: float,
+) -> tuple[int, int, int, int]:
+    """Canvas size and offset in *physical* px for ``metadata.json``
+    (SPEC-display-scaling-cursor-accuracy.md S8.8).
+
+    Inputs are Qt logical px: the hosting ``QScreen.geometry().topLeft()``,
+    ``canvas.mapToGlobal(0, 0)`` and the canvas size. Returns
+    ``(width, height, offset_x, offset_y)`` in the same physical unit as
+    Gazepoint's ``SCREEN_SIZE``; the offset is relative to the screen origin.
+    """
+    return (
+        round(canvas_w * dpr),
+        round(canvas_h * dpr),
+        round((canvas_global_x - screen_x) * dpr),
+        round((canvas_global_y - screen_y) * dpr),
+    )
+
+
 def screen_size_mismatch(
     geo_w: float, geo_h: float, dpr: float, reported_w: float, reported_h: float, tol_px: float = 2.0
 ) -> bool:

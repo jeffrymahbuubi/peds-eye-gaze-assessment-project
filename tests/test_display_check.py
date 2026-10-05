@@ -131,7 +131,11 @@ class _FakeRecorder:
 
 
 def _fake_app(width: int, height: int, dpr: float, ack: bool | None):
-    geo = SimpleNamespace(width=lambda: width, height=lambda: height)
+    geo = SimpleNamespace(
+        width=lambda: width,
+        height=lambda: height,
+        topLeft=lambda: SimpleNamespace(x=lambda: 0, y=lambda: 0),
+    )
     screen = SimpleNamespace(
         geometry=lambda: geo,
         devicePixelRatio=lambda: dpr,
