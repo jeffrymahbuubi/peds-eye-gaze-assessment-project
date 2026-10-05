@@ -13,7 +13,7 @@ v1.1 backlog (not implemented):** 3D eye position, per-eye POG, and device
 and display facts in `metadata.json`.
 
 **Created:** 2026-09-17
-**Last updated:** 2026-09-30 (§10 v1.1 backlog added)
+**Last updated:** 2026-10-05 (§10.6: §10 approved for implementation)
 
 ## 1. Origin / what was asked
 
@@ -484,6 +484,119 @@ but `metadata.json` keeps only `gazepoint_model`. Add:
 - Additive only: `metadata.json` readers must tolerate the fields' absence
   in v1.0.0 sessions.
 
+### 10.6 Approved implementation design (2026-10-05) — APPROVED, not yet built
+
+The user moved §10 from backlog to implementation on 2026-10-05 (via
+`/spec-backlog` → `/spec-run`, item #1) and settled §10.5's open choices
+with `AskUserQuestion`:
+
+- **Storage (§10.5's "decide at implementation time"): a separate
+  `sessions/<run>/eye_geometry.csv`, written at device rate.** The user
+  first picked additive `gaze_stream.csv` columns, then changed to the
+  separate file once told `gaze_stream.csv` is one row per GUI frame
+  (`src/app.py:726-728`), so those columns would be frame-rate samples
+  that cannot be joined 1:1 to `all_gaze.csv`. `gaze_stream.csv` and
+  `all_gaze.csv` stay byte-for-byte unchanged in layout.
+- **Measured eye distance: record raw + a session median in metadata;**
+  keep `viewing_distance_mm` (config, 650) as the value used for degree
+  maths. No camera-offset correction.
+
+#### 10.6.1 Enabling the records
+
+- `_ENABLE_RECORDS` (`src/inputs/gazepoint_client.py`) gains
+  `eye_left: ENABLE_SEND_EYE_LEFT`, `eye_right: ENABLE_SEND_EYE_RIGHT`,
+  `pog_left: ENABLE_SEND_POG_LEFT`, `pog_right: ENABLE_SEND_POG_RIGHT`.
+- **Default on when the key is missing from config.** Today
+  `GazepointClient` only sends `ENABLE_SEND_*` for keys present in the
+  `enable` dict it gets (`gazepoint_client.py:392`, `:431`), and the local
+  `configs/default.yaml` (skip-worktree) will not have the new keys. Change
+  the resolution to "all `_ENABLE_RECORDS` keys default `True`, then the
+  config dict overrides" so a missing key means on and an explicit
+  `false` still disables. Existing keys are all present in config today,
+  so behaviour for them is unchanged; confirm this with a test.
+- The committed `configs/default.yaml` gets the four keys documented
+  (`true`) under `gazepoint.enable`. **The hub does this edit and its
+  staging** (skip-worktree gotcha: stage HEAD + additive keys only, as in
+  §9's commit); the implementer must not touch `configs/default.yaml`.
+
+#### 10.6.2 `eye_geometry.csv` (per raw `<REC>`, device rate)
+
+- Written from the same `drain_raw()` loop as `all_gaze.csv`
+  (`src/app.py:714-719` → `SessionRecorder.record_raw`), one row per raw
+  record, opened alongside `all_gaze.csv`. Gate it on a new
+  `recording.save_eye_geometry` (default `True` when absent) — same
+  default-when-missing rule as above.
+- Columns, in this order:
+  `CNT, TIME, LEYEX, LEYEY, LEYEZ, LPUPILD, LPUPILV, REYEX, REYEY, REYEZ, RPUPILD, RPUPILV, LPOGX, LPOGY, LPOGV, RPOGX, RPOGY, RPOGV`.
+  - `CNT` = the device counter as received; `TIME` = the same
+    session-relative seconds as `all_gaze.csv`'s `TIME` column for that
+    record (same origin, same device-`TIME`-else-`t_ns` rule), so the two
+    files join on `CNT` and line up on `TIME`.
+  - Values written as received (metres for `*EYE*`/`*PUPILD`, screen
+    fractions for `*POG*`, 0/1 for `*V`); a missing attribute → empty cell.
+- Works in `--replay` too (empty cells where the fixture lacks the fields);
+  headless replay (`run_headless_replay`) gets the same file if it already
+  writes `all_gaze.csv`; otherwise follow whatever `all_gaze.csv` does there.
+
+#### 10.6.3 `metadata.json` additions (all optional, default `None`)
+
+- From `client.device_info` at connect: `gazepoint_rate_hz`,
+  `gazepoint_bus`, `gazepoint_serial` (apply the same placeholder filtering
+  the Setup page uses for serial/model, `SPEC-ui-setup-task-selection.md` §24).
+- `display_refresh_hz`: `QScreen.refreshRate()` of the canvas's screen,
+  recorded with the geometry (`_record_geometry`), rounded to 0.1.
+- `measured_sample_rate_hz`: the live device-rate meter's value at session
+  end (`self._device_rate`, `src/app.py:413`/`:770`), live sessions only.
+- `measured_eye_distance_mm_median`: at session close, median over all
+  rows of `eye_geometry.csv` where at least one eye's `*EYEZ` is valid
+  (`*PUPILV == 1` and value > 0) of the mean of the valid eyes' `*EYEZ`,
+  × 1000, rounded to 1 mm. `None` if no valid rows.
+- `device_pixel_ratio` is **not** added: `display_scale_percent` already
+  covers it (`SPEC-display-standard-check.md` §4.5).
+
+#### 10.6.4 Fake server
+
+`tools/fake_gazepoint_server.py` emits `LEYEX/Y/Z`, `LPUPILD/V`,
+`REYEX/Y/Z`, `RPUPILD/V`, `LPOGX/Y/V`, `RPOGX/Y/V` in its `REC` lines when
+the matching `ENABLE_SEND_*` was set (plausible constants: eyes ±0.03 m on
+X, Z ≈ 0.65 m, per-eye POG = the existing FPOG ± a small offset).
+
+#### 10.6.5 Scope
+
+In: `src/inputs/gazepoint_client.py`, `src/data/recorder.py`,
+`src/data/analysis_export.py` (or a new small module for the eye-geometry
+row), `src/data/schema.py`, `src/app.py`, `src/engine/task_runner.py` if
+headless writes `all_gaze.csv`, `tools/fake_gazepoint_server.py`,
+`docs/DATA_SCHEMA.md` (document the new file + fields), tests.
+Out: `all_gaze.csv` / `gaze_stream.csv` layout; Results page / metrics
+using the new data; the `_record_geometry()` physical/logical unit mix;
+`APOG`, biometrics; `configs/default.yaml` and `configs/local_state.json`
+(hub only / off-limits).
+
+#### 10.6.6 Acceptance criteria
+
+1. Connecting sends `ENABLE_SEND_EYE_LEFT/RIGHT` and
+   `ENABLE_SEND_POG_LEFT/RIGHT` with an `enable` dict that lacks those
+   keys; an explicit `false` suppresses each one; existing keys unchanged.
+2. A recorded session (fake server or unit-level recorder test) has
+   `eye_geometry.csv` with exactly the §10.6.2 header and one row per raw
+   record — same row count as `all_gaze.csv`, matching `CNT` and `TIME`
+   per row.
+3. `all_gaze.csv` header still equals the vendor golden layout (existing
+   golden test passes unchanged); `gaze_stream.csv` header unchanged.
+4. `metadata.json` carries the §10.6.3 fields; `measured_eye_distance_mm_median`
+   is correct on a constructed file (incl. one-eye-valid and no-valid cases).
+5. Loading a v1.0.0 `metadata.json` without the new fields still works.
+6. Full pytest suite green (0 failures once §12 of `SPEC-result-logic.md` lands).
+7. Live check (hub + user, real GP3HD): one dashboard run → `eye_geometry.csv`
+   has non-empty `LEYEZ`/`REYEZ` near the subject's real distance and
+   per-eye POG values; `metadata.json` shows rate/bus/serial, refresh rate,
+   measured rate and the distance median.
+
+#### 10.6.7 Impl log (implementer appends here)
+
+#### 10.6.8 Open questions (implementer writes here and returns; does not decide)
+
 ## 11. Log
 
 - **2026-09-17 — §1–§4 findings + §5–§6 plan written, via
@@ -554,3 +667,12 @@ but `metadata.json` keeps only `gazepoint_model`. Add:
     Control-wide setting the app does not record. Neither affects analysis
     data: `gaze_stream.csv`/`all_gaze.csv` store the raw samples.
   - Committed with this entry.
+
+- **2026-10-05 — §10.6 added: §10 APPROVED for implementation, not yet
+  built.** Picked as item #1 by `/spec-backlog`. User decisions: a separate
+  device-rate `eye_geometry.csv` (changed from additive `gaze_stream.csv`
+  columns after the frame-rate caveat was raised), and the measured eye
+  distance recorded raw + as a session median in `metadata.json`, with
+  `viewing_distance_mm` unchanged. New `enable` keys default on when
+  missing from config. Next: `spec-implementer` builds §10.6 after
+  `SPEC-result-logic.md` §12.

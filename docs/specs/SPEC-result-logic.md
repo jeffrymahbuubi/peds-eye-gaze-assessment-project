@@ -573,6 +573,91 @@ Keep `qt_wait_for` timeouts well under 30 s and poll instead.
 dashboard + fake server killed, ports 4250/9142 confirmed closed,
 `configs/local_state.json` restored 4250 → `127.0.0.1:4242`.
 
+## 12. Calibration source in the Session Log + stale `target_fps` test (2026-10-05) — APPROVED, not yet built
+
+Two small backlog items from `/spec-backlog` (2026-10-05, items #4 and #5),
+designed with the user via `AskUserQuestion` the same day. No UI layout
+change, so no wireframe step.
+
+### 12.1 Problem A — Session Log always says "measured"
+
+`AssessmentApp.__init__` writes the calibration line unconditionally as
+`"Calibration measured — …"` (`src/app.py:376-380`), whatever the
+calibration's origin. Found live on 2026-09-09 (see the Log): the Setup
+page's alert said "loaded", the Session Log said "measured". The cause is
+structural: the dashboard always hands the task a ready
+`preset_calibration_result` (`src/ui/dashboard_window.py:412`), so
+`AssessmentApp` cannot tell a Setup-page measurement from a file load.
+
+### 12.2 Design A (user decision: "pass the real source", incl. metadata)
+
+- New `AssessmentApp.__init__` keyword `preset_calibration_source: str | None = None`
+  with values `"measured"` or `"loaded"`, plus `preset_calibration_file: str | None = None`
+  (the file name/path the result was loaded from, when loaded).
+- `SetupPage` remembers the source of its current `_calibration_result`:
+  `"measured"` when it comes from `_on_calibration_finished` (valid result),
+  `"loaded"` + the chosen path when it comes from the Load Calibration
+  action. Expose both via read-only properties next to `calibration_result`.
+  Clearing the result (invalid run, failed load) clears the source too.
+- `DashboardWindow` passes both into `AssessmentApp` alongside
+  `preset_calibration_result`.
+- Resolved source inside `AssessmentApp`:
+  - `--calibration-file` given → `"loaded"`, file = that path;
+  - preset given with an explicit source → that source (and file);
+  - preset given with no source (any other caller) → `"loaded"`;
+  - fresh `Calibration.run()` that is not the stub → `"measured"`;
+  - stub / `calibration.enabled: false` → `"not run"`.
+- Session Log wording (keep the existing tail of each line):
+  - measured: `Calibration measured — {n} points, mean error {e}, valid.` (unchanged);
+  - loaded: `Calibration loaded from {file name} — {n} points, mean error {e}, valid.`
+    (file name = `Path(file).name`; when no file is known: `Calibration loaded — …`);
+  - invalid/unmeasured: `Calibration {source} — {n} points, invalid or unmeasured.`;
+  - not run: `Calibration not run — {n} points, invalid or unmeasured.`
+- `metadata.json`: new optional `SessionMetadata.calibration_source: str | None = None`
+  (`"measured"` / `"loaded"` / `"not run"`). Additive: readers must tolerate
+  its absence in older sessions.
+
+### 12.3 Problem B / Design B — stale test
+
+`tests/test_task_pipeline.py::test_config_merges_task_over_default` asserts
+`cfg["app"]["target_fps"] == 60`, but the committed `configs/default.yaml`
+has `150` since the target-fps change, so the test fails on any clean
+checkout (it is not only local skip-worktree drift, as earlier notes said).
+User decision: compare against `default.yaml` itself — load
+`configs/default.yaml` with `yaml.safe_load` in the test and assert the
+merged `app.target_fps` equals its value. The test then checks the merge,
+not a tuning value.
+
+### 12.4 Scope
+
+In: `src/app.py`, `src/ui/setup_page.py`, `src/ui/dashboard_window.py`,
+`src/data/schema.py`, `tests/test_task_pipeline.py`, new/updated tests.
+Out: any UI layout/text change on the Setup page; any change to
+`Calibration.run()`; `configs/default.yaml` and `configs/local_state.json`
+(off-limits); the `_record_geometry()` unit mix (separate backlog item).
+
+### 12.5 Acceptance criteria
+
+1. Unit test: an `AssessmentApp` (or the extracted log-line helper) given a
+   preset with source `"loaded"` and file `…/calibration_5pt.json` logs
+   `Calibration loaded from calibration_5pt.json — 5 points, …`; with
+   `"measured"` logs the unchanged measured line. Each new test must fail
+   without the fix.
+2. `--calibration-file` path logs "loaded" and records `calibration_source: "loaded"`.
+3. `metadata.json` has `calibration_source` for measured, loaded and stub runs.
+4. `SetupPage` source tracking: measured → `"measured"`; load → `"loaded"` + path;
+   invalid run → source cleared.
+5. `test_config_merges_task_over_default` passes on the current config, and
+   would still pass if `target_fps` were changed in `default.yaml`.
+6. Full suite: **0 failures** (the long-standing known failure is gone).
+7. Live check (hub + user): one dashboard run with a calibration loaded
+   from file → its `session.log` says "loaded from …" and `metadata.json`
+   says `"loaded"`; one run after Do Calibration → "measured".
+
+### 12.6 Impl log (implementer appends here)
+
+### 12.7 Open questions (implementer writes here and returns; does not decide)
+
 ## Log
 
 - **2026-09-09 — §1-§5 above implemented, unit-tested, and (§2/§3) live-
@@ -722,3 +807,11 @@ dashboard + fake server killed, ports 4250/9142 confirmed closed,
   pushed at the user's instruction as `1e58491`** (`origin/main`
   `f0c3f38..1e58491`). This log line is recorded in a follow-up doc-only
   commit.
+
+- **2026-10-05 — §12 added: calibration source in the Session Log + stale
+  `target_fps` test. Design APPROVED by the user, not yet built.** Raised
+  as items #4/#5 by `/spec-backlog`; four `AskUserQuestion` answers fixed
+  the design (pass the real source incl. a `calibration_source` metadata
+  field; compare the test against `default.yaml`). Correction recorded:
+  the `target_fps` test failure is not local config drift; the committed
+  `default.yaml` has `150` too. Next: `spec-implementer` builds §12.
