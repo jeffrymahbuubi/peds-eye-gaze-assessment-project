@@ -1,10 +1,10 @@
 ---
 name: SPEC-target-size-and-motion-paths
 title: Target size presets (Small/Medium/Large by visual angle), grid fit, and new Follow & Click paths
-status: approved by the user 2026-10-06 (incl. hub decisions §4.4 speed, §4.4 corner diagonals, §4.2 size-wins, §5 phasing); wireframe approved 2026-10-06; Phase A + C implemented, reviewed, visually live-checked and committed 2026-10-06 (`0854ccf`); real-gaze grid check open; Phase B approved for the next round
+status: approved by the user 2026-10-06 (incl. hub decisions §4.4 speed, §4.4 corner diagonals, §4.2 size-wins, §5 phasing); wireframe approved 2026-10-06; Phase A + C implemented, reviewed, visually live-checked and committed 2026-10-06 (`0854ccf`); real-gaze grid check open; Phase B approved for the next round, design in §11 approved 2026-10-06 (B1 a, B2 a, B3 a), ready for /spec-run
 created: 2026-10-06
 last_updated: 2026-10-06
-next_step: (1) real-gaze grid check with the user as subject (§10, 2026-10-06 commit entry); (2) Phase B round: Target size replaces every px radius (click_static, follow_moving, scanning), starting with a short scanning fit-rule design for user approval
+next_step: (1) /spec-run this SPEC for Phase B (wireframe gate first, §11.5); (2) real-gaze grid check with the user as subject (§10)
 related:
   - SPEC-live-settings-panel.md (§4/§5.3 structural settings + TaskSettingsDialog; §10 settings profiles store the structural block)
   - SPEC-follow-moving-selection.md (selection window, attempts; unchanged here)
@@ -528,3 +528,195 @@ Implements the user's answer to the §9 entry (fix it now).
     neighbour-cell look is not a hit (covered by unit tests only); a second
     monitor. `local_state.json` restored to 127.0.0.1:4242 afterwards.
   User approved commit + push: `0854ccf`.
+- **2026-10-06** — Phase B design drafted by the hub (§11) from the code at
+  `f2c4f4f` and measured layout numbers (lab screen 1920x1080 @ 100 %,
+  EDID 527 mm, canvas 1640x957 with the HUD / 1920x957 hidden). Awaiting
+  the user's answers to §11.2 (B1-B3) and approval of the whole of §11.
+- **2026-10-06** — User answered §11.2: **B1 a** (move inward, keep the
+  size), **B2 a** (preset = the visible scanning icon), **B3 a** (jitter
+  tolerance stays in px, out of scope). §11 approved as written; SPEC
+  committed. Next: /spec-run for Phase B, starting at the wireframe gate.
+
+## 11. Phase B — no px radius anywhere (design APPROVED 2026-10-06: B1 a, B2 a, B3 a)
+
+Scope given by the user 2026-10-06 (§10): Target size (Small / Medium /
+Large, §2 T1-T2) replaces **every** px radius control in the UI —
+`target.radius_px` for click_static ("Static Click") and follow_moving
+("Follow & Click"), and scanning's "Icon radius (px)" (`layout.radius_px`).
+Everything in §4.1-§4.2 (presets, visual-angle conversion, screen
+resolution, metadata `target_size`, Session Log line, `size` wins over
+`radius_px`) is reused unchanged; only what is new is specified here.
+
+### 11.1 What breaks when Large is used outside the grid (measured)
+
+Preset radii on the lab screen (0.2745 mm/px, 650 mm): **S 62.0, M 103.4,
+L 165.6 px**. The outermost drawn ring is the dwell ring at r + 16 with an
+8 px stroke, i.e. r + 20.
+
+- **click_static** — positions are fixed at 0.15 / 0.50 / 0.85. On the
+  957 px tall canvas the top and bottom rows sit 144 px from the edge:
+  Large (166 px, ring 186 px) is cut off by the canvas edge. Medium fits
+  (ring 123 px < 144 px). Only one target is shown at a time, so targets
+  never overlap each other.
+- **follow_moving** — straight paths run between 0.1 and 0.9, i.e. 96 px
+  from the top/bottom edge: Vertical and both Diagonals already clip
+  **Medium** by ~7 px at the turn-around (and today's 100 px radius too),
+  Large by ~70 px. Horizontal turns 164 px from the side edge (HUD shown):
+  Large just touches it. Horizontal's lanes (0.25-0.75) and Circular
+  (orbit 0.3, 191 px from the edge) fit every preset.
+- **scanning** — several icons are on screen at once, so a large icon
+  overlaps its neighbours. Largest drawn icon radius (px) that keeps icons
+  apart (half the smallest centre-to-centre distance, minus the same 6 %
+  padding as the grid, and r + 20 from the canvas edge), canvas 1640x957:
+
+  | arrangement | 2 icons | 4 | 6 | 8 |
+  |---|---|---|---|---|
+  | grid (default) | 260 | 152 (L shrinks) | 152 (L) | 101 (M, L shrink) |
+  | row | 260 | 130 (L) | 87 (M, L) | 65 (M, L) |
+  | ring | 152 (L) | 152 (L) | 135 (L) | 117 (L) |
+
+  Small fits everywhere. The hitbox is a bigger problem than the drawing:
+  today it is `radius_px + jitter 40` while the icon is drawn at
+  0.78 x `radius_px`, so with the default 100 px the hitbox already
+  reaches 140 px around a 78 px icon.
+
+### 11.2 Decisions for the user
+
+- **B1 — Static Click / Follow & Click near the edge: move inward or
+  shrink?**
+  - **(a) Move inward, keep the size (hub recommendation).** The chosen
+    size is the clinical variable and stays identical on every trial;
+    only positions/turn-around points that would put the target (incl. its
+    dwell ring) past the canvas edge are pulled in until it fits. With
+    Medium on the lab screen click_static is unchanged; with Large its
+    top/bottom rows move from 0.15 to ≈ 0.19 of the height.
+  - (b) Shrink to fit, as the grid does (T3). Not recommended: Large
+    would be ≈ 124 px on the top/bottom rows and 166 px on the middle row
+    of the same run, so trials would not be comparable.
+- **B2 — Scanning: what does the preset measure?**
+  - **(a) The visible icon (hub recommendation).** A Medium icon is drawn
+    exactly as large as a Medium circle in the other tasks (5°), which is
+    the mental model the user asked for. Consequence: icons are ≈ 30 %
+    larger than today's default (drawn radius 103 vs 78 px).
+  - (b) Today's hidden hit radius; the icon stays drawn at 78 % of it, so
+    "Medium" scanning icons look smaller (≈ 3.9°) than Medium elsewhere,
+    but close to today's look.
+- **B3 — "Jitter tolerance (px)"** (live Settings slider,
+  `dwell.jitter_tolerance_px`) is the last px control in the run UI. It is
+  a tolerance, not a target radius, and §5 put it out of scope.
+  - **(a) Leave it in px for now (hub recommendation)** — changing it
+    changes hit behaviour in every task and deserves its own design.
+  - (b) Include it in Phase B as degrees (e.g. 0-2.5°, default ≈ 1°).
+
+The dropdown labels keep showing the px equivalent ("Medium — 5° (≈205
+px)") as information; that is not a radius control and stays.
+
+### 11.3 Design (B1 a, B2 a, B3 a — as chosen by the user)
+
+**Config + dialog**
+- `configs/tasks/click_static.yaml`, `follow_moving.yaml`: `target.size:
+  medium`, `radius_px` removed (same comment as click_grid's).
+  `configs/tasks/scanning.yaml`: `layout.size: medium`, `radius_px`
+  removed. `configs/default.yaml` not touched (skip-worktree).
+- `settings_registry.py`: `target.size` row `applies_to` = click_grid,
+  click_static, follow_moving. New `layout.size` row "Icon size",
+  scanning only, same choices. The `target.radius_px` and
+  `layout.radius_px` rows are **removed**. Old profiles holding them merge
+  over a YAML that now has `size`, so `size` wins (§4.2.3; same as Phase A).
+- `TaskSettingsDialog`: the Icon size combo gets the same per-item labels
+  and a shrink hint like the grid's ("Will be shrunk to ≈ 101 px to fit 8
+  icons (approximate)"), estimated from `n_icons`, the YAML's
+  `arrangement`/`margin_frac` and the screen's available geometry, live on
+  size / n_icons change. click_static and follow_moving get **no** hint
+  (B1 a never changes the size).
+
+**Resolution (§4.2 extended)**
+- `apply_target_size` takes the key path: `target` for the three target
+  tasks, `layout` for scanning (`AssessmentApp._resolve_target_size` and
+  `run_headless_replay` both). The `metadata.target_size` block and the
+  Session Log line are identical for all four tasks (scanning's line says
+  "Icon size").
+- Scanning (B2 a): the preset radius is the **drawn icon** radius. The
+  canvas keeps drawing icons at `ICON_DRAW_FRAC = 0.78` of the radius it
+  is given, so scanning writes `layout.radius_px = preset_radius / 0.78`
+  (canvas code and legacy `layout.radius_px` configs unchanged). The
+  constant moves next to `CELL_PAD_FRAC` in `target_size.py` and the canvas
+  reads it from there, so drawing and sizing cannot drift (same pattern as
+  Phase A). `metadata.target_size.radius_px` records the drawn icon radius
+  and says so (`"radius_of": "icon"`).
+
+**Edge fit — click_static and follow_moving (B1 a)**
+- One shared helper in `target_size.py`:
+  `edge_inset_norm(radius_px, canvas_w, canvas_h)` returning `(mx, my)` =
+  `((radius + EDGE_RING_PX) / canvas_w, (radius + EDGE_RING_PX) / canvas_h)`,
+  `EDGE_RING_PX = 20` (dwell ring r + 16, 8 px stroke).
+- click_static: `target_position` clamps x to `[mx, 1 - mx]` and y to
+  `[my, 1 - my]`, from the **live** canvas size every frame (the canvas
+  resizes on HUD toggle, §4.3). A position already inside is untouched.
+- follow_moving straight paths: the segment ends become
+  `lo = max(0.1, m)`, `hi = min(0.9, 1 - m)` per axis (diagonals use the
+  inset corners). Speed stays `speed * screen_w` px/s along the shorter
+  segment (§4.4 unchanged). Horizontal with Medium on the lab screen is
+  numerically identical to today. Circular: the orbit fits every preset
+  on any canvas ≥ 910 px tall; below that, positions are clamped per axis
+  (a flattened orbit, accepted).
+- Recording: `trials.csv` `target_x/y` = the position actually used at
+  trial start (clamped), not the configured one. One `TARGET_INSET` event
+  per run when any clamp applied (`radius_px`, `margin_x_norm`,
+  `margin_y_norm`, `canvas_w`, `canvas_h`), plus one Session Log line.
+
+**Scanning fit (shrink, as T3 for the grid)**
+- `ScanningTask.effective_radius_px(target)`: the drawn icon radius is
+  capped at `min(0.5 * d_min * (1 - 2 * CELL_PAD_FRAC), e_min -
+  EDGE_RING_PX)`, where `d_min` = smallest pixel distance between any two
+  slot centres and `e_min` = smallest slot-centre-to-canvas-edge distance,
+  both from the live canvas size. Returned as a hit radius
+  (`capped_icon_radius / 0.78`), so the canvas draws the capped icon. All
+  icons (distractors included) are drawn at that one size — the canvas
+  already sizes distractors from the same radius.
+- `ScanningTask.hit_test`: the circle test (effective radius + jitter)
+  **AND** the gaze point is closer to the target's slot than to any other
+  slot. A look at a neighbouring icon therefore never counts, in every
+  arrangement (for the grid arrangement this is exactly the cell rule of
+  §4.3; for row and ring it is the general form).
+- `TARGET_SHRUNK` once per run (`requested_px`, `used_px`, `n_icons`,
+  `arrangement`), as for the grid. `trials.csv target_radius_px` = the
+  effective (hit) radius at trial start, as today.
+
+### 11.4 Acceptance criteria (Phase B)
+
+1. The Task settings dialog of click_static, follow_moving and scanning
+   shows a size combo and **no** px radius row (click_grid unchanged).
+   Choices round-trip through a settings profile.
+2. click_static, Large, canvas 1640x957: every trial's circle + 20 px
+   lies inside the canvas; size identical on every trial; positions that
+   already fit are unchanged; Medium output identical to the Phase A
+   build for the same seed except the radius value (100 to 103.4).
+3. follow_moving, Large: every path's target (incl. r + 20) stays on the
+   canvas at both 1640x957 and 1920x957; equal px/s on all straight
+   paths still holds (±1 %); bounce at the inset ends.
+4. scanning: for each arrangement x n_icons in §11.1's table, no two drawn
+   icons overlap and none crosses the canvas edge; a gaze point inside the
+   target's circle+jitter but closer to a neighbouring slot is NOT on
+   target; one `TARGET_SHRUNK` event when capping happened; no event when
+   it did not (grid, 4 icons, Medium).
+5. scanning Medium draws the icon at 103.4 px radius on the lab screen
+   (B2 a).
+6. Old profile/config with only `radius_px` / `layout.radius_px` and no
+   `size`: used unchanged; with both, `size` wins.
+7. `metadata.target_size` present for all four tasks; `TARGET_INSET` event
+   + trials.csv clamped `target_x/y` when an inset applied.
+8. Full pytest suite passes (no new failures vs the pre-change baseline).
+9. Live check with the user (qt-mcp, maximized): Large in click_static,
+   each follow_moving path, and scanning with 8 icons; HUD hide/show
+   mid-run keeps everything on the canvas and apart.
+
+### 11.5 Plan (Phase B)
+
+1. User answers B1-B3 and approves §11. Commit. **DONE 2026-10-06.**
+2. Wireframe: update `docs/wireframes/task-settings.md` (Static Click,
+   Follow & Click and Scanning dialogs with the size combo; scanning's
+   shrink hint), user approval, commit (the /spec-run wireframe gate).
+3. `spec-implementer`: §11.3 in one run.
+4. Hub review vs §11.4 + pytest, live check with the user, commit/push on
+   the user's OK, memory update.
