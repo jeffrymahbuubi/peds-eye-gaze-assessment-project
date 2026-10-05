@@ -239,6 +239,13 @@ class SessionMetadata:
     # S25. None on older sessions. Additive; ``schema_version`` not bumped.
     loop_fps: int | None = None
     loop_fps_source: str | None = None
+    # The target size preset this run resolved (SPEC-target-size-and-motion-
+    # paths.md S4.2): ``{"preset", "diameter_deg", "radius_px", "mm_per_px",
+    # "mm_per_px_source", "viewing_distance_mm"}``. None when the task config
+    # carries no ``target.size`` (the explicit ``radius_px`` was used) or on
+    # older sessions. Additive; ``schema_version`` deliberately not bumped,
+    # same reasoning as the geometry fields above.
+    target_size: dict[str, Any] | None = None
 
     def to_dict(self) -> dict[str, Any]:
         return {f.name: getattr(self, f.name) for f in fields(self)}

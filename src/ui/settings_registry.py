@@ -20,6 +20,25 @@ from dataclasses import dataclass
 from typing import Any
 
 from ..engine.settings_profile import parse_saved_at
+from ..engine.target_size import DEFAULT_SIZE, SIZE_NAMES, SIZE_PRESETS_DEG
+
+# Target size presets (SPEC-target-size-and-motion-paths.md S4.1/S4.5): (value
+# stored in target.size, label). The dialog appends the diameter in px on the
+# operator's own monitor, which only it can know.
+TARGET_SIZE_CHOICES: tuple[tuple[str, str], ...] = tuple(
+    (name, f"{SIZE_NAMES[name]} — {degrees:g}°")
+    for name, degrees in SIZE_PRESETS_DEG.items()
+)
+
+# follow_moving's movement paths (SPEC-target-size-and-motion-paths.md S4.4):
+# (value stored in motion.path, label shown in the dialog).
+MOTION_PATH_CHOICES: tuple[tuple[str, str], ...] = (
+    ("circular", "Circular"),
+    ("horizontal", "Horizontal ↔"),
+    ("vertical", "Vertical ↕"),
+    ("diagonal_tlbr", "Diagonal ↘ (top-left ↔ bottom-right)"),
+    ("diagonal_trbl", "Diagonal ↙ (top-right ↔ bottom-left)"),
+)
 
 
 @dataclass(frozen=True, slots=True)
@@ -45,11 +64,15 @@ class LiveSetting:
 class StructuralSetting:
     key: str  # dotted path within the task config's "task" block, e.g. "target.radius_px"
     label: str
-    kind: str  # "int" | "float"
-    min: float
-    max: float
-    step: float
+    kind: str  # "int" | "float" | "choice"
+    min: float = 0.0
+    max: float = 0.0
+    step: float = 0.0
     applies_to: tuple[str, ...] = ()
+    # "choice" only (SPEC-target-size-and-motion-paths.md S4.5): (value, label)
+    # pairs rendered as a combo box; the saved/overridden value is the string.
+    choices: tuple[tuple[str, str], ...] = ()
+    default: str = ""  # "choice" only: used when the task config has no value
 
     def applies(self, task_id: str) -> bool:
         return not self.applies_to or task_id in self.applies_to
@@ -175,6 +198,17 @@ LIVE_SETTINGS: list[LiveSetting] = [
 
 STRUCTURAL_SETTINGS: list[StructuralSetting] = [
     StructuralSetting("trials", "Number of trials", "int", 1, 60, 1),
+    # click_grid takes its target size as a preset (visual angle) instead of px;
+    # click_static / follow_moving keep the px slider until Phase B of
+    # SPEC-target-size-and-motion-paths.md.
+    StructuralSetting(
+        "target.size",
+        "Target size",
+        "choice",
+        applies_to=("click_grid",),
+        choices=TARGET_SIZE_CHOICES,
+        default=DEFAULT_SIZE,
+    ),
     StructuralSetting(
         "target.radius_px",
         "Target radius (px)",
@@ -182,7 +216,7 @@ STRUCTURAL_SETTINGS: list[StructuralSetting] = [
         30,
         200,
         5,
-        applies_to=("click_static", "click_grid", "follow_moving"),
+        applies_to=("click_static", "follow_moving"),
     ),
     StructuralSetting(
         "layout.radius_px", "Icon radius (px)", "int", 30, 200, 5, applies_to=("scanning",)
@@ -191,6 +225,14 @@ STRUCTURAL_SETTINGS: list[StructuralSetting] = [
     StructuralSetting("grid.cols", "Grid cols", "int", 2, 6, 1, applies_to=("click_grid",)),
     StructuralSetting(
         "layout.n_icons", "Number of icons", "int", 2, 8, 1, applies_to=("scanning",)
+    ),
+    StructuralSetting(
+        "motion.path",
+        "Movement path",
+        "choice",
+        applies_to=("follow_moving",),
+        choices=MOTION_PATH_CHOICES,
+        default="horizontal",  # FollowMovingTask's own fallback when the YAML has no path
     ),
     StructuralSetting(
         "motion.select_window_ms",
@@ -341,6 +383,16 @@ def apply_live_values_to_config(config: dict[str, Any], values: dict[str, Any]) 
 def initial_structural_values(task_id: str, config: dict[str, Any]) -> dict[str, Any]:
     task_cfg = config.get("task", {})
     return {
-        s.key: get_nested(task_cfg, s.key, s.min)
+        s.key: _initial_structural_value(s, task_cfg)
         for s in structural_settings_for_task(task_id)
     }
+
+
+def _initial_structural_value(setting: StructuralSetting, task_cfg: dict[str, Any]) -> Any:
+    if setting.kind != "choice":
+        return get_nested(task_cfg, setting.key, setting.min)
+    # A choice yields the task config's string (the YAML's default, or what a
+    # saved profile merged over it), falling back to the setting's own default
+    # for a missing or no-longer-valid value.
+    value = get_nested(task_cfg, setting.key, setting.default)
+    return value if value in {v for v, _label in setting.choices} else setting.default

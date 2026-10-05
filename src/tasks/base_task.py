@@ -124,6 +124,12 @@ class FrameResult:
     # now (SPEC-2026-09-02.md item 2) -- distinct from dwell_progress, which
     # only becomes visible after threshold_ms of accumulated on-target time.
     on_target: bool = False
+    # The radius this frame's target is actually drawn and hit-tested at -- the
+    # configured ``target.radius_px`` unless the task capped it to fit its
+    # layout (``BaseTask.effective_radius_px``, SPEC-target-size-and-motion-
+    # paths.md S4.3). 0.0 when there is no target. The renderer must use this,
+    # not ``target.radius_px``, so the drawn circle and the hitbox agree.
+    target_radius_px: float = 0.0
 
 
 class BaseTask:
@@ -176,6 +182,9 @@ class BaseTask:
         self._current: TrialRecord | None = None
         self._trial_start_ns = 0
         self._phase_deadline_ns = 0
+        # TARGET_SHRUNK is reported once per run, at the first trial start where
+        # effective_radius_px() came out below the requested radius.
+        self._shrink_reported = False
 
     def set_screen_size(self, width_px: int, height_px: int) -> None:
         """Update the pixel-space dimensions used for hit-testing.
@@ -271,6 +280,37 @@ class BaseTask:
         """
         return True
 
+    def effective_radius_px(self, target: TargetSpec) -> float:
+        """The radius the target is drawn and hit-tested at *right now*.
+
+        Default: the configured radius. A task whose layout can be too small
+        for it (click_grid's cells) overrides this to cap it. Computed from the
+        live canvas size, not baked in at ``build_targets`` time, because the
+        canvas resizes mid-run (HUD hide/show, window resize) -- SPEC-target-
+        size-and-motion-paths.md S4.3.
+        """
+        return target.radius_px
+
+    def hit_test(
+        self, target: TargetSpec, cx_px: float, cy_px: float, px: float, py: float
+    ) -> bool:
+        """Whether canvas-pixel point (px, py) is on ``target``, centred at
+        (cx_px, cy_px). The hitbox is the effective radius plus the jitter
+        tolerance -- the region treated as "on target" for both dwell and the
+        first-fixation metric, so the two never disagree."""
+        return circle_contains(
+            cx_px, cy_px, self.effective_radius_px(target) + self.jitter_px, px, py
+        )
+
+    def _shrink_details(self) -> dict[str, Any]:
+        """Extra ``TARGET_SHRUNK`` payload beyond requested/used px (layout facts)."""
+        return {}
+
+    def _log(self, message: str) -> None:
+        """Session Log line when a recorder is attached, else nothing."""
+        if self.recorder is not None:
+            self.recorder.log(message)
+
     def scene_spec(self) -> dict[str, Any]:
         """Describe the task's persistent on-screen layout for the renderer.
 
@@ -317,9 +357,7 @@ class BaseTask:
             # The effective hitbox includes the jitter tolerance; this is the
             # region the tool treats as "on target" for both dwell and the
             # first-fixation metric, so the two never disagree.
-            on_target = pointer.valid and circle_contains(
-                cx_px, cy_px, target.radius_px + self.jitter_px, px, py
-            )
+            on_target = pointer.valid and self.hit_test(target, cx_px, cy_px, px, py)
 
             if on_target and self._current.t_first_gaze_on_target_ns is None:
                 self._current.t_first_gaze_on_target_ns = t_ns
@@ -391,6 +429,7 @@ class BaseTask:
             cursor_xy_norm=self.pointer_to_canvas_norm(pointer),
             selectable=selectable,
             on_target=on_target,
+            target_radius_px=self.effective_radius_px(target) if target is not None else 0.0,
         )
 
     # -- internals ---------------------------------------------------------
@@ -399,14 +438,26 @@ class BaseTask:
         self._trial_index += 1
         target = self.targets[self._trial_index]
         self._trial_start_ns = t_ns
+        # The radius in effect at trial start is what trials.csv records; a
+        # mid-trial HUD toggle is already visible as a CANVAS_RESIZED event.
+        radius = self.effective_radius_px(target)
         self._current = TrialRecord(
             trial_id=self._trial_index,
             task_id=self.task_id,
             target_x=target.x_norm,
             target_y=target.y_norm,
-            target_radius_px=target.radius_px,
+            target_radius_px=radius,
             t_target_shown_ns=t_ns,
         )
+        if radius < target.radius_px - 1e-6 and not self._shrink_reported:
+            self._shrink_reported = True
+            self._record_event(
+                "TARGET_SHRUNK",
+                t_ns,
+                requested_px=round(target.radius_px, 1),
+                used_px=round(radius, 1),
+                **self._shrink_details(),
+            )
         if self.dwell is not None:
             self.dwell.reset()
         self._phase = Phase.WAIT_INPUT

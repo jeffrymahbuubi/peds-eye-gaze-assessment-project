@@ -16,6 +16,7 @@ from dataclasses import replace
 from pathlib import Path
 
 from PySide6.QtCore import Qt, QPoint, QTimer, QUrl
+from PySide6.QtGui import QScreen
 from PySide6.QtMultimedia import QSoundEffect
 from PySide6.QtWidgets import QApplication, QDialog
 
@@ -46,6 +47,13 @@ from .engine.loop_rate import config_target_fps, resolve_target_fps, target_fps_
 from .engine.sample_rate import SampleRateTracker
 from .engine.session_naming import next_session_id
 from .engine.settings_profile import save_settings_profile
+from .engine.target_size import (
+    DEFAULT_SIZE,
+    apply_target_size,
+    screen_scale,
+    target_size_log_line,
+    viewing_distance_mm,
+)
 from .engine.task_runner import build_task
 from .inputs.base import Pointer
 from .inputs.eye_input import DwellConfig, EyeInput, SmoothingConfig
@@ -191,6 +199,7 @@ class AssessmentApp:
         hud_hidden: bool = False,
         preset_calibration_source: str | None = None,
         preset_calibration_file: str | None = None,
+        screen: QScreen | None = None,
     ) -> None:
         """Build one task run.
 
@@ -208,6 +217,12 @@ class AssessmentApp:
         had (own client, own calibration, own top-level window, quit on
         end) when omitted, so ``python -m src.main --task X --gui`` is
         unaffected.
+
+        ``screen`` is the monitor the run will be shown on, used to resolve a
+        target size preset into px (SPEC-target-size-and-motion-paths.md S4.2).
+        The dashboard passes its own window's screen: the embedded canvas is
+        not yet in any window when this runs, so its own ``screen()`` would
+        only be a default. Omitted, the canvas's own screen is used.
         """
         self.config = load_task_config(task_id)
         self.task_id = task_id
@@ -490,6 +505,8 @@ class AssessmentApp:
         self.feedback = GuiFeedback(
             self.canvas, self.theme, self.config.get("task", {}).get("feedback", {})
         )
+        # Before build_task: tasks read the resolved ``target.radius_px``.
+        self._resolve_target_size(screen)
         self.task = build_task(task_id, self.config, recorder=self.recorder, feedback=self.feedback)
         app_cfg = self.config.get("app", {})
         self.recorder.log(
@@ -545,6 +562,36 @@ class AssessmentApp:
         panel.setting_changed.connect(self._apply_setting)
         panel.save_profile_requested.connect(self._save_settings_profile)
         panel.reset_settings_requested.connect(self._reset_settings_to_defaults)
+
+    def _resolve_target_size(self, screen: QScreen | None = None) -> None:
+        """Turn the task config's ``target.size`` preset into ``target.radius_px``
+        (SPEC-target-size-and-motion-paths.md S4.2), from the canvas's own
+        screen, and record what was resolved.
+
+        With no ``size`` key (an old YAML or profile) nothing happens and the
+        explicit ``radius_px`` is used unchanged; with both, ``size`` wins.
+        The resolved radius is in Qt logical px -- the unit the canvas draws
+        and hit-tests in -- so the apparent size is right at any Windows scale.
+
+        ``screen`` is the monitor the run will be shown on, when the caller
+        knows it (the dashboard passes its window's screen); without one the
+        canvas's own ``screen()`` is used. An embedded canvas is not yet in any
+        window when this runs, so only the former is trustworthy on a
+        multi-monitor setup.
+        """
+        task_cfg = self.config.get("task", {})
+        if screen is None:
+            screen = self.canvas.screen()
+        scale = screen_scale(screen, self.config.get("app", {}))
+        distance = viewing_distance_mm(self.config.get("app", {}))
+        requested = (task_cfg.get("target") or {}).get("size")
+        info = apply_target_size(task_cfg, scale, distance)
+        if info is None:
+            return
+        self.metadata.target_size = info
+        if str(requested).strip().lower() != info["preset"]:
+            self.recorder.log(f"Unknown target size {requested!r}; using {DEFAULT_SIZE!r}.")
+        self.recorder.log(target_size_log_line(info, scale))
 
     def calibration_snapshot(self) -> dict:
         """The calibration this run is operating under (S10.5.5).
@@ -853,7 +900,9 @@ class AssessmentApp:
 
         self.canvas.set_frame(
             target_xy_norm=result.target_xy_norm,
-            target_radius_px=(result.target.radius_px if result.target else 90.0),
+            # The effective radius (a grid cell can cap it below the configured
+            # one), so the drawn circle and the hitbox agree (S4.3).
+            target_radius_px=(result.target_radius_px if result.target else 90.0),
             # The task's own corrected canvas-normalized pointer, NOT the raw
             # monitor-normalized pointer.x/y -- feeding the raw value here was
             # the confirmed cause of the cursor silently vanishing off-center

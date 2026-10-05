@@ -419,6 +419,9 @@ class DashboardWindow(QMainWindow):
                 notes=self.setup_page.notes(),
                 display_acknowledged=self.setup_page.display_acknowledged(),
                 hud_hidden=self._hud_hidden,
+                # This window is shown, so its screen is the monitor the run
+                # appears on; the not-yet-embedded canvas cannot say.
+                screen=self.screen(),
             )
         except CalibrationFileError as exc:  # pragma: no cover - unreachable (no --calibration-file here)
             self.tasks_page.set_task_status(task_id, "Pending")

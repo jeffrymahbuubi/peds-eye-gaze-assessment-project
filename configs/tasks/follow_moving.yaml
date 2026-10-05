@@ -8,7 +8,11 @@ timeout_ms: 12000
 inter_trial_interval_ms: 1000
 
 motion:
-  path: circular            # horizontal | circular
+  # circular | horizontal | vertical | diagonal_tlbr (top-left corner to
+  # bottom-right, bouncing) | diagonal_trbl (top-right corner to bottom-left,
+  # bouncing). Every straight path moves at the same on-screen speed
+  # (speed_frac_per_s x canvas width, in px/s).
+  path: circular
   speed_frac_per_s: 0.20      # fraction of screen width per second
   select_window_ms: 2500      # window during which selection counts as hit
 

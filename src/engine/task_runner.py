@@ -24,6 +24,12 @@ from ..tasks.follow_moving import FollowMovingTask
 from ..tasks.scanning import ScanningTask
 from .config import load_task_config
 from .loop_rate import config_target_fps, resolve_target_fps
+from .target_size import (
+    apply_target_size,
+    screen_scale,
+    target_size_log_line,
+    viewing_distance_mm,
+)
 
 TASK_REGISTRY: dict[str, type[BaseTask]] = {
     "click_static": ClickStaticTask,
@@ -84,6 +90,13 @@ def run_headless_replay(
 
     source = ReplayGazeSource(replay_path, loop=True)
 
+    # A replay has no screen: a target size preset resolves on the reference
+    # monitor ("fallback", SPEC-target-size-and-motion-paths.md S4.1), exactly
+    # as the GUI does when it has no physical width to go on.
+    app_cfg = config.get("app", {})
+    scale = screen_scale(None, app_cfg)
+    size_info = apply_target_size(config.get("task", {}), scale, viewing_distance_mm(app_cfg))
+
     session_id = session_id or f"replay_{task_id}_{subject_id}"
     metadata = SessionMetadata(
         subject_id=subject_id,
@@ -92,11 +105,14 @@ def run_headless_replay(
         input_mode=config.get("input", {}).get("mode", "eye"),
         tasks=[task_id],
         notes="headless replay",
+        target_size=size_info,
     )
 
     with SessionRecorder(metadata, output_root=output_root) as recorder:
         task = build_task(task_id, config, recorder=recorder, feedback=feedback, seed=seed)
         recorder.log(f"Starting headless replay: task={task_id} fps={fps}")
+        if size_info is not None:
+            recorder.log(target_size_log_line(size_info, scale))
 
         max_frames = int(max_seconds * fps)
         save_gaze = config.get("recording", {}).get("save_gaze_stream", True)

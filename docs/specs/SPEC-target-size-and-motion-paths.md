@@ -1,10 +1,10 @@
 ---
 name: SPEC-target-size-and-motion-paths
 title: Target size presets (Small/Medium/Large by visual angle), grid fit, and new Follow & Click paths
-status: approved by the user 2026-10-06 (incl. hub decisions §4.4 speed, §4.4 corner diagonals, §4.2 size-wins, §5 phasing); wireframe approved 2026-10-06; implementation (Phase A + C) in progress
+status: approved by the user 2026-10-06 (incl. hub decisions §4.4 speed, §4.4 corner diagonals, §4.2 size-wins, §5 phasing); wireframe approved 2026-10-06; Phase A + C implemented, reviewed, visually live-checked and committed 2026-10-06; real-gaze grid check open; Phase B approved for the next round
 created: 2026-10-06
 last_updated: 2026-10-06
-next_step: spec-implementer implements Phase A + C; then hub review, live check, commit
+next_step: (1) real-gaze grid check with the user as subject (§10, 2026-10-06 commit entry); (2) Phase B round: Target size replaces every px radius (click_static, follow_moving, scanning), starting with a short scanning fit-rule design for user approval
 related:
   - SPEC-live-settings-panel.md (§4/§5.3 structural settings + TaskSettingsDialog; §10 settings profiles store the structural block)
   - SPEC-follow-moving-selection.md (selection window, attempts; unchanged here)
@@ -16,7 +16,7 @@ related:
 
 # SPEC-target-size-and-motion-paths — target size presets, grid fit, Follow & Click paths
 
-**Status: APPROVED by the user 2026-10-06 (whole SPEC, incl. the four hub decisions). Wireframe approved 2026-10-06. Implementation of Phase A + C in progress.**
+**Status: APPROVED by the user 2026-10-06 (whole SPEC, incl. the four hub decisions). Wireframe approved 2026-10-06. Phase A + C implemented and committed 2026-10-06 (visual live check passed; real-gaze grid check still open). Phase B approved by the user for the next round (§10).**
 
 **Created:** 2026-10-06
 **Last updated:** 2026-10-06
@@ -274,18 +274,188 @@ cannot be baked in at `build_targets` time.
 1. User approves this SPEC (§2-§6). Commit it.
 2. Wireframe of the dialog (§4.5) → user approval → commit. **DONE 2026-10-06** (`fc0ddf4`, approved by the user).
 3. `spec-implementer`: Phase A + Phase C (one run, or two if the diff gets
-   large — both touch `settings_registry.py` and the dialog).
+   large — both touch `settings_registry.py` and the dialog). **DONE
+   2026-10-06** (plus the §9 screen fix).
 4. Hub review vs §6 + pytest → live check with the user → commit/push on
-   the user's OK → memory update.
-5. Phase B: separate go from the user.
+   the user's OK → memory update. **DONE 2026-10-06** except the real-gaze
+   part of the live check (open, see §10).
+5. Phase B: separate go from the user. **Go given 2026-10-06** (scope widened:
+   no px radius left anywhere, scanning included); next round.
 
 ## 8. Impl log
 
-(none yet)
+### 2026-10-06 — `claude-sonnet-5-5` (spec-implementer): Phase A + Phase C
+
+**Baseline before any change:** `365 passed` (no failures; the known
+`test_config_merges_task_over_default` failure did not occur on this machine
+today -- the test compares against `default.yaml` itself).
+**After:** `481 passed in 108.97s` (+116 new tests, 0 failures, 0 skipped).
+`ruff check` clean on every file touched or added (pre-existing lint noise in
+untouched files left alone). `configs/default.yaml` / `local_state.json`
+not touched.
+
+**Files added**
+- `src/engine/target_size.py` -- §4.1 pure module (no Qt): `SIZE_PRESETS_DEG`,
+  `DEFAULT_SIZE`, `REFERENCE_MM_PER_PX`, `mm_per_logical_px`, `radius_px_for`,
+  plus the helpers the wiring needed: `resolve_mm_per_px` (config, edid,
+  fallback order), `screen_scale` (duck-typed QScreen, or None for headless),
+  `viewing_distance_mm`, `apply_target_size` (§4.2 resolution, mutates
+  `config["task"]["target"]["radius_px"]`, returns the `metadata.target_size`
+  block), `target_size_log_line`, `fit_radius_px` / `estimate_grid_fit_radius_px`
+  / `CELL_PAD_FRAC` (§4.3 cap + the dialog's estimate share one formula).
+- `tests/test_target_size.py` (42 tests: criteria 6.1-6.6),
+  `tests/test_motion_paths.py` (47 incl. parametrised: 6.7),
+  `tests/test_task_settings_dialog.py` (27, offscreen Qt: 6.8 + registry).
+
+**Files changed**
+- `src/tasks/base_task.py` -- `FrameResult.target_radius_px`;
+  `BaseTask.effective_radius_px()`, `BaseTask.hit_test()`, `_shrink_details()`,
+  `_log()`; `update()` uses `hit_test`; `_start_trial` records the effective
+  radius into `TrialRecord.target_radius_px` and emits one `TARGET_SHRUNK`
+  event per run (`requested_px`, `used_px`, + `rows`/`cols` from click_grid).
+- `src/tasks/click_grid.py` -- `effective_radius_px` (cell cap, live canvas
+  size), `hit_test` (circle AND unpadded cell rectangle), `_shrink_details`.
+- `src/tasks/follow_moving.py` -- `PATHS`; vertical / `diagonal_tlbr` /
+  `diagonal_trbl` triangle waves at `speed * screen_w` px/s; start point in
+  `TargetSpec`; unknown path -> `horizontal`, logged to the Session Log.
+  Horizontal and circular code untouched; the RNG draw order is unchanged
+  (the per-trial random lane is drawn for every path, so a given seed keeps
+  the same selection windows whichever path is chosen).
+- `src/app.py` -- `AssessmentApp._resolve_target_size()` called right before
+  `build_task` (canvas's own screen; metadata + Session Log line);
+  `_tick` feeds the canvas `result.target_radius_px`.
+- `src/data/schema.py` -- additive `SessionMetadata.target_size`
+  (`schema_version` not bumped).
+- `src/ui/settings_registry.py` -- `StructuralSetting` gains `choices` +
+  `default` (min/max/step now default to 0 for choice rows);
+  `TARGET_SIZE_CHOICES`, `MOTION_PATH_CHOICES`; new `target.size`
+  (click_grid) and `motion.path` (follow_moving) rows; `target.radius_px`
+  now `click_static` + `follow_moving` only; `initial_structural_values`
+  handles `choice` (falls back to the setting default for a missing/invalid
+  value).
+- `src/ui/task_settings_dialog.py` -- themed `QComboBox` for `choice` rows
+  (same popup treatment as the Setup page's combo), per-item "Medium — 5°
+  (≈205 px)" labels for `target.size`, live shrink hint (a
+  `wtmhAlertWarning` frame, shown only when the size will be shrunk),
+  `overrides()` returns the chosen string. Qt APIs checked in the qt-docs MCP
+  (QComboBox `addItem(text, userData)` / `currentData` / `findData` /
+  `currentIndexChanged(int)`, QScreen `geometry` / `availableGeometry` /
+  `physicalSize` / `devicePixelRatio`).
+- `src/ui/canvas.py` -- one line: the grid cell padding now reads
+  `CELL_PAD_FRAC` (was a literal 0.06) so drawing and the cap cannot drift.
+- `src/engine/task_runner.py` -- `run_headless_replay` resolves a size preset
+  too, with no screen (the "fallback" source SPEC §4.1 names for headless
+  replay), so a replay of click_grid keeps radius ~102 px instead of the
+  task's bare default of 80 now that the YAML has no `radius_px`.
+- `configs/tasks/click_grid.yaml` -- `target.size: medium`, `radius_px`
+  removed, comment explains `size` and the legacy fallback.
+- `configs/tasks/follow_moving.yaml` -- `path:` comment lists the five values.
+
+**Decisions made inside the SPEC (no SPEC text contradicted)**
+- `mm_per_logical_px(physical_width_mm, logical_screen_width_px, dpr=1.0,
+  source="config")`: the SPEC's two-argument sketch cannot yield the
+  three-valued `source`, nor test plausibility per *physical* px, so it takes
+  the candidate's `source` label and the screen `dpr`. The config -> EDID ->
+  fallback ordering lives in `resolve_mm_per_px`.
+- Fallback value = reference panel width (531.4 mm) / the screen's logical
+  width, i.e. exactly `REFERENCE_MM_PER_PX` on a 1920-px-wide screen and
+  still the right apparent size at 125 / 150 % scale.
+- The radius written into the config and `metadata.target_size.radius_px` is
+  rounded to 0.1 px (so `trials.csv target_radius_px` equals it when no cap
+  applies); the Session Log line shows it as a whole px.
+- Shrink-hint estimate uses the screen's available width AND height (not only
+  height): with height alone a wide grid (e.g. 6 cols x 2 rows) would be
+  mis-estimated. Hint text and its position (after the form rows, above the
+  buttons) follow the approved wireframe; item labels use the SPEC's
+  "(≈205 px)" spelling. Both show the circle's *diameter*, matching the
+  wireframe's "≈ 111 px" for a 6x6 grid on ~1000 px.
+- `motion.path` dialog default (YAML silent) is `horizontal`, the task's own
+  fallback; `target.size` default is `medium`.
+- Old pre-change profiles: a click_grid profile whose structural block holds
+  only `target.radius_px` merges over the new YAML, which carries
+  `target.size`, so both are present and **`size` wins** (SPEC §4.2.3); the
+  old px value is therefore ignored for click_grid (it is no longer in the
+  dialog either). Covered by `test_old_profile_radius_is_overridden_by_the_yaml_size_after_the_merge`.
+  Configs with only `radius_px` and no `size` anywhere (criterion 6.5) are
+  untouched, covered separately.
+
+**Deviations from the SPEC:** none.
+
+**Left undone / for the hub's live check (not blocking):**
+- Nothing run live (no GUI launch, no device), per the brief. Offscreen only:
+  the dialog (combos, labels, hint), `AssessmentApp` construction + 30 ticks
+  against the replay fixture for click_grid 6x6 Large (canvas received the
+  capped radius) and follow_moving diagonal_trbl, run from a scratch dir.
+- Vertical and diagonal paths convert speed with the *live* canvas size
+  (`speed * screen_w`), as §4.4 says; so a HUD toggle in the middle of a
+  vertical/diagonal trial rescales the path phase once (a one-off jump of the
+  target). Horizontal is unaffected (no size dependence, as today).
+- The target's decorative rings (white outline r+4, instant-feedback ring
+  r+10, dwell ring r+16 / 8 px stroke) still extend past a *shrunk* circle and
+  can poke a few px into the neighbouring cell on a dense grid; only the circle
+  and the hitbox are held inside the cell, as §4.3 specifies.
+- Harness note: writing `->` annotations through the Write/Edit tools
+  created a few empty stray files in the repo root (`float`, `tuple[float`,
+  `dict[str`, `the`); all were deleted, `git status` shows only intended files.
+
+### 2026-10-06 (addendum) — `claude-sonnet-5-5`: §9 answer, resolve the size against the run's screen
+
+Implements the user's answer to the §9 entry (fix it now).
+
+- `AssessmentApp.__init__` takes an optional keyword `screen: QScreen | None
+  = None` (new import `QScreen` from `PySide6.QtGui`, annotation only).
+  `_resolve_target_size(screen=None)` uses it when given, else
+  `self.canvas.screen()` as before; `__init__` passes it through. The other
+  `canvas.screen()` uses (`_canvas_physical`, `_sync_gaze_geometry`,
+  `_record_geometry`, `_record_display`) are unchanged: they run after the
+  canvas is shown.
+- `DashboardWindow._on_run_requested` passes `screen=self.screen()` when it
+  builds `AssessmentApp` (`dashboard_window.py`, the existing call).
+- `TaskSettingsDialog` resolves its labels and shrink hint against
+  `parent.screen()` when it has a parent, else `self.screen()`. The dashboard
+  already opens it with `parent=self`, so no call site changed.
+- qt-docs check (Qt 6.8.7, QWidget page): `QWidget::screen()` is documented
+  only as "Returns the screen the widget is on" (see also `setScreen()`,
+  `windowHandle()`). It says nothing about a widget that is not shown yet, so
+  the fix does not rely on it: the screen is passed in explicitly from a window
+  that is shown (the dashboard); the dialog's parent is that same shown window.
+  Not verifiable offscreen (one virtual screen); a second-monitor check is the
+  hub's live test.
+- New `tests/test_target_screen.py` (10 tests): a passed-in fake screen is the
+  one used and `canvas.screen()` is not even consulted; it beats a different
+  canvas screen; omitted or None keeps `canvas.screen()`; `screen` is an
+  optional keyword defaulting to None; a real offscreen `AssessmentApp`
+  (replay fixture, scratch cwd) hands the screen through to the resolution and,
+  without one, resolves against its canvas's screen; `DashboardWindow` passes
+  `self.screen()` (captured via a recording stand-in for `AssessmentApp`); the
+  dialog's labels and shrink hint describe the parent's screen even when the
+  dialog's own `screen()` says otherwise, and its own screen without a parent.
+- **Pytest:** `491 passed in 110.50s` (481 + 10 new, 0 failures). `ruff`
+  clean on the new test file and on the lines touched; the import-order
+  warnings still reported for `app.py` / `dashboard_window.py` are
+  pre-existing (same at `HEAD`).
+- Deviations from the SPEC / user answer: none. `configs/default.yaml` and
+  `local_state.json` untouched.
 
 ## 9. Implementer open questions
 
-(none yet)
+- **2026-10-06 (non-blocking, implemented as the SPEC says):** §4.2 resolves
+  the size "from the canvas's screen" in `AssessmentApp.__init__`. In the
+  dashboard flow the embedded `TaskRunView` is created in `__init__` but only
+  added to the dashboard's stack afterwards, so at that moment the canvas has
+  no window handle and `QWidget.screen()` can only report a default screen
+  (not verified on a second monitor). On a single-monitor lab setup this is
+  identical; with the dashboard on a non-primary monitor of a different size
+  or scale the preset could be resolved against the wrong screen. The
+  standalone (`MainWindow`) path is unaffected only if the window is created on
+  the right screen. Hub to decide whether that matters before the live check;
+  nothing was changed.
+  - **Answer (user, 2026-10-06): fix it now.** `AssessmentApp` takes an
+    optional `screen` (the QScreen to resolve the preset against); the
+    dashboard passes its own window's screen; with none given it falls back
+    to `self.canvas.screen()` as today. `TaskSettingsDialog` likewise uses
+    its parent's screen when it has a parent, so the dropdown labels and the
+    shrink hint describe the same monitor the run is sized for.
 
 ## 10. Log
 
@@ -315,3 +485,46 @@ cannot be baked in at `build_targets` time.
 - **2026-10-06** — User approved the wireframe (`docs/wireframes/task-settings.html`)
   as is, no changes. Plan step 2 DONE. Phase A + C handed to
   `spec-implementer`.
+- **2026-10-06** — User decision while the implementer ran: **Phase B go**,
+  with a wider scope than §5: no px radius may remain anywhere in the UI —
+  `target.size` replaces `target.radius_px` for click_static and
+  follow_moving, and scanning's "Icon radius (px)" (`layout.radius_px`)
+  becomes a size too. Timing chosen by the user: the next round, after this
+  one is committed. Scanning needs a short fit-rule design (Large icons can
+  overlap their slots) approved by the user before it is built.
+- **2026-10-06** — §9 answered by the user ("fix it now"); fix implemented
+  (`AssessmentApp(screen=...)`, dashboard passes its window's screen; dialog
+  uses its parent's screen; +10 tests).
+- **2026-10-06** — Hub review: diff read against §4-§5, all in scope (px
+  slider kept for click_static/follow_moving, scanning untouched,
+  `configs/default.yaml` and `local_state.json` untouched). Hub pytest:
+  **491 passed, 0 failed** (baseline 365). Acceptance §6.1-§6.9 met by
+  tests. Two empty stray files from tool input (`float`, `Tasks`) deleted.
+  Implementer's in-SPEC decisions accepted (§8).
+- **2026-10-06** — Live check, visual part (user away from the office, so no
+  subject; user chose "visual check now, gaze later"). Real GP3HD confirmed
+  connected and streaming (GP3HD, USB3, 150 Hz; 0 valid samples, nobody
+  seated), not used. Dashboard driven against `tools/fake_gazepoint_server.py`
+  on port **4250** (4243 is also held by Gazepoint Control), subject
+  `LIVECHK01`, 1920x1080 @ 100 %, maximized. Results:
+  - Grid dialog: Target size combo "Medium — 5° (≈207 px)", no px slider;
+    Large + 6x6 shows "Will be shrunk to ≈ 115 px to fit a 6 x 6 grid
+    (approximate)".
+  - click_grid run1 (3x3 Medium): radius 103.4 px, not capped (§6.4).
+  - click_grid run2 (6x6 Large): `metadata.target_size` = large, 8°,
+    165.6 px, mm_per_px 0.2745, EDID (527x296 mm), 650 mm; every
+    `trials.csv` radius 53.3; exactly one `TARGET_SHRUNK` (165.6 to 53.3,
+    6x6); target drawn inside its cell, only its white outline touches the
+    cell border (expected, §4.3 holds circle + hitbox only).
+  - click_grid run3: HUD hidden mid-run: `HUD_TOGGLED` + `CANVAS_RESIZED`
+    (1920x957); target stays inside its wider cell.
+  - follow_moving runs 1-3: Vertical, Diagonal ↘, Diagonal ↙ each move and
+    bounce as designed; path recorded in `metadata.settings.structural`;
+    Vertical's first trial starts at y = 0.1.
+  - Gotcha: the qt-mcp probe stops answering while the modal Task settings
+    dialog is open (and is out of step afterwards); those steps were driven
+    with OS-level clicks + screenshots.
+  - **Not tested live (open):** real gaze on the 6x6 grid confirming a
+    neighbour-cell look is not a hit (covered by unit tests only); a second
+    monitor. `local_state.json` restored to 127.0.0.1:4242 afterwards.
+  User approved commit + push.

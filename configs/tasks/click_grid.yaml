@@ -13,7 +13,13 @@ timeout_ms: 8000
 inter_trial_interval_ms: 800
 
 target:
-  radius_px: 100
+  # Target size as a preset by visual angle (diameter): small 3 deg | medium
+  # 5 deg | large 8 deg, converted to px for the monitor and the 650 mm viewing
+  # distance (SPEC-target-size-and-motion-paths.md). If the preset does not fit
+  # its grid cell, the target AND its hitbox are shrunk to fit.
+  # Legacy: an explicit `radius_px: <px>` (e.g. 100) is still read when `size`
+  # is absent (older configs/profiles); when both are present `size` wins.
+  size: medium
   color: "#4caf50"
   highlight_color: "#ffeb3b"
 

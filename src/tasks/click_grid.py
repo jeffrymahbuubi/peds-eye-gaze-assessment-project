@@ -13,6 +13,8 @@ cells via ``scene_spec()``'s new ``"grid"`` mode.
 
 from __future__ import annotations
 
+from ..engine.target_size import fit_radius_px
+from ..inputs.base import circle_contains
 from .base_task import BaseTask, TargetSpec
 
 
@@ -62,6 +64,35 @@ class ClickGridTask(BaseTask):
             )
             for i, slot in enumerate(order)
         ]
+
+    # -- target fit (SPEC-target-size-and-motion-paths.md S4.3) ---------------
+
+    def _cell_px(self) -> tuple[float, float]:
+        """One grid cell's size in canvas px, from the live canvas size."""
+        return self.cell_w * self.screen_w, self.cell_h * self.screen_h
+
+    def effective_radius_px(self, target: TargetSpec) -> float:
+        """The configured radius, capped so the circle sits fully inside its
+        cell as the canvas draws it (cell rectangle inset by the canvas's own
+        padding -- :func:`~src.engine.target_size.fit_radius_px`). Evaluated
+        per frame: the canvas resizes mid-run (HUD hide/show)."""
+        return min(target.radius_px, fit_radius_px(*self._cell_px()))
+
+    def hit_test(
+        self, target: TargetSpec, cx_px: float, cy_px: float, px: float, py: float
+    ) -> bool:
+        """The usual circle test (effective radius + jitter) AND the point lies
+        inside the target's own, unpadded cell: the hitbox never reaches a
+        neighbouring cell, yet keeps its full jitter tolerance in the cell's
+        corners."""
+        cell_w_px, cell_h_px = self._cell_px()
+        in_cell = abs(px - cx_px) <= cell_w_px / 2 and abs(py - cy_px) <= cell_h_px / 2
+        return in_cell and circle_contains(
+            cx_px, cy_px, self.effective_radius_px(target) + self.jitter_px, px, py
+        )
+
+    def _shrink_details(self) -> dict:
+        return {"rows": self.rows, "cols": self.cols}
 
     def scene_spec(self) -> dict:
         return {
