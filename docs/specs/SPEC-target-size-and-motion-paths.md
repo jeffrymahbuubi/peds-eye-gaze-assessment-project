@@ -1,7 +1,7 @@
 ---
 name: SPEC-target-size-and-motion-paths
 title: Target size presets (Small/Medium/Large by visual angle), grid fit, and new Follow & Click paths
-status: approved by the user 2026-10-06 (incl. hub decisions §4.4 speed, §4.4 corner diagonals, §4.2 size-wins, §5 phasing); wireframe approved 2026-10-06; Phase A + C implemented, reviewed, visually live-checked and committed 2026-10-06; real-gaze grid check open; Phase B approved for the next round
+status: approved by the user 2026-10-06 (incl. hub decisions §4.4 speed, §4.4 corner diagonals, §4.2 size-wins, §5 phasing); wireframe approved 2026-10-06; Phase A + C implemented, reviewed, visually live-checked and committed 2026-10-06 (`0854ccf`); real-gaze grid check open; Phase B approved for the next round
 created: 2026-10-06
 last_updated: 2026-10-06
 next_step: (1) real-gaze grid check with the user as subject (§10, 2026-10-06 commit entry); (2) Phase B round: Target size replaces every px radius (click_static, follow_moving, scanning), starting with a short scanning fit-rule design for user approval
@@ -16,7 +16,7 @@ related:
 
 # SPEC-target-size-and-motion-paths — target size presets, grid fit, Follow & Click paths
 
-**Status: APPROVED by the user 2026-10-06 (whole SPEC, incl. the four hub decisions). Wireframe approved 2026-10-06. Phase A + C implemented and committed 2026-10-06 (visual live check passed; real-gaze grid check still open). Phase B approved by the user for the next round (§10).**
+**Status: APPROVED by the user 2026-10-06 (whole SPEC, incl. the four hub decisions). Wireframe approved 2026-10-06. Phase A + C implemented and committed 2026-10-06 (`0854ccf`; visual live check passed; real-gaze grid check still open). Phase B approved by the user for the next round (§10).**
 
 **Created:** 2026-10-06
 **Last updated:** 2026-10-06
@@ -275,7 +275,7 @@ cannot be baked in at `build_targets` time.
 2. Wireframe of the dialog (§4.5) → user approval → commit. **DONE 2026-10-06** (`fc0ddf4`, approved by the user).
 3. `spec-implementer`: Phase A + Phase C (one run, or two if the diff gets
    large — both touch `settings_registry.py` and the dialog). **DONE
-   2026-10-06** (plus the §9 screen fix).
+   2026-10-06** (plus the §9 screen fix), committed `0854ccf`.
 4. Hub review vs §6 + pytest → live check with the user → commit/push on
    the user's OK → memory update. **DONE 2026-10-06** except the real-gaze
    part of the live check (open, see §10).
@@ -527,4 +527,4 @@ Implements the user's answer to the §9 entry (fix it now).
   - **Not tested live (open):** real gaze on the 6x6 grid confirming a
     neighbour-cell look is not a hit (covered by unit tests only); a second
     monitor. `local_state.json` restored to 127.0.0.1:4242 afterwards.
-  User approved commit + push.
+  User approved commit + push: `0854ccf`.
