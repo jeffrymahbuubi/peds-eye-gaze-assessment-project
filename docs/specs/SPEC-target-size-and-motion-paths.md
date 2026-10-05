@@ -1,10 +1,10 @@
 ---
 name: SPEC-target-size-and-motion-paths
 title: Target size presets (Small/Medium/Large by visual angle), grid fit, and new Follow & Click paths
-status: approved by the user 2026-10-06 (incl. hub decisions §4.4 speed, §4.4 corner diagonals, §4.2 size-wins, §5 phasing); wireframe next
+status: approved by the user 2026-10-06 (incl. hub decisions §4.4 speed, §4.4 corner diagonals, §4.2 size-wins, §5 phasing); wireframe approved 2026-10-06; implementation (Phase A + C) in progress
 created: 2026-10-06
 last_updated: 2026-10-06
-next_step: /spec-run — user approves wireframe docs/wireframes/task-settings.html, then implement Phase A + C
+next_step: spec-implementer implements Phase A + C; then hub review, live check, commit
 related:
   - SPEC-live-settings-panel.md (§4/§5.3 structural settings + TaskSettingsDialog; §10 settings profiles store the structural block)
   - SPEC-follow-moving-selection.md (selection window, attempts; unchanged here)
@@ -16,7 +16,7 @@ related:
 
 # SPEC-target-size-and-motion-paths — target size presets, grid fit, Follow & Click paths
 
-**Status: APPROVED by the user 2026-10-06 (whole SPEC, incl. the four hub decisions). Wireframe of the dialog next (§4.5), then implementation of Phase A + C.**
+**Status: APPROVED by the user 2026-10-06 (whole SPEC, incl. the four hub decisions). Wireframe approved 2026-10-06. Implementation of Phase A + C in progress.**
 
 **Created:** 2026-10-06
 **Last updated:** 2026-10-06
@@ -272,7 +272,7 @@ cannot be baked in at `build_targets` time.
 ## 7. Plan
 
 1. User approves this SPEC (§2-§6). Commit it.
-2. Wireframe of the dialog (§4.5) → user approval → commit.
+2. Wireframe of the dialog (§4.5) → user approval → commit. **DONE 2026-10-06** (`fc0ddf4`, approved by the user).
 3. `spec-implementer`: Phase A + Phase C (one run, or two if the diff gets
    large — both touch `settings_registry.py` and the dialog).
 4. Hub review vs §6 + pytest → live check with the user → commit/push on
@@ -312,3 +312,6 @@ cannot be baked in at `build_targets` time.
   6x6 cell fits ≈ 111 px, so even Small (≈ 123 px) is shrunk slightly in
   6x6 — expected under T3. Wireframe committed; the user's look at it is
   the /spec-run wireframe gate.
+- **2026-10-06** — User approved the wireframe (`docs/wireframes/task-settings.html`)
+  as is, no changes. Plan step 2 DONE. Phase A + C handed to
+  `spec-implementer`.
