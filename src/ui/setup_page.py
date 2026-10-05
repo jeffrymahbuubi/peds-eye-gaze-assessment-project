@@ -124,6 +124,18 @@ def _format_display_warning(check: DisplayCheck) -> str:
     )
 
 
+def calibration_measured_alert_text(result, error_txt: str) -> str:
+    """Setup alert for a valid measured calibration (SPEC-calibration-result-
+    timeout.md S4.2): says so when CALIB_RESULT's per-point breakdown is missing."""
+    text = f"Calibration measured — {result.n_points} points, mean error {error_txt}, valid."
+    if result.per_point:
+        return text
+    return (
+        text + " Per-point details were not received — if this repeats, close and "
+        "reopen Gazepoint Control, then calibrate again."
+    )
+
+
 def _subject_calibration_dir(output_root: str | Path, subject_id: str) -> Path:
     """Canonical per-subject saved-calibration folder (SPEC-gui-audit-
     2026-09-10.md item 2b). Distinct from a run's own auto-saved
@@ -872,10 +884,7 @@ class SetupPage(QWidget):
         self.calibration_details_section.setVisible(False)  # collapse any stale prior breakdown
         if result.valid:
             error_txt = f"{result.mean_error_px:.0f}px" if result.mean_error_px is not None else "n/a"
-            self._set_calibration_alert(
-                "success",
-                f"Calibration measured — {result.n_points} points, mean error {error_txt}, valid.",
-            )
+            self._set_calibration_alert("success", calibration_measured_alert_text(result, error_txt))
         else:
             self._calibration_result = None
             self._calibration_source = None

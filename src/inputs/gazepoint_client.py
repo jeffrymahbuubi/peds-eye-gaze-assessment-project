@@ -22,16 +22,20 @@ responsibility.
 from __future__ import annotations
 
 import json
+import logging
 import re
 import socket
 import threading
 import time
 from collections import deque
-from collections.abc import Iterable
+from collections.abc import Iterable, Iterator
+from contextlib import contextmanager
 from dataclasses import dataclass
 from pathlib import Path
 
 from ..data.schema import GazeSample
+
+_log = logging.getLogger(__name__)
 
 _ATTR_RE = re.compile(r'(\w+)="([^"]*)"')
 
@@ -71,6 +75,9 @@ _ENABLE_RECORDS = {
 # at 150 Hz. Only reached if nobody drains (e.g. no recorder), in which case
 # the oldest are dropped rather than memory growing without bound.
 _RAW_QUEUE_MAX = 10_000
+
+# Bound on joining the reader in pause_streaming(); its recv() times out at 1 s.
+_PAUSE_JOIN_TIMEOUT_S = 2.0
 
 
 def enable_command(record_id: str, state: bool = True) -> bytes:
@@ -505,6 +512,46 @@ class GazepointClient:
         target = self._run_replay if self._replay_path is not None else self._run_socket
         self._thread = threading.Thread(target=target, name="gazepoint-reader", daemon=True)
         self._thread.start()
+
+    def pause_streaming(self) -> bool:
+        """Stop the reader thread but keep the socket open (SPEC-calibration-
+        result-timeout.md S4.1). Returns whether it was running.
+
+        For callers that must read the socket themselves (``Calibration.run``):
+        while the reader runs, its ``recv()`` competes for every chunk and drops
+        non-REC lines such as the one-time ``CALIB_RESULT`` push. The join is
+        bounded (the reader's ``recv()`` times out at 1 s); if the thread does
+        not exit in time, a warning is logged and ``_thread`` is left set, so
+        no second reader is ever started and the caller proceeds as before.
+        A disconnect/reconnect during the pause is deliberately not handled:
+        the reader is what reconnects, so the caller's own ``OSError`` handling
+        applies, as on a fresh connect.
+        """
+        if self._thread is None or self._replay_path is not None:
+            return False
+        self._stop_event.set()
+        self._thread.join(timeout=_PAUSE_JOIN_TIMEOUT_S)
+        if self._thread.is_alive():
+            _log.warning("gazepoint reader did not stop within %.1fs; continuing anyway", _PAUSE_JOIN_TIMEOUT_S)
+        else:
+            self._thread = None
+        return True
+
+    @contextmanager
+    def streaming_paused(self) -> Iterator[bool]:
+        """Pause the reader for the ``with`` body, resuming it afterwards only
+        if it was running before (also when the body raises)."""
+        was_streaming = self.pause_streaming()
+        try:
+            yield was_streaming
+        finally:
+            if was_streaming:
+                if self._thread is not None:
+                    # The reader never exited (bounded join timed out): it is
+                    # still the one reader, so just cancel the pending stop.
+                    self._stop_event.clear()
+                else:
+                    self.start_streaming()
 
     def latest(self) -> GazeSample | None:
         with self._lock:

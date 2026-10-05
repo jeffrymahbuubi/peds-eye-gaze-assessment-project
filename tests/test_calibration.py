@@ -788,3 +788,193 @@ def test_run_ignores_a_retained_result_reported_before_this_calibration_could_fi
         assert elapsed >= 1.4  # waited past the earliest a real result could exist
     finally:
         server.close()
+
+
+# -- SPEC-calibration-result-timeout.md: reader-thread race -------------------
+
+_CALIB_RESULT_LINE = (
+    '<CAL ID="CALIB_RESULT" CALX1="0.50000" CALY1="0.50000" '
+    'LX1="0.50229" LY1="0.50279" LV1="1" RX1="0.51467" RY1="0.50870" RV1="1" />\r\n'
+)
+_REC_LINE = '<REC FPOGX="0.5" FPOGY="0.5" FPOGV="1" BPOGX="0.5" BPOGY="0.5" BPOGV="1" />\r\n'
+
+
+class _StreamingDeviceServer:
+    """Loopback stand-in for a tracker that streams ``REC`` continuously after
+    ``ENABLE_SEND_DATA``, answers ``CALIBRATE_RESULT_SUMMARY`` queries, and
+    pushes one unprompted ``CALIB_RESULT`` shortly after each ``CALIBRATE_START``
+    -- the traffic mix on which the reader thread and ``Calibration.run`` race
+    for the same socket."""
+
+    def __init__(self, calib_result_delay_s: float = 0.3, rec_interval_s: float = 0.006) -> None:
+        self._delay = calib_result_delay_s
+        self._rec_interval = rec_interval_s
+        listener = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+        listener.bind(("127.0.0.1", 0))
+        listener.listen(1)
+        self.port = listener.getsockname()[1]
+        self._listener = listener
+        self._conn: socket.socket | None = None
+        self._send_lock = threading.Lock()
+        self._streaming = threading.Event()
+        self._stop = threading.Event()
+        threading.Thread(target=self._serve, daemon=True).start()
+
+    def _send(self, text: str) -> None:
+        with self._send_lock:
+            try:
+                self._conn.sendall(text.encode("ascii"))  # type: ignore[union-attr]
+            except OSError:
+                pass
+
+    def _serve(self) -> None:
+        try:
+            conn, _ = self._listener.accept()
+        except OSError:
+            return
+        self._conn = conn
+        conn.settimeout(0.2)
+        threading.Thread(target=self._stream, daemon=True).start()
+        buffer = ""
+        while not self._stop.is_set():
+            try:
+                chunk = conn.recv(4096)
+            except TimeoutError:
+                continue
+            except OSError:
+                return
+            if not chunk:
+                return
+            buffer += chunk.decode("ascii", errors="ignore")
+            while "\n" in buffer:
+                line, buffer = buffer.split("\n", 1)
+                if "ENABLE_SEND_DATA" in line:
+                    self._streaming.set()
+                elif "CALIBRATE_RESULT_SUMMARY" in line:
+                    self._send('<ACK ID="CALIBRATE_RESULT_SUMMARY" AVE_ERROR="12.5" VALID_POINTS="1" />\r\n')
+                elif "CALIBRATE_START" in line:
+                    threading.Timer(self._delay, self._send, args=(_CALIB_RESULT_LINE,)).start()
+
+    def _stream(self) -> None:
+        while not self._stop.is_set():
+            if self._streaming.is_set():
+                self._send(_REC_LINE)
+            time.sleep(self._rec_interval)
+
+    def close(self) -> None:
+        self._stop.set()
+        if self._conn is not None:
+            self._conn.close()
+        self._listener.close()
+
+
+def _reader_threads() -> int:
+    return sum(1 for t in threading.enumerate() if t.name == "gazepoint-reader" and t.is_alive())
+
+
+@pytest.fixture
+def streaming_device():
+    server = _StreamingDeviceServer()
+    yield server
+    server.close()
+
+
+def _fast_calibration(client) -> Calibration:
+    return Calibration(
+        client=client, n_points=1, timeout_s=8.0, point_delay_s=0.05, point_timeout_s=0.05, show=False
+    )
+
+
+def test_run_captures_per_point_every_time_while_client_is_streaming(streaming_device):
+    from src.inputs.gazepoint_client import GazepointClient
+
+    client = GazepointClient()
+    client.connect("127.0.0.1", streaming_device.port)
+    client.start_streaming()
+    try:
+        for i in range(10):
+            result = _fast_calibration(client).run()
+            assert result.per_point, f"run {i}: CALIB_RESULT was lost to the reader thread"
+            # Criterion 2: resumed, exactly one reader, samples still flowing.
+            assert client.is_streaming()
+            assert _reader_threads() == 1
+        before = client.latest()
+        deadline = time.monotonic() + 2.0
+        while time.monotonic() < deadline and client.latest() is before:
+            time.sleep(0.01)
+        assert client.latest() is not before
+    finally:
+        client.stop()
+
+
+def test_run_leaves_a_non_streaming_client_not_streaming(streaming_device):
+    from src.inputs.gazepoint_client import GazepointClient
+
+    client = GazepointClient()
+    client.connect("127.0.0.1", streaming_device.port)
+    try:
+        result = _fast_calibration(client).run()
+        assert result.per_point
+        assert not client.is_streaming()
+        assert _reader_threads() == 0
+    finally:
+        client.stop()
+
+
+def test_run_resumes_streaming_when_calibration_raises_or_returns_early(streaming_device, monkeypatch):
+    from src.inputs.gazepoint_client import GazepointClient
+
+    client = GazepointClient()
+    client.connect("127.0.0.1", streaming_device.port)
+    client.start_streaming()
+    try:
+        def _boom(self, sock):
+            raise RuntimeError("boom")
+
+        monkeypatch.setattr(Calibration, "_poll_for_result", _boom)
+        with pytest.raises(RuntimeError):
+            _fast_calibration(client).run()
+        assert client.is_streaming() and _reader_threads() == 1
+
+        def _os_error(self, sock):
+            raise OSError("device dropped")
+
+        monkeypatch.setattr(Calibration, "_configure_points", _os_error)
+        result = _fast_calibration(client).run()  # early-return path
+        assert result.valid is False
+        assert client.is_streaming() and _reader_threads() == 1
+    finally:
+        client.stop()
+
+
+def test_pause_join_is_bounded_when_the_reader_cannot_be_stopped(monkeypatch):
+    """A reader that never exits must neither hang the pause nor get a second
+    reader started on resume (SPEC-calibration-result-timeout.md S4.1)."""
+    from src.inputs import gazepoint_client as gc
+
+    monkeypatch.setattr(gc, "_PAUSE_JOIN_TIMEOUT_S", 0.1)
+    release = threading.Event()
+    stuck = threading.Thread(target=release.wait, name="gazepoint-reader", daemon=True)
+    stuck.start()
+    server = _ScriptedServer(
+        [
+            (0.3, _CALIB_RESULT_LINE),  # after run()'s pre-start drain
+            (0.1, '<ACK ID="CALIBRATE_RESULT_SUMMARY" AVE_ERROR="12.5" VALID_POINTS="1" />\r\n'),
+        ]
+    )
+    client = gc.GazepointClient()
+    client._sock = server.connect_client_socket()
+    client._thread = stuck
+    client._stop_event.clear()
+    try:
+        started = time.monotonic()
+        result = _fast_calibration(client).run()
+        assert time.monotonic() - started < 5.0
+        assert result.valid is True
+        assert client._thread is stuck  # still the one reader; no second started
+        assert not client._stop_event.is_set()  # pending stop cancelled on resume
+    finally:
+        release.set()
+        client._thread = None
+        client.stop()
+        server.close()

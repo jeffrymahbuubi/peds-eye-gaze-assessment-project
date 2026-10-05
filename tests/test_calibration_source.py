@@ -21,7 +21,9 @@ from src.ui import setup_page as setup_page_module
 from src.ui.setup_page import SetupPage
 
 FIXTURE = Path(__file__).parent / "fixtures" / "gaze_replay_click_static.jsonl"
-VALID = CalibrationResult(n_points=5, mean_error_px=12.34, valid=True)
+_PER_POINT = ({"point": 1, "target_x": 0.5, "target_y": 0.5, "left": None, "right": None},)
+VALID = CalibrationResult(n_points=5, mean_error_px=12.34, valid=True, per_point=_PER_POINT)
+VALID_NO_POINTS = CalibrationResult(n_points=5, mean_error_px=12.34, valid=True)
 INVALID = CalibrationResult(n_points=5, mean_error_px=None, valid=False)
 
 
@@ -46,6 +48,27 @@ def test_log_line_loaded_names_the_file():
 
 def test_log_line_loaded_without_file():
     assert calibration_log_line(VALID, "loaded", None).startswith("Calibration loaded — 5 points")
+
+
+def test_log_line_notes_missing_per_point_details_for_measured_and_loaded():
+    note = " Per-point details not available."
+    assert calibration_log_line(VALID_NO_POINTS, "measured", None) == (
+        "Calibration measured — 5 points, mean error 12.3px, valid." + note
+    )
+    assert calibration_log_line(VALID_NO_POINTS, "loaded", "/x/calibration_5pt.json") == (
+        "Calibration loaded from calibration_5pt.json — 5 points, mean error 12.3px, valid." + note
+    )
+
+
+def test_measured_alert_text_says_when_per_point_details_are_missing():
+    from src.ui.setup_page import calibration_measured_alert_text
+
+    assert calibration_measured_alert_text(VALID, "12px") == (
+        "Calibration measured — 5 points, mean error 12px, valid."
+    )
+    assert calibration_measured_alert_text(VALID_NO_POINTS, "12px") == (
+        "Calibration measured — 5 points, mean error 12px, valid. Per-point details were not received — if this repeats, close and reopen Gazepoint Control, then calibrate again."
+    )
 
 
 def test_log_line_invalid_and_not_run():

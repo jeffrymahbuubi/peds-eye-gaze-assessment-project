@@ -1,10 +1,10 @@
 ---
 name: SPEC-calibration-result-timeout
 title: Calibrations after a task run lose CALIB_RESULT (reader-thread race)
-status: design approved by the user 2026-10-05; not yet implemented
+status: complete — implemented, reviewed, live-validated with the real GP3HD (after a Gazepoint Control restart, §4.3); committed
 created: 2026-10-05
 last_updated: 2026-10-05
-next_step: spec-implementer builds §4-§6, then hub review + live check (needs the user as subject)
+next_step: none
 related:
   - SPEC-gui-audit-2026-09-10.md (§7 timing diagnostic, §9 retained-result fix and the elapsed-time fallback)
   - SPEC-result-logic.md (§8-§9 Calibration Details section; §12 live check where this was found)
@@ -13,7 +13,7 @@ related:
 
 # SPEC-calibration-result-timeout — calibrations after a task run lose `CALIB_RESULT`
 
-**Status: diagnosed and design approved by the user 2026-10-05; not yet implemented.**
+**Status: DONE 2026-10-05. Two causes: the reader-thread race (§3, fixed by §4.1) and Gazepoint Control getting stuck after a calibration run from its own window (§4.3, vendor behaviour; operator hint added). Live-validated.**
 
 ## 1. Origin / what was reported
 
@@ -135,6 +135,25 @@ reader won 5 of 5.
   loaded file may also lack them.
 - The Calibration Details empty-state text is unchanged.
 
+### 4.3 Second cause: Gazepoint Control stuck after its own calibration (found by the user 2026-10-05)
+
+The user isolated the cause that dominated the 2026-10-05 failures. If a
+calibration is first run from **Gazepoint Control's own window**, Gazepoint
+Control afterwards stops pushing `CALIB_RESULT` to API clients and answers
+`CALIBRATE_RESULT_SUMMARY` instantly with its retained result
+(`t_summary_satisfied_s` ≈ 0.03 s on every failed run). Our calibration then
+always ends `calib_result_never` (5-point) or `poll_timeout` (6-point),
+whether or not a task ran first. **Closing and reopening Gazepoint Control
+clears it.** Confirmed by the timing log: the first calibration after the
+restart (07:38:10 UTC) was `calib_result_before_ack`, with `CALIB_RESULT` at
+10.33 s and the summary satisfied at 10.5 s.
+
+This is vendor behaviour and cannot be fixed in our code. User decision
+(2026-10-05, "add restart hint"): the §4.2 Setup alert text becomes
+`Calibration measured — {n} points, mean error {e}px, valid. Per-point details were not received — if this repeats, close and reopen Gazepoint Control, then calibrate again.`
+The Session Log note is unchanged. §4.1 (the race fix) stays: the race is
+real (§3 experiment) and independent of this cause.
+
 ## 5. Scope
 
 **In:** `src/inputs/gazepoint_client.py` (pause/resume + context manager),
@@ -175,12 +194,40 @@ re-creating `per_point` for already-saved files; Calibration Details layout;
 ## 7. Plan
 
 1. ~~Diagnosis + design + user decisions~~ DONE 2026-10-05 (§2-§4).
-2. `spec-implementer` builds §4 and meets §6.1-§6.7.
-3. Hub review: diff vs §5, every §6 criterion, own full pytest run.
-4. Live check §6.8 with the user.
-5. Commit + push after the user's OK; memory update.
+2. ~~`spec-implementer` builds §4 and meets §6.1-§6.7.~~ DONE 2026-10-05 (uncommitted).
+3. ~~Hub review: diff vs §5, every §6 criterion, own full pytest run.~~ DONE (290 passed, 0 failed).
+4. ~~Live check §6.8 with the user~~ DONE 2026-10-05: failed first (stuck Gazepoint Control, §4.3), passed after a Gazepoint Control restart; see §10.
+5. ~~Commit + push after the user's OK; memory update.~~ DONE 2026-10-05.
 
 ## 8. Impl log
+
+- **2026-10-05 — claude-sonnet-5-5.** Implemented §4, met §6.1-§6.7.
+  - Files: `src/inputs/gazepoint_client.py` (`pause_streaming()`,
+    `streaming_paused()`, `_PAUSE_JOIN_TIMEOUT_S = 2.0` — reader `recv()` times
+    out at 1 s; on a timed-out join `_thread` stays set and the context manager
+    only clears the pending stop event on resume, so no second reader),
+    `src/engine/calibration.py` (`run()` wraps the new `_run_on_socket()` + poll
+    in `streaming_paused` via `getattr`/`nullcontext`; socket is re-read inside
+    the pause), `src/ui/setup_page.py` (new `calibration_measured_alert_text`),
+    `src/app.py` (`calibration_log_line` note).
+  - Tests added: 4 in `tests/test_calibration.py` (race 10/10 + resume/one
+    reader/`latest()` advancing; non-streaming stays non-streaming; raise and
+    `OSError` early-return resume; bounded join), 2 in
+    `tests/test_calibration_source.py` (log note, alert text). Existing
+    `VALID` fixture there now carries `per_point` so the old log-line
+    assertions stay unchanged.
+  - Revert check: with `run()`'s wrapping disabled the race test failed 3/3
+    (lost at run 2, 5, 0); with the fix it passed in every run, repeated.
+  - pytest (full, venv): `290 passed in 106.74s`; 0 failed (baseline 284).
+  - Deviations: none. Left undone: live check §6.8 (hub + user).
+- 2026-10-05 (claude-sonnet-5-5) §4.3 restart-hint text: changed the empty-
+  `per_point` suffix in `calibration_measured_alert_text()`
+  (`src/ui/setup_page.py`) to "... not received — if this repeats, close and
+  reopen Gazepoint Control, then calibrate again."; updated the matching
+  assertion in `tests/test_calibration_source.py` (no new tests). Session Log
+  note in `src/app.py` unchanged.
+  - pytest (full, venv): `290 passed in 107.31s`; 0 failed.
+  - Deviations: none. Left undone: nothing.
 
 ## 9. Implementer open questions
 
@@ -193,3 +240,50 @@ re-creating `per_point` for already-saved files; Calibration Details layout;
   same sitting). User decisions via `AskUserQuestion`: pause the reader
   during calibration (not a one-socket-owner rewrite); state missing
   per-point details in the Setup alert and the Session Log.
+
+- **2026-10-05, later — §4 implemented, reviewed; live check FAILED.**
+  `spec-implementer` (claude-sonnet-5-5, §8) built §4; hub review found
+  the diff in scope and every §6.1-§6.7 criterion met, with the hub's own
+  run at **290 passed, 0 failed** and the race tests passing on 3 extra
+  runs. Live check §6.8 (real GP3HD, user as subject, subject `HUDTEST`):
+  a task ran first (`click_static_run4` in the first launch, `run5` after
+  a relaunch to clear a qt-mcp desync caused by the native file dialog),
+  then **Do Calibration**. All three calibrations made with the fix in
+  place still ended `calib_result_never` at 11.47 s:
+  07:29:28 (66.26 px), 07:29:56 (24.97 px), 07:33:37 (236.31 px), all
+  with `t_summary_satisfied_s` ≈ 0.03 (the retained previous result).
+  **Conclusion: the reader-thread race is real (fake-server experiment)
+  but is not the whole cause.** Gap in the §2 evidence: every 2026-10-05
+  calibration came after a task run, none on a fresh connection, so "the
+  device or Gazepoint Control is not sending `CALIB_RESULT` at all today"
+  was never ruled out. On 2026-10-02 fresh-launch calibrations got it at
+  ~10.3 s. The dashboard exited (code 0, no traceback) after the 07:33
+  calibration; not yet established whether the user closed it. Also
+  confirmed live: the §4.2 Session Log note (`click_static_run4`: "…
+  valid. Per-point details not available."). **User chose to stop here.**
+  The fix stays **uncommitted** in the working tree (`src/app.py`,
+  `src/engine/calibration.py`, `src/inputs/gazepoint_client.py`,
+  `src/ui/setup_page.py`, `tests/test_calibration.py`,
+  `tests/test_calibration_source.py`, this SPEC). Next: a standalone raw
+  capture (send the app's calibration commands, log every line the device
+  sends for 20 s), first on a fresh connection and then with the data
+  stream on. That decides whether `CALIB_RESULT` is sent at all, and §3/§4
+  get revised from there.
+
+- **2026-10-05, end — second cause found by the user; §4.3 added; live
+  check PASSED; committed.** The user isolated what dominated the failures:
+  after a calibration is run from Gazepoint Control's own window, Gazepoint
+  Control stops pushing `CALIB_RESULT` to API clients. Our calibrations
+  then end `calib_result_never` (also seen on a fresh connection, 07:36:06,
+  and a 6-point `poll_timeout` at 07:36:46). Restarting Gazepoint Control
+  clears it (§4.3). The user chose "add restart hint" for the Setup alert;
+  implemented by `spec-implementer` (§8), and the hub reran **290 passed,
+  0 failed**. Live, with Gazepoint Control restarted and the user's own
+  dashboard launch running the fix: 07:38:10 `calib_result_before_ack`
+  (fresh connection); `click_grid_run1` (07:42:18, 10,592 gaze rows), then
+  Do Calibration at 07:42:38 → `calib_result_after_ack`, `CALIB_RESULT` at
+  10.36 s, details table shown (user), which confirms the race fix with
+  the stream on; then `scanning_run1` with 11,961 gaze rows and a moving
+  cursor (user), which confirms the stream resumes. The failed 07:29-07:33
+  live checks are explained by §4.3, not by the fix. Not exercised live:
+  §6.5 bounded join (unit-tested only).

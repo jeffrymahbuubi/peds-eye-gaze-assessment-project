@@ -9,10 +9,11 @@ Calibration is asynchronous on the device: ``CALIBRATE_START``'s ACK only
 confirms the command was received, not that calibration finished (the child
 still has to look at each animated point in turn). The result must be polled
 for after starting it (API manual §3.7). This also means :meth:`run` must be
-called *before* :meth:`GazepointClient.start_streaming`, while nothing else is
-reading the socket -- otherwise the background reader thread's ``recv()``
-races with this class's own ``recv()`` for the same bytes and can silently
-swallow the calibration response.
+called while nothing else is reading the socket -- otherwise the background
+reader thread's ``recv()`` races with this class's own ``recv()`` for the same
+bytes and can silently swallow the calibration response. :meth:`run` therefore
+pauses an already-streaming client's reader for its whole socket use
+(SPEC-calibration-result-timeout.md S4.1) and resumes it afterwards.
 """
 
 from __future__ import annotations
@@ -20,6 +21,7 @@ from __future__ import annotations
 import json
 import re
 import time
+from contextlib import nullcontext
 from dataclasses import dataclass
 from datetime import datetime, timezone
 from pathlib import Path
@@ -388,6 +390,19 @@ class Calibration:
             # false in config): report unmeasured, skip the device entirely.
             return CalibrationResult(n_points=self.n_points, mean_error_px=None, valid=False)
 
+        # The client's reader thread (if streaming, e.g. after a task run on the
+        # dashboard's shared client) competes for every recv() and drops the
+        # one-time CALIB_RESULT push, so hold it paused for all socket use here
+        # (SPEC-calibration-result-timeout.md S4.1). getattr: test doubles
+        # without the context manager just run unpaused.
+        paused = getattr(self._client, "streaming_paused", None)
+        with paused() if paused is not None else nullcontext():
+            # Re-read: the socket is the same one unless the reader reconnected
+            # while being stopped.
+            sock = getattr(self._client, "_sock", None) or sock
+            return self._run_on_socket(sock)
+
+    def _run_on_socket(self, sock) -> CalibrationResult:
         try:
             # Discard anything the device left in the socket from a previous
             # calibration before starting a new one (SPEC-gui-audit-2026-09-10.md

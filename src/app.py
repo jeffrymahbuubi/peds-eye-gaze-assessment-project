@@ -137,7 +137,9 @@ def calibration_log_line(cal: CalibrationResult, source: str, file: str | None) 
         label = source
     if cal.valid:
         error_txt = f"{cal.mean_error_px:.1f}px" if cal.mean_error_px is not None else "n/a"
-        return f"Calibration {label} — {cal.n_points} points, mean error {error_txt}, valid."
+        line = f"Calibration {label} — {cal.n_points} points, mean error {error_txt}, valid."
+        # Measured or loaded: an older/lossy record may lack the breakdown too.
+        return line if cal.per_point else line + " Per-point details not available."
     return f"Calibration {label} — {cal.n_points} points, invalid or unmeasured."
 
 
