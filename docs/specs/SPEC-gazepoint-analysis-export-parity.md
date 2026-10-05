@@ -9,8 +9,12 @@ vendor's own export), and §4.2's geometry persistence are all built. The
 user waived §6's approval gate the same day ("§5 + full §6, skip the
 approval gate"), so Stage 1 and Stage 2 landed together. **Committed as `4387319`,
 included in the `v1.0.0` tag** (see §11's 2026-09-30 entry). **§10 holds a
-v1.1 backlog (not implemented):** 3D eye position, per-eye POG, and device
-and display facts in `metadata.json`.
+v1.1 backlog:** 3D eye position, per-eye POG, and device and display facts
+in `metadata.json`. **§10.6 is the APPROVED implementation design (user,
+2026-10-05, `9879c95`), not yet built. Next: `/spec-run` → `spec-implementer`
+builds §10.6, then hub review, then a live check with the real GP3HD.** The
+hub must stage the four new `gazepoint.enable.*` keys in the committed
+`configs/default.yaml` itself (skip-worktree gotcha, §10.6.1).
 
 **Created:** 2026-09-17
 **Last updated:** 2026-10-05 (§10.6: §10 approved for implementation)
@@ -494,7 +498,7 @@ with `AskUserQuestion`:
   `sessions/<run>/eye_geometry.csv`, written at device rate.** The user
   first picked additive `gaze_stream.csv` columns, then changed to the
   separate file once told `gaze_stream.csv` is one row per GUI frame
-  (`src/app.py:726-728`), so those columns would be frame-rate samples
+  (`src/app.py:774-776` as of `691be0e`), so those columns would be frame-rate samples
   that cannot be joined 1:1 to `all_gaze.csv`. `gaze_stream.csv` and
   `all_gaze.csv` stay byte-for-byte unchanged in layout.
 - **Measured eye distance: record raw + a session median in metadata;**
@@ -508,7 +512,7 @@ with `AskUserQuestion`:
   `pog_left: ENABLE_SEND_POG_LEFT`, `pog_right: ENABLE_SEND_POG_RIGHT`.
 - **Default on when the key is missing from config.** Today
   `GazepointClient` only sends `ENABLE_SEND_*` for keys present in the
-  `enable` dict it gets (`gazepoint_client.py:392`, `:431`), and the local
+  `enable` dict it gets (`gazepoint_client.py:399`, `:438` as of `691be0e`), and the local
   `configs/default.yaml` (skip-worktree) will not have the new keys. Change
   the resolution to "all `_ENABLE_RECORDS` keys default `True`, then the
   config dict overrides" so a missing key means on and an explicit
@@ -522,7 +526,7 @@ with `AskUserQuestion`:
 #### 10.6.2 `eye_geometry.csv` (per raw `<REC>`, device rate)
 
 - Written from the same `drain_raw()` loop as `all_gaze.csv`
-  (`src/app.py:714-719` → `SessionRecorder.record_raw`), one row per raw
+  (`src/app.py:762-767` as of `691be0e` → `SessionRecorder.record_raw`; drain/flush also at `:852-871`), one row per raw
   record, opened alongside `all_gaze.csv`. Gate it on a new
   `recording.save_eye_geometry` (default `True` when absent) — same
   default-when-missing rule as above.
@@ -546,7 +550,7 @@ with `AskUserQuestion`:
 - `display_refresh_hz`: `QScreen.refreshRate()` of the canvas's screen,
   recorded with the geometry (`_record_geometry`), rounded to 0.1.
 - `measured_sample_rate_hz`: the live device-rate meter's value at session
-  end (`self._device_rate`, `src/app.py:413`/`:770`), live sessions only.
+  end (`self._device_rate`, `src/app.py:461`/`:818` as of `691be0e`), live sessions only.
 - `measured_eye_distance_mm_median`: at session close, median over all
   rows of `eye_geometry.csv` where at least one eye's `*EYEZ` is valid
   (`*PUPILV == 1` and value > 0) of the mean of the valid eyes' `*EYEZ`,
@@ -587,7 +591,7 @@ using the new data; the `_record_geometry()` physical/logical unit mix;
 4. `metadata.json` carries the §10.6.3 fields; `measured_eye_distance_mm_median`
    is correct on a constructed file (incl. one-eye-valid and no-valid cases).
 5. Loading a v1.0.0 `metadata.json` without the new fields still works.
-6. Full pytest suite green (0 failures once §12 of `SPEC-result-logic.md` lands).
+6. Full pytest suite green (0 failures; baseline 290 passed as of `691be0e`).
 7. Live check (hub + user, real GP3HD): one dashboard run → `eye_geometry.csv`
    has non-empty `LEYEZ`/`REYEZ` near the subject's real distance and
    per-eye POG values; `metadata.json` shows rate/bus/serial, refresh rate,
