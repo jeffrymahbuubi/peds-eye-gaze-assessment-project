@@ -212,6 +212,11 @@ class _ConnectThread(QThread):
             client.stop()
             self.succeeded.emit(None)
         else:
+            # The reader runs from Connect on, so nothing backs up in the TCP
+            # buffer between calibration and the first Run (SPEC-gazepoint-
+            # analysis-export-parity.md S10.6.10). Calibration.run() pauses and
+            # resumes it around its own socket use.
+            client.start_streaming()
             self.succeeded.emit(client)
 
 
@@ -600,11 +605,10 @@ class SetupPage(QWidget):
 
         # Populated from GazepointClient.device_info on a successful
         # connect; hidden whenever there's nothing to show (SPEC S23).
-        # "Re-check" (S24.2) re-queries it without a full reconnect -- only
-        # safe before any task has streamed this session (see
-        # GazepointClient.refresh_device_info's own docstring), so a click
-        # after that point fails gracefully via device_info_status_label
-        # rather than racing the reader thread.
+        # "Re-check" (S24.2) re-queries it without a full reconnect; the
+        # reader thread is paused around the query (see
+        # GazepointClient.refresh_device_info's own docstring), and a failure
+        # is reported via device_info_status_label.
         device_info_row = QHBoxLayout()
         self.device_info_label = QLabel("")
         self.device_info_label.setObjectName("wtmhMuted")
@@ -825,9 +829,8 @@ class SetupPage(QWidget):
         self._recheck_thread = None
         self.recheck_device_info_button.setEnabled(True)
         # Last-known-good device_info_label/rate_warning_alert are left
-        # exactly as they were -- a failed re-check (most commonly: a task
-        # has already streamed this session, see refresh_device_info's own
-        # docstring) doesn't mean the device info shown is now wrong.
+        # exactly as they were -- a failed re-check doesn't mean the device
+        # info shown is now wrong.
         self.device_info_status_label.setText(f"Re-check unavailable: {message}")
         self.device_info_status_label.setVisible(True)
 

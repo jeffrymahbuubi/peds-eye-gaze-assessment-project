@@ -478,8 +478,8 @@ class GazepointClient:
     def is_streaming(self) -> bool:
         """Whether the background reader thread has ever been started for
         this client (never reset back to False by a later ``stop()`` --
-        this asks "is/was a reader thread ever running", the fact
-        :meth:`refresh_device_info` needs, not "is it running right now").
+        this asks "is/was a reader thread ever running", not "is it running
+        right now").
         """
         return self._thread is not None
 
@@ -488,20 +488,25 @@ class GazepointClient:
         ui-setup-task-selection.md S24.2) -- lets the Setup page recover
         from a one-time race at connect time without a full reconnect.
 
-        Raises ``RuntimeError`` if not connected, in replay mode, or if
-        :meth:`start_streaming` has ever been called: once the background
-        reader thread is running, a second, direct ``recv()`` here would
-        race it for the same bytes -- the same hazard documented on
-        :meth:`_open_socket`/``Calibration.run()`` for the original,
-        connect-time query.
+        Raises ``RuntimeError`` if not connected or in replay mode. When the
+        background reader thread is running (the dashboard starts it at
+        Connect, SPEC-gazepoint-analysis-export-parity.md S10.6.10), the query
+        runs inside :meth:`streaming_paused`: a direct ``recv()`` here would
+        otherwise race the reader for the same bytes -- the hazard documented
+        on :meth:`_open_socket`/``Calibration.run()`` -- and the reader is
+        resumed afterwards.
         """
         if self._replay_path is not None:
             raise RuntimeError("refresh_device_info() is not meaningful in replay mode")
         if self._sock is None:
             raise RuntimeError("refresh_device_info() requires an open connection")
-        if self.is_streaming():
-            raise RuntimeError("refresh_device_info() cannot run while streaming is active")
-        self._device_info = _query_device_info(self._sock)
+        with self.streaming_paused():
+            # Re-read: the same socket unless the reader reconnected while
+            # being stopped (as Calibration.run() does).
+            sock = self._sock
+            if sock is None:
+                raise RuntimeError("refresh_device_info() requires an open connection")
+            self._device_info = _query_device_info(sock)
         return self._device_info
 
     @property

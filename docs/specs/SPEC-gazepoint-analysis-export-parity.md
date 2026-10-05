@@ -643,6 +643,31 @@ using the new data; the `_record_geometry()` physical/logical unit mix;
     plus a source-order check on `AssessmentApp.__init__` (no full app
     construction). If both raw files are off, no rate is written.
 
+- **2026-10-05, later still — claude-sonnet-5-5. §10.6.10 implemented.**
+  - Pre-checks: `Calibration.run()` (`calibration.py:398`) wraps all socket use
+    in `client.streaming_paused()` (pause, then resume only if it was running),
+    confirmed. No other Setup/Dashboard code reads the socket or assumes a
+    stopped reader: `src/ui/` only calls `refresh_device_info()` (Re-check) and
+    `Calibration`; `recv(` appears only in the client, `_query_device_info`
+    and `calibration.py`. Two stale UI comments about Re-check were updated.
+    No conflict with the design. Side note (not changed, pre-existing): a second
+    Connect click replaces `SetupPage._client` without stopping the old client,
+    which now also leaves that client's reader thread running.
+  - Files: `src/ui/setup_page.py` (`_ConnectThread.run` calls
+    `client.start_streaming()` when `keep=True`; comments), `src/inputs/gazepoint_client.py`
+    (`refresh_device_info()` queries inside `streaming_paused()`, docstring
+    updated, `is_streaming()` docstring trimmed), `tests/test_gazepoint_client.py`.
+    No existing test expected the RuntimeError.
+  - Tests added (3): `test_dashboard_connect_streams_so_clear_raw_drops_pre_run_backlog`,
+    `test_test_connection_client_never_streams`,
+    `test_refresh_device_info_works_while_streaming_and_resumes_reader`.
+    Verified by temporary revert: the first fails without the `start_streaming()`
+    call (`is_streaming` assert); the third fails without `streaming_paused()`
+    (RuntimeError "cannot run while streaming is active"). Both files restored.
+    The `keep=False` test passes before and after (it pins unchanged behaviour).
+  - pytest (`-o addopts="" -q`): `365 passed` (362 + 3).
+  - Deviations: none. Left undone: live check (hub).
+
 #### 10.6.8 Open questions (implementer writes here and returns; does not decide)
 
 #### 10.6.9 Live-check findings and approved fixes (2026-10-05, user-decided)
@@ -673,6 +698,60 @@ both fixed in this round on the user's decision (`AskUserQuestion`):
    TIME_first)` from `eye_geometry.csv` (or `all_gaze.csv` if only that one
    is written), rounded to 0.1. Live sessions only; `None` if fewer than 2
    rows. The on-screen meter is left unchanged.
+
+#### 10.6.10 Stale socket backlog at the first run (found 2026-10-05; fix IMPLEMENTED + live-validated 2026-10-05)
+
+Found in the live check of `SPEC-display-scaling-cursor-accuracy.md` §8.8 /
+`SPEC-ui-setup-task-selection.md` §25
+(`sessions/2026-10-05_UNITS100_click_static_run1`). `eye_geometry.csv` and
+`all_gaze.csv` start with 12.2 s of device time. A 10.4 s jump follows
+(`CNT` +1555), then 64.5 s of contiguous data. The live part matches the
+task's length, so the first 12.2 s are **stale records from before the
+run**. §10.6.9's `clear_raw()` does not catch them.
+
+**Cause (pre-existing since the dashboard).** The dashboard's Connect
+(`setup_page.py` `_ConnectThread`) opens the socket and sends
+`ENABLE_SEND_DATA`, but the reader thread first starts at the first Run
+(`AssessmentApp.__init__` → `client.start_streaming()`). Setup-page
+calibration reads the socket itself. Between the end of calibration and
+the Run click, nothing reads the socket. The TCP buffer fills with about
+12 s of records, and Gazepoint Control then drops the rest (the jump). At
+Run, the new reader parses that backlog within a fraction of a second.
+That is after `start_streaming()` and races `clear_raw()`, so the records
+land in the run's files with the run's `TIME` origin. `measured_sample_rate_hz`
+read 130 instead of ~150 for the same reason. The cursor was stale only
+while the backlog was parsed (well under a second); the live part's length
+equals the task's. The run in §10.6.9 had no backlog, because the
+operator clicked Run right after calibrating.
+
+**Fix (user, 2026-10-05: "fix it now"):**
+1. **The dashboard reader runs from Connect.** In `_ConnectThread.run`,
+   when the client is kept (`keep=True`), call `client.start_streaming()`
+   after `connect()` succeeds. `Calibration.run()` already pauses and
+   resumes the reader (`streaming_paused`, `calibration.py:398`), so the
+   backlog during calibration is drained right after it. `AssessmentApp`'s
+   `start_streaming()` stays (idempotent; it is still needed on the
+   standalone path). `clear_raw()` at run start then sees only records
+   that are actually new since the last tick, or none.
+2. **`refresh_device_info()` (Setup's "Re-check")** raises today when
+   streaming is active. Change it to run the query inside
+   `streaming_paused()`, so Re-check still works with the reader running.
+   Update its docstring and tests.
+3. Test-connection clients (`keep=False`) stay as they are (connect then
+   stop, no reader).
+4. Tests: a fake-server test where the client is connected and streaming
+   from Connect, records arrive, `clear_raw()` is called, and the next
+   drain holds only records received after it; plus a Re-check-while-streaming
+   test. Verify each new test fails without its fix.
+
+Scope: `src/ui/setup_page.py` (`_ConnectThread`), `src/inputs/gazepoint_client.py`
+(`refresh_device_info`), tests. Out: `src/app.py` (do not touch; it holds
+two other uncommitted fixes), `configs/`.
+
+Acceptance: the tests above pass; the full suite passes; live: a dashboard
+run where the operator waits ≥ 20 s between calibration and Run has raw
+files whose `TIME` span ≈ the task's length, no `CNT` jump, and
+`measured_sample_rate_hz` ≈ 150.
 
 ## 11. Log
 
@@ -777,3 +856,19 @@ both fixed in this round on the user's decision (`AskUserQuestion`):
   `all_gaze.csv`-only rate path live (unit-tested only); run 1's metadata
   has the wrong sex (the hub changed the Sex field to enable Continue); both
   `EYEGEOM` sessions are test data. Committed + pushed as `61f1ee6`.
+
+- **2026-10-05, later still — §10.6.10 found, fixed and live-validated.**
+  The first live run for `SPEC-display-scaling-cursor-accuracy.md` §8.8
+  (`UNITS100`, Run clicked well after calibration) showed raw files starting
+  with 12.2 s of stale records and a 10.4 s `CNT` jump, with
+  `measured_sample_rate_hz` 130. Cause: the dashboard reader only started
+  at the first Run, so the socket backed up after calibration. The user
+  chose "fix it now". `spec-implementer` made the reader start at Connect
+  and made `refresh_device_info()` pause it around the query (3 new tests,
+  each checked to fail without its fix). Suite 365 / 0 (hub rerun). Live at
+  `QT_SCALE_FACTOR=1.5` (`UNITS150`, with a deliberate ~20 s wait between
+  calibration and Run): 10 859 rows, no `CNT` gaps, largest `TIME` step
+  19 ms, file span 72.8 s vs task 72.2 s, `measured_sample_rate_hz` 149.1,
+  median eye distance 543 mm. Known, pre-existing, not changed: a second
+  Connect click replaces the Setup page's client without stopping the old
+  one, whose reader now keeps running too.

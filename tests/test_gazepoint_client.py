@@ -486,3 +486,70 @@ def test_device_info_none_in_replay_mode(tmp_path: Path):
     client = GazepointClient(replay_path=fixture)
     client.connect()
     assert client.device_info is None
+
+
+# -- dashboard reader runs from Connect (export-parity SPEC S10.6.10) ----------
+
+
+def _connect_like_dashboard(fake_server, keep: bool = True):
+    """Run the Setup page's _ConnectThread body synchronously; return the
+    client it hands to the page (None for a keep=False test connection)."""
+    from src.ui.setup_page import _ConnectThread
+
+    got: list = []
+    thread = _ConnectThread("127.0.0.1", fake_server.port, keep=keep)
+    thread.succeeded.connect(got.append)
+    thread.failed.connect(lambda msg: got.append(RuntimeError(msg)))
+    thread.run()
+    assert len(got) == 1 and not isinstance(got[0], RuntimeError), got
+    return got[0]
+
+
+def test_dashboard_connect_streams_so_clear_raw_drops_pre_run_backlog(fake_server):
+    """With the reader running from Connect, records arriving between Connect
+    and the Run are already parsed when clear_raw() runs, so the next
+    drain_raw() holds only records received after it (S10.6.10). Without the
+    reader, they would sit in the TCP buffer and be parsed after the clear."""
+    client = _connect_like_dashboard(fake_server)
+    try:
+        assert client.is_streaming()
+        fake_server.wait_for_connection()
+        for x in (0.1, 0.2, 0.3):  # "Setup page" backlog
+            fake_server.send_rec(x, 0.5)
+        assert _wait_until(lambda: len(client._raw_queue) >= 3)
+        client.clear_raw()
+        for x in (0.7, 0.8):  # the run's own records
+            fake_server.send_rec(x, 0.5)
+        assert _wait_until(lambda: len(client._raw_queue) >= 2)
+        drained = client.drain_raw()
+        assert [attrs["FPOGX"] for _t, attrs in drained] == ["0.7", "0.8"]
+    finally:
+        client.stop()
+
+
+def test_test_connection_client_never_streams(fake_server):
+    """keep=False (Test Connection) stays connect-then-stop: no reader."""
+    assert _connect_like_dashboard(fake_server, keep=False) is None
+
+
+def test_refresh_device_info_works_while_streaming_and_resumes_reader(fake_server):
+    """Re-check with the reader running (S10.6.10): the query runs with the
+    reader paused, returns fresh info, and the reader is running again after."""
+    client = GazepointClient(reconnect_interval_s=0.1)
+    client.connect(host="127.0.0.1", port=fake_server.port)
+    client.start_streaming()
+    try:
+        fake_server.wait_for_connection()
+        client._device_info = None  # prove the refresh repopulates it
+        info = client.refresh_device_info()
+        assert info.model == "GP3HD" and info.rate_hz == 150
+        assert client.device_info is info
+        assert client.is_streaming()
+        threads = [t for t in threading.enumerate() if t.name == "gazepoint-reader" and t.is_alive()]
+        assert len(threads) == 1
+        client.drain_raw()
+        fake_server.send_rec(0.42, 0.5)  # the resumed reader still delivers
+        assert _wait_until(lambda: len(client._raw_queue) >= 1)
+        assert client.drain_raw()[0][1]["FPOGX"] == "0.42"
+    finally:
+        client.stop()
