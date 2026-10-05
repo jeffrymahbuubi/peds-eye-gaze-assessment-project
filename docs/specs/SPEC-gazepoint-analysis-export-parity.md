@@ -14,7 +14,7 @@ in `metadata.json`. **§10.6 is IMPLEMENTED, tested and live-validated
 with the real GP3HD (2026-10-05):** `eye_geometry.csv` plus device and
 display facts in `metadata.json`, with two live-check fixes (§10.6.9),
 including a pre-run raw-record leak that also affected `all_gaze.csv` since
-the dashboard. Nothing in this SPEC is open.
+the dashboard. **Committed as `61f1ee6`.** Nothing in this SPEC is open.
 
 **Created:** 2026-09-17
 **Last updated:** 2026-10-05 (§10.6 implemented + live-validated, §10.6.9 fixes)
@@ -776,4 +776,4 @@ both fixed in this round on the user's decision (`AskUserQuestion`):
   skip-worktree kept). Not tested: `save_eye_geometry: false` and the
   `all_gaze.csv`-only rate path live (unit-tested only); run 1's metadata
   has the wrong sex (the hub changed the Sex field to enable Continue); both
-  `EYEGEOM` sessions are test data.
+  `EYEGEOM` sessions are test data. Committed + pushed as `61f1ee6`.
