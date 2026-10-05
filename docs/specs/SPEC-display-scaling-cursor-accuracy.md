@@ -651,3 +651,4 @@ Results page, the responsive layout (deferred), `configs/`.
   was 55.8 px against 21.3 px at 100 % (valid). Committed separately from
   `SPEC-ui-setup-task-selection.md` §25 and export-parity §10.6.10, which
   were validated in the same runs.
+  Committed + pushed as `2d49f44`.

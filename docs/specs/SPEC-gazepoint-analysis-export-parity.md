@@ -872,3 +872,4 @@ files whose `TIME` span ≈ the task's length, no `CNT` jump, and
   median eye distance 543 mm. Known, pre-existing, not changed: a second
   Connect click replaces the Setup page's client without stopping the old
   one, whose reader now keeps running too.
+  Committed + pushed as `0af29e0`.

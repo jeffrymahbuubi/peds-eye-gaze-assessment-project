@@ -3760,3 +3760,4 @@ override.**
   device)", `loop_fps: 150`, `loop_fps_source: "device"`. The hub set
   `app.target_fps: auto` in the committed `configs/default.yaml` (that line
   only, skip-worktree kept) and in the local copy.
+  Committed + pushed as `7466d1e`.
