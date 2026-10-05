@@ -146,6 +146,8 @@ All additive and `null` when unknown (older sessions lack them):
 | `gazepoint_serial` | str\|null | `SERIAL_ID`; placeholder `0` becomes null |
 | `display_refresh_hz` | float\|null | refresh rate of the canvas's screen, 0.1 Hz |
 | `measured_sample_rate_hz` | float\|null | records ÷ device-time span of the raw file, `(n-1)/(TIME_last-TIME_first)` over `eye_geometry.csv` (or `all_gaze.csv` if only that is written), 0.1 Hz; live sessions only; null with fewer than 2 rows. Not the on-screen meter, which is capped by the GUI frame rate |
+| `loop_fps` | int\|null | poll/render loop rate the app ran at, Hz (`specs/SPEC-ui-setup-task-selection.md` §25); null on older sessions and headless `--replay` |
+| `loop_fps_source` | str\|null | `"config"` (explicit `app.target_fps` number), `"device"` (`target_fps: auto` on a live tracker, its `gazepoint_rate_hz`) or `"fallback"` (`auto` without a live known rate, or an invalid value: 60) |
 | `measured_eye_distance_mm_median` | float\|null | median over `eye_geometry.csv` rows of the mean of the valid eyes' `*EYEZ` (valid = `*PUPILV` 1 and value > 0), mm, rounded to 1 mm; null with no valid rows. `viewing_distance_mm` (config) is still what degree maths uses |
 
 ## events.jsonl

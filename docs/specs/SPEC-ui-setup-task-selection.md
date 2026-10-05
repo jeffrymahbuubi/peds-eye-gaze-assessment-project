@@ -2882,7 +2882,7 @@ operator_panel.py`, `tests/test_sample_rate.py` (new), `tools/
 fake_gazepoint_server.py`, this SPEC doc. **Left uncommitted**, matching
 this project's ask-before-commit pattern.
 
-## 25. Loop rate from the device (`app.target_fps: auto`): APPROVED 2026-10-05, not built
+## 25. Loop rate from the device (`app.target_fps: auto`): APPROVED 2026-10-05; IMPLEMENTED + live-validated 2026-10-05
 
 §24 deferred this ("auto-deriving `target_fps` from the device's own
 rate"). It was raised as `/spec-backlog` item #2 on 2026-10-05. Today the
@@ -2946,7 +2946,34 @@ override.**
 
 ### 25.3 Impl log (implementer appends here)
 
+- **2026-10-05** — claude-sonnet-5-5. Implemented §25.1/§25.2 (1-5).
+  Files: `src/engine/loop_rate.py` (new: `resolve_target_fps`,
+  `target_fps_is_invalid`, `config_target_fps`), `src/app.py` (resolve once
+  after calibration/metadata, before `LatencyTracker` and `QTimer`; sets
+  `metadata.loop_fps`/`loop_fps_source`; logs "Loop rate: N Hz (from
+  device|from config|fallback)." plus a WARNING line for a bad value),
+  `src/engine/task_runner.py` (replay: number kept, `auto`/missing = 60),
+  `src/data/schema.py` (`loop_fps`, `loop_fps_source`, default None),
+  `docs/DATA_SCHEMA.md` (two rows), `tests/test_loop_rate.py` (new, 38
+  tests: resolver, metadata defaults + old-file load, headless replay
+  auto/number via a patched config, AssessmentApp with a live-presenting
+  fake client at 60/150 Hz, explicit number beating device, replay fallback,
+  bad value). The §8.8 working-tree hunks were left untouched. Full pytest
+  `-o addopts="" -q`: **362 passed** (324 baseline + 38 new), 0 failed.
+  Criterion 4 check: `tests/test_task_pipeline.py` re-run with a temporary
+  out-of-repo plugin forcing `app.target_fps: auto` in
+  `task_runner.load_task_config` gave 29 passed, so no existing replay
+  test's outcome changes when the default becomes `auto` (= 60). No config
+  file was edited. Deviations: none. Undone: criterion 6 (live check).
+  Interpretation notes (not decisions the SPEC left open): numeric strings
+  such as `"90"` count as a number (config); `None` (empty YAML value) counts
+  as missing = auto; booleans, NaN/inf and values below 1 count as bad.
+  Untracked `1` and `original` files in the repo root pre-date or are not
+  from this work; not touched.
+
 ### 25.4 Open questions (implementer writes here and returns)
+
+- none.
 
 ## Log
 
@@ -3721,3 +3748,15 @@ override.**
   `SPEC-display-scaling-cursor-accuracy.md` §8.8 (both touch `src/app.py`).
   The hub changes `app.target_fps` to `auto` in the committed and local
   `configs/default.yaml`.
+
+- **2026-10-05, later — §25 IMPLEMENTED, reviewed, live-validated.**
+  `spec-implementer` built it (log §25.3, no questions). New
+  `src/engine/loop_rate.py`. Interpretations accepted by the hub: a numeric
+  string counts as a number, an empty value means `auto`, and booleans,
+  NaN/inf and values below 1 are invalid (60 + warning). With `auto`
+  forced, replay tests are unchanged (29/29). Suite 362 / 0 (hub rerun, also
+  with the local config set to `auto`). Live with the real GP3HD (150 Hz,
+  USB3): both `UNITS100` and `UNITS150` runs log "Loop rate: 150 Hz (from
+  device)", `loop_fps: 150`, `loop_fps_source: "device"`. The hub set
+  `app.target_fps: auto` in the committed `configs/default.yaml` (that line
+  only, skip-worktree kept) and in the local copy.

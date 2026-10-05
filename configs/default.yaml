@@ -4,7 +4,7 @@
 
 app:
   fullscreen: false
-  target_fps: 150
+  target_fps: auto             # auto = connected device rate (150, or 60 on USB2); a number overrides
   # Physical screen used to convert normalized gaze (0-1) -> pixels when no
   # real window geometry is available (headless replay).
   screen_width_px: 1920

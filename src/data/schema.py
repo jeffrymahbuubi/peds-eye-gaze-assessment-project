@@ -233,6 +233,12 @@ class SessionMetadata:
     display_refresh_hz: float | None = None
     measured_sample_rate_hz: float | None = None
     measured_eye_distance_mm_median: float | None = None
+    # The poll/render loop rate the app actually ran at and where it came from:
+    # "config" (explicit app.target_fps), "device" (target_fps auto, live
+    # tracker's own rate) or "fallback" (60). SPEC-ui-setup-task-selection.md
+    # S25. None on older sessions. Additive; ``schema_version`` not bumped.
+    loop_fps: int | None = None
+    loop_fps_source: str | None = None
 
     def to_dict(self) -> dict[str, Any]:
         return {f.name: getattr(self, f.name) for f in fields(self)}

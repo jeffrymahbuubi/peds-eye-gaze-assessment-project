@@ -42,6 +42,7 @@ from .engine.config import CONFIG_ROOT, deep_merge, load_task_config, load_theme
 from .engine.gaze_diagnostics import GazeDropoutLog, gaze_dropout_log_path
 from .engine.feedback import FeedbackBus
 from .engine.latency import LatencyTracker
+from .engine.loop_rate import config_target_fps, resolve_target_fps, target_fps_is_invalid
 from .engine.sample_rate import SampleRateTracker
 from .engine.session_naming import next_session_id
 from .engine.settings_profile import save_settings_profile
@@ -463,6 +464,29 @@ class AssessmentApp:
         self.metadata.calibration_points = cal.n_points
         self.metadata.calibration_error_px = cal.mean_error_px
 
+        # Loop rate (SPEC-ui-setup-task-selection.md S25): resolved once, here,
+        # because device_info is known by now (the dashboard connects at Setup;
+        # the standalone path connected above). Drives the QTimer and the
+        # latency window below.
+        target_fps_cfg = config_target_fps(self.config)
+        dev_info = self.client.device_info
+        self._loop_fps, loop_fps_source = resolve_target_fps(
+            target_fps_cfg,
+            dev_info.rate_hz if dev_info is not None else None,
+            self.client.is_live,
+        )
+        if target_fps_is_invalid(target_fps_cfg):
+            self.recorder.log(
+                f"WARNING: app.target_fps={target_fps_cfg!r} is not 'auto' or a "
+                f"positive number; using {self._loop_fps} Hz."
+            )
+        self.metadata.loop_fps = self._loop_fps
+        self.metadata.loop_fps_source = loop_fps_source
+        source_text = {"config": "from config", "device": "from device"}.get(
+            loop_fps_source, "fallback"
+        )
+        self.recorder.log(f"Loop rate: {self._loop_fps} Hz ({source_text}).")
+
         self.feedback = GuiFeedback(
             self.canvas, self.theme, self.config.get("task", {}).get("feedback", {})
         )
@@ -490,7 +514,7 @@ class AssessmentApp:
         # Gaze-to-feedback latency (plan risk table / gap F): only meaningful
         # against a live tracker, never a replay fixture (see
         # GazepointClient.is_live).
-        self._latency = LatencyTracker(window_size=int(self.config.get("app", {}).get("target_fps", 60)))
+        self._latency = LatencyTracker(window_size=self._loop_fps)
         self._device_rate = SampleRateTracker()
 
         # Dropout / off-canvas diagnostic (SPEC-gaze-cursor-redesign.md S6).
@@ -507,10 +531,9 @@ class AssessmentApp:
             else None
         )
 
-        fps = int(self.config.get("app", {}).get("target_fps", 60))
         self.timer = QTimer()
         self.timer.timeout.connect(self._tick)
-        self.timer.start(int(1000 / fps))
+        self.timer.start(int(1000 / self._loop_fps))
 
     # -- wiring ------------------------------------------------------------
 

@@ -23,6 +23,7 @@ from ..tasks.click_static import ClickStaticTask
 from ..tasks.follow_moving import FollowMovingTask
 from ..tasks.scanning import ScanningTask
 from .config import load_task_config
+from .loop_rate import config_target_fps, resolve_target_fps
 
 TASK_REGISTRY: dict[str, type[BaseTask]] = {
     "click_static": ClickStaticTask,
@@ -77,7 +78,8 @@ def run_headless_replay(
     Returns a dict with ``session_dir``, ``n_trials`` and summary counts.
     """
     config = load_task_config(task_id, config_root)
-    fps = int(config.get("app", {}).get("target_fps", 60))
+    # A number keeps its value; "auto"/missing is 60 (no live device here).
+    fps, _ = resolve_target_fps(config_target_fps(config), None, False)
     dt_ns = int(1e9 / fps)
 
     source = ReplayGazeSource(replay_path, loop=True)
