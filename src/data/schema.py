@@ -241,12 +241,10 @@ class SessionMetadata:
     display_scale_percent: int | None = None
     display_standard: bool | None = None
     display_nonstandard_acknowledged: bool | None = None
-    # Operator-HUD hiding (SPEC-hud-hide-toggle.md S4.4). The canvas widens
-    # when the HUD is hidden, so ``canvas_*_px`` above is the size at the FIRST
-    # TICK only; later size changes are CANVAS_RESIZED events. Additive;
-    # ``schema_version`` deliberately not bumped, same reasoning as above.
-    hud_hidden_at_start: bool | None = None
-    hud_toggle_count: int = 0
+    # ``canvas_*_px`` above is the size at the FIRST TICK only; a later size
+    # change is a CANVAS_RESIZED event. (The HUD-hiding fields that used to sit
+    # here went with the HUD, SPEC-compass-task-flow.md 4C.7 / HC13; an older
+    # session's metadata.json may still carry them, which nothing reads.)
     # Device facts and measured quality (SPEC-gazepoint-analysis-export-
     # parity.md S10.6.3). Rate/bus/serial come from the connect-time device
     # query (placeholders already filtered to None); the refresh rate is the

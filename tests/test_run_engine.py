@@ -403,7 +403,9 @@ def test_older_metadata_without_the_new_fields_still_loads():
     assert SessionMetadata(**old).outcome is None
 
 
-def test_the_hud_fields_stay_until_the_hud_is_removed():
-    """4C.9 removes them with the HUD (P7); until then AssessmentApp still writes them."""
+def test_the_hud_fields_are_gone_with_the_hud():
+    """4C.7 / HC13: the HUD-hiding fields left ``SessionMetadata`` with the HUD. An older
+    ``metadata.json`` that still carries them is read by named key, so nothing breaks."""
     meta = SessionMetadata(subject_id="S", session_id="x", started_ns=0)
-    assert meta.hud_hidden_at_start is None and meta.hud_toggle_count == 0
+    assert not hasattr(meta, "hud_hidden_at_start") and not hasattr(meta, "hud_toggle_count")
+    assert "hud_hidden_at_start" not in meta.to_dict() and "hud_toggle_count" not in meta.to_dict()

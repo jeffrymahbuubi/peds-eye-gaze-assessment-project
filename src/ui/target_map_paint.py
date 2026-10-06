@@ -1,0 +1,337 @@
+"""Painting of the report's Target Map (SPEC-compass-task-flow.md 4D.7).
+
+Pure drawing: given a :class:`MapModel` (read once from ``report.json``) and the
+rectangle of the canvas, :func:`paint_map` draws the whole test (target marks, the
+faint layout, gaze paths, the heat map) or one trial (target and hitbox rings, the
+gaze path dark to light, numbered fixations). Everything is in **canvas-normalized**
+coordinates, so a mark sits where the target was and a circle stays a circle (the
+rectangle has the canvas's own aspect). Used by :class:`TargetMapWidget` for the
+screen and its ``render_to_image`` for the PDF, so both draw the same.
+
+Nothing here computes analysis: the paths, fixations, heat values and marks are the
+report's.
+"""
+
+from __future__ import annotations
+
+import math
+from dataclasses import dataclass, field
+from typing import Any
+
+from PySide6.QtCore import QPointF, QRectF, Qt
+from PySide6.QtGui import QColor, QFont, QFontMetricsF, QImage, QPainter, QPen, QPolygonF
+
+from .report_format import hit_tolerance_px
+from .wtmh_theme import ACCENT, BORDER, DANGER, INK, MUTED, PANEL_BG, SUCCESS
+
+DEFAULT_ASPECT = 16 / 9
+MIN_RADIUS = 0.02  # canvas-x units, for a mark whose radius the folder lacks
+HEAT_FLOOR = 0.05  # heat values below this are transparent (4D.5)
+PATH_COLOURS = ("#1F77B4", "#E08A00", "#7B52AB", "#8C564B", "#D6479A", "#17A2B8")
+TRIAL_PATH_DARK, TRIAL_PATH_LIGHT = QColor("#0F3D52"), QColor("#8FD3E8")
+
+
+@dataclass
+class MapModel:
+    """What the map draws, read from a report once (see :func:`build_model`)."""
+
+    aspect: float = DEFAULT_ASPECT
+    slots: list[tuple[float, float]] = field(default_factory=list)
+    slot_radius: float = 0.0
+    marks: list[dict[str, Any]] = field(default_factory=list)
+    trials: list[dict[str, Any]] = field(default_factory=list)
+    heat_image: QImage | None = None
+    heat_empty: bool = True
+    note: str | None = None
+    tolerance_norm: float | None = None  # hitbox margin in canvas-x units, None if unknown
+    moving: bool = False
+
+
+def canvas_logical_width(geometry: dict[str, Any]) -> float | None:
+    """The canvas width in logical px from the report's ``geometry`` block (physical px
+    are divided by the display scale, as in ``Geometry.canvas_logical_size``)."""
+    canvas = geometry.get("canvas_px") or [None, None]
+    width = canvas[0]
+    if not isinstance(width, (int, float)) or width <= 0:
+        return None
+    scale = geometry.get("display_scale_percent")
+    if geometry.get("canvas_units") == "physical" and isinstance(scale, (int, float)) and scale > 0:
+        return float(width) * 100.0 / scale
+    return float(width)
+
+
+def heat_colour(value: float) -> QColor:
+    """Blue (cool) to red (hot), more opaque as it heats; transparent below the floor."""
+    if value < HEAT_FLOOR:
+        return QColor(0, 0, 0, 0)
+    value = min(1.0, value)
+    colour = QColor.fromHsvF((1.0 - value) * 0.66, 0.9, 1.0)
+    colour.setAlphaF(0.15 + 0.65 * value)
+    return colour
+
+
+def heat_image(heat: dict[str, Any]) -> QImage | None:
+    """The report's ``heat`` block as a small ARGB image (one pixel per bin), or
+    ``None`` for an empty map or data that does not match its size."""
+    width, height, data = heat.get("w"), heat.get("h"), heat.get("data")
+    if heat.get("empty") or not data or not isinstance(width, int) or not isinstance(height, int):
+        return None
+    if width * height != len(data):
+        return None
+    image = QImage(width, height, QImage.Format.Format_ARGB32)
+    image.fill(Qt.GlobalColor.transparent)
+    for i, value in enumerate(data):
+        if isinstance(value, (int, float)) and value >= HEAT_FLOOR:
+            image.setPixelColor(i % width, i // width, heat_colour(float(value)))
+    return image
+
+
+def build_model(report: dict[str, Any] | None) -> MapModel:
+    """Read the map's inputs from ``report`` (``None`` gives an empty map)."""
+    if not report:
+        return MapModel()
+    geometry, mapping = report.get("geometry", {}), report.get("map", {})
+    aspect = mapping.get("aspect") or geometry.get("canvas_aspect")
+    if not isinstance(aspect, (int, float)) or aspect <= 0:
+        aspect = DEFAULT_ASPECT
+    marks = [m for m in mapping.get("marks", []) if m.get("x") is not None and m.get("y") is not None]
+    trials = list(report.get("trials", []))
+    radii = sorted(
+        t.get("target", {}).get("radius_norm_x") or 0.0 for t in trials
+    )
+    radii = [r for r in radii if r > 0]
+    slot_radius = radii[len(radii) // 2] if radii else MIN_RADIUS
+    slots = [
+        (float(s[0]), float(s[1]))
+        for s in (mapping.get("slots") or [])
+        if isinstance(s, (list, tuple)) and len(s) == 2
+    ]
+    logical_w = canvas_logical_width(geometry)
+    tolerance = hit_tolerance_px(report) if logical_w else None
+    heat = report.get("heat", {})
+    return MapModel(
+        aspect=float(aspect),
+        slots=slots,
+        slot_radius=slot_radius,
+        marks=marks,
+        trials=trials,
+        heat_image=heat_image(heat),
+        heat_empty=bool(heat.get("empty", True)),
+        note=mapping.get("note"),
+        tolerance_norm=None if not logical_w else tolerance / logical_w,
+        moving=report.get("session", {}).get("task_id") == "follow_moving",
+    )
+
+
+# -- drawing -------------------------------------------------------------------------
+
+
+def _point(rect: QRectF, x: float, y: float) -> QPointF:
+    return QPointF(rect.left() + x * rect.width(), rect.top() + y * rect.height())
+
+
+def _pen(colour: QColor | str, width: float, style: Qt.PenStyle = Qt.PenStyle.SolidLine) -> QPen:
+    pen = QPen(QColor(colour), max(1.0, width))
+    pen.setStyle(style)
+    pen.setCapStyle(Qt.PenCapStyle.RoundCap)
+    pen.setJoinStyle(Qt.PenJoinStyle.RoundJoin)
+    return pen
+
+
+def _alpha(colour: str, alpha: int) -> QColor:
+    out = QColor(colour)
+    out.setAlpha(alpha)
+    return out
+
+
+def _label(p: QPainter, centre: QPointF, text: str, colour: str, max_width: float, size: float) -> None:
+    """``text`` centred on ``centre``, shrunk to fit ``max_width`` (no smaller than 7 px)."""
+    if not text:
+        return
+    font = QFont(p.font())
+    font.setBold(True)
+    font.setPixelSize(max(7, round(size)))
+    metrics = QFontMetricsF(font)
+    width = metrics.horizontalAdvance(text)
+    if width > max_width > 0:
+        font.setPixelSize(max(7, round(font.pixelSize() * max_width / width)))
+        metrics = QFontMetricsF(font)
+        width = metrics.horizontalAdvance(text)
+    p.setFont(font)
+    p.setPen(_pen(colour, 1))
+    p.drawText(QPointF(centre.x() - width / 2, centre.y() + (metrics.ascent() - metrics.descent()) / 2), text)
+
+
+def _circle(p: QPainter, centre: QPointF, radius: float) -> None:
+    p.drawEllipse(centre, radius, radius)
+
+
+def _paint_mark(p: QPainter, rect: QRectF, mark: dict[str, Any], unit: float) -> None:
+    centre = _point(rect, mark["x"], mark["y"])
+    radius = max(mark.get("r") or 0.0, MIN_RADIUS) * rect.width()
+    outcome = mark.get("outcome")
+    p.setBrush(Qt.BrushStyle.NoBrush)
+    if outcome == "hit":
+        p.setPen(_pen(SUCCESS, 2 * unit))
+        p.setBrush(_alpha(SUCCESS, 150))
+        _circle(p, centre, radius)
+        text_colour = "#FFFFFF"
+    elif outcome == "timeout":
+        p.setPen(_pen(_alpha(DANGER, 110), unit))
+        _circle(p, centre, radius)
+        p.setPen(_pen(DANGER, 3 * unit))
+        d = radius * 0.7
+        p.drawLine(QPointF(centre.x() - d, centre.y() - d), QPointF(centre.x() + d, centre.y() + d))
+        p.drawLine(QPointF(centre.x() - d, centre.y() + d), QPointF(centre.x() + d, centre.y() - d))
+        text_colour = INK
+    else:  # skipped (or an outcome the report could not tell): a dashed grey ring
+        p.setPen(_pen(MUTED, 2 * unit, Qt.PenStyle.DashLine))
+        _circle(p, centre, radius)
+        text_colour = INK
+    p.setBrush(Qt.BrushStyle.NoBrush)
+    size = min(26 * unit, max(9.0, radius * 0.75))
+    _label(p, centre, str(mark.get("label", "")), text_colour, 1.7 * radius, size)
+
+
+def _paint_slots(p: QPainter, rect: QRectF, model: MapModel, unit: float) -> None:
+    p.setBrush(Qt.BrushStyle.NoBrush)
+    p.setPen(_pen(_alpha(MUTED, 90), unit, Qt.PenStyle.DashLine))
+    for x, y in model.slots:
+        _circle(p, _point(rect, x, y), model.slot_radius * rect.width())
+
+
+def _paint_track(p: QPainter, rect: QRectF, track: list[list[float]], unit: float) -> None:
+    if len(track) < 2:
+        return
+    p.setPen(_pen(_alpha(MUTED, 120), 2 * unit))
+    p.drawPolyline(QPolygonF([_point(rect, x, y) for x, y in track]))
+
+
+def _paint_paths(p: QPainter, rect: QRectF, model: MapModel, unit: float) -> None:
+    for trial in model.trials:
+        colour = PATH_COLOURS[(int(trial.get("trial") or 1) - 1) % len(PATH_COLOURS)]
+        p.setPen(_pen(_alpha(colour, 190), 1.5 * unit))
+        for segment in trial.get("path", []):
+            if len(segment) >= 2:
+                p.drawPolyline(QPolygonF([_point(rect, x, y) for x, y in segment]))
+
+
+def _blend(t: float) -> QColor:
+    a, b = TRIAL_PATH_DARK, TRIAL_PATH_LIGHT
+    return QColor(
+        round(a.red() + (b.red() - a.red()) * t),
+        round(a.green() + (b.green() - a.green()) * t),
+        round(a.blue() + (b.blue() - a.blue()) * t),
+    )
+
+
+def _star(centre: QPointF, radius: float) -> QPolygonF:
+    points = []
+    for i in range(10):
+        angle = -math.pi / 2 + i * math.pi / 5
+        r = radius if i % 2 == 0 else radius * 0.45
+        points.append(QPointF(centre.x() + r * math.cos(angle), centre.y() + r * math.sin(angle)))
+    return QPolygonF(points)
+
+
+def _paint_trial(p: QPainter, rect: QRectF, model: MapModel, trial: dict[str, Any], unit: float) -> None:
+    """One trial: the target with its dashed hitbox ring, the gaze path dark to light by
+    time, fixation circles (radius grows with duration) numbered in order, the onset
+    (S) and, for a hit, the selection (star) at the path's two ends."""
+    target = trial.get("target", {})
+    outcome = trial.get("outcome")
+    if model.moving:
+        _paint_track(p, rect, trial.get("track") or [], unit)
+    x, y = target.get("x"), target.get("y")
+    if model.moving and target.get("end_x") is not None and target.get("end_y") is not None:
+        x, y = target["end_x"], target["end_y"]
+    if x is not None and y is not None:
+        centre = _point(rect, x, y)
+        radius = max(target.get("radius_norm_x") or 0.0, MIN_RADIUS) * rect.width()
+        colour = SUCCESS if outcome == "hit" else DANGER if outcome == "timeout" else MUTED
+        p.setBrush(_alpha(colour, 60) if outcome == "hit" else Qt.BrushStyle.NoBrush)
+        p.setPen(_pen(colour, 2.5 * unit))
+        _circle(p, centre, radius)
+        if model.tolerance_norm is not None:
+            p.setBrush(Qt.BrushStyle.NoBrush)
+            p.setPen(_pen(MUTED, 1.5 * unit, Qt.PenStyle.DashLine))
+            _circle(p, centre, radius + model.tolerance_norm * rect.width())
+
+    points = [pt for segment in trial.get("path", []) for pt in segment]
+    total = max(1, len(points) - 1)
+    index = 0
+    for segment in trial.get("path", []):
+        for a, b in zip(segment, segment[1:], strict=False):
+            p.setPen(_pen(_blend(index / total), 2.5 * unit))
+            p.drawLine(_point(rect, *a), _point(rect, *b))
+            index += 1
+        index += 1  # the jump to the next polyline is not drawn
+
+    for number, (fx, fy, dur_ms) in enumerate(trial.get("fixations", {}).get("items", []), start=1):
+        radius = rect.width() * min(0.03, max(0.006, float(dur_ms) * 0.00004))
+        centre = _point(rect, fx, fy)
+        p.setPen(_pen(ACCENT, 1.5 * unit))
+        p.setBrush(_alpha(ACCENT, 70))
+        _circle(p, centre, radius)
+        _label(p, centre, str(number), INK, 1.8 * radius, max(9.0, radius))
+
+    if points:
+        start = _point(rect, *points[0])
+        p.setPen(_pen(INK, 2 * unit))
+        p.setBrush(QColor(PANEL_BG))
+        _circle(p, start, 8 * unit)
+        _label(p, start, "S", INK, 14 * unit, 11 * unit)
+        if outcome == "hit" and len(points) > 1:
+            p.setPen(_pen(INK, unit))
+            p.setBrush(QColor("#F2B705"))
+            p.drawPolygon(_star(_point(rect, *points[-1]), 11 * unit))
+    p.setBrush(Qt.BrushStyle.NoBrush)
+
+
+def paint_map(
+    p: QPainter,
+    rect: QRectF,
+    model: MapModel,
+    *,
+    targets: bool = True,
+    path: bool = False,
+    heat: bool = False,
+    trial: int | None = None,
+) -> None:
+    """Draw the map inside ``rect`` (the canvas's rectangle, already at its aspect).
+
+    ``trial`` is an index into ``model.trials`` for the single-trial view (which
+    ignores the three overlay flags); otherwise the whole test is drawn with the
+    overlays asked for.
+    """
+    unit = max(0.5, rect.width() / 900.0)  # one design px at 900 px wide
+    p.save()
+    p.setRenderHint(QPainter.RenderHint.Antialiasing)
+    p.setRenderHint(QPainter.RenderHint.SmoothPixmapTransform)
+    p.fillRect(rect, QColor(PANEL_BG))
+    p.setClipRect(rect)
+    one = model.trials[trial] if trial is not None and 0 <= trial < len(model.trials) else None
+    if one is not None:
+        _paint_slots(p, rect, model, unit)
+        _paint_trial(p, rect, model, one, unit)
+    else:
+        if heat and model.heat_image is not None:
+            p.drawImage(rect, model.heat_image)
+        if targets:
+            _paint_slots(p, rect, model, unit)
+            if model.moving:
+                for t in model.trials:
+                    _paint_track(p, rect, t.get("track") or [], unit)
+        if path:
+            _paint_paths(p, rect, model, unit)
+        if targets:
+            for mark in model.marks:
+                _paint_mark(p, rect, mark, unit)
+        if heat and model.heat_image is None:
+            _label(p, rect.center(), "No gaze on the canvas for the heat map", MUTED, rect.width() * 0.8, 14 * unit)
+    p.setClipping(False)
+    p.setBrush(Qt.BrushStyle.NoBrush)
+    p.setPen(_pen(BORDER, 1))
+    p.drawRect(rect)
+    p.restore()
+

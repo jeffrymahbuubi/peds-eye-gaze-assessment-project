@@ -12,7 +12,6 @@ import sys
 import time
 from datetime import datetime
 from collections.abc import Callable
-from dataclasses import replace
 from pathlib import Path
 
 from PySide6.QtCore import Qt, QPoint, QTimer, QUrl
@@ -29,7 +28,6 @@ from .data.analysis_export import (
 )
 from .data.exporter import write_session_metrics
 from .data.recorder import NullRecorder, SessionRecorder
-from .data.report_cache import write_report_safely
 from .data.schema import SessionMetadata
 from .engine.calibration import (
     Calibration,
@@ -45,10 +43,18 @@ from .engine.gaze_diagnostics import GazeDropoutLog, gaze_dropout_log_path
 from .engine.feedback import FeedbackBus
 from .engine.latency import LatencyTracker
 from .engine.loop_rate import config_target_fps, resolve_target_fps, target_fps_is_invalid
-from .engine.run_mode import apply_outcome, is_recorded, preroll_ms, run_seed, validate_run_mode
-from .engine.sample_rate import SampleRateTracker
+from .engine.run_mode import (
+    ENDED_QUIT,
+    PRACTICE,
+    PREVIEW,
+    apply_outcome,
+    is_recorded,
+    preroll_ms,
+    run_seed,
+    validate_run_mode,
+)
+from .engine.run_result import RunResult, run_result_from_task
 from .engine.session_naming import next_session_id
-from .engine.settings_profile import save_settings_profile
 from .engine.target_size import (
     DEFAULT_SIZE,
     apply_grid_gap,
@@ -60,12 +66,19 @@ from .engine.target_size import (
     viewing_distance_mm,
 )
 from .engine.task_runner import build_task
+from .engine.tracking_status import run_status_line, tracking_status
 from .inputs.base import Pointer
 from .inputs.eye_input import DwellConfig, EyeInput, SmoothingConfig
 from .inputs.gazepoint_client import GazepointClient
 from .inputs.switch_input import SwitchInput
-from .tasks.base_task import canvas_geometry_physical, gaze_geometry_from_screen, screen_size_mismatch
+from .tasks.base_task import (
+    Phase,
+    canvas_geometry_physical,
+    gaze_geometry_from_screen,
+    screen_size_mismatch,
+)
 from .ui.main_window import MainWindow, TaskRunView
+from .ui.run_dialogs import confirm_quit
 from .ui.settings_registry import apply_live_values_to_config, initial_live_values
 from .ui.task_settings_dialog import TaskSettingsDialog
 
@@ -191,17 +204,15 @@ class AssessmentApp:
         live_overrides: dict | None = None,
         settings_source: str = "defaults",
         settings_saved_at: str = "",
-        settings_calibration: dict | None = None,
         settings_profile_file: str = "",
         client: GazepointClient | None = None,
         preset_calibration_result: CalibrationResult | None = None,
         embedded: bool = False,
-        on_finished: Callable[[], None] | None = None,
+        on_finished: Callable[[RunResult], None] | None = None,
         assessment_date: str = "",
         sex: str = "",
         notes: str = "",
         display_acknowledged: bool | None = None,
-        hud_hidden: bool = False,
         preset_calibration_source: str | None = None,
         preset_calibration_file: str | None = None,
         screen: QScreen | None = None,
@@ -223,7 +234,7 @@ class AssessmentApp:
         plain :class:`~src.ui.main_window.TaskRunView` (for the dashboard's
         ``QStackedWidget``) instead of a fullscreen
         :class:`~src.ui.main_window.MainWindow`, and routes end-of-task to
-        ``on_finished`` instead of quitting the whole application. All four
+        ``on_finished(RunResult)`` instead of quitting the whole application. All four
         default to the exact standalone-launch behavior this class always
         had (own client, own calibration, own top-level window, quit on
         end) when omitted, so ``python -m src.main --task X --gui`` is
@@ -247,6 +258,15 @@ class AssessmentApp:
         diagnostics), have no pre-roll, and ignore ``seed``: ``practice_index``
         picks a practice's own seed. A preview gets a ``MouseGazeSource`` as
         ``client``. ``config_name`` is recorded in the metadata.
+
+        There is no operator HUD (4C.5, U5): the run view is the canvas and a
+        :class:`~src.ui.run_bar.RunBar` (Pause, Skip trial, Quit, one status
+        line). Every setting is fixed before the run starts; nothing changes
+        during it, so ``metadata.settings`` is the complete configuration.
+        Quit, Alt-Q and Esc ask first in a recorded run (``confirm_quit``,
+        replaceable by a test), then ``_shutdown`` hands ``on_finished`` a
+        :class:`~src.engine.run_result.RunResult`; a practice or preview quits
+        at once.
         """
         self.run_mode = validate_run_mode(run_mode)
         recorded = is_recorded(self.run_mode)
@@ -259,16 +279,12 @@ class AssessmentApp:
             # settings-panel.md section 5.3. Reuses the exact merge a task
             # YAML's own `overrides:` block already goes through.
             self.config["task"] = deep_merge(self.config["task"], structural_overrides)
-        # Captured before any profile is applied, so "Reset to defaults" means
-        # the task's own configured values -- not whatever the profile said.
-        self._default_live_values = initial_live_values(self.config)
         if live_overrides:
-            # Carried from a previous run in this sitting, or loaded from the
-            # subject's saved profile (SPEC-live-settings-panel.md S10.3).
+            # The test's own live values (or, standalone, a saved profile's).
             # Applied to the *config* rather than only to self._live_values so
-            # that build_task(), the engine objects and the operator panel all
-            # read the same thing -- self._live_values is derived from the
-            # config a few lines down, so they cannot disagree.
+            # that build_task() and the engine objects all read the same thing
+            # -- self._live_values is derived from the config a few lines down,
+            # so they cannot disagree.
             apply_live_values_to_config(self.config, live_overrides)
         self._settings_source = settings_source
         self._settings_saved_at = settings_saved_at
@@ -368,10 +384,10 @@ class AssessmentApp:
 
         self.client.start_streaming()  # idempotent (GazepointClient no-ops if already streaming)
 
-        # Single source of truth for every live-settings-panel field's
-        # starting value (SPEC-live-settings-panel.md section 5.1) -- used
-        # both to seed the operator panel's controls and to initialize the
-        # live objects below, so the two can never drift apart.
+        # Single source of truth for every live-setting field's value
+        # (SPEC-live-settings-panel.md section 5.1) -- used to initialize the
+        # live objects below and recorded in ``metadata.settings``. Nothing
+        # changes it during the run (no HUD, 4C.7).
         self._live_values = initial_live_values(self.config)
         lv = self._live_values
 
@@ -394,30 +410,15 @@ class AssessmentApp:
             # No top-level window at all -- the caller (DashboardWindow)
             # inserts .view into its own QStackedWidget page.
             self.window = None
-            self.view = TaskRunView(
-                theme=self.theme,
-                task_id=task_id,
-                initial_settings=lv,
-                settings_source=settings_source,
-                settings_saved_at=settings_saved_at,
-                settings_calibration=settings_calibration,
-            )
+            self.view = TaskRunView(theme=self.theme, run_mode=self.run_mode)
         else:
             self.window = MainWindow(
                 theme=self.theme,
-                task_id=task_id,
-                initial_settings=lv,
-                settings_source=settings_source,
-                settings_saved_at=settings_saved_at,
-                settings_calibration=settings_calibration,
                 fullscreen=bool(self.config.get("app", {}).get("fullscreen", True)),
+                run_mode=self.run_mode,
             )
             self.view = self.window.view
         self.canvas = self.view.canvas
-        self.operator_panel = self.view.operator_panel
-        # Applied before the first tick and before the change signal is
-        # connected below, so the starting state is not counted as a toggle.
-        self.view.set_hud_hidden(hud_hidden)
         self.canvas.show_cursor = bool(lv["dwell.visual_cursor"])
         self.canvas.show_progress_ring = bool(lv["dwell.progress_ring"])
         self.canvas.show_instant_feedback = bool(lv["dwell.instant_feedback"])
@@ -432,24 +433,17 @@ class AssessmentApp:
             sex=sex,
             notes=notes,
             display_nonstandard_acknowledged=display_acknowledged,
-            hud_hidden_at_start=bool(hud_hidden),
             test_id=test_id,
             test_name=test_name,
             seed=int(seed),
             run_mode=self.run_mode,
             config_name=config_name,
-            # Provenance (SPEC-live-settings-panel.md S10.4). Before settings
-            # persisted, a run was reproducible because every run started from
-            # the same YAML defaults; S10.3 removes that guarantee, so the
-            # settings actually in effect have to be recorded with the data or
-            # two runs of the same task on the same child can differ with
-            # nothing to say how. This is a snapshot of the values **as
-            # resolved at run start**, after any profile has been applied --
-            # deliberately not updated afterwards, because a mid-run change
-            # is already recorded, with its timestamp, as a SETTING_CHANGED
-            # event. Start state plus the event stream reconstructs the
-            # settings at any moment of the run; a single mutated block
-            # could not.
+            # Provenance (SPEC-live-settings-panel.md S10.4). The settings
+            # actually in effect are recorded with the data, or two runs of the
+            # same task on the same child can differ with nothing to say how.
+            # Nothing changes them during a run (the HUD's sliders are gone,
+            # 4C.7), so this snapshot of the values **as resolved at run start**
+            # is the complete configuration of the run (R7).
             settings={
                 "config_name": config_name,  # SPEC-compass-task-flow.md R7
                 "source": self._settings_source,
@@ -575,20 +569,24 @@ class AssessmentApp:
         # live canvas size (SPEC-grid-cell-gap.md S4.3).
         self._scene = self.task.scene_spec()
 
+        # Pause state. A pause that interrupts a trial in flight leaves the task one
+        # trial behind (it is re-presented on resume), which ``_display_trial_number``
+        # corrects for the bar. ``_last_valid_ns`` is the last valid gaze frame, for
+        # the bar's tracking state.
         self._paused = False
-        self._wire_operator()
-        self.view.hud_hidden_changed.connect(self._on_hud_hidden_changed)
+        self._pause_interrupted = False
+        self._quit_pending = False
+        self._shutdown_done = False
+        self._last_valid_ns: int | None = None
+        # The quit question; replaceable (a test answers without a modal loop).
+        self.confirm_quit: Callable[[object, int, int], bool] = confirm_quit
+        self._wire_bar()
         self._install_key_handler()
-
-        self._fps_frames = 0
-        self._fps_last_ns = time.time_ns()
-        self._fps = 0.0
 
         # Gaze-to-feedback latency (plan risk table / gap F): only meaningful
         # against a live tracker, never a replay fixture (see
         # GazepointClient.is_live).
         self._latency = LatencyTracker(window_size=self._loop_fps)
-        self._device_rate = SampleRateTracker()
 
         # Dropout / off-canvas diagnostic (SPEC-gaze-cursor-redesign.md S6).
         # Live device only: a replay fixture's dropouts are the fixture's, not
@@ -610,14 +608,11 @@ class AssessmentApp:
 
     # -- wiring ------------------------------------------------------------
 
-    def _wire_operator(self) -> None:
-        panel = self.operator_panel
-        panel.pause_toggled.connect(self._set_paused)
-        panel.skip_requested.connect(self._skip_trial)
-        panel.end_requested.connect(self._shutdown)
-        panel.setting_changed.connect(self._apply_setting)
-        panel.save_profile_requested.connect(self._save_settings_profile)
-        panel.reset_settings_requested.connect(self._reset_settings_to_defaults)
+    def _wire_bar(self) -> None:
+        bar = self.view.run_bar
+        bar.pause_toggled.connect(self._set_paused)
+        bar.skip_requested.connect(self._skip_trial)
+        bar.quit_requested.connect(self._request_quit)
 
     def _resolve_target_size(self, screen: QScreen | None = None) -> None:
         """Turn the task config's ``target.size`` preset (``layout.size`` for
@@ -657,55 +652,6 @@ class AssessmentApp:
             self.metadata.grid_gap = gap_info
             self.recorder.log(grid_gap_log_line(gap_info))
 
-    def calibration_snapshot(self) -> dict:
-        """The calibration this run is operating under (S10.5.5).
-
-        Descriptive only -- stored with a saved profile so a later reader can
-        tell whether the settings were tuned under a good or a poor
-        calibration. Nothing reads it back to change behaviour.
-        """
-        return {
-            "error_px": self.metadata.calibration_error_px,
-            "points": self.metadata.calibration_points,
-        }
-
-    def _save_settings_profile(self) -> None:
-        """Persist the current settings for this subject+task (S10.3).
-
-        Explicit action only. Failure is reported into the session log rather
-        than raised: a profile is a convenience and must never take a run down
-        with it.
-        """
-        try:
-            path = save_settings_profile(
-                self._output_root,
-                self.metadata.subject_id,
-                self.task_id,
-                self._live_values,
-                self._structural_overrides,
-                calibration=self.calibration_snapshot(),
-            )
-        except OSError as exc:
-            self.recorder.log(f"Could not save settings profile: {exc}")
-            return
-        self.operator_panel.set_settings_source(
-            "saved", datetime.now().astimezone().isoformat(), self.calibration_snapshot()
-        )
-        self.recorder.log(f"Settings profile saved for {self.metadata.subject_id}: {path.name}")
-        self.recorder.record_event("SETTINGS_PROFILE_SAVED", time.time_ns(), path=str(path))
-
-    def _reset_settings_to_defaults(self) -> None:
-        """Put every live setting back to the task's configured default.
-
-        Routed through the panel rather than straight to the engine so the
-        controls move too, and so each key still goes through _apply_setting
-        and is logged as a SETTING_CHANGED -- a reset is a real change to the
-        run and belongs in the record like any other.
-        """
-        self.operator_panel.apply_values(self._default_live_values)
-        self.operator_panel.set_settings_source("defaults")
-        self.recorder.log("Settings reset to task defaults.")
-
     def _install_key_handler(self) -> None:
         original = self.canvas.keyPressEvent
 
@@ -713,7 +659,9 @@ class AssessmentApp:
             if event.key() in (Qt.Key.Key_Space, Qt.Key.Key_Return, Qt.Key.Key_Enter):
                 self.switch.press()
             elif event.key() == Qt.Key.Key_Escape:
-                self._shutdown()
+                # Esc is Quit, with the same question as the button (HC10): a
+                # child at the keyboard must not end a recorded run.
+                self._request_quit()
             else:
                 original(event)
 
@@ -724,28 +672,76 @@ class AssessmentApp:
     # -- operator actions --------------------------------------------------
 
     def _set_paused(self, paused: bool) -> None:
+        """Pause or resume (SPEC-compass-task-flow.md 4C.6). The task stops its
+        clocks and drops a trial in flight, to re-present it on resume; the tick
+        keeps draining the raw queue but records nothing."""
+        paused = bool(paused)
+        if paused == self._paused:
+            return
+        t_ns = time.time_ns()
         self._paused = paused
+        if paused:
+            self._pause_interrupted = self.task.pause(t_ns)
+        else:
+            self.task.resume(t_ns)
+            self._pause_interrupted = False
+        self.canvas.set_paused(paused)
+        self.view.run_bar.set_paused(paused)
+        self._update_run_bar(t_ns)
 
     def _skip_trial(self) -> None:
         # Recorded as skipped, not as a timeout (SPEC-compass-task-flow.md 4C.6);
-        # does nothing unless a trial is running.
+        # does nothing unless a trial is running (and never while paused).
         self.task.skip_trial(time.time_ns())
 
-    def _on_hud_hidden_changed(self, hidden: bool) -> None:
-        """Record one operator HUD toggle (SPEC-hud-hide-toggle.md S4.4)."""
-        index = self.task._trial_index  # noqa: SLF001 - read-only, like _skip_trial
-        trial = index if index >= 0 else None
-        self.metadata.hud_toggle_count += 1
-        self.recorder.record_event("HUD_TOGGLED", time.time_ns(), hidden=hidden, trial=trial)
-        where = f" (trial {index + 1})" if trial is not None else ""
-        self.recorder.log(f"HUD {'hidden' if hidden else 'shown'} by operator{where}.")
+    def _request_quit(self) -> None:
+        """Quit, Alt-Q and Esc (4C.6). A recorded run pauses (the clock stops) and
+        asks; Keep going resumes unless the operator had already paused, Quit test
+        ends the run. A practice or a preview has nothing to lose and ends at once."""
+        if self._shutdown_done or self._quit_pending:
+            return
+        if is_recorded(self.run_mode):
+            self._quit_pending = True
+            was_paused = self._paused
+            self._set_paused(True)
+            try:
+                quit_it = self.confirm_quit(self.view, len(self.task.trials), len(self.task.targets))
+            finally:
+                self._quit_pending = False
+            if not quit_it:
+                if not was_paused:
+                    self._set_paused(False)
+                return
+        self._shutdown(ended_by=ENDED_QUIT)
+
+    def _display_trial_number(self) -> int:
+        """The 1-based trial the bar names. A pause that interrupted a trial leaves
+        the task one behind (that trial comes back on resume), so it is added back."""
+        return self.task.trial_number + (1 if self._paused and self._pause_interrupted else 0)
+
+    def _update_run_bar(self, t_ns: int) -> None:
+        """One line of status, and whether Skip trial can be pressed (4C.5)."""
+        since = None if self._last_valid_ns is None else max(0.0, (t_ns - self._last_valid_ns) / 1e9)
+        text, level = tracking_status(bool(self.client.is_connected()), since)
+        preview = self.run_mode == PREVIEW
+        line = run_status_line(
+            self._display_trial_number(),
+            len(self.task.targets),
+            text,
+            practice=self.run_mode == PRACTICE,
+            paused=self._paused,
+            preview=preview,
+        )
+        bar = self.view.run_bar
+        bar.set_status(line, None if (self._paused or preview) else text, level)
+        bar.set_skip_enabled(not self._paused and self.task.phase is Phase.WAIT_INPUT)
 
     def _check_canvas_resized(self, t_ns: int) -> None:
         """Emit CANVAS_RESIZED when the canvas size differs from the last tick.
 
-        Done here, not in the toggle handler: the new size only exists after
-        Qt's layout pass. Physical px, same as _record_geometry()'s ``canvas_*``
-        (SPEC-display-scaling-cursor-accuracy.md S8.8).
+        Done in the tick, not when a size is asked for: the new size only exists
+        after Qt's layout pass. Physical px, same as _record_geometry()'s
+        ``canvas_*`` (SPEC-display-scaling-cursor-accuracy.md S8.8).
         """
         if int(self.canvas.width()) <= 0 or int(self.canvas.height()) <= 0:
             return
@@ -757,50 +753,6 @@ class AssessmentApp:
             self._last_canvas_size = size
             self.recorder.record_event("CANVAS_RESIZED", t_ns, canvas_w=size[0], canvas_h=size[1])
             self.recorder.log(f"Canvas resized to {size[0]}x{size[1]}.")
-
-    def _apply_setting(self, key: str, value: object) -> None:
-        """Apply one live-settings-panel change to the object that actually
-        consumes it (SPEC-live-settings-panel.md section 5.1).
-
-        Every key here is read fresh every frame/paint by its target object,
-        so the change takes effect on the very next tick -- including within
-        the trial already in progress (deliberate; see the SPEC's section
-        5.5 on why a SETTING_CHANGED event is logged alongside every change).
-        """
-        old_value = self._live_values.get(key)
-        self._live_values[key] = value
-
-        if key == "dwell.threshold_ms" and self.task.dwell is not None:
-            self.task.dwell.config = replace(self.task.dwell.config, threshold_ms=float(value))
-        elif key == "dwell.refractory_ms" and self.task.dwell is not None:
-            self.task.dwell.config = replace(self.task.dwell.config, refractory_ms=float(value))
-        elif key == "dwell.jitter_tolerance_px":
-            self.task.jitter_px = float(value)
-        elif key == "dwell.visual_cursor":
-            self.canvas.show_cursor = bool(value)
-        elif key == "dwell.progress_ring":
-            self.canvas.show_progress_ring = bool(value)
-        elif key == "dwell.instant_feedback":
-            self.canvas.show_instant_feedback = bool(value)
-        elif key == "dwell.smoothing.enabled":
-            self.eye.smoother.config = replace(self.eye.smoother.config, enabled=bool(value))
-            # Drop the running EMA so the next sample doesn't blend toward a
-            # stale average from before the change (SPEC section 5.4).
-            self.eye.smoother.reset()
-        elif key == "dwell.smoothing.alpha":
-            self.eye.smoother.config = replace(self.eye.smoother.config, alpha=float(value))
-            self.eye.smoother.reset()
-        elif key == "task.timeout_ms":
-            self.task.timeout_ns = int(float(value) * 1e6)
-        elif key == "task.inter_trial_interval_ms":
-            self.task.iti_ns = int(float(value) * 1e6)
-        elif key == "motion.speed_frac_per_s" and hasattr(self.task, "speed"):
-            self.task.speed = float(value)
-
-        self.recorder.record_event(
-            "SETTING_CHANGED", time.time_ns(), key=key, old_value=old_value, new_value=value
-        )
-        self.recorder.log(f"Setting changed: {key} {old_value!r} -> {value!r}")
 
     # -- main loop ---------------------------------------------------------
 
@@ -928,9 +880,15 @@ class AssessmentApp:
         return f"{text} (NON-STANDARD{ack})."
 
     def _tick(self) -> None:
-        if self._paused:
-            return
         t_ns = time.time_ns()
+        if self._paused:
+            # Paused (4C.6): the task is not updated and no gaze row is written. The
+            # raw queue is still emptied and thrown away, so a long pause neither
+            # overflows it nor replays as a burst on resume, and pause time (a child
+            # looking away) never lowers the run's valid-gaze share.
+            self.client.drain_raw()
+            self._update_run_bar(t_ns)
+            return
         # Keep hit-testing in sync with whatever the canvas actually renders
         # at (fullscreen resolution, a resized window, ...) instead of the
         # configured screen_width_px/height_px default.
@@ -956,7 +914,8 @@ class AssessmentApp:
             self.recorder.record_gaze(sample)
         if sample is not None and self.client.is_live:
             self._record_latency(sample.t_ns, t_ns)
-            self._device_rate.update(sample.t_ns, t_ns)
+        if pointer.valid:
+            self._last_valid_ns = t_ns
 
         result = self.task.update(t_ns, pointer)
         # After set_screen_size above, so the scene (a grid's cell inset) is for
@@ -985,23 +944,7 @@ class AssessmentApp:
             active_slot=(result.target.slot_index if result.target else -1),
         )
 
-        self._update_fps(t_ns)
-        # Tallied from the task's own completed-trial records rather than
-        # tracked separately, so this can never drift from what trials.csv
-        # ends up with (SPEC-diki-design-audit.md S8 -- diki's LiveCounterPanel
-        # hit/timeout counts, ported here).
-        hits = sum(1 for t in self.task.trials if t.is_hit)
-        timeouts = sum(1 for t in self.task.trials if t.is_timeout)
-        self.operator_panel.update_status(
-            self._fps,
-            pointer.valid,
-            result.trial_index,
-            len(self.task.targets),
-            connected=self.client.is_connected(),
-            hits=hits,
-            timeouts=timeouts,
-            device_rate_hz=self._device_rate.rate_hz if self.client.is_live else None,
-        )
+        self._update_run_bar(t_ns)
 
         if self.task.is_done:
             self._shutdown()
@@ -1033,13 +976,6 @@ class AssessmentApp:
                 self.recorder.session_dir / EYE_GEOMETRY_FILENAME
             )
 
-    def _update_fps(self, t_ns: int) -> None:
-        self._fps_frames += 1
-        if t_ns - self._fps_last_ns >= 1_000_000_000:
-            self._fps = self._fps_frames * 1e9 / (t_ns - self._fps_last_ns)
-            self._fps_frames = 0
-            self._fps_last_ns = t_ns
-
     def _record_latency(self, sample_t_ns: int, t_ns: int) -> None:
         summary = self._latency.add_sample(sample_t_ns, t_ns)
         if summary is not None:
@@ -1052,9 +988,14 @@ class AssessmentApp:
                 n_samples=summary.n_samples,
             )
 
-    def _shutdown(self) -> None:
-        if getattr(self, "_shutdown_done", False):
-            return  # End button + task.is_done can both fire in the same tick
+    def _shutdown(self, ended_by: str | None = None) -> None:
+        """End the run. Every file of a recorded run is on disk before anything is
+        shown, so a crash at a run-end dialog loses nothing; ``on_finished`` then gets
+        the :class:`~src.engine.run_result.RunResult`. ``ended_by`` is
+        ``operator_quit`` for the quit flow, else derived (the task ran out of
+        trials). Idempotent: the tick and a quit can both fire in one pass."""
+        if self._shutdown_done:
+            return
         self._shutdown_done = True
         self.timer.stop()
         if self._dropout_log is not None:
@@ -1062,21 +1003,33 @@ class AssessmentApp:
             # recovered is recorded rather than silently lost.
             self._dropout_log.close(time.time_ns())
         if is_recorded(self.run_mode):
-            self._write_session_files()
+            self._write_session_files(ended_by)
         if self._owns_client:
             self.client.stop()
         if self._embedded:
             if self._on_finished is not None:
-                self._on_finished()
+                self._on_finished(self._run_result(ended_by))
         else:
             QApplication.quit()
 
-    def _write_session_files(self) -> None:
+    def _run_result(self, ended_by: str | None) -> RunResult:
+        session_dir = self.recorder.session_dir if is_recorded(self.run_mode) else None
+        finished_at = datetime.now().astimezone().isoformat(timespec="seconds")
+        return run_result_from_task(
+            self.run_mode, self.task, session_dir, finished_at, ended_by=ended_by
+        )
+
+    def _write_session_files(self, ended_by: str | None = None) -> None:
         """Everything a recorded run leaves on disk at its end. Skipped for a
-        practice or preview run, which has nothing to write (NullRecorder)."""
+        practice or preview run, which has nothing to write (NullRecorder).
+        ``report.json`` is not built here: only a run the operator saves gets one
+        (:func:`~src.engine.run_result.finish_run`, HD1)."""
         if self._save_all_gaze or self._save_eye_geometry:
-            for raw_t_ns, attrs in self.client.drain_raw():  # whatever arrived since the last tick
-                self.recorder.record_raw(raw_t_ns, attrs)
+            # Whatever arrived since the last tick; recorded unless the run ends
+            # paused (the quit question), when it is pause time like the rest.
+            for raw_t_ns, attrs in self.client.drain_raw():
+                if not self._paused:
+                    self.recorder.record_raw(raw_t_ns, attrs)
         trials_path = self.recorder.write_trials(self.task.trials)
         self.recorder.log(f"Wrote {len(self.task.trials)} trials -> {trials_path}")
         if self._save_all_gaze:
@@ -1094,8 +1047,16 @@ class AssessmentApp:
             self.recorder.log(f"Saccade metrics scaled by {width}x{height}px.")
         # How the run ended, before close() so metadata.json carries it
         # (SPEC-compass-task-flow.md 4C.9). Anything but running out of trials is
-        # the operator ending it (End task / Esc today).
-        self.recorder.log(apply_outcome(self.metadata, self.task, time.time_ns()))
+        # the operator quitting.
+        self.recorder.log(
+            apply_outcome(
+                self.metadata,
+                self.task,
+                time.time_ns(),
+                ended_by,
+                trial_number=self._display_trial_number(),
+            )
+        )
         # Host-clock time of all_gaze.csv TIME=0, after the last raw record was
         # written above, to align device-rate rows with the trial windows
         # (SPEC-compass-task-flow.md 4D.4-5).
@@ -1105,10 +1066,6 @@ class AssessmentApp:
         if self._save_all_gaze:
             finalize_all_gaze(self.recorder.session_dir, width, height)
         write_session_metrics(self.recorder.session_dir)
-        # The per-test report cache (SPEC-compass-task-flow.md 4D.6, HD1), last, from the
-        # files just written; a failure is logged, never raised. Reached only by a
-        # recorded run: practice and preview use NullRecorder and skip this method.
-        write_report_safely(self.recorder.session_dir)
 
 
 def run_gui(

@@ -89,11 +89,6 @@ class DashboardWindow(QMainWindow):
         # exactly what was in effect, not a re-derivation. In-memory only;
         # the saved profile is what survives the app closing.
         self._task_live_overrides: dict[str, dict] = {}
-        # Whether the operator HUD is hidden, carried across runs in this
-        # sitting (SPEC-hud-hide-toggle.md S4.3). In-memory only: a new
-        # DashboardWindow always starts shown; never written to local_state
-        # or settings profiles.
-        self._hud_hidden = False
         # The saved version the operator explicitly chose via Load Settings
         # (S10.12), per task, for the next run only -- cleared when that run
         # finishes, because its ending values then become the carried entry
@@ -386,7 +381,6 @@ class DashboardWindow(QMainWindow):
         live_overrides = resolved["live_overrides"]
         settings_source = resolved["source"]
         settings_saved_at = resolved["saved_at"]
-        settings_calibration = resolved["calibration"]
 
         # Predict the run index the about-to-start AssessmentApp/
         # SessionRecorder will independently compute via the same
@@ -404,7 +398,6 @@ class DashboardWindow(QMainWindow):
                 live_overrides=live_overrides,
                 settings_source=settings_source,
                 settings_saved_at=settings_saved_at,
-                settings_calibration=settings_calibration,
                 settings_profile_file=(
                     Path(resolved["profile_path"]).name if resolved["profile_path"] else ""
                 ),
@@ -418,7 +411,6 @@ class DashboardWindow(QMainWindow):
                 sex=self.setup_page.sex(),
                 notes=self.setup_page.notes(),
                 display_acknowledged=self.setup_page.display_acknowledged(),
-                hud_hidden=self._hud_hidden,
                 # This window is shown, so its screen is the monitor the run
                 # appears on; the not-yet-embedded canvas cannot say.
                 screen=self.screen(),
@@ -428,7 +420,6 @@ class DashboardWindow(QMainWindow):
             print(f"Could not start task: {exc}")
             return
 
-        assessment.view.hud_hidden_changed.connect(self._on_hud_hidden_changed)
         self._active_assessment = assessment
         self._active_task_id = task_id
         self.tasks_page.set_task_status(task_id, "Running")
@@ -440,10 +431,9 @@ class DashboardWindow(QMainWindow):
         self.stack.setCurrentWidget(assessment.view)
         assessment.view.canvas.setFocus()
 
-    def _on_hud_hidden_changed(self, hidden: bool) -> None:
-        self._hud_hidden = hidden
-
-    def _on_task_finished(self) -> None:
+    def _on_task_finished(self, _result: object = None) -> None:
+        # ``_result`` is the run's RunResult; the Tasks-tab flow does not use it (the
+        # Test List flow does, SPEC-compass-task-flow.md 4C.8, P8).
         task_id = self._active_task_id
         assessment = self._active_assessment
         self._active_assessment = None

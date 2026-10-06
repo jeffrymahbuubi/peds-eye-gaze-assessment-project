@@ -67,12 +67,31 @@ QLabel#wtmhBrandTitle {{ font-size: 15px; font-weight: 600; }}
    Tasks" footer (SPEC-ui-setup-task-selection.md S22), and the Results
    page's card stack below its pinned header row (SPEC-result-logic.md S11)
    -- the scroll area and its viewport otherwise paint an opaque native
-   background over the page's own {BACKGROUND} tint. */
+   background over the page's own {BACKGROUND} tint. The configuration page's
+   card grid (SPEC-compass-task-flow.md 4B.7) scrolls the same way, above its
+   pinned footer. */
 QScrollArea#wtmhSetupScroll, QScrollArea#wtmhSetupScroll > QWidget,
-QScrollArea#wtmhResultsScroll, QScrollArea#wtmhResultsScroll > QWidget {{
+QScrollArea#wtmhResultsScroll, QScrollArea#wtmhResultsScroll > QWidget,
+QScrollArea#wtmhConfigScroll, QScrollArea#wtmhConfigScroll > QWidget {{
     background: transparent;
     border: none;
 }}
+
+/* A control greyed in place on the configuration page (4B.3: Smoothing alpha
+   while Smoothing is off). The base rules above colour labels, spin boxes and
+   slider handles the same whether or not they are enabled, so a disabled one
+   would not look disabled. Scoped to the page's scroll area so no other page's
+   disabled widgets change. */
+QScrollArea#wtmhConfigScroll QLabel:disabled,
+QScrollArea#wtmhConfigScroll QCheckBox:disabled,
+QScrollArea#wtmhConfigScroll QRadioButton:disabled {{ color: {MUTED}; }}
+QScrollArea#wtmhConfigScroll QSpinBox:disabled,
+QScrollArea#wtmhConfigScroll QDoubleSpinBox:disabled {{
+    color: {MUTED};
+    background: {NEUTRAL_BADGE_BG};
+}}
+QScrollArea#wtmhConfigScroll QSlider::handle:horizontal:disabled {{ background: {BORDER}; }}
+QScrollArea#wtmhConfigScroll QSlider::sub-page:horizontal:disabled {{ background: {BORDER}; }}
 
 /* Themed scrollbar (SPEC-ui-setup-task-selection.md S22.6) -- this app's
    first scrollbar rendered with the native OS style (square arrow buttons,
@@ -155,7 +174,10 @@ QLabel#wtmhSectionTitle {{
 }}
 QLabel#wtmhMuted {{ color: {MUTED}; }}
 
-QPushButton#wtmhPrimary {{
+/* The configuration page's footer buttons carry fixed names for qt-mcp and tests
+   (cfgSave, cfgPreview, cfgCancel, cfgReset -- SPEC-compass-task-flow.md 4B.1), so
+   they join the tier rules by selector instead of taking the tier's object name. */
+QPushButton#wtmhPrimary, QPushButton#cfgSave {{
     color: white;
     background: qlineargradient(x1:0, y1:0, x2:1, y2:0,
         stop:0 {ACCENT_GRADIENT_START}, stop:1 {ACCENT_GRADIENT_END});
@@ -164,8 +186,8 @@ QPushButton#wtmhPrimary {{
     padding: 8px 18px;
     font-weight: 600;
 }}
-QPushButton#wtmhPrimary:hover {{ background: {ACCENT_GRADIENT_END}; }}
-QPushButton#wtmhPrimary:disabled {{
+QPushButton#wtmhPrimary:hover, QPushButton#cfgSave:hover {{ background: {ACCENT_GRADIENT_END}; }}
+QPushButton#wtmhPrimary:disabled, QPushButton#cfgSave:disabled {{
     background: {SOFT_ACCENT};
     color: {SOFT_ACCENT_TEXT};
 }}
@@ -185,15 +207,17 @@ QPushButton#wtmhSecondary:disabled {{
     border: 2px solid {NEUTRAL_BADGE_BG};
 }}
 
-QPushButton#wtmhGhost {{
+QPushButton#wtmhGhost, QPushButton#cfgPreview, QPushButton#cfgCancel, QPushButton#cfgReset {{
     color: {INK};
     background: transparent;
     border: 1px solid {BORDER};
     border-radius: 6px;
     padding: 7px 16px;
 }}
-QPushButton#wtmhGhost:hover {{ background: {SOFT_ACCENT}; border-color: {ACCENT}; }}
-QPushButton#wtmhGhost:disabled {{ color: {MUTED}; border-color: {BORDER}; }}
+QPushButton#wtmhGhost:hover, QPushButton#cfgPreview:hover, QPushButton#cfgCancel:hover,
+QPushButton#cfgReset:hover {{ background: {SOFT_ACCENT}; border-color: {ACCENT}; }}
+QPushButton#wtmhGhost:disabled, QPushButton#cfgPreview:disabled, QPushButton#cfgCancel:disabled,
+QPushButton#cfgReset:disabled {{ color: {MUTED}; border-color: {BORDER}; }}
 
 QFrame#wtmhCard {{
     background: {PANEL_BG};
@@ -403,6 +427,25 @@ QWidget#wtmhDashboard QCheckBox::indicator:checked {{
     background: {ACCENT};
     border: 1px solid {ACCENT};
     image: url({_ICONS_DIR}/checkmark.png);
+}}
+
+/* Radio button (the configuration page's one-of choices, SPEC-compass-task-
+   flow.md 4B.1): text in INK like the check box above, and a round indicator
+   in the same border / accent colours -- a radial gradient draws the dot, so
+   no image asset is needed. */
+QWidget#wtmhDashboard QRadioButton {{ color: {INK}; }}
+QWidget#wtmhDashboard QRadioButton::indicator {{
+    width: 14px;
+    height: 14px;
+    border: 1px solid {BORDER};
+    border-radius: 8px;
+    background: {PANEL_BG};
+}}
+QWidget#wtmhDashboard QRadioButton::indicator:hover {{ border-color: {ACCENT}; }}
+QWidget#wtmhDashboard QRadioButton::indicator:checked {{
+    border: 1px solid {ACCENT};
+    background: qradialgradient(cx:0.5, cy:0.5, radius:0.5, fx:0.5, fy:0.5,
+        stop:0 {ACCENT}, stop:0.5 {ACCENT}, stop:0.55 {PANEL_BG}, stop:1 {PANEL_BG});
 }}
 
 /* Themed slider, matching the accent gradient rather than native OS chrome

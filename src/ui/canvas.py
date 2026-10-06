@@ -117,7 +117,19 @@ class TaskCanvas(QWidget):
         self.active_slot: int = -1
         self._trail: list[tuple[float, float]] = []  # "moving" mode only
 
+        self.paused: bool = False  # only a calm "Paused" (4C.5): no target, no cursor
+
     # -- state updates from the app loop ----------------------------------
+
+    def set_paused(self, paused: bool) -> None:
+        """Show or leave the "Paused" screen (SPEC-compass-task-flow.md 4C.5). The
+        fading trail is dropped: the trial after a pause starts from its first spot."""
+        if bool(paused) == self.paused:
+            return
+        self.paused = bool(paused)
+        if paused:
+            self._trail.clear()
+        self.update()
 
     def set_frame(
         self,
@@ -171,6 +183,11 @@ class TaskCanvas(QWidget):
         painter.setRenderHint(QPainter.RenderHint.Antialiasing)
         painter.fillRect(self.rect(), self._bg)
 
+        if self.paused:
+            self._draw_paused(painter, w, h)
+            painter.end()
+            return
+
         mode = self.scene.get("mode", "single")
         if mode == "icons":
             self._draw_icon_scene(painter, w, h)
@@ -207,6 +224,14 @@ class TaskCanvas(QWidget):
                 self._draw_cursor(painter, ccx, ccy, dim=frozen or not self.cursor_valid)
 
         painter.end()
+
+    def _draw_paused(self, painter: QPainter, w: int, h: int) -> None:
+        """A centred "Paused" in the theme's contrasting (ring) colour."""
+        font = painter.font()
+        font.setPixelSize(max(24, min(w, h) // 14))
+        painter.setFont(font)
+        painter.setPen(QColor(self.theme.get("cursor_color", "#ffffff")))
+        painter.drawText(self.rect(), Qt.AlignmentFlag.AlignCenter, "Paused")
 
     def _draw_layout_slots(self, painter: QPainter, w: int, h: int) -> None:
         """Draw the unlit candidate positions of a multi-item task.

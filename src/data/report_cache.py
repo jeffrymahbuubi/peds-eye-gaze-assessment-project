@@ -169,6 +169,9 @@ def build_report(session_dir: str | Path) -> dict[str, Any]:
         "map": {
             "aspect": None if geometry.aspect is None else round(geometry.aspect, 5),
             "slots": meta.get("layout_slots"),
+            "hit_tolerance_px": _number(
+                setting(settings, "dwell.jitter_tolerance_px", "dwell", "jitter_tolerance_px")
+            ),
             **map_marks(trials, geometry, moving=task_id == "follow_moving"),
         },
         "heat": heat,

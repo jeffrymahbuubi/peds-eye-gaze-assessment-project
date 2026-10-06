@@ -1,113 +1,73 @@
-"""Views hosting the subject canvas and the operator sidebar.
+"""Views hosting the subject canvas and the run bar.
 
-:class:`TaskRunView` is the actual canvas+sidebar content, as a plain
-``QWidget`` -- extracted so it can be embedded into another window (the
-Setup/Task-selection dashboard's ``QStackedWidget``, SPEC-ui-setup-
-task-selection.md S3.1.7) instead of only ever living inside its own
-top-level window. :class:`MainWindow` is now a thin wrapper around it for
-the standalone ``--task X --gui`` CLI launch (:mod:`src.app`), unchanged in
-behavior and public attributes (``.canvas``/``.operator_panel``) from
-before this split.
+:class:`TaskRunView` is the run screen as a plain ``QWidget`` -- the canvas, with the
+thin :class:`~src.ui.run_bar.RunBar` under it (SPEC-compass-task-flow.md 4C.5): no
+operator HUD. It is a widget so it can be embedded into another window (the
+dashboard's ``QStackedWidget``) instead of only ever living inside its own top-level
+window. :class:`MainWindow` is a thin wrapper around it for the standalone
+``--task X --gui`` CLI launch (:mod:`src.app`).
 """
 
 from __future__ import annotations
 
-from typing import Any
-
-from PySide6.QtCore import Qt, Signal
+from PySide6.QtCore import Qt
 from PySide6.QtGui import QKeySequence, QShortcut
-from PySide6.QtWidgets import QHBoxLayout, QMainWindow, QWidget
+from PySide6.QtWidgets import QMainWindow, QVBoxLayout, QWidget
 
+from ..engine.run_mode import RECORD
 from .canvas import TaskCanvas
-from .operator_panel import OperatorPanel
+from .run_bar import RunBar
 
 
 class TaskRunView(QWidget):
-    # Emitted only when the HUD's visibility actually changes (SPEC-hud-hide-
-    # toggle.md S4.1), so listeners can count it as one operator toggle.
-    hud_hidden_changed = Signal(bool)
-
     def __init__(
         self,
         theme: dict | None = None,
-        task_id: str = "click_static",
-        initial_settings: dict[str, Any] | None = None,
-        settings_source: str = "defaults",
-        settings_saved_at: str = "",
-        settings_calibration: dict | None = None,
+        run_mode: str = RECORD,
         parent: QWidget | None = None,
     ) -> None:
         super().__init__(parent)
-        layout = QHBoxLayout(self)
+        layout = QVBoxLayout(self)
         layout.setContentsMargins(0, 0, 0, 0)
-        # Qt's default inter-widget spacing otherwise leaves a gap between
-        # canvas and sidebar where this unstyled central widget's raw (black)
-        # background shows through (SPEC-diki-design-audit.md S8.7).
+        # Qt's default inter-widget spacing would leave a gap between canvas and
+        # bar where this unstyled widget's raw (black) background shows through
+        # (SPEC-diki-design-audit.md S8.7).
         layout.setSpacing(0)
 
         self.canvas = TaskCanvas(theme=theme)
-        self.operator_panel = OperatorPanel(
-            task_id=task_id,
-            initial_values=initial_settings,
-            settings_source=settings_source,
-            settings_saved_at=settings_saved_at,
-            settings_calibration=settings_calibration,
-        )
-        self.operator_panel.setFixedWidth(280)
-
+        self.run_bar = RunBar(run_mode)
         layout.addWidget(self.canvas, stretch=1)
-        layout.addWidget(self.operator_panel)
+        layout.addWidget(self.run_bar)
 
-        # H toggles the HUD both ways (SPEC-hud-hide-toggle.md S4.2). A
-        # shortcut on this view, not the canvas keyPressEvent patch, so it
-        # works with focus on the canvas or on any panel control.
-        self.hud_shortcut = QShortcut(QKeySequence(Qt.Key.Key_H), self)
-        self.hud_shortcut.setContext(Qt.ShortcutContext.WidgetWithChildrenShortcut)
-        self.hud_shortcut.activated.connect(self.toggle_hud)
-        self.operator_panel.hide_requested.connect(lambda: self.set_hud_hidden(True))
+        # Alt-P and Alt-Q work with focus on the canvas or anywhere in this view:
+        # shortcuts on the view, not mnemonics on the buttons (4C.5).
+        self.pause_shortcut = self._shortcut("Alt+P", self.run_bar.pause_button)
+        self.quit_shortcut = self._shortcut("Alt+Q", self.run_bar.quit_button)
 
-    @property
-    def hud_hidden(self) -> bool:
-        return not self.operator_panel.isVisibleTo(self)
+        # After any bar click the canvas has the focus back, so Space (the switch)
+        # and Esc keep working.
+        for signal in (self.run_bar.pause_toggled, self.run_bar.skip_requested, self.run_bar.quit_requested):
+            signal.connect(lambda *_args: self.canvas.setFocus())
 
-    def set_hud_hidden(self, hidden: bool) -> None:
-        """Hide/show the operator column; the canvas takes (or gives back)
-        its width through the layout. Focus returns to the canvas so Space
-        and Esc keep working once the clicked button is gone."""
-        changed = hidden != self.hud_hidden
-        self.operator_panel.setVisible(not hidden)
-        self.canvas.setFocus()
-        if changed:
-            self.hud_hidden_changed.emit(hidden)
-
-    def toggle_hud(self) -> None:
-        self.set_hud_hidden(not self.hud_hidden)
+    def _shortcut(self, keys: str, button) -> QShortcut:
+        shortcut = QShortcut(QKeySequence(keys), self)
+        shortcut.setContext(Qt.ShortcutContext.WidgetWithChildrenShortcut)
+        shortcut.activated.connect(button.click)
+        return shortcut
 
 
 class MainWindow(QMainWindow):
     def __init__(
         self,
         theme: dict | None = None,
-        task_id: str = "click_static",
-        initial_settings: dict[str, Any] | None = None,
-        settings_source: str = "defaults",
-        settings_saved_at: str = "",
-        settings_calibration: dict | None = None,
         fullscreen: bool = True,
+        run_mode: str = RECORD,
     ) -> None:
         super().__init__()
         self.setWindowTitle("Pediatric Eye-Gaze Assessment")
 
-        self.view = TaskRunView(
-            theme=theme,
-            task_id=task_id,
-            initial_settings=initial_settings,
-            settings_source=settings_source,
-            settings_saved_at=settings_saved_at,
-            settings_calibration=settings_calibration,
-        )
+        self.view = TaskRunView(theme=theme, run_mode=run_mode)
         self.canvas = self.view.canvas
-        self.operator_panel = self.view.operator_panel
         self.setCentralWidget(self.view)
 
         if fullscreen:

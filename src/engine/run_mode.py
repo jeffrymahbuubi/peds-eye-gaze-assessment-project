@@ -32,6 +32,11 @@ PREVIEW_SEED = 2_000_000
 # so the gaze and pupil recorded just before it are a baseline (R8).
 PREROLL_MS = 500
 
+# How a run ended (``metadata.ended_by``): the task ran out of trials, or the
+# operator quit it (Quit, Alt-Q, Esc).
+ENDED_FINISHED = "finished"
+ENDED_QUIT = "operator_quit"
+
 
 def validate_run_mode(run_mode: object) -> str:
     """``run_mode`` itself if it is one of :data:`RUN_MODES`, else ``ValueError``."""
@@ -74,14 +79,18 @@ def outcome_fields(
     pause_count: int,
     interrupted_trials: int,
     ended_ns: int,
+    ended_by: str | None = None,
 ) -> dict[str, Any]:
     """The ``metadata.json`` fields that say how a run ended (4C.9, R1).
 
     ``completed_trials`` is the rows written to ``trials.csv``, skipped ones
     included. ``outcome`` is ``completed`` only when the task ran out of trials
-    on its own; anything else is the operator ending it, and the quit flow that
-    asks first (P7) does not change these values.
+    on its own; anything else is the operator ending it. ``ended_by`` is derived
+    from that unless the caller says (``_shutdown(ended_by=...)``): the quit flow
+    that asks first does not change these values.
     """
+    if ended_by not in (None, ENDED_FINISHED, ENDED_QUIT):
+        raise ValueError(f"ended_by must be {ENDED_FINISHED!r} or {ENDED_QUIT!r}, not {ended_by!r}")
     return {
         "planned_trials": planned,
         "completed_trials": len(trials),
@@ -89,15 +98,25 @@ def outcome_fields(
         "interrupted_trials": interrupted_trials,
         "pause_count": pause_count,
         "outcome": "completed" if is_done else "ended_early",
-        "ended_by": "finished" if is_done else "operator_quit",
+        "ended_by": ended_by or (ENDED_FINISHED if is_done else ENDED_QUIT),
         "ended_ns": ended_ns,
     }
 
 
-def apply_outcome(metadata: Any, task: Any, ended_ns: int) -> str:
+def apply_outcome(
+    metadata: Any,
+    task: Any,
+    ended_ns: int,
+    ended_by: str | None = None,
+    trial_number: int | None = None,
+) -> str:
     """Write how ``task``'s run ended into ``metadata`` (a ``SessionMetadata``) and
     return the ``session.log`` line for it. Call before the recorder closes, so
-    ``metadata.json`` carries the fields."""
+    ``metadata.json`` carries the fields.
+
+    ``trial_number`` overrides ``task.trial_number`` in the log line: a quit
+    confirmed while paused has already dropped the in-flight trial, so the task is
+    one step behind the trial the operator was actually on."""
     fields = outcome_fields(
         task.trials,
         len(task.targets),
@@ -105,11 +124,15 @@ def apply_outcome(metadata: Any, task: Any, ended_ns: int) -> str:
         task.pause_count,
         task.interrupted_trials,
         ended_ns,
+        ended_by,
     )
     for name, value in fields.items():
         setattr(metadata, name, value)
     return outcome_log_line(
-        fields["outcome"], fields["completed_trials"], fields["planned_trials"], task.trial_number
+        fields["outcome"],
+        fields["completed_trials"],
+        fields["planned_trials"],
+        task.trial_number if trial_number is None else trial_number,
     )
 
 

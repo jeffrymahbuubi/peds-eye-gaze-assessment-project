@@ -39,14 +39,22 @@ def run_status_line(
     *,
     practice: bool = False,
     paused: bool = False,
+    preview: bool = False,
 ) -> str:
     """The bar's status text: ``[PRACTICE (not recorded) · ]Trial i/N · tracking``.
 
     ``trial_number`` is 1-based; before the first trial (the pre-roll) the task
     reports 0 or less, shown as trial 1. While paused the tracking text is
-    dropped: ``Paused · Trial i/N``.
+    dropped: ``Paused · Trial i/N``. A ``preview`` (the mouse-driven look at a
+    configuration, 4B.6) says so instead of naming the tracker:
+    ``PREVIEW · Trial i/N · mouse pointer · nothing is recorded``, and
+    ``PREVIEW · Paused`` while paused.
     """
     trial = f"Trial {max(trial_number, 1)}/{planned}"
+    if preview:
+        if paused:
+            return "PREVIEW · Paused"
+        return f"PREVIEW · {trial} · mouse pointer · nothing is recorded"
     parts = ["PRACTICE (not recorded)"] if practice else []
     parts += ["Paused", trial] if paused else [trial, tracking_text]
     return " · ".join(parts)

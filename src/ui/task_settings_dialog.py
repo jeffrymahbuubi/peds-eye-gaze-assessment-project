@@ -61,6 +61,7 @@ from ..engine.target_size import (
     viewing_distance_mm,
 )
 from ..tasks.scanning import scanning_layout_slots
+from .config_widgets import choice_label, estimated_canvas_px, style_combo_popup
 from .settings_registry import (
     StructuralSetting,
     initial_structural_values,
@@ -68,7 +69,7 @@ from .settings_registry import (
     structural_settings_for_task,
 )
 from .slider_spin import SliderSpinRow
-from .wtmh_theme import BORDER, PANEL_BG, STYLESHEET
+from .wtmh_theme import STYLESHEET
 
 
 class TaskSettingsDialog(QDialog):
@@ -167,13 +168,9 @@ class TaskSettingsDialog(QDialog):
 
     @staticmethod
     def _estimated_canvas_px(screen, app_cfg: dict[str, Any]) -> tuple[float, float]:
-        """Rough size of the run canvas, for the grid-fit hint: the screen's
-        available area (the real canvas only exists once the run window is up,
-        and is a little smaller -- hence the hint is labelled approximate)."""
-        if screen is not None:
-            area = screen.availableGeometry()
-            return float(area.width()), float(area.height())
-        return float(app_cfg.get("screen_width_px", 1920)), float(app_cfg.get("screen_height_px", 1080))
+        """Rough size of the run canvas, for the grid-fit hint (shared with the
+        configuration page: :func:`~src.ui.config_widgets.estimated_canvas_px`)."""
+        return estimated_canvas_px(screen, app_cfg)
 
     def _build_control(self, setting: StructuralSetting, value: Any) -> QWidget:
         if setting.kind == "choice":
@@ -188,16 +185,9 @@ class TaskSettingsDialog(QDialog):
     def _build_choice(self, setting: StructuralSetting, value: Any) -> QComboBox:
         combo = QComboBox()
         for choice_value, label in setting.choices:
-            if setting.key in ("target.size", "layout.size"):
-                # The operator can't picture "5 degrees": show the diameter it
-                # comes to on this monitor.
-                diameter = 2 * radius_px_for(choice_value, self._scale.mm_per_px, self._distance_mm)
-                label = f"{label} (≈{round(diameter)} px)"
-            elif setting.key == "grid.gap":
-                # Likewise the cell gap (Standard has no angle, so no px).
-                gap = gap_px_for(choice_value, self._scale.mm_per_px, self._distance_mm)
-                if gap is not None:
-                    label = f"{label} (≈{round(gap)} px)"
+            label = choice_label(
+                setting.key, choice_value, label, self._scale.mm_per_px, self._distance_mm
+            )
             combo.addItem(label, choice_value)
         index = combo.findData(value)
         combo.setCurrentIndex(index if index >= 0 else combo.findData(setting.default))
@@ -206,17 +196,9 @@ class TaskSettingsDialog(QDialog):
 
     @staticmethod
     def _style_combo_popup(combo: QComboBox) -> None:
-        """Same popup treatment as the Setup page's combo (setup_page.py,
-        S13-S16): no inner frame, no focus rectangle, and an opaque outer
-        container -- the combo's own QSS cannot reach Qt's popup frame."""
-        combo.view().setFrameShape(QFrame.Shape.NoFrame)
-        combo.view().setFocusPolicy(Qt.FocusPolicy.NoFocus)
-        container = combo.view().parentWidget()
-        if container is not None:
-            container.setStyleSheet(
-                f"background: {PANEL_BG}; border: 1px solid {BORDER}; "
-                f"border-top: none; border-radius: 8px;"
-            )
+        """The Setup page's combo popup treatment (shared with the configuration
+        page: :func:`~src.ui.config_widgets.style_combo_popup`)."""
+        style_combo_popup(combo)
 
     def _update_fit_hint(self, *_args) -> None:
         """Show how far the chosen size will be shrunk to fit the chosen grid

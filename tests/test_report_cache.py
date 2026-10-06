@@ -99,6 +99,14 @@ def test_a_full_folder_gives_every_block(tmp_path):
     assert first["fixations"]["count"] >= 1 and first["path"]
 
 
+def test_the_map_carries_the_hit_tolerance_of_the_run(tmp_path):
+    """P7c 9 (2): the Target Map's dashed ring uses the run's jitter tolerance, not a fixed 40 px."""
+    settings = {"live": {"dwell.jitter_tolerance_px": 25}, "structural": {}}
+    assert build_report(full_folder(tmp_path, settings=settings))["map"]["hit_tolerance_px"] == 25
+    bare = {"live": {}, "structural": {}}
+    assert build_report(full_folder(tmp_path / "b", settings=bare))["map"]["hit_tolerance_px"] is None
+
+
 def test_g10_building_twice_gives_byte_identical_json(tmp_path):
     folder = full_folder(tmp_path)
     assert report_json(build_report(folder)) == report_json(build_report(folder))
