@@ -9,6 +9,8 @@ fidelity: >
   Two kinds of statement, always labelled. "Seen" = read off a screenshot in this folder.
   "Guide" = cites a heading in sources/compass-user-guide.md. Nothing is added from outside
   either source. Where the two disagree, both are given and the difference is flagged.
+  "Live" (added 2026-10-06) = verified on the running app; details and evidence in
+  ui-ux-live-verification.md.
 ---
 
 # Compass 3.0.1 — UI/UX Screen Walkthrough
@@ -34,14 +36,16 @@ Compass screen with the closest screen in our app, as a starting point for the l
 It is a mapping, not a recommendation.
 
 **Caveats about the screenshots.**
-- Each one is cropped to the window's client area. The OS title bar and the menubar
-  (`File / Edit / Tools / Help`, named in the guide) are not visible in any of them, so
-  menubar layout cannot be described from them.
-- The help bar at the bottom of the window is visible on three screens (Start, Summary,
-  Detailed). Several other captures show only a thin yellow line at the bottom edge, so whether
-  the bar is there too cannot be confirmed from the image.
-- Only the Aim path was captured. Screens with no screenshot are described from the guide alone
-  in [§4](#4-screens-without-a-screenshot-guide-only), and marked **no screenshot**.
+- Each of 01–08b is cropped to the window's client area, so the OS title bar and the menubar
+  do not show in them. **Live:** a `File / Edit / Tools / Help` menubar is on every main
+  screen (screenshots 10–30; menu items in
+  [`ui-ux-live-verification.md` (b)](ui-ux-live-verification.md#b-newly-documented-screens-and-dialogs)).
+- The help bar is fully visible in only three of 01–08b (Start, Summary, Detailed). **Live:**
+  it is on every screen, including Welcome, and its text follows the control under the mouse
+  or focus (for example `10-preferences.png`, `13-choose-tests-multiple.png`).
+- 01–08b cover only the Aim path. Screens with no screenshot in that set are described from the
+  guide in [§4](#4-screens-without-a-screenshot-guide-only); §4 now marks which of them were
+  verified live and links screenshots 09–31.
 
 ---
 
@@ -82,14 +86,14 @@ Read off all 12 screenshots. The guide gives none of this except where cited.
 
 | Element | What is on screen |
 |---|---|
-| Window | Full-screen, one screen at a time. Screens replace each other in the same window. The only separate windows are the OS file dialog (03b) and the "Test Complete" dialog (07b). |
+| Window | Full-screen, one screen at a time. Screens replace each other in the same window. The only separate windows in 01–08b are the file dialog (03b) and the "Test Complete" dialog (07b). **Live:** practice, recorded runs and Preview Test open a separate full-screen window titled with the test name, the Multi-Test Report is its own window, and several confirmations are modal dialogs (`20`, `25`, `27`; live-verification (b)). |
 | Background | Flat light grey for the whole window. Content areas (text, lists, tables, the test canvas) are white. |
 | Screen title | Large bold text, top-left, and the only heading on the screen: "Welcome to Compass!", "Choose an Action", "Enter Information for a New Client", "Choose Skill Test(s)", "Test List for test2", "Aim Test Configuration", "Start Aim 1", "Summary Results:" / "Detailed Results:". Where it names something (the client, the test), the title carries that name. |
 | Grouping | Classic titled group boxes (thin border, bold title set into the top edge): "Client Info", "Evaluator Info", "Available Tests", "Tests to Add", "Feedback Options", "Target Location", "Summary of Results", "Target Map" and so on. No cards, shadows or colour coding. |
 | Widgets | Standard OS widgets: text fields, drop-downs, radio buttons, check boxes, a tree, column-header tables. *(Guide: platform look-and-feel since v2.0, What Was New in Version 2.0 › Updated Look-and-Feel.)* |
 | Buttons | Small, bold-labelled, same height. Actions that end the screen sit in a **centred row at the bottom** (Save & Continue / Cancel, Start / Practice / Cancel, Print Report / View Details / Save & Continue / Cancel). The one exception is the Test List, whose per-test actions are a **vertical column at the right**. |
 | Disabled state | Unavailable buttons are drawn in grey, for example "Add Test >>" before anything is selected, "View Report" and "Multi-Test Report" for an unrun test, and "Save Client File" when nothing has changed. *(Guide: Test List.)* |
-| Help bar | A white strip with a yellow border at the very bottom, text starting "Help:", describing the current screen (07a, 08a, 08b). *(Guide: "Screen Tips … appear in the help frame at the bottom of the Compass window", Getting Help.)* |
+| Help bar | A white strip with a yellow border at the very bottom, text starting "Help:", describing the current screen (07a, 08a, 08b). *(Guide: "Screen Tips … appear in the help frame at the bottom of the Compass window", Getting Help.)* **Live:** on every screen; the text describes the control under the mouse or focus. |
 | Density | Content hugs the top-left. Large stretches of the window stay empty: Choose an Action uses three buttons in a full screen; the Aim configuration uses about the left third of the width. |
 
 ---
@@ -170,7 +174,8 @@ Footer: **Save & Continue**, **Cancel**.
 
 *(Create a New Client; How Compass Stores Client Information; Edit Client Information.)*
 
-**Not captured:** the Save As dialog.
+**Not captured** in 01–08b: the Save As dialog. **Live:** `11-save-as-new-client.png`; last-used
+folder (not My Documents), Files of type "All Files", default name as the guide says.
 
 ### 3.4 Choose a Client to Open — `03b-open-existing-client.png`
 
@@ -196,8 +201,9 @@ Footer: **Save & Continue**, **Cancel**.
 **Differences.**
 - The guide calls this the "Open Existing Client dialogue box"; the real title is "Choose a
   Client to Open".
-- The capture shows "All Files", not the `.cms` filter the guide says it starts with. The
-  filter may have been changed before the capture; one image cannot settle this.
+- The capture shows "All Files", not the `.cms` filter the guide says it starts with.
+  **Live, settled:** "All Files" **is** the default; the dialog opens in the **last-used folder**
+  with the last client's file name filled in, and is a Java (Swing) chooser (`12-open-dialog.png`).
 
 ### 3.5 Choose Skill Test(s) — `04a-…-empty.png`, `04b-…-aim-added.png`
 
@@ -351,6 +357,8 @@ Tests; see ui-ux-patterns.md §3)*.
 *(Running Tests; Tips for Using Compass › 3. Running the Tests.)*
 
 **Differences.** The **Cancel** button on this screen is not mentioned in the guide.
+**Live, settled:** all eight Start screens have Start / Practice / Cancel (`16-start-*.png`;
+texts in [live-verification (d)](ui-ux-live-verification.md#d-start-screen-instructions-all-eight-tests)).
 
 ### 3.9 Running a test, and "Test Complete!" — `07b-test-complete-dialog.png`
 
@@ -382,8 +390,10 @@ Tests; see ui-ux-patterns.md §3)*.
   "Pause"/"Quit".
 - The real label is "Discard Results". The guide only says "discarding the results".
 
-**Not captured:** the trial screen itself (a target on the canvas), the paused state, and the
-Quit confirmation.
+**Not captured** in 01–08b: the trial screen itself (a target on the canvas), the paused state,
+and the Quit confirmation. **Live:** the run is a separate window named after the test (`20`);
+Quit gives "Quit Test" (OK / Cancel), then "Test Complete" with only Save Partial Results /
+Discard Results, while Pause reads "Re-Start (Alt-P)" (`23`, `24`).
 
 ### 3.10 Summary Results — `08a-summary-results.png`
 
@@ -433,7 +443,8 @@ Quit confirmation.
 - **Target Map marks.** At this capture size the marks look like short horizontal green strokes,
   not circles, although the legend on the screen says "Green circles". The guide says "the size
   of the circles represents the relative size of the target". The map is drawn much wider than
-  it is tall, so circles may be squashed. One screenshot cannot settle this.
+  it is tall, so circles may be squashed. One screenshot cannot settle this. **Live, settled:**
+  the map is about 10:1, so circles are squashed into bars; misses are red X (`21`, `21b`).
 - **The configuration table uses shorter value labels than the configuration screen.** "Icon"
   instead of "Icon-Size", "Audio" instead of "Auditory", "Medium Long" for two ticked distances,
   "100%, 100%" for coverage. The detailed view (below) uses "Icon-Size" again.
@@ -463,30 +474,33 @@ detail rows.
 - Entries are 13 over 12 trials (trial 10 has 2), giving 1.08. ✓
 
 So the summary row "All Aim Trials" is a plain per-trial average, as the guide's "average …
-for each trial in this category" says.
+for each trial in this category" says. **Live, refined with misses:** Trial Time, Entries and
+Clicks average all trials, Reaction Time only the selected ones (`21`, `22`; live-verification (e)).
 
 ---
 
 ## 4. Screens without a screenshot (guide only)
 
-**No screenshot** for any of these. Each is described from the guide alone. Capture them if the
-visual detail matters.
+None of these is in 01–08b; the "What the guide says" column is from the guide alone. The
+**Live** column (2026-10-06) says whether the screen was then seen on the running app, with its
+screenshot; details are in [`ui-ux-live-verification.md`](ui-ux-live-verification.md) (b).
 
-| Screen / dialog | What the guide says | Source heading |
-|---|---|---|
-| Registration / trial dialog | On first run: free 30-day trial or register (name, email, licence code). | *Trial Period and Registration* |
-| Save As (new client) | Default name from the client's name, `.cms` added automatically, My Documents. Cancel returns to the new-client form. | *How Compass Stores Client Information* |
-| Edit Client Information | The new-client fields, editable at any time from Tools. Save and Continue / Cancel. | *Edit Client Information* |
-| Preferences | Two check boxes: show the welcome screen, show tooltips. OK / Cancel. | *Tailoring the Compass Interface* |
-| Tool tip + screen tip | A tool tip near the cursor (can be switched off); a screen tip in the bottom help frame (always on). | *Getting Help* |
-| Set Colors… (Aim) | Three rows of preset white/black/blue target-on-background swatches, a Background row, a Target row, a Preview area, OK / Cancel. | *Aim Test Configuration › Target Size and Color* |
-| Select Regions… (Aim) | A box standing for the screen, split into six regions. Toggle by click or Tab + Space. At least one must stay selected. | *Aim Test Configuration › Target Location* |
-| Configuration rename prompt | Shown when a changed "Standard" configuration is saved. | *Configuring Tests* |
-| Trial screen (Aim) | One target at a time. The next appears when the target is selected, or after the maximum time. | *Aim Test Overview* |
-| Quit confirmation, then save/discard partial data | | *Running Tests* |
-| Delete Test confirmation | | *Test List* |
-| Multi-Test Report | An evaluator-name prompt and OK, then a separate paginated window containing a speed-accuracy profile, accuracy and speed bar graphs with a description of each, a data table, and each test's configuration. Previous / Next / Print / Save (RTF or PDF) / Close; asks to save on close. | *Multi-Test Reports* |
-| The other seven tests' configuration and results screens | The same structure as Aim; settings and columns are in [`ui-ux-patterns.md` §3–§5](ui-ux-patterns.md#3-anatomy-of-a-configuration-screen). The guide's generic configuration illustration is a **Menu** test. | *Configuring Tests*; each test's chapter |
+| Screen / dialog | What the guide says | Source heading | Live |
+|---|---|---|---|
+| Registration / trial dialog | On first run: free 30-day trial or register (name, email, licence code). | *Trial Period and Registration* | Verified: Free Trial / Register... buttons, days left; extension contact is support@ (`09`). Register... form not opened |
+| Save As (new client) | Default name from the client's name, `.cms` added automatically, My Documents. Cancel returns to the new-client form. | *How Compass Stores Client Information* | Verified, differs: last-used folder, Files of type "All Files" (`11`) |
+| Edit Client Information | The new-client fields, editable at any time from Tools. Save and Continue / Cancel. | *Edit Client Information* | Verified: full screen; buttons "Save & Continue" / "Cancel" (`30`) |
+| Preferences | Two check boxes: show the welcome screen, show tooltips. OK / Cancel. | *Tailoring the Compass Interface* | Verified: both on one row, both checked (`10`) |
+| Tool tip + screen tip | A tool tip near the cursor (can be switched off); a screen tip in the bottom help frame (always on). | *Getting Help* | Screen tip verified on every screen; tool tips not captured |
+| Set Colors… (Aim) | Three rows of preset white/black/blue target-on-background swatches, a Background row, a Target row, a Preview area, OK / Cancel. | *Aim Test Configuration › Target Size and Color* | Verified: title "Select Target and Background Colors"; adds More Background / More Target Colors buttons (`17`) |
+| Select Regions… (Aim) | A box standing for the screen, split into six regions. Toggle by click or Tab + Space. At least one must stay selected. | *Aim Test Configuration › Target Location* | Verified: 3 x 2 grid, all unshaded when first opened (`18`, `18b`) |
+| Configuration rename prompt | Shown when a changed "Standard" configuration is saved. | *Configuring Tests* | Verified: "Compass Warning", OK only, no name field (`19`) |
+| Trial screen (Aim) | One target at a time. The next appears when the target is selected, or after the maximum time. | *Aim Test Overview* | Separate full-screen window seen (`20`); a target on screen not captured. Drag preview seen (`25`) |
+| Quit confirmation, then save/discard partial data | | *Running Tests* | Verified: two dialogs (`23`, `24`) |
+| Delete Test confirmation | | *Test List* | Verified: "Delete Test", Yes / No (`29`) |
+| Multi-Test Report | An evaluator-name prompt and OK, then a separate paginated window containing a speed-accuracy profile, accuracy and speed bar graphs with a description of each, a data table, and each test's configuration. Previous / Next / Print / Save (RTF or PDF) / Close; asks to save on close. | *Multi-Test Reports* | Verified: prompt, 4 pages A–E, "Close Report" asks Yes / No / Cancel (`26`, `27-p1..p4`, `28`). Save format not captured |
+| The other seven tests' configuration and results screens | The same structure as Aim; settings and columns are in [`ui-ux-patterns.md` §3–§5](ui-ux-patterns.md#3-anatomy-of-a-configuration-screen). The guide's generic configuration illustration is a **Menu** test. | *Configuring Tests*; each test's chapter | Configuration screens and Start screens verified for all eight (`15-config-*`, `16-start-*`); results screens not captured |
+| End Client Session prompt; Test List after runs | (Test List: saves after confirming) | *Test List* | Verified: "Close Client", Yes / No (`31`); list states (`14`) |
 
 ---
 
@@ -568,6 +582,10 @@ Our side was read from `src/ui/` (`setup_page.py`, `tasks_page.py`, `task_settin
   try to tell which.
 - The client name `test2` and the 2026-10-06 date are the user's own test session, not Compass
   sample data.
+- **Live (2026-10-06):** screenshots `09-*` to `31-*` (some cropped to the dialog) and every
+  "Live" note here come from a later driven session on the installed 3.0.1 (Java Access Bridge,
+  coordinate clicks, throwaway client "Probe JabTest"); method and limits are in
+  [`ui-ux-live-verification.md`](ui-ux-live-verification.md).
 
 | In this folder | Original file (`resources/compass/UI-UX/`, outside the repo) |
 |---|---|

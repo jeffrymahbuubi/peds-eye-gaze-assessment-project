@@ -18,6 +18,10 @@ short usability remarks). The few construction facts it does give are collected 
 [§8](#8-platform-and-construction-facts). The 58 screenshots are not in this corpus, so every
 layout statement below comes from prose alone — consult the PDF for anything visual.
 
+**Verified values:** the running 3.0.1 app was checked on 2026-10-06. Where it differs from the
+guide, this file now adds a short **Live** note; the evidence and the full defaults of all eight
+tests are in [`ui-ux-live-verification.md`](ui-ux-live-verification.md).
+
 **Citations** name a heading in [`sources/compass-user-guide.md`](../sources/compass-user-guide.md),
 with `›` for nesting, e.g. *(Aim Test Configuration › Timing)*. Page numbers are not preserved.
 
@@ -45,7 +49,9 @@ Results*, *Multi-Test Reports*.
 - **Menubar** items named in the guide: `File/New Client`, `File/Open Client`, `File/Save`,
   `File/Save As`, `Edit/Copy` (or Ctrl-C), `Tools/Preferences`, `Tools/Edit Client
   Information`, `Help/Compass Help` (or F1) *(Create a New Client; Open an Existing Client; Test
-  List; Viewing Results; Tailoring the Compass Interface; Getting Help)*.
+  List; Viewing Results; Tailoring the Compass Interface; Getting Help)*. **Live:** the full
+  menubar (including Print Report..., Exit, Cut/Paste, Help › Overview and About) is listed in
+  live-verification (b).
 - **The Welcome screen is optional.** A "Don't show this introduction screen in the future" box
   skips it; `Tools/Preferences › Show welcome screen when Compass starts` brings it back
   *(Welcome to Compass; Tailoring the Compass Interface)*.
@@ -101,6 +107,11 @@ Appearance dialogs are opened from a button and share a structure — option pan
 Configuration › Item Style; Switch Test Configuration › Prompt Type; Letter / Word / Sentence
 Test Configuration › Text Style)*
 
+**Live:** the Menu, Letter, Word and Sentence button is labelled **"Change Text Style..."**;
+Aim's Set Colors dialog is titled "Select Target and Background Colors" and also has "More
+Background Colors" / "More Target Colors" buttons (`screenshots/15-config-*.png`,
+`17-set-colors.png`).
+
 ## 4. The eight tests at a glance
 
 Families: **Pointing** (Aim, Drag, Menu), **Scanning** (Switch, Scan), **Text Entry** (Letter,
@@ -109,16 +120,20 @@ Word, Sentence) *(Skill Tests)*.
 | Test | What the client sees / does | Selection or input options | Trials | Max time | Pause between | Other shipped defaults |
 |---|---|---|---|---|---|---|
 | **Aim** | One target at a time; move cursor in and select | Click (default), Double Click, Dwell (1.0 s) | 12 | 30 s | 1 s | Squares; Icon-Size; blue on white; Medium + Long distance; 100 % coverage; no cursor path |
-| **Drag** | Target + destination pair; drag target to destination | Click, Dwell | not stated in the Drag section | not stated | not stated | Icons (destination is a trashcan; pictures → a house); destination "Same as Target"; Medium + Long |
+| **Drag** | Target + destination pair; drag target to destination | Click (default, Live), Dwell (1.0 s, Live) | not stated in the Drag section; **Live: 12** | not stated; **Live: 30 s** | not stated; **Live: 1 s** | Icons (destination is a trashcan; pictures → a house); Icon-Size (Live); destination "Same as Target"; Medium + Long; 100 % coverage, no cursor path (Live) |
 | **Menu** | Target item (and its menu) prompt; choose it from a menubar | any input device | 8 | 90 s | 1 s | Prompt = Target Item and Menu; Typical menubar (8 menus, 3–10 items); submenus off; bold 12, black on gray |
-| **Scan** | Target item + scanning layout; single switch | automatic single-switch scanning only | 8 | 180 s | 1 s | scan rate 2 s; extra delay 0; initiation Automatic; layout Row/column Frequency (EARDF); loop count 1; Show Sentence off; bold 40, black on gray, yellow highlight |
-| **Switch** | Visual prompt (neutral face → yellow smiley on hit) | left mouse button or emulating switch | 8 | 30 s | constant 1 s (or random 1–4 s) | 1 hit required (2 or 3 available); hold time 0 s; audio prompt off |
+| **Scan** | Target item + scanning layout; single switch | automatic single-switch scanning only | 8 | 180 s | 1 s | scan rate 2 s; extra delay 0; initiation Automatic (**Live: Manual**); layout Row/column Frequency (EARDF) (**Live: combo reads "Row-column Frequency 1"**); loop count 1; Show Sentence off; bold 40, black on gray, yellow highlight |
+| **Switch** | Visual prompt (neutral face → yellow smiley on hit) | left mouse button or emulating switch | 8 | 30 s | constant 1 s (or random 1–4 s) (**Live: Random is selected, 1–4 s**) | 1 hit required (2 or 3 available); hold time 0 s; audio prompt off |
 | **Letter** | One target letter; type it | any keyboard / emulator | 8 | 30 s | 1 s | All Letters; lower case; bold 40, black on gray; scoring always case-sensitive |
-| **Word** | Target word + entry box; Enter ends trial | any keyboard / emulator | 8 | 120 s | 1 s | Word List Set.2 (≈3rd grade); Allow Edits on; case-sensitive scoring off; bold 40, black on white |
+| **Word** | Target word + entry box; Enter ends trial | any keyboard / emulator | 8 | 120 s | 1 s | Word List Set.2 (≈3rd grade) (**Live: label "Word Set 2"**); Allow Edits on; case-sensitive scoring off; bold 40, black on white |
 | **Sentence** | Target sentence + entry box; Enter ends trial | any keyboard / emulator | 4 | 300 s | 1 s | Sentence Set 2 (≈3rd grade; 6 list options); Allow Edits on; case-sensitive scoring off; bold 30, black on white |
 
 Feedback defaults, where stated (all but Drag): Style **Basic**; Correct Trials **Auditory**;
-Incorrect Trials **Auditory** *(each test's Configuration › Feedback Options)*.
+Incorrect Trials **Auditory** *(each test's Configuration › Feedback Options)*. **Live:** the
+same for all eight, Drag included. Every other value in this table that is a control on the
+configuration screen matched the live screens. Not checked live: font/colour defaults (bold 12,
+bold 40 …, the style dialogs were not opened), Menu's "3–10 items", and Letter's always
+case-sensitive scoring (`screenshots/15-config-*.png`; live-verification (c)).
 
 Selected design details:
 
@@ -220,7 +235,9 @@ The only statements about how the app is built:
   *(What was New in Version 2.4)*.
 - **File and dialogs:** standard OS file-management dialogs; default file location My Documents
   (Windows) or home directory (Mac) *(How Compass Stores Client Information; Open an Existing
-  Client)*.
+  Client)*. **Live (Windows):** the dialogs are Java (Swing) file choosers in the Windows look,
+  and they open in the last-used folder on "All Files" (`11-save-as-new-client.png`,
+  `12-open-dialog.png`).
 - **Registration:** a dialog on first run offers a 30-day free trial or registration (name,
   email, licence code) *(Trial Period and Registration)*.
 - **Mac menubar limitation:** the standard Apple/Application menus stay active during a test and
@@ -240,6 +257,8 @@ The only statements about how the app is built:
 ## 10. Traps and inconsistencies in the guide
 
 Surfaced, not resolved — without the screenshots the true on-screen labels cannot be checked.
+(Items the live app settled on 2026-10-06 carry a "Resolved live" note; evidence in
+[`ui-ux-live-verification.md`](ui-ux-live-verification.md).)
 
 1. **Scan layouts — overview vs configuration.** *Scan Test Overview* says "Two letter layouts are
    available: alphabetical and frequency-based"; *Scan Test Configuration* lists five letter
@@ -253,14 +272,28 @@ Surfaced, not resolved — without the screenshots the true on-screen labels can
    *(Test List)*; the "Save Client File" button vs "the **Save** button is grey" *(Test List)*;
    "Pause button / Quit button" vs "Pause Test button / Quit Test button" in the Letter, Word and
    Sentence overviews.
+   *Resolved live 2026-10-06:* the real labels are "Add New Test" and "Save Client File"
+   (`14-test-list-states.png`). In the Aim and Drag run windows the buttons read "Pause (Alt-P)"
+   / "Quit (Alt-Q)" (`20`, `25`); the Letter/Word/Sentence Start screens say "Pause" / "Quit"
+   button (`16-start-letter.png` etc.). Their run windows were not captured.
 4. **Keyboard shortcuts are listed only for some tests.** Alt-P / Alt-Q are documented for Aim,
    Drag, Menu, Switch and Scan *(Running Tests)*; the Letter, Word and Sentence overviews mention
    buttons only. The guide does not say whether the shortcuts are absent there.
+   *Partly resolved live 2026-10-06:* the app's own Start-screen instructions match the guide:
+   ALT-P / ALT-Q for the five, buttons only for Letter, Word and Sentence (`16-start-*.png`).
+   Whether the keys work in the text tests was not tested.
 5. **"Quit" saves partial data as "completed".** Saving after Quit lists the test as completed
    *(Running Tests)*, but a partially entered sentence is not recorded *(Sentence Test
    Overview)*.
+   *Resolved live 2026-10-06:* confirmed. After "Save Partial Results" the Test List shows only
+   the date, exactly like a complete test, with no partial marker; the multi-test report lists
+   its configured Number of Trials (12), not the number run (`14-test-list-states.png`,
+   `24-quit-save-partial.png`, `27-multi-report-p4.png`).
 6. **Trial Time can exceed Maximum Time** in Aim and Drag if the cursor is inside the target when
    time expires *(Aim Test Results; Drag Test Results)*.
+   *Seen live 2026-10-06:* a timed-out Aim trial with no selection recorded 3.01 s against a 3 s
+   maximum (`22-detailed-with-misses.png`), so a small overrun also occurs without the cursor in
+   the target.
 7. **Total Errors is unreliable with prediction or speech recognition**, because those tools
    insert backspaces that are counted; use Net Errors and Typing Speed instead *(Using Compass
    with Word Prediction; … Speech Recognition)*.
@@ -275,6 +308,14 @@ Surfaced, not resolved — without the screenshots the true on-screen labels can
     Results)*.
 12. **Version drift:** this is the 3.0 guide; the installer in the workspace is 3.0.1
     (see [INDEX.md](../INDEX.md)).
+    *Resolved live 2026-10-06:* the 3.0.1 app differs from the guide in a few defaults and
+    labels (Scan Initiation Manual, Switch pause Random, "Change Text Style...", file dialogs
+    open in the last-used folder on "All Files", trial-extension email support@). Whether these
+    are version changes or guide errors cannot be told. Full list: live-verification (a).
+13. **Multi-test "speed" includes timeouts** (found live, not in the guide). The multi-test
+    report's Trial Time is the All-trials mean, timed-out trials included, although its text
+    says "the average time the user required to select the targets" (`27-multi-report-p3.png`;
+    live-verification (e)).
 
 ## 11. Research basis the guide cites
 
