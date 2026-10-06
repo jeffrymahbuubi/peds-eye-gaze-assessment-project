@@ -1,7 +1,7 @@
 ---
 name: SPEC-target-visual-fixes
 title: Follow-ups from target-size Phase B — dialog label visibility, scanning rings, target colour
-status: complete — F2 a + F3 a implemented, reviewed, live-checked (fake server); F1 closed (not reproduced)
+status: complete — F2 a + F3 a implemented, reviewed, live-checked (fake server), committed `d1ff0ea`; F1 closed (not reproduced)
 created: 2026-10-06
 last_updated: 2026-10-06
 next_step: none

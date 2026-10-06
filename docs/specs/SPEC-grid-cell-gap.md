@@ -1,7 +1,7 @@
 ---
 name: SPEC-grid-cell-gap
 title: Grid Click — operator-set gap between cells (dead zone)
-status: implemented — reviewed (728 passed) and live-checked vs the fake server; real-gaze dead-zone check OPEN
+status: implemented — reviewed (728 passed), live-checked vs the fake server, committed `bc8f282`; real-gaze dead-zone check still open (deferred by the user)
 created: 2026-10-06
 last_updated: 2026-10-06
 next_step: real-gaze check with the user as subject (3x3 Extra wide: look into the gap, nothing selects)

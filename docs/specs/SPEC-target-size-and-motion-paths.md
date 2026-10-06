@@ -4,7 +4,7 @@ title: Target size presets (Small/Medium/Large by visual angle), grid fit, and n
 status: approved by the user 2026-10-06 (incl. hub decisions §4.4 speed, §4.4 corner diagonals, §4.2 size-wins, §5 phasing); wireframe approved 2026-10-06; Phase A + C implemented, reviewed, visually live-checked and committed 2026-10-06 (`0854ccf`); real-gaze grid check open; Phase B (§11) implemented, hub-reviewed, live-checked unattended and committed 2026-10-06 (`6ba9306`; wireframe approved by the user); real-gaze check still open
 created: 2026-10-06
 last_updated: 2026-10-06
-next_step: (1) real-gaze grid check with the user as subject (§10); (2) optional follow-ups from the Phase B findings (§10 overnight entry: dark-mode dialog labels, scanning ring at hit radius, theme colour overrides task colour)
+next_step: real-gaze grid check with the user as subject (§10) -- still open. The Phase B follow-ups are DONE in SPEC-target-visual-fixes.md (`d1ff0ea`)
 related:
   - SPEC-live-settings-panel.md (§4/§5.3 structural settings + TaskSettingsDialog; §10 settings profiles store the structural block)
   - SPEC-follow-moving-selection.md (selection window, attempts; unchanged here)
@@ -739,6 +739,14 @@ is on the QComboBox page); `QWidget.grab()` is used in a test only.
 - **2026-10-06** — User reviewed the Phase B wireframe ("looks fine") and
   approved commit + push. §9 Phase B items 1-6 stand as implemented. Phase B
   committed and pushed together with the SPEC/wireframe updates (`6ba9306`).
+
+- **2026-10-06** — The three Phase B findings (§8, "Findings, not fixed") were
+  handled in a separate SPEC, `SPEC-target-visual-fixes.md`: finding 1 (dialog
+  labels) closed as not reproduced; finding 2 (scanning rings) fixed; finding 3
+  (task YAML colour) fixed by removing the unused keys. Committed `d1ff0ea`.
+  **Still open: the real-gaze grid check** with the user as subject (a look at a
+  neighbour cell must not count), deferred by the user; it can be done in the same
+  sitting as SPEC-grid-cell-gap.md's open real-gaze dead-zone check.
 
 ## 11. Phase B — no px radius anywhere (design APPROVED 2026-10-06: B1 a, B2 a, B3 a)
 
