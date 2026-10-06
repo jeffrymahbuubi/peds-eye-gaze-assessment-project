@@ -1,5 +1,7 @@
 ![[_nav.md]]
 
+> **Dashboard part SUPERSEDED (SPEC-compass-task-flow.md, 2026-10-06):** inside the dashboard, settings move to the full configuration page (`task-config.md`). This dialog stays only for the standalone `--task X --gui` path (HB11) and now also shows Play hit sound / Play miss sound check boxes.
+
 ## Task settings dialog — target size presets and movement paths
 
 > SPEC-target-size-and-motion-paths.md §4.5. The pre-launch dialog opened by **Run** on the Tasks page. Two new dropdown controls replace a px slider (Grid Click) or add a choice that today exists only in YAML (Follow & Click). All other rows (sliders with a number box) are unchanged. Numbers below are for a 24" 1920x1080 monitor at 650 mm.

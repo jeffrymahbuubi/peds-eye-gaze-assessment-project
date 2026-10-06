@@ -529,140 +529,56 @@ body.wmd-root {
     <a href="./test-list.html" class="wmd-nav-item">2 · Tests</a>
   </div>
 </nav>
-<h2 class="wmd-h2">Task run screen — no HUD</h2>
+<h2 class="wmd-h2">Start Grid Click 1</h2>
 <blockquote class="wmd-blockquote">
-  <p class="wmd-paragraph">SPEC-compass-task-flow.md 4C.5–4C.7 (U5). Rewritten: the HUD side column (<code>OperatorPanel</code>), its live sliders and Hide HUD are removed. During a run, only a thin bottom bar remains. While Practice or a recorded run is showing, the dashboard title bar and nav are hidden, so the canvas fills the window above the bar. The child sees only the canvas. This supersedes SPEC-hud-hide-toggle.md.</p>
+  <p class="wmd-paragraph">SPEC-compass-task-flow.md 4C.2–4C.4. Opened by Run Test on the Test List, always (R2). The nav is locked here, as during a run. Compass reference: <code>docs/compass/screenshots/07a-*.png</code>.</p>
 </blockquote>
-<hr class="wmd-separator" />
-<h3 class="wmd-h3">A · Recorded run</h3>
-<pre class="wmd-code-block"><code>+--------------------------------------------------------------------------------------+
-|                                                                                      |
-|                                                                                      |
-|                                                                                      |
-|                          TASK CANVAS (stretch, whole window)                         |
-|                                                                                      |
-|                                   ( target )                                         |
-|                                                                                      |
-|                                      o  gaze cursor (if on in the configuration)     |
-|                                                                                      |
-|                                                                                      |
-+--------------------------------------------------------------------------------------+
-| Trial 4/18 · tracking OK                [ Pause (Alt-P) ]  [ Skip trial ]  [ Quit (Alt-Q) ] |
-+--------------------------------------------------------------------------------------+
-   light grey bar, about 44 px, status on the left, buttons centred</code></pre>
-<p class="wmd-paragraph">Trial 4/18 · <span class="wmd-badge wmd-badge-success">tracking OK</span></p>
-<div class="wmd-container-button-group">
-  <button class="wmd-button">Pause (Alt-P)</button>
-  <button class="wmd-button">Skip trial</button>
-  <button class="wmd-button">Quit (Alt-Q)</button>
+<div class="wmd-container-alert">
+  <p class="wmd-paragraph">warning</p>
+  <p class="wmd-paragraph">Still needed before you can start: The tracker is not connected. Connect it on the Setup page. · No calibration yet. Calibrate on the Setup page.</p>
+</div>
+<button class="wmd-button wmd-outline">Go to Setup</button>
+<blockquote class="wmd-blockquote">
+  <p class="wmd-paragraph"><strong>Blocker banner:</strong> shown only when something is missing (the list comes from <code>SetupPage.run_blockers()</code>). Start and Practice are disabled while it shows. It is checked again every second, because the tracker can drop. It is hidden when there is nothing to fix.</p>
+</blockquote>
+<div class="wmd-container-card">
+  <h3 class="wmd-h3">Read aloud to the child</h3>
+  <p class="wmd-paragraph"><strong>Instructions for the Grid Click test:</strong></p>
+  <ol class="wmd-list">
+  <li class="wmd-list-item">The small dot on the screen shows where you are looking. A board of squares will appear on the screen.</li>
+  <li class="wmd-list-item">One square will light up.</li>
+  <li class="wmd-list-item">Look at the lit square and keep looking at it for about 0.8 seconds. A ring will fill up around it.</li>
+  <li class="wmd-list-item">When it is selected, another square will light up. Continue until no more squares light up.</li>
+</ol>
+  <p class="wmd-paragraph">NOTE: If the square is not selected within 8 seconds, the next square will light up.</p>
+  <hr class="wmd-separator" />
+  <h3 class="wmd-h3">For the clinician (not read aloud)</h3>
+  <p class="wmd-paragraph">To pause the test: click the &quot;Pause&quot; button, or press ALT-P. To quit the test: click the &quot;Quit&quot; button, or press ALT-Q.</p>
+  <p class="wmd-paragraph">Practice runs 3 targets with these settings. Nothing is recorded. Repeat it as often as needed.</p>
+  <p class="wmd-paragraph">Start records 18 trials. Check that the bottom bar says &quot;tracking OK&quot; before you begin.</p>
 </div>
 <blockquote class="wmd-blockquote">
-  <p class="wmd-paragraph"><strong>Status line, one line, updated every frame:</strong></p>
-  <ul class="wmd-list">
-  <li class="wmd-list-item">&quot;tracking OK&quot;: green.</li>
-  <li class="wmd-list-item">&quot;no gaze for 3 s&quot;: amber. Shown only after 1 s without valid gaze, because single blink or saccade frames are normal. Before the first valid sample it reads &quot;waiting for gaze&quot;.</li>
-  <li class="wmd-list-item">&quot;tracker DISCONNECTED&quot;: red.</li>
-</ul>
+  <p class="wmd-paragraph">The numbers (0.8 seconds, 8 seconds, 18 trials) come from this test's own configuration. The "small dot" sentence appears only when the gaze cursor is on, and the "ring" sentence only when the progress ring is on. Each task has its own four steps (SPEC 4C.3). <strong>The text is read to children and needs clinician review before release.</strong></p>
 </blockquote>
+<div class="wmd-row">
+  <div class="wmd-grid-item">
+    <div class="wmd-container-button-group">
+  <button class="wmd-button wmd-outline">Start</button>
+  <button class="wmd-button wmd-outline">Practice</button>
+  <button class="wmd-button wmd-outline">Cancel</button>
+</div>
+  </div>
+</div>
 <blockquote class="wmd-blockquote">
-  <p class="wmd-paragraph"><strong>Bar buttons:</strong></p>
-  <ul class="wmd-list">
-  <li class="wmd-list-item">Skip trial is enabled only while a target is waiting, not between trials and not while paused.</li>
-  <li class="wmd-list-item">Alt-P and Alt-Q work from anywhere in the run screen.</li>
-  <li class="wmd-list-item">After any click, focus goes back to the canvas, so Space (switch) keeps working.</li>
-</ul>
+  <p class="wmd-paragraph">There is no default button, so Enter starts nothing. Esc = Cancel, which goes back to the Test List.</p>
 </blockquote>
-<hr class="wmd-separator" />
-<h3 class="wmd-h3">B · Paused</h3>
-<pre class="wmd-code-block"><code>+--------------------------------------------------------------------------------------+
-|                                                                                      |
-|                                                                                      |
-|                                       Paused                                         |
-|                          (no target, no gaze cursor)                                 |
-|                                                                                      |
-|                                                                                      |
-+--------------------------------------------------------------------------------------+
-| Paused · Trial 4/18                     [ Resume (Alt-P) ]  [ Skip trial ]  [ Quit (Alt-Q) ] |
-+--------------------------------------------------------------------------------------+</code></pre>
+<p class="wmd-paragraph">Practice finished: 3 of 3 selected. You can practice again or press Start.</p>
 <blockquote class="wmd-blockquote">
-  <p class="wmd-paragraph"><strong>Pause:</strong></p>
-  <ul class="wmd-list">
-  <li class="wmd-list-item">The clock stops.</li>
-  <li class="wmd-list-item">A trial interrupted by the pause is not recorded. On Resume the same target is shown again with a fresh clock, so a long pause never causes a timeout.</li>
-  <li class="wmd-list-item">Pause time is not counted in the valid-gaze share.</li>
-</ul>
+  <p class="wmd-paragraph">This line appears only after a practice. Practice always returns to this page and can be repeated. Each repeat uses a new seed, so its targets differ from the recorded run.</p>
 </blockquote>
-<hr class="wmd-separator" />
-<h3 class="wmd-h3">C · Practice (amber bar)</h3>
-<pre class="wmd-code-block"><code>+--------------------------------------------------------------------------------------+
-|                          TASK CANVAS (same as a recorded run)                        |
-+--------------------------------------------------------------------------------------+
-| PRACTICE (not recorded) · Trial 2/3 · tracking OK   [ Pause (Alt-P) ] [ Skip trial ] [ Quit (Alt-Q) ] |
-+--------------------------------------------------------------------------------------+
-   bar background amber</code></pre>
-<p class="wmd-paragraph"><span class="wmd-badge wmd-badge-warning">PRACTICE (not recorded)</span> · Trial 2/3 · <span class="wmd-badge wmd-badge-success">tracking OK</span></p>
-<blockquote class="wmd-blockquote">
-  <p class="wmd-paragraph"><strong>Practice:</strong></p>
-  <ul class="wmd-list">
-  <li class="wmd-list-item">Practice runs 3 trials and writes nothing.</li>
-  <li class="wmd-list-item">Quit or Esc goes straight back to the Start page, with no dialog.</li>
-  <li class="wmd-list-item">At its end the Start page shows &quot;Practice finished: 3 of 3 selected.&quot;</li>
-</ul>
-</blockquote>
-<hr class="wmd-separator" />
-<h3 class="wmd-h3">D · Preview (from the configuration page)</h3>
-<p class="wmd-paragraph">PREVIEW · Trial 2/3 · mouse pointer · nothing is recorded</p>
-<blockquote class="wmd-blockquote">
-  <p class="wmd-paragraph"><strong>Preview:</strong></p>
-  <ul class="wmd-list">
-  <li class="wmd-list-item">The mouse drives the gaze.</li>
-  <li class="wmd-list-item">The bar always shows, so a Preview can never be mistaken for a recorded run.</li>
-  <li class="wmd-list-item">Quit needs no confirmation.</li>
-  <li class="wmd-list-item">See task-config.md.</li>
-</ul>
-</blockquote>
-<hr class="wmd-separator" />
-<h3 class="wmd-h3">What happened to each HUD item</h3>
-<table class="wmd-table">
-  <thead>
-    <tr>
-      <th class="wmd-table-cell wmd-align-left">HUD item (before)</th>
-    <th class="wmd-table-cell wmd-align-left">Now</th>
-    </tr>
-  </thead>
-  <tbody>
-    <tr>
-    <td class="wmd-table-cell wmd-align-left">FPS / device Hz</td>
-    <td class="wmd-table-cell wmd-align-left">removed (the sample rate is still computed from the raw file)</td>
-  </tr>
-    <tr>
-    <td class="wmd-table-cell wmd-align-left">Gaze validity</td>
-    <td class="wmd-table-cell wmd-align-left">the tracking state in the status line</td>
-  </tr>
-    <tr>
-    <td class="wmd-table-cell wmd-align-left">Trial counter, hits/timeouts tally, progress bar</td>
-    <td class="wmd-table-cell wmd-align-left">&quot;Trial i/N&quot; only (no score shown to the room)</td>
-  </tr>
-    <tr>
-    <td class="wmd-table-cell wmd-align-left">Pause / Skip trial / End task</td>
-    <td class="wmd-table-cell wmd-align-left">Pause (Alt-P) / Skip trial / Quit (Alt-Q)</td>
-  </tr>
-    <tr>
-    <td class="wmd-table-cell wmd-align-left">Hide HUD button, H key</td>
-    <td class="wmd-table-cell wmd-align-left">removed (nothing to hide)</td>
-  </tr>
-    <tr>
-    <td class="wmd-table-cell wmd-align-left">11 live sliders and check boxes</td>
-    <td class="wmd-table-cell wmd-align-left">moved to the configuration page; nothing changes during a run</td>
-  </tr>
-    <tr>
-    <td class="wmd-table-cell wmd-align-left">Settings profile card (save / reset)</td>
-    <td class="wmd-table-cell wmd-align-left">replaced by named configurations on the configuration page</td>
-  </tr>
-  </tbody>
-</table>
-<blockquote class="wmd-blockquote">
-  <p class="wmd-paragraph">Esc during a recorded run = Quit with confirmation (user answer (d), 2026-10-06). It no longer ends the run at once. The dialogs are in <code>run-end.md</code>.</p>
-</blockquote>
+<div class="wmd-container-alert">
+  <p class="wmd-paragraph">info</p>
+  <p class="wmd-paragraph">Help: From this screen you can begin the test. You may also practice 3 targets first; practice is not recorded. Read the instructions aloud to the child.</p>
+</div>
 </body>
 </html>

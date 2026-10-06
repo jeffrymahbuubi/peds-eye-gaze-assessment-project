@@ -529,140 +529,216 @@ body.wmd-root {
     <a href="./test-list.html" class="wmd-nav-item">2 · Tests</a>
   </div>
 </nav>
-<h2 class="wmd-h2">Task run screen — no HUD</h2>
+<h2 class="wmd-h2">Test List for TESTING</h2>
 <blockquote class="wmd-blockquote">
-  <p class="wmd-paragraph">SPEC-compass-task-flow.md 4C.5–4C.7 (U5). Rewritten: the HUD side column (<code>OperatorPanel</code>), its live sliders and Hide HUD are removed. During a run, only a thin bottom bar remains. While Practice or a recorded run is showing, the dashboard title bar and nav are hidden, so the canvas fills the window above the bar. The child sees only the canvas. This supersedes SPEC-hud-hide-toggle.md.</p>
+  <p class="wmd-paragraph">SPEC-compass-task-flow.md 4A.4. Replaces the old Tasks tab (<code>tasks.md</code>, superseded). The list is per subject and is read from disk every time this tab opens, so it is the same after an app restart. Compass reference: <code>docs/compass/screenshots/05-test-list.png</code>.</p>
 </blockquote>
-<hr class="wmd-separator" />
-<h3 class="wmd-h3">A · Recorded run</h3>
-<pre class="wmd-code-block"><code>+--------------------------------------------------------------------------------------+
-|                                                                                      |
-|                                                                                      |
-|                                                                                      |
-|                          TASK CANVAS (stretch, whole window)                         |
-|                                                                                      |
-|                                   ( target )                                         |
-|                                                                                      |
-|                                      o  gaze cursor (if on in the configuration)     |
-|                                                                                      |
-|                                                                                      |
-+--------------------------------------------------------------------------------------+
-| Trial 4/18 · tracking OK                [ Pause (Alt-P) ]  [ Skip trial ]  [ Quit (Alt-Q) ] |
-+--------------------------------------------------------------------------------------+
-   light grey bar, about 44 px, status on the left, buttons centred</code></pre>
-<p class="wmd-paragraph">Trial 4/18 · <span class="wmd-badge wmd-badge-success">tracking OK</span></p>
-<div class="wmd-container-button-group">
-  <button class="wmd-button">Pause (Alt-P)</button>
-  <button class="wmd-button">Skip trial</button>
-  <button class="wmd-button">Quit (Alt-Q)</button>
-</div>
-<blockquote class="wmd-blockquote">
-  <p class="wmd-paragraph"><strong>Status line, one line, updated every frame:</strong></p>
-  <ul class="wmd-list">
-  <li class="wmd-list-item">&quot;tracking OK&quot;: green.</li>
-  <li class="wmd-list-item">&quot;no gaze for 3 s&quot;: amber. Shown only after 1 s without valid gaze, because single blink or saccade frames are normal. Before the first valid sample it reads &quot;waiting for gaze&quot;.</li>
-  <li class="wmd-list-item">&quot;tracker DISCONNECTED&quot;: red.</li>
-</ul>
-</blockquote>
-<blockquote class="wmd-blockquote">
-  <p class="wmd-paragraph"><strong>Bar buttons:</strong></p>
-  <ul class="wmd-list">
-  <li class="wmd-list-item">Skip trial is enabled only while a target is waiting, not between trials and not while paused.</li>
-  <li class="wmd-list-item">Alt-P and Alt-Q work from anywhere in the run screen.</li>
-  <li class="wmd-list-item">After any click, focus goes back to the canvas, so Space (switch) keeps working.</li>
-</ul>
-</blockquote>
-<hr class="wmd-separator" />
-<h3 class="wmd-h3">B · Paused</h3>
-<pre class="wmd-code-block"><code>+--------------------------------------------------------------------------------------+
-|                                                                                      |
-|                                                                                      |
-|                                       Paused                                         |
-|                          (no target, no gaze cursor)                                 |
-|                                                                                      |
-|                                                                                      |
-+--------------------------------------------------------------------------------------+
-| Paused · Trial 4/18                     [ Resume (Alt-P) ]  [ Skip trial ]  [ Quit (Alt-Q) ] |
-+--------------------------------------------------------------------------------------+</code></pre>
-<blockquote class="wmd-blockquote">
-  <p class="wmd-paragraph"><strong>Pause:</strong></p>
-  <ul class="wmd-list">
-  <li class="wmd-list-item">The clock stops.</li>
-  <li class="wmd-list-item">A trial interrupted by the pause is not recorded. On Resume the same target is shown again with a fresh clock, so a long pause never causes a timeout.</li>
-  <li class="wmd-list-item">Pause time is not counted in the valid-gaze share.</li>
-</ul>
-</blockquote>
-<hr class="wmd-separator" />
-<h3 class="wmd-h3">C · Practice (amber bar)</h3>
-<pre class="wmd-code-block"><code>+--------------------------------------------------------------------------------------+
-|                          TASK CANVAS (same as a recorded run)                        |
-+--------------------------------------------------------------------------------------+
-| PRACTICE (not recorded) · Trial 2/3 · tracking OK   [ Pause (Alt-P) ] [ Skip trial ] [ Quit (Alt-Q) ] |
-+--------------------------------------------------------------------------------------+
-   bar background amber</code></pre>
-<p class="wmd-paragraph"><span class="wmd-badge wmd-badge-warning">PRACTICE (not recorded)</span> · Trial 2/3 · <span class="wmd-badge wmd-badge-success">tracking OK</span></p>
-<blockquote class="wmd-blockquote">
-  <p class="wmd-paragraph"><strong>Practice:</strong></p>
-  <ul class="wmd-list">
-  <li class="wmd-list-item">Practice runs 3 trials and writes nothing.</li>
-  <li class="wmd-list-item">Quit or Esc goes straight back to the Start page, with no dialog.</li>
-  <li class="wmd-list-item">At its end the Start page shows &quot;Practice finished: 3 of 3 selected.&quot;</li>
-</ul>
-</blockquote>
-<hr class="wmd-separator" />
-<h3 class="wmd-h3">D · Preview (from the configuration page)</h3>
-<p class="wmd-paragraph">PREVIEW · Trial 2/3 · mouse pointer · nothing is recorded</p>
-<blockquote class="wmd-blockquote">
-  <p class="wmd-paragraph"><strong>Preview:</strong></p>
-  <ul class="wmd-list">
-  <li class="wmd-list-item">The mouse drives the gaze.</li>
-  <li class="wmd-list-item">The bar always shows, so a Preview can never be mistaken for a recorded run.</li>
-  <li class="wmd-list-item">Quit needs no confirmation.</li>
-  <li class="wmd-list-item">See task-config.md.</li>
-</ul>
-</blockquote>
-<hr class="wmd-separator" />
-<h3 class="wmd-h3">What happened to each HUD item</h3>
-<table class="wmd-table">
+<div class="wmd-grid wmd-grid-2" style="--grid-columns: 2">
+  <div class="wmd-grid-item">
+    <h3 class="wmd-h3">Tests</h3>
+    <table class="wmd-table">
   <thead>
     <tr>
-      <th class="wmd-table-cell wmd-align-left">HUD item (before)</th>
-    <th class="wmd-table-cell wmd-align-left">Now</th>
+      <th class="wmd-table-cell wmd-align-left">Test Name</th>
+    <th class="wmd-table-cell wmd-align-left">Task</th>
+    <th class="wmd-table-cell wmd-align-left">Configuration</th>
+    <th class="wmd-table-cell wmd-align-left">Status</th>
+    <th class="wmd-table-cell wmd-align-left">Date Complete</th>
     </tr>
   </thead>
   <tbody>
     <tr>
-    <td class="wmd-table-cell wmd-align-left">FPS / device Hz</td>
-    <td class="wmd-table-cell wmd-align-left">removed (the sample rate is still computed from the raw file)</td>
+    <td class="wmd-table-cell wmd-align-left"><strong>Grid Click 1</strong></td>
+    <td class="wmd-table-cell wmd-align-left"><strong>Grid Click</strong></td>
+    <td class="wmd-table-cell wmd-align-left"><strong>Standard</strong></td>
+    <td class="wmd-table-cell wmd-align-left"><strong>Not Done</strong></td>
+    <td class="wmd-table-cell wmd-align-left"><strong>—</strong></td>
   </tr>
     <tr>
-    <td class="wmd-table-cell wmd-align-left">Gaze validity</td>
-    <td class="wmd-table-cell wmd-align-left">the tracking state in the status line</td>
+    <td class="wmd-table-cell wmd-align-left">Static Click 1</td>
+    <td class="wmd-table-cell wmd-align-left">Static Click</td>
+    <td class="wmd-table-cell wmd-align-left">Standard</td>
+    <td class="wmd-table-cell wmd-align-left">Done</td>
+    <td class="wmd-table-cell wmd-align-left">2026-10-06</td>
   </tr>
     <tr>
-    <td class="wmd-table-cell wmd-align-left">Trial counter, hits/timeouts tally, progress bar</td>
-    <td class="wmd-table-cell wmd-align-left">&quot;Trial i/N&quot; only (no score shown to the room)</td>
+    <td class="wmd-table-cell wmd-align-left">Follow &amp; Click 1</td>
+    <td class="wmd-table-cell wmd-align-left">Follow &amp; Click</td>
+    <td class="wmd-table-cell wmd-align-left">Slow path</td>
+    <td class="wmd-table-cell wmd-align-left">Ended early (4/6)</td>
+    <td class="wmd-table-cell wmd-align-left">2026-10-06</td>
   </tr>
     <tr>
-    <td class="wmd-table-cell wmd-align-left">Pause / Skip trial / End task</td>
-    <td class="wmd-table-cell wmd-align-left">Pause (Alt-P) / Skip trial / Quit (Alt-Q)</td>
+    <td class="wmd-table-cell wmd-align-left">Scanning Search 1</td>
+    <td class="wmd-table-cell wmd-align-left">Scanning Search</td>
+    <td class="wmd-table-cell wmd-align-left">Standard</td>
+    <td class="wmd-table-cell wmd-align-left">Done · data missing</td>
+    <td class="wmd-table-cell wmd-align-left">2026-10-05</td>
   </tr>
     <tr>
-    <td class="wmd-table-cell wmd-align-left">Hide HUD button, H key</td>
-    <td class="wmd-table-cell wmd-align-left">removed (nothing to hide)</td>
+    <td class="wmd-table-cell wmd-align-left"><strong>Grid Click 2</strong></td>
+    <td class="wmd-table-cell wmd-align-left"><strong>Grid Click</strong></td>
+    <td class="wmd-table-cell wmd-align-left"><strong>Large targets</strong></td>
+    <td class="wmd-table-cell wmd-align-left"><strong>Not Done</strong></td>
+    <td class="wmd-table-cell wmd-align-left"><strong>—</strong></td>
+  </tr>
+  </tbody>
+</table>
+  </div>
+  <div class="wmd-grid-item wmd-align-right">
+    
+    <button class="wmd-button wmd-outline">Add New Test</button>
+    <button class="wmd-button wmd-outline">Configure Test</button>
+    <button class="wmd-button wmd-button-primary">Run Test</button>
+    <button class="wmd-button wmd-state-disabled" disabled>View Report</button>
+    <button class="wmd-button wmd-outline">Copy Test</button>
+    <button class="wmd-button wmd-outline">Delete Test</button>
+  </div>
+</div>
+<blockquote class="wmd-blockquote">
+  <p class="wmd-paragraph"><strong>Selected row:</strong> "Grid Click 1" (Not Done). The buttons on the right follow the matrix below. Disabled buttons stay visible and grey, never hidden.</p>
+</blockquote>
+<table class="wmd-table">
+  <thead>
+    <tr>
+      <th class="wmd-table-cell wmd-align-left">Selected</th>
+    <th class="wmd-table-cell wmd-align-left">Add New Test</th>
+    <th class="wmd-table-cell wmd-align-left">Configure Test</th>
+    <th class="wmd-table-cell wmd-align-left">Run Test</th>
+    <th class="wmd-table-cell wmd-align-left">View Report</th>
+    <th class="wmd-table-cell wmd-align-left">Copy Test</th>
+    <th class="wmd-table-cell wmd-align-left">Delete Test</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+    <td class="wmd-table-cell wmd-align-left">nothing</td>
+    <td class="wmd-table-cell wmd-align-left">on</td>
+    <td class="wmd-table-cell wmd-align-left">off</td>
+    <td class="wmd-table-cell wmd-align-left">off</td>
+    <td class="wmd-table-cell wmd-align-left">off</td>
+    <td class="wmd-table-cell wmd-align-left">off</td>
+    <td class="wmd-table-cell wmd-align-left">off</td>
   </tr>
     <tr>
-    <td class="wmd-table-cell wmd-align-left">11 live sliders and check boxes</td>
-    <td class="wmd-table-cell wmd-align-left">moved to the configuration page; nothing changes during a run</td>
+    <td class="wmd-table-cell wmd-align-left">Not Done</td>
+    <td class="wmd-table-cell wmd-align-left">on</td>
+    <td class="wmd-table-cell wmd-align-left">on</td>
+    <td class="wmd-table-cell wmd-align-left">on</td>
+    <td class="wmd-table-cell wmd-align-left">off</td>
+    <td class="wmd-table-cell wmd-align-left">on</td>
+    <td class="wmd-table-cell wmd-align-left">on</td>
   </tr>
     <tr>
-    <td class="wmd-table-cell wmd-align-left">Settings profile card (save / reset)</td>
-    <td class="wmd-table-cell wmd-align-left">replaced by named configurations on the configuration page</td>
+    <td class="wmd-table-cell wmd-align-left">Done</td>
+    <td class="wmd-table-cell wmd-align-left">on</td>
+    <td class="wmd-table-cell wmd-align-left">off</td>
+    <td class="wmd-table-cell wmd-align-left">off</td>
+    <td class="wmd-table-cell wmd-align-left">on</td>
+    <td class="wmd-table-cell wmd-align-left">on</td>
+    <td class="wmd-table-cell wmd-align-left">on</td>
+  </tr>
+    <tr>
+    <td class="wmd-table-cell wmd-align-left">Ended early</td>
+    <td class="wmd-table-cell wmd-align-left">on</td>
+    <td class="wmd-table-cell wmd-align-left">off</td>
+    <td class="wmd-table-cell wmd-align-left">off</td>
+    <td class="wmd-table-cell wmd-align-left">on</td>
+    <td class="wmd-table-cell wmd-align-left">on</td>
+    <td class="wmd-table-cell wmd-align-left">on</td>
   </tr>
   </tbody>
 </table>
 <blockquote class="wmd-blockquote">
-  <p class="wmd-paragraph">Esc during a recorded run = Quit with confirmation (user answer (d), 2026-10-06). It no longer ends the run at once. The dialogs are in <code>run-end.md</code>.</p>
+  <p class="wmd-paragraph"><strong>Run Test is never disabled by Setup (R2).</strong> It always opens the Start page, which lists anything still missing (tracker, calibration, ...) and disables Start/Practice there. View Report is off when the data folder is missing ("· data missing").</p>
+</blockquote>
+<blockquote class="wmd-blockquote">
+  <p class="wmd-paragraph"><strong>Table rules:</strong></p>
+  <ul class="wmd-list">
+  <li class="wmd-list-item">Bold = not yet run.</li>
+  <li class="wmd-list-item">Clicking a header sorts the table. Test Name sorts naturally, so &quot;Grid Click 2&quot; comes before &quot;Grid Click 10&quot;.</li>
+  <li class="wmd-list-item">The selection follows the test through a sort or reload.</li>
+</ul>
+</blockquote>
+<blockquote class="wmd-blockquote">
+  <p class="wmd-paragraph"><strong>Keyboard:</strong></p>
+  <ul class="wmd-list">
+  <li class="wmd-list-item">Delete = Delete Test.</li>
+  <li class="wmd-list-item">F2 or a double-click on Test Name = rename in place. This works in every state, including Done.</li>
+  <li class="wmd-list-item">Enter or a double-click on another cell = Run Test (Not Done) or View Report (Done / Ended early).</li>
+</ul>
+</blockquote>
+<hr class="wmd-separator" />
+<p class="wmd-paragraph"><a href="#">← Back to Setup / recalibrate</a></p>
+<p class="wmd-paragraph">Changes are saved automatically.</p>
+<hr class="wmd-separator" />
+<h3 class="wmd-h3">Other states</h3>
+<div class="wmd-container-card">
+  <p class="wmd-paragraph"><strong>No Subject ID typed</strong> (reached through the nav without Continue)</p>
+  <p class="wmd-paragraph">Enter a Subject ID in Setup.</p>
+  <blockquote class="wmd-blockquote">
+  <p class="wmd-paragraph">Table replaced by this line; every button is off; nothing is created on disk.</p>
+</blockquote>
+</div>
+<div class="wmd-container-card">
+  <p class="wmd-paragraph"><strong>Subject with no tests yet</strong></p>
+  <p class="wmd-paragraph">No tests yet. Choose Add New Test.</p>
+</div>
+<div class="wmd-container-card">
+  <p class="wmd-paragraph"><strong>Unreadable test file</strong> (muted line under the table)</p>
+  <p class="wmd-paragraph">1 test file(s) could not be read and are hidden: sessions/_tests/TESTING</p>
+</div>
+<hr class="wmd-separator" />
+<h2 class="wmd-h2">Modals &amp; Dialogs</h2>
+<blockquote class="wmd-blockquote">
+  <p class="wmd-paragraph">Not visible on page load.</p>
+</blockquote>
+<div class="wmd-container-modal">
+  <h2 class="wmd-h2">Add New Test</h2>
+  <p class="wmd-paragraph"><strong>Static Click</strong>
+One still target on an empty field — baseline look-and-select.</p>
+  <p class="wmd-paragraph"><strong>Grid Click</strong>
+One cell of a visible board lights up — selection among candidates.</p>
+  <p class="wmd-paragraph"><strong>Follow & Click</strong>
+The target travels; select it while it moves — smooth pursuit.</p>
+  <p class="wmd-paragraph"><strong>Scanning Search</strong>
+Find the cued shape in a field of distractors — visual search.</p>
+  <div class="wmd-container-form-group">
+  How many
+  <input type="number" class="wmd-input" placeholder="1" style="width: 7ch; max-width: 7ch;" />
+</div>
+  <div class="wmd-container-button-group">
+  <button class="wmd-button wmd-button-primary">Add</button>
+  <button class="wmd-button">Cancel</button>
+</div>
+</div>
+<blockquote class="wmd-blockquote">
+  <p class="wmd-paragraph">Add creates the tests with default names (&quot;Grid Click 3&quot;, ...) at Standard settings, each with its own random seed, then selects the last one. A double-click on a task adds one. Nothing opens by itself.</p>
+</blockquote>
+<div class="wmd-container-modal">
+  <h2 class="wmd-h2">Delete Test</h2>
+  <p class="wmd-paragraph">Delete &#039;Static Click 1&#039; from this list? Its recorded data in the sessions folder is kept.</p>
+  <div class="wmd-container-button-group">
+  <button class="wmd-button wmd-button-danger">Delete</button>
+  <button class="wmd-button wmd-button-primary">Keep</button>
+</div>
+</div>
+<blockquote class="wmd-blockquote">
+  <p class="wmd-paragraph">Cancel ("Keep") is the default button. The record moves to <code>_tests/SUBJECT/_deleted/</code>; session folders are never touched.</p>
+</blockquote>
+<div class="wmd-container-modal">
+  <h2 class="wmd-h2">Rename (in place, F2)</h2>
+  <div class="wmd-container-form-group">
+  Test Name
+  <input type="text" class="wmd-input" placeholder="Grid Click 1" style="width: 23ch; max-width: 23ch;" />
+</div>
+  <p class="wmd-paragraph">Another test of this subject already uses this name.</p>
+</div>
+<blockquote class="wmd-blockquote">
+  <p class="wmd-paragraph">Names: 1–60 characters, unique per subject ignoring case and extra spaces (R10). The error text shows inline; Esc cancels.</p>
+</blockquote>
+<blockquote class="wmd-blockquote">
+  <p class="wmd-paragraph"><strong>Copy Test</strong> (no dialog): a new unrun row is appended and selected. It has the same task, configuration and evaluator, a new random seed and empty notes. Its name is "Grid Click 3", or "Custom name (copy)" for a custom name.</p>
 </blockquote>
 </body>
 </html>

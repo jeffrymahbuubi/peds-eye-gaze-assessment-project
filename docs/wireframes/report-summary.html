@@ -529,140 +529,271 @@ body.wmd-root {
     <a href="./test-list.html" class="wmd-nav-item">2 · Tests</a>
   </div>
 </nav>
-<h2 class="wmd-h2">Task run screen — no HUD</h2>
+<h2 class="wmd-h2">Summary Results:</h2>
 <blockquote class="wmd-blockquote">
-  <p class="wmd-paragraph">SPEC-compass-task-flow.md 4C.5–4C.7 (U5). Rewritten: the HUD side column (<code>OperatorPanel</code>), its live sliders and Hide HUD are removed. During a run, only a thin bottom bar remains. While Practice or a recorded run is showing, the dashboard title bar and nav are hidden, so the canvas fills the window above the bar. The child sees only the canvas. This supersedes SPEC-hud-hide-toggle.md.</p>
+  <p class="wmd-paragraph">SPEC-compass-task-flow.md 4D.2–4D.3 and 4D.7–4D.8 (U9–U11). It opens from View Report on the Test List, or from "Save and View Report" in the Test Complete dialog. It replaces the old Results tab (<code>results.md</code>, superseded). The numbers come from <code>report.json</code>, which P4 built at the end of the run. The nav is locked while the report shows. Compass reference: <code>docs/compass/screenshots/08a-*.png</code>.</p>
 </blockquote>
-<hr class="wmd-separator" />
-<h3 class="wmd-h3">A · Recorded run</h3>
-<pre class="wmd-code-block"><code>+--------------------------------------------------------------------------------------+
-|                                                                                      |
-|                                                                                      |
-|                                                                                      |
-|                          TASK CANVAS (stretch, whole window)                         |
-|                                                                                      |
-|                                   ( target )                                         |
-|                                                                                      |
-|                                      o  gaze cursor (if on in the configuration)     |
-|                                                                                      |
-|                                                                                      |
-+--------------------------------------------------------------------------------------+
-| Trial 4/18 · tracking OK                [ Pause (Alt-P) ]  [ Skip trial ]  [ Quit (Alt-Q) ] |
-+--------------------------------------------------------------------------------------+
-   light grey bar, about 44 px, status on the left, buttons centred</code></pre>
-<p class="wmd-paragraph">Trial 4/18 · <span class="wmd-badge wmd-badge-success">tracking OK</span></p>
-<div class="wmd-container-button-group">
-  <button class="wmd-button">Pause (Alt-P)</button>
-  <button class="wmd-button">Skip trial</button>
-  <button class="wmd-button">Quit (Alt-Q)</button>
+<div class="wmd-grid wmd-grid-2" style="--grid-columns: 2">
+  <div class="wmd-grid-item">
+    <h3 class="wmd-h3">Test Name</h3>
+    <input type="text" class="wmd-input" placeholder="Grid Click 1" />
+  </div>
+  <div class="wmd-grid-item wmd-align-right">
+    
+    <p class="wmd-paragraph">Subject: <strong>TESTING</strong> · Test Date: <strong>Oct 6, 2026 2:06 PM</strong></p>
+    <div class="wmd-container-form-group">
+  Evaluator
+  <input type="text" class="wmd-input" placeholder="Dr. Lin" style="width: 14ch; max-width: 14ch;" />
+</div>
+  </div>
+</div>
+<div class="wmd-container-alert">
+  <p class="wmd-paragraph">warning</p>
+  <p class="wmd-paragraph">Ended early — 7 of 18 trials.</p>
 </div>
 <blockquote class="wmd-blockquote">
-  <p class="wmd-paragraph"><strong>Status line, one line, updated every frame:</strong></p>
-  <ul class="wmd-list">
-  <li class="wmd-list-item">&quot;tracking OK&quot;: green.</li>
-  <li class="wmd-list-item">&quot;no gaze for 3 s&quot;: amber. Shown only after 1 s without valid gaze, because single blink or saccade frames are normal. Before the first valid sample it reads &quot;waiting for gaze&quot;.</li>
-  <li class="wmd-list-item">&quot;tracker DISCONNECTED&quot;: red.</li>
-</ul>
+  <p class="wmd-paragraph">The banner shows only for an early-ended run, or when valid gaze during trials is under 80 % (&quot;Gaze data is low quality: 72 % valid&quot;).</p>
 </blockquote>
-<blockquote class="wmd-blockquote">
-  <p class="wmd-paragraph"><strong>Bar buttons:</strong></p>
-  <ul class="wmd-list">
-  <li class="wmd-list-item">Skip trial is enabled only while a target is waiting, not between trials and not while paused.</li>
-  <li class="wmd-list-item">Alt-P and Alt-Q work from anywhere in the run screen.</li>
-  <li class="wmd-list-item">After any click, focus goes back to the canvas, so Space (switch) keeps working.</li>
-</ul>
-</blockquote>
-<hr class="wmd-separator" />
-<h3 class="wmd-h3">B · Paused</h3>
-<pre class="wmd-code-block"><code>+--------------------------------------------------------------------------------------+
-|                                                                                      |
-|                                                                                      |
-|                                       Paused                                         |
-|                          (no target, no gaze cursor)                                 |
-|                                                                                      |
-|                                                                                      |
-+--------------------------------------------------------------------------------------+
-| Paused · Trial 4/18                     [ Resume (Alt-P) ]  [ Skip trial ]  [ Quit (Alt-Q) ] |
-+--------------------------------------------------------------------------------------+</code></pre>
-<blockquote class="wmd-blockquote">
-  <p class="wmd-paragraph"><strong>Pause:</strong></p>
-  <ul class="wmd-list">
-  <li class="wmd-list-item">The clock stops.</li>
-  <li class="wmd-list-item">A trial interrupted by the pause is not recorded. On Resume the same target is shown again with a fresh clock, so a long pause never causes a timeout.</li>
-  <li class="wmd-list-item">Pause time is not counted in the valid-gaze share.</li>
-</ul>
-</blockquote>
-<hr class="wmd-separator" />
-<h3 class="wmd-h3">C · Practice (amber bar)</h3>
-<pre class="wmd-code-block"><code>+--------------------------------------------------------------------------------------+
-|                          TASK CANVAS (same as a recorded run)                        |
-+--------------------------------------------------------------------------------------+
-| PRACTICE (not recorded) · Trial 2/3 · tracking OK   [ Pause (Alt-P) ] [ Skip trial ] [ Quit (Alt-Q) ] |
-+--------------------------------------------------------------------------------------+
-   bar background amber</code></pre>
-<p class="wmd-paragraph"><span class="wmd-badge wmd-badge-warning">PRACTICE (not recorded)</span> · Trial 2/3 · <span class="wmd-badge wmd-badge-success">tracking OK</span></p>
-<blockquote class="wmd-blockquote">
-  <p class="wmd-paragraph"><strong>Practice:</strong></p>
-  <ul class="wmd-list">
-  <li class="wmd-list-item">Practice runs 3 trials and writes nothing.</li>
-  <li class="wmd-list-item">Quit or Esc goes straight back to the Start page, with no dialog.</li>
-  <li class="wmd-list-item">At its end the Start page shows &quot;Practice finished: 3 of 3 selected.&quot;</li>
-</ul>
-</blockquote>
-<hr class="wmd-separator" />
-<h3 class="wmd-h3">D · Preview (from the configuration page)</h3>
-<p class="wmd-paragraph">PREVIEW · Trial 2/3 · mouse pointer · nothing is recorded</p>
-<blockquote class="wmd-blockquote">
-  <p class="wmd-paragraph"><strong>Preview:</strong></p>
-  <ul class="wmd-list">
-  <li class="wmd-list-item">The mouse drives the gaze.</li>
-  <li class="wmd-list-item">The bar always shows, so a Preview can never be mistaken for a recorded run.</li>
-  <li class="wmd-list-item">Quit needs no confirmation.</li>
-  <li class="wmd-list-item">See task-config.md.</li>
-</ul>
-</blockquote>
-<hr class="wmd-separator" />
-<h3 class="wmd-h3">What happened to each HUD item</h3>
-<table class="wmd-table">
+<div class="wmd-container-layout wmd-sidebar-main">
+  <div class="wmd-layout-sidebar">
+    <h4 class="wmd-h4">Test Configuration</h4>
+    <p class="wmd-paragraph">Configuration Name: <strong>Large targets</strong></p>
+    <table class="wmd-table">
   <thead>
     <tr>
-      <th class="wmd-table-cell wmd-align-left">HUD item (before)</th>
-    <th class="wmd-table-cell wmd-align-left">Now</th>
+      <th class="wmd-table-cell wmd-align-left">Setting</th>
+    <th class="wmd-table-cell wmd-align-left">Value</th>
     </tr>
   </thead>
   <tbody>
     <tr>
-    <td class="wmd-table-cell wmd-align-left">FPS / device Hz</td>
-    <td class="wmd-table-cell wmd-align-left">removed (the sample rate is still computed from the raw file)</td>
+    <td class="wmd-table-cell wmd-align-left">Configuration name</td>
+    <td class="wmd-table-cell wmd-align-left">Large targets</td>
   </tr>
     <tr>
-    <td class="wmd-table-cell wmd-align-left">Gaze validity</td>
-    <td class="wmd-table-cell wmd-align-left">the tracking state in the status line</td>
+    <td class="wmd-table-cell wmd-align-left">Task</td>
+    <td class="wmd-table-cell wmd-align-left">Grid Click</td>
   </tr>
     <tr>
-    <td class="wmd-table-cell wmd-align-left">Trial counter, hits/timeouts tally, progress bar</td>
-    <td class="wmd-table-cell wmd-align-left">&quot;Trial i/N&quot; only (no score shown to the room)</td>
+    <td class="wmd-table-cell wmd-align-left">Input</td>
+    <td class="wmd-table-cell wmd-align-left">Eye (dwell) · GP3 HD 150 Hz</td>
   </tr>
     <tr>
-    <td class="wmd-table-cell wmd-align-left">Pause / Skip trial / End task</td>
-    <td class="wmd-table-cell wmd-align-left">Pause (Alt-P) / Skip trial / Quit (Alt-Q)</td>
+    <td class="wmd-table-cell wmd-align-left">Trials (planned)</td>
+    <td class="wmd-table-cell wmd-align-left">18</td>
   </tr>
     <tr>
-    <td class="wmd-table-cell wmd-align-left">Hide HUD button, H key</td>
-    <td class="wmd-table-cell wmd-align-left">removed (nothing to hide)</td>
+    <td class="wmd-table-cell wmd-align-left">Selection</td>
+    <td class="wmd-table-cell wmd-align-left">Dwell 800 ms, refractory 500 ms</td>
   </tr>
     <tr>
-    <td class="wmd-table-cell wmd-align-left">11 live sliders and check boxes</td>
-    <td class="wmd-table-cell wmd-align-left">moved to the configuration page; nothing changes during a run</td>
+    <td class="wmd-table-cell wmd-align-left">Target size</td>
+    <td class="wmd-table-cell wmd-align-left">Large — 8° (328 px), capped to 180 px</td>
   </tr>
     <tr>
-    <td class="wmd-table-cell wmd-align-left">Settings profile card (save / reset)</td>
-    <td class="wmd-table-cell wmd-align-left">replaced by named configurations on the configuration page</td>
+    <td class="wmd-table-cell wmd-align-left">Layout</td>
+    <td class="wmd-table-cell wmd-align-left">Grid 3x3, gap Standard</td>
+  </tr>
+    <tr>
+    <td class="wmd-table-cell wmd-align-left">Maximum time per trial</td>
+    <td class="wmd-table-cell wmd-align-left">8.0 s</td>
+  </tr>
+    <tr>
+    <td class="wmd-table-cell wmd-align-left">Pause between trials</td>
+    <td class="wmd-table-cell wmd-align-left">0.8 s</td>
+  </tr>
+    <tr>
+    <td class="wmd-table-cell wmd-align-left">Theme</td>
+    <td class="wmd-table-cell wmd-align-left">Forest</td>
+  </tr>
+    <tr>
+    <td class="wmd-table-cell wmd-align-left">Gaze cursor shown</td>
+    <td class="wmd-table-cell wmd-align-left">Yes</td>
+  </tr>
+    <tr>
+    <td class="wmd-table-cell wmd-align-left">Feedback</td>
+    <td class="wmd-table-cell wmd-align-left">Hit sound, miss sound</td>
+  </tr>
+    <tr>
+    <td class="wmd-table-cell wmd-align-left">Gaze smoothing</td>
+    <td class="wmd-table-cell wmd-align-left">On, alpha 0.22 · jitter 40 px</td>
+  </tr>
+    <tr>
+    <td class="wmd-table-cell wmd-align-left">Display</td>
+    <td class="wmd-table-cell wmd-align-left">1920x1080 @ 100 % (standard)</td>
+  </tr>
+    <tr>
+    <td class="wmd-table-cell wmd-align-left">Viewing distance</td>
+    <td class="wmd-table-cell wmd-align-left">600 mm</td>
+  </tr>
+    <tr>
+    <td class="wmd-table-cell wmd-align-left">Calibration</td>
+    <td class="wmd-table-cell wmd-align-left">9 points, 0.6° mean, measured</td>
+  </tr>
+    <tr>
+    <td class="wmd-table-cell wmd-align-left">Canvas</td>
+    <td class="wmd-table-cell wmd-align-left">1920x1036 px</td>
   </tr>
   </tbody>
 </table>
+    <h4 class="wmd-h4">Notes</h4>
+    <textarea class="wmd-textarea" rows="4" placeholder="Good attention for the first 10 trials..."></textarea>
+  </div>
+  <div class="wmd-layout-main">
+    <p class="wmd-paragraph">One cell of a visible board lights up; the child selects it by looking at it.</p>
+    <h4 class="wmd-h4">Summary of Results</h4>
+    <table class="wmd-table">
+  <thead>
+    <tr>
+      <th class="wmd-table-cell wmd-align-left"></th>
+    <th class="wmd-table-cell wmd-align-left">% (N)</th>
+    <th class="wmd-table-cell wmd-align-left">Trial Time (s)</th>
+    <th class="wmd-table-cell wmd-align-left">Reaction Time (s)</th>
+    <th class="wmd-table-cell wmd-align-left">Entries</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+    <td class="wmd-table-cell wmd-align-left">Error-free Target Selections</td>
+    <td class="wmd-table-cell wmd-align-left">61% (11/18)</td>
+    <td class="wmd-table-cell wmd-align-left">1.12</td>
+    <td class="wmd-table-cell wmd-align-left">0.28</td>
+    <td class="wmd-table-cell wmd-align-left">1.0</td>
+  </tr>
+    <tr>
+    <td class="wmd-table-cell wmd-align-left">All Targets Selected</td>
+    <td class="wmd-table-cell wmd-align-left">89% (16/18)</td>
+    <td class="wmd-table-cell wmd-align-left">1.25</td>
+    <td class="wmd-table-cell wmd-align-left">0.31</td>
+    <td class="wmd-table-cell wmd-align-left">1.3</td>
+  </tr>
+    <tr>
+    <td class="wmd-table-cell wmd-align-left">Targets Not Selected</td>
+    <td class="wmd-table-cell wmd-align-left">11% (2/18)</td>
+    <td class="wmd-table-cell wmd-align-left">8.00</td>
+    <td class="wmd-table-cell wmd-align-left">0.95</td>
+    <td class="wmd-table-cell wmd-align-left">2.5</td>
+  </tr>
+    <tr>
+    <td class="wmd-table-cell wmd-align-left">All Trials</td>
+    <td class="wmd-table-cell wmd-align-left">100% (18/18)</td>
+    <td class="wmd-table-cell wmd-align-left">2.00</td>
+    <td class="wmd-table-cell wmd-align-left">0.36</td>
+    <td class="wmd-table-cell wmd-align-left">1.4</td>
+  </tr>
+  </tbody>
+</table>
+    <p class="wmd-paragraph">1 skipped trial(s) excluded. Target area = drawn target + 40 px tolerance ring. Reaction Time = onset to the first gaze entry; about 0 if the gaze already rested on the new target&#039;s place.</p>
+    <h4 class="wmd-h4">Target Map</h4>
+    <ul class="wmd-list">
+  <label class="wmd-checkbox">
+    <input type="checkbox" checked />
+    <span>Targets</span>
+  </label>
+  <label class="wmd-checkbox">
+    <input type="checkbox" />
+    <span>Gaze path</span>
+  </label>
+  <label class="wmd-checkbox">
+    <input type="checkbox" />
+    <span>Heat map</span>
+  </label>
+</ul>
+    <pre class="wmd-code-block"><code>+------------------------------------------------------------------+
+|   .- - -.        .- - -.        .- - -.                          |
+|  (  1,10 )      (   2   )      (  X 5  )     faint = grid cells  |
+|   &#039;- - -&#039;        &#039;- - -&#039;        &#039;- - -&#039;                          |
+|   .- - -.        .- - -.        .- - -.     ● hit (real radius)  |
+|  (  3, 9 )      (  ● 4  )      (   6   )     X not selected      |
+|   &#039;- - -&#039;        &#039;- - -&#039;        &#039;- - -&#039;     ◌ skipped (dashed)   |
+|   .- - -.        .- - -.        .- - -.                          |
+|  (   7   )      (   8   )      (  ◌ 11 )     drawn at the canvas |
+|   &#039;- - -&#039;        &#039;- - -&#039;        &#039;- - -&#039;      aspect ratio        |
++------------------------------------------------------------------+
+  Legend: ● hit   X not selected   ◌ skipped   numbers = trials on that cell</code></pre>
+    <blockquote class="wmd-blockquote">
+  <p class="wmd-paragraph"><strong>Overlays:</strong></p>
+  <ul class="wmd-list">
+  <li class="wmd-list-item">Gaze path draws each trial&#039;s path in a 6-colour cycle.</li>
+  <li class="wmd-list-item">Heat map is an alpha ramp over the whole test.</li>
+  <li class="wmd-list-item">Follow &amp; Click also shows the target&#039;s track as a faint line, with the mark at its end position.</li>
+</ul>
+</blockquote>
+    <h4 class="wmd-h4">Eye Metrics</h4>
+    <table class="wmd-table">
+  <thead>
+    <tr>
+      <th class="wmd-table-cell wmd-align-left">Metric</th>
+    <th class="wmd-table-cell wmd-align-left">Value</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+    <td class="wmd-table-cell wmd-align-left">Fixations</td>
+    <td class="wmd-table-cell wmd-align-left">76 (4.2 per trial)</td>
+  </tr>
+    <tr>
+    <td class="wmd-table-cell wmd-align-left">Mean fixation duration</td>
+    <td class="wmd-table-cell wmd-align-left">240 ms (median 210)</td>
+  </tr>
+    <tr>
+    <td class="wmd-table-cell wmd-align-left">Saccades</td>
+    <td class="wmd-table-cell wmd-align-left">76</td>
+  </tr>
+    <tr>
+    <td class="wmd-table-cell wmd-align-left">Mean saccade amplitude</td>
+    <td class="wmd-table-cell wmd-align-left">2.9°</td>
+  </tr>
+    <tr>
+    <td class="wmd-table-cell wmd-align-left">Mean peak saccade velocity</td>
+    <td class="wmd-table-cell wmd-align-left">74 deg/s (max 180)</td>
+  </tr>
+    <tr>
+    <td class="wmd-table-cell wmd-align-left">Scan-path length per trial</td>
+    <td class="wmd-table-cell wmd-align-left">12.3°</td>
+  </tr>
+    <tr>
+    <td class="wmd-table-cell wmd-align-left">Mean pupil diameter</td>
+    <td class="wmd-table-cell wmd-align-left">3.6 mm</td>
+  </tr>
+    <tr>
+    <td class="wmd-table-cell wmd-align-left">Mean pupil change from baseline</td>
+    <td class="wmd-table-cell wmd-align-left">+0.04 mm (+1.1 %)</td>
+  </tr>
+    <tr>
+    <td class="wmd-table-cell wmd-align-left">Valid gaze during trials</td>
+    <td class="wmd-table-cell wmd-align-left">94 %</td>
+  </tr>
+    <tr>
+    <td class="wmd-table-cell wmd-align-left">Calibration error</td>
+    <td class="wmd-table-cell wmd-align-left">0.6° (24 px), measured</td>
+  </tr>
+  </tbody>
+</table>
+    <blockquote class="wmd-blockquote">
+  <p class="wmd-paragraph">Peak saccade velocity is a smoothed value (accepted 2026-10-06). Compare it only between children measured on the same device and sample rate. Old sessions without the new fields show &quot;—&quot;.</p>
+</blockquote>
+  </div>
+</div>
+<hr class="wmd-separator" />
+<div class="wmd-row">
+  <div class="wmd-grid-item">
+    <div class="wmd-container-button-group">
+  <button class="wmd-button wmd-outline">Print Report</button>
+  <button class="wmd-button wmd-outline">View Details</button>
+  <button class="wmd-button wmd-button-primary">Save &amp; Continue</button>
+  <button class="wmd-button wmd-outline">Cancel</button>
+</div>
+  </div>
+</div>
 <blockquote class="wmd-blockquote">
-  <p class="wmd-paragraph">Esc during a recorded run = Quit with confirmation (user answer (d), 2026-10-06). It no longer ends the run at once. The dialogs are in <code>run-end.md</code>.</p>
+  <p class="wmd-paragraph"><strong>Footer:</strong></p>
+  <ul class="wmd-list">
+  <li class="wmd-list-item">Save &amp; Continue keeps Test Name, Evaluator and Notes (the only editable fields), then returns to the Test List.</li>
+  <li class="wmd-list-item">Cancel drops those edits.</li>
+  <li class="wmd-list-item">Print Report exports a PDF (A4 landscape) to TESTING_Grid Click 1_2026-10-06.pdf in the subject&#039;s folder. The PDF holds the header, configuration, both tables, the map with Targets only, the Trial-by-Trial table and the definitions.</li>
+  <li class="wmd-list-item">The run data itself is never editable.</li>
+</ul>
 </blockquote>
 </body>
 </html>

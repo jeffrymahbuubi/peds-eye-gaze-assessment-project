@@ -529,140 +529,76 @@ body.wmd-root {
     <a href="./test-list.html" class="wmd-nav-item">2 · Tests</a>
   </div>
 </nav>
-<h2 class="wmd-h2">Task run screen — no HUD</h2>
+<h2 class="wmd-h2">Run end — Test Complete, Quit, Discard</h2>
 <blockquote class="wmd-blockquote">
-  <p class="wmd-paragraph">SPEC-compass-task-flow.md 4C.5–4C.7 (U5). Rewritten: the HUD side column (<code>OperatorPanel</code>), its live sliders and Hide HUD are removed. During a run, only a thin bottom bar remains. While Practice or a recorded run is showing, the dashboard title bar and nav are hidden, so the canvas fills the window above the bar. The child sees only the canvas. This supersedes SPEC-hud-hide-toggle.md.</p>
+  <p class="wmd-paragraph">SPEC-compass-task-flow.md 4C.6 and 4C.8 (U8, U14). All dialogs are modal over the frozen canvas. Every file is already written to disk before any dialog appears, so a crash at a dialog loses nothing (the test then simply stays Not Done). Compass reference: <code>docs/compass/screenshots/07b-*.png</code>.</p>
 </blockquote>
+<h3 class="wmd-h3">Flow</h3>
+<pre class="wmd-code-block"><code>Recorded run finishes ──→ [Test Complete!] ──Save──────────────→ Test List (row &quot;Done&quot;, locked)
+                              │──Save and View Report──→ Report (Summary)
+                              └──Discard Results──→ [Discard confirm] ──Discard──→ Test List (row stays Not Done)
+
+Quit / Alt-Q / Esc ──→ [Quit the test?] ──Keep going──→ run resumes
+                              └──Quit test──→ c &gt; 0: [Save the c completed trials?] ──Save partial──→ Test List (&quot;Ended early (c/N)&quot;)
+                                                                                    └──Discard──→ folder deleted, row stays Not Done
+                                              c = 0: &quot;No trials were completed, so nothing was saved.&quot;</code></pre>
 <hr class="wmd-separator" />
-<h3 class="wmd-h3">A · Recorded run</h3>
-<pre class="wmd-code-block"><code>+--------------------------------------------------------------------------------------+
-|                                                                                      |
-|                                                                                      |
-|                                                                                      |
-|                          TASK CANVAS (stretch, whole window)                         |
-|                                                                                      |
-|                                   ( target )                                         |
-|                                                                                      |
-|                                      o  gaze cursor (if on in the configuration)     |
-|                                                                                      |
-|                                                                                      |
-+--------------------------------------------------------------------------------------+
-| Trial 4/18 · tracking OK                [ Pause (Alt-P) ]  [ Skip trial ]  [ Quit (Alt-Q) ] |
-+--------------------------------------------------------------------------------------+
-   light grey bar, about 44 px, status on the left, buttons centred</code></pre>
-<p class="wmd-paragraph">Trial 4/18 · <span class="wmd-badge wmd-badge-success">tracking OK</span></p>
-<div class="wmd-container-button-group">
-  <button class="wmd-button">Pause (Alt-P)</button>
-  <button class="wmd-button">Skip trial</button>
-  <button class="wmd-button">Quit (Alt-Q)</button>
+<h2 class="wmd-h2">Modals &amp; Dialogs</h2>
+<blockquote class="wmd-blockquote">
+  <p class="wmd-paragraph">Not visible on page load.</p>
+</blockquote>
+<div class="wmd-container-modal">
+  <h2 class="wmd-h2">Test Complete</h2>
+  <p class="wmd-paragraph">Test Complete!</p>
+  <div class="wmd-container-button-group">
+  <button class="wmd-button wmd-outline">Save</button>
+  <button class="wmd-button wmd-button-primary">Save and View Report</button>
+  <button class="wmd-button wmd-button-danger">Discard Results</button>
+</div>
 </div>
 <blockquote class="wmd-blockquote">
-  <p class="wmd-paragraph"><strong>Status line, one line, updated every frame:</strong></p>
-  <ul class="wmd-list">
-  <li class="wmd-list-item">&quot;tracking OK&quot;: green.</li>
-  <li class="wmd-list-item">&quot;no gaze for 3 s&quot;: amber. Shown only after 1 s without valid gaze, because single blink or saccade frames are normal. Before the first valid sample it reads &quot;waiting for gaze&quot;.</li>
-  <li class="wmd-list-item">&quot;tracker DISCONNECTED&quot;: red.</li>
-</ul>
+  <p class="wmd-paragraph">Close or Esc = Save, so the default is never destructive. &quot;Save&quot; marks the test Done (dated) and locks it, then returns to the Test List with the row selected.</p>
 </blockquote>
+<div class="wmd-container-modal">
+  <h2 class="wmd-h2">Discard results</h2>
+  <p class="wmd-paragraph">Discard these results? This cannot be undone.</p>
+  <div class="wmd-container-button-group">
+  <button class="wmd-button wmd-button-danger">Discard</button>
+  <button class="wmd-button wmd-button-primary">Keep</button>
+</div>
+</div>
 <blockquote class="wmd-blockquote">
-  <p class="wmd-paragraph"><strong>Bar buttons:</strong></p>
-  <ul class="wmd-list">
-  <li class="wmd-list-item">Skip trial is enabled only while a target is waiting, not between trials and not while paused.</li>
-  <li class="wmd-list-item">Alt-P and Alt-Q work from anywhere in the run screen.</li>
-  <li class="wmd-list-item">After any click, focus goes back to the canvas, so Space (switch) keeps working.</li>
-</ul>
+  <p class="wmd-paragraph">Discard deletes the run&#039;s session folder permanently (U14), after strict safety checks on the path. The test stays Not Done and can be configured and run again.</p>
 </blockquote>
-<hr class="wmd-separator" />
-<h3 class="wmd-h3">B · Paused</h3>
-<pre class="wmd-code-block"><code>+--------------------------------------------------------------------------------------+
-|                                                                                      |
-|                                                                                      |
-|                                       Paused                                         |
-|                          (no target, no gaze cursor)                                 |
-|                                                                                      |
-|                                                                                      |
-+--------------------------------------------------------------------------------------+
-| Paused · Trial 4/18                     [ Resume (Alt-P) ]  [ Skip trial ]  [ Quit (Alt-Q) ] |
-+--------------------------------------------------------------------------------------+</code></pre>
+<div class="wmd-container-modal">
+  <h2 class="wmd-h2">Quit the test?</h2>
+  <p class="wmd-paragraph">Quit the test? 7 of 18 trials are done.</p>
+  <div class="wmd-container-button-group">
+  <button class="wmd-button wmd-button-danger">Quit test</button>
+  <button class="wmd-button wmd-button-primary">Keep going</button>
+</div>
+</div>
 <blockquote class="wmd-blockquote">
-  <p class="wmd-paragraph"><strong>Pause:</strong></p>
-  <ul class="wmd-list">
-  <li class="wmd-list-item">The clock stops.</li>
-  <li class="wmd-list-item">A trial interrupted by the pause is not recorded. On Resume the same target is shown again with a fresh clock, so a long pause never causes a timeout.</li>
-  <li class="wmd-list-item">Pause time is not counted in the valid-gaze share.</li>
-</ul>
+  <p class="wmd-paragraph">The run is paused while this dialog shows. &quot;Keep going&quot; resumes, unless the operator had already paused. A practice run never shows this dialog.</p>
 </blockquote>
-<hr class="wmd-separator" />
-<h3 class="wmd-h3">C · Practice (amber bar)</h3>
-<pre class="wmd-code-block"><code>+--------------------------------------------------------------------------------------+
-|                          TASK CANVAS (same as a recorded run)                        |
-+--------------------------------------------------------------------------------------+
-| PRACTICE (not recorded) · Trial 2/3 · tracking OK   [ Pause (Alt-P) ] [ Skip trial ] [ Quit (Alt-Q) ] |
-+--------------------------------------------------------------------------------------+
-   bar background amber</code></pre>
-<p class="wmd-paragraph"><span class="wmd-badge wmd-badge-warning">PRACTICE (not recorded)</span> · Trial 2/3 · <span class="wmd-badge wmd-badge-success">tracking OK</span></p>
+<div class="wmd-container-modal">
+  <h2 class="wmd-h2">Save partial results</h2>
+  <p class="wmd-paragraph">Save the 7 completed trials?</p>
+  <div class="wmd-container-button-group">
+  <button class="wmd-button wmd-button-primary">Save partial results</button>
+  <button class="wmd-button wmd-button-danger">Discard results</button>
+</div>
+</div>
 <blockquote class="wmd-blockquote">
-  <p class="wmd-paragraph"><strong>Practice:</strong></p>
-  <ul class="wmd-list">
-  <li class="wmd-list-item">Practice runs 3 trials and writes nothing.</li>
-  <li class="wmd-list-item">Quit or Esc goes straight back to the Start page, with no dialog.</li>
-  <li class="wmd-list-item">At its end the Start page shows &quot;Practice finished: 3 of 3 selected.&quot;</li>
-</ul>
+  <p class="wmd-paragraph">This is already the second step of a confirmed quit, so Discard here has no extra confirmation. Close or Esc = Save partial. A partial save shows &quot;Ended early (7/18)&quot; on the Test List and locks the test.</p>
 </blockquote>
-<hr class="wmd-separator" />
-<h3 class="wmd-h3">D · Preview (from the configuration page)</h3>
-<p class="wmd-paragraph">PREVIEW · Trial 2/3 · mouse pointer · nothing is recorded</p>
+<div class="wmd-container-modal">
+  <h2 class="wmd-h2">Nothing saved</h2>
+  <p class="wmd-paragraph">No trials were completed, so nothing was saved.</p>
+  <button class="wmd-button wmd-button-primary">OK</button>
+</div>
 <blockquote class="wmd-blockquote">
-  <p class="wmd-paragraph"><strong>Preview:</strong></p>
-  <ul class="wmd-list">
-  <li class="wmd-list-item">The mouse drives the gaze.</li>
-  <li class="wmd-list-item">The bar always shows, so a Preview can never be mistaken for a recorded run.</li>
-  <li class="wmd-list-item">Quit needs no confirmation.</li>
-  <li class="wmd-list-item">See task-config.md.</li>
-</ul>
-</blockquote>
-<hr class="wmd-separator" />
-<h3 class="wmd-h3">What happened to each HUD item</h3>
-<table class="wmd-table">
-  <thead>
-    <tr>
-      <th class="wmd-table-cell wmd-align-left">HUD item (before)</th>
-    <th class="wmd-table-cell wmd-align-left">Now</th>
-    </tr>
-  </thead>
-  <tbody>
-    <tr>
-    <td class="wmd-table-cell wmd-align-left">FPS / device Hz</td>
-    <td class="wmd-table-cell wmd-align-left">removed (the sample rate is still computed from the raw file)</td>
-  </tr>
-    <tr>
-    <td class="wmd-table-cell wmd-align-left">Gaze validity</td>
-    <td class="wmd-table-cell wmd-align-left">the tracking state in the status line</td>
-  </tr>
-    <tr>
-    <td class="wmd-table-cell wmd-align-left">Trial counter, hits/timeouts tally, progress bar</td>
-    <td class="wmd-table-cell wmd-align-left">&quot;Trial i/N&quot; only (no score shown to the room)</td>
-  </tr>
-    <tr>
-    <td class="wmd-table-cell wmd-align-left">Pause / Skip trial / End task</td>
-    <td class="wmd-table-cell wmd-align-left">Pause (Alt-P) / Skip trial / Quit (Alt-Q)</td>
-  </tr>
-    <tr>
-    <td class="wmd-table-cell wmd-align-left">Hide HUD button, H key</td>
-    <td class="wmd-table-cell wmd-align-left">removed (nothing to hide)</td>
-  </tr>
-    <tr>
-    <td class="wmd-table-cell wmd-align-left">11 live sliders and check boxes</td>
-    <td class="wmd-table-cell wmd-align-left">moved to the configuration page; nothing changes during a run</td>
-  </tr>
-    <tr>
-    <td class="wmd-table-cell wmd-align-left">Settings profile card (save / reset)</td>
-    <td class="wmd-table-cell wmd-align-left">replaced by named configurations on the configuration page</td>
-  </tr>
-  </tbody>
-</table>
-<blockquote class="wmd-blockquote">
-  <p class="wmd-paragraph">Esc during a recorded run = Quit with confirmation (user answer (d), 2026-10-06). It no longer ends the run at once. The dialogs are in <code>run-end.md</code>.</p>
+  <p class="wmd-paragraph">Shown when Quit is confirmed before any trial finished. The empty run is discarded automatically.</p>
 </blockquote>
 </body>
 </html>

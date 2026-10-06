@@ -1,5 +1,7 @@
 ![[_nav.md]]
 
+> **SUPERSEDED (SPEC-compass-task-flow.md, 2026-10-06):** replaced by `test-list.md` (per-subject Test List). Kept for history until P8 retires the Tasks tab.
+
 ::: row {.right}
 Session |1|{.primary}   Tracker |connected|{.success}   Calibration |fresh|{.success}
 :::
