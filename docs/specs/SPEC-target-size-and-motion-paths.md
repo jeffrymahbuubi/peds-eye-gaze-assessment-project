@@ -1,10 +1,10 @@
 ---
 name: SPEC-target-size-and-motion-paths
 title: Target size presets (Small/Medium/Large by visual angle), grid fit, and new Follow & Click paths
-status: approved by the user 2026-10-06 (incl. hub decisions §4.4 speed, §4.4 corner diagonals, §4.2 size-wins, §5 phasing); wireframe approved 2026-10-06; Phase A + C implemented, reviewed, visually live-checked and committed 2026-10-06 (`0854ccf`); real-gaze grid check open; Phase B approved for the next round, design in §11 approved 2026-10-06 (B1 a, B2 a, B3 a), ready for /spec-run
+status: approved by the user 2026-10-06 (incl. hub decisions §4.4 speed, §4.4 corner diagonals, §4.2 size-wins, §5 phasing); wireframe approved 2026-10-06; Phase A + C implemented, reviewed, visually live-checked and committed 2026-10-06 (`0854ccf`); real-gaze grid check open; Phase B (§11) implemented, hub-reviewed, live-checked unattended and committed 2026-10-06 (wireframe approved by the user); real-gaze check still open
 created: 2026-10-06
 last_updated: 2026-10-06
-next_step: (1) /spec-run this SPEC for Phase B (wireframe gate first, §11.5); (2) real-gaze grid check with the user as subject (§10)
+next_step: (1) real-gaze grid check with the user as subject (§10); (2) optional follow-ups from the Phase B findings (§10 overnight entry: dark-mode dialog labels, scanning ring at hit radius, theme colour overrides task colour)
 related:
   - SPEC-live-settings-panel.md (§4/§5.3 structural settings + TaskSettingsDialog; §10 settings profiles store the structural block)
   - SPEC-follow-moving-selection.md (selection window, attempts; unchanged here)
@@ -437,6 +437,110 @@ Implements the user's answer to the §9 entry (fix it now).
 - Deviations from the SPEC / user answer: none. `configs/default.yaml` and
   `local_state.json` untouched.
 
+### 2026-10-06 — `claude-sonnet-5-5` (spec-implementer): Phase B (§11.3)
+
+**Baseline before any change:** `491 passed` (no failures).
+**After:** `648 passed in 118.59s (0:01:58)` (+157 new tests, 0 failures, 0 skipped; three Phase A
+tests that asserted the Phase A state were updated, see below). `ruff check`
+clean on every source and test file touched or added. `configs/default.yaml`,
+`configs/local_state.json` and `docs/wireframes/*` not touched; nothing staged
+or committed. No GUI launched, no device used (offscreen Qt only, plus a
+scratch-dir `AssessmentApp` smoke run of click_static / follow_moving /
+scanning against the replay fixture, Large, which handed the canvas the
+resolved / capped radius).
+
+**Files added**
+- `tests/test_phase_b_sizes.py` (157 tests): §11.4 items 1-7. Item 1 dialogs
+  (size combo, no px row, scanning "Icon size" + shrink hint live on size /
+  n_icons, YAML arrangement, profile round trip, old profile with `radius_px`);
+  item 2 click_static (Large on 1640x957 and 1920x957: circle + 20 px inside the
+  canvas, size identical every trial, fitting positions untouched, Medium
+  identical to the pre-Phase-B seed, live canvas resize, hit-test on the moved
+  target, trials.csv position + one `TARGET_INSET`); item 3 follow_moving (all
+  five paths on both canvases, equal px/s +-1 %, bounce at the inset ends,
+  circular flattened on a short canvas, Medium horizontal bit-identical to the old
+  formula, recorded start position); item 4 scanning (the §11.1 table for 3
+  arrangements x 4 counts, no overlap / no edge crossing for S/M/L on both
+  canvases, nearest-slot hit rule in every arrangement, `TARGET_SHRUNK` once /
+  not at all); item 5 (Medium icon drawn at 103.4 px on the 0.2745 mm/px lab
+  screen, checked both on the task and by rendering the canvas to a QImage);
+  item 6 (legacy `radius_px` untouched, `size` wins, for all three block types);
+  item 7 (`metadata.target_size` for all four tasks through
+  `run_headless_replay`, scanning's `radius_of` + "Icon size" log line, a real
+  `SessionRecorder` session with clamped trials.csv rows and one event).
+
+**Files changed**
+- `src/engine/target_size.py` -- `ICON_DRAW_FRAC = 0.78` (moved here, next to
+  `CELL_PAD_FRAC`), `EDGE_RING_PX = 20`, `size_block(task_cfg)`
+  (`layout` for scanning, `target` otherwise), `apply_target_size(..., block=)`
+  (scanning writes `layout.radius_px = preset / ICON_DRAW_FRAC` and returns
+  `"radius_of": "icon"`; the other three return the same key set as before),
+  `target_size_log_line` says "Icon size" when `radius_of == "icon"`,
+  `edge_inset_norm`, `clamp_to_inset`, `fit_icon_radius_px` (the scanning cap,
+  shared by the task and the dialog hint).
+- `src/tasks/base_task.py` -- `start_position()` (default: `target_position`
+  at elapsed 0) feeds `TrialRecord.target_x/y`, the `TARGET_SHOWN` event and
+  `feedback.on_target_shown`; `inset_details()` hook + `_edge_inset_payload()`;
+  `_start_trial` emits one `TARGET_INSET` event (`radius_px`, `margin_x_norm`,
+  `margin_y_norm`, `canvas_w`, `canvas_h`) plus one Session Log line per run.
+- `src/tasks/click_static.py` -- `target_position` clamps x/y to the live
+  canvas inset; `inset_details`.
+- `src/tasks/follow_moving.py` -- `_axis_bounds`; straight-path ends
+  `lo = max(0.1, m)`, `hi = min(0.9, 1 - m)` per axis (diagonals use the inset
+  corners), speed stays `speed * screen_w` px/s along the shorter segment;
+  circular clamped per axis; the random lane (x of vertical, y of horizontal) is
+  clamped too; `start_position` (circular keeps today's recorded value, §9);
+  `inset_details`. For a canvas that needs no inset the arithmetic is
+  bit-identical to the Phase A code (verified by exact-equality tests).
+- `src/tasks/scanning.py` -- the slot layout moved to module-level
+  `scanning_layout_slots` (the method delegates, the dialog hint reuses it);
+  `effective_radius_px` (cap on the drawn icon via `fit_icon_radius_px`,
+  returned as a hit radius `cap / 0.78`); `hit_test` (circle test AND closer to
+  the target's slot than to any other slot); `_shrink_details`
+  (`n_icons`, `arrangement`); `arrangement` kept on the task.
+- `src/ui/canvas.py` -- reads `ICON_DRAW_FRAC` from `target_size` (both places
+  that had the literal 0.78).
+- `src/ui/settings_registry.py` -- `target.size` now applies to click_grid +
+  click_static + follow_moving; new `layout.size` "Icon size" (scanning);
+  `target.radius_px` and `layout.radius_px` rows removed.
+- `src/ui/task_settings_dialog.py` -- the per-item "(≈N px)" labels also for
+  `layout.size`; scanning shrink hint "Icons will be shrunk to ≈ N px to fit
+  8 icons (approximate)" (N = the drawn icon's diameter; estimated from
+  `n_icons`, the YAML's `arrangement` / `margin_frac` and the parent screen's
+  available geometry; live on size and n_icons change; same hint frame as the
+  grid's). click_static and follow_moving get no hint.
+- `src/app.py` -- `_resolve_target_size` keys on `size_block(task_cfg)`; the
+  "Unknown ... size" log line says "icon size" for scanning.
+- `src/engine/task_runner.py` -- `run_headless_replay` passes the block.
+- `src/data/schema.py` -- comment only (`radius_of`).
+- `configs/tasks/click_static.yaml`, `follow_moving.yaml`: `target.size: medium`,
+  `radius_px` removed; `scanning.yaml`: `layout.size: medium`, `radius_px`
+  removed (each with the legacy-fallback comment).
+- `tests/test_target_size.py`, `tests/test_task_settings_dialog.py` -- three
+  Phase A tests updated because they pinned Phase A's intermediate state
+  (click_static used as the px-only example; click_static / follow_moving /
+  scanning keeping their px rows; follow_moving keeping its px slider).
+
+**Qt APIs:** nothing new beyond Phase A's (`QComboBox.currentIndexChanged` /
+`currentData` / `findData`, re-checked in the qt-docs MCP: `currentIndexChanged(int)`
+is on the QComboBox page); `QWidget.grab()` is used in a test only.
+
+**Decisions made inside the SPEC:** see §9 (all non-blocking).
+
+**Deviations from the SPEC:** none.
+
+**Left undone / for the hub's live check (not blocking):**
+- Nothing run live. A HUD toggle in the middle of a vertical / diagonal trial
+  still rescales the path phase once (same as Phase A); the inset itself follows
+  the live canvas every frame.
+- The decorative rings are not drawn differently (out of scope); the edge margin
+  and the scanning cap both reserve their 20 px.
+- A `python -m src.main --dashboard` process (PID 26036) started at 02:33 is
+  running on this machine; it is not mine and was left alone.
+- Harness note: the `->` annotations in code I wrote through Bash heredocs
+  created four empty stray files in the repo root (`None`, `cap`, `dict[str`,
+  `float`); all deleted, `git status` shows only intended files.
+
 ## 9. Implementer open questions
 
 - **2026-10-06 (non-blocking, implemented as the SPEC says):** §4.2 resolves
@@ -456,6 +560,40 @@ Implements the user's answer to the §9 entry (fix it now).
     to `self.canvas.screen()` as today. `TaskSettingsDialog` likewise uses
     its parent's screen when it has a parent, so the dropdown labels and the
     shrink hint describe the same monitor the run is sized for.
+- **2026-10-06 (Phase B, non-blocking, all implemented as the most §11/§4-consistent reading; the hub may flip any):**
+  1. **`TARGET_SHRUNK` units for scanning.** §11.3 lists `requested_px`, `used_px`,
+     `n_icons`, `arrangement` without saying which radius. Implemented in the
+     same unit as `trials.csv target_radius_px` ("the effective (hit) radius"),
+     i.e. the base class's behaviour: `requested_px` = configured hit radius
+     (preset / 0.78), `used_px` = capped hit radius. The drawn icon radius is
+     0.78 x that. No extra payload fields were added. (The dialog hint and
+     `metadata.target_size.radius_px` use the drawn icon instead, as §11.3 says.)
+  2. **Circular's recorded start.** §11.3 says `trials.csv target_x/y` is "the
+     position actually used at trial start". For `circular` that would be the
+     orbit point (0.8, 0.5), but Phase A deliberately kept circular's recorded
+     value (its `TargetSpec` start, a meaningless (0.1, lane)) and §11.3 does not
+     mention changing it. Kept today's value (`FollowMovingTask.start_position`);
+     deleting that override makes circular record the true start. All other
+     paths and click_static record the live position at elapsed 0, inset included.
+  3. **When `TARGET_INSET` fires.** Evaluated at each trial start against the live
+     canvas; the first trial where anything was moved emits the one event and the
+     one Session Log line. For follow_moving "moved" means a path end left the
+     nominal 0.1 / 0.9, circular's 0.3 orbit would leave the canvas, or the random
+     lane had to be pulled in. The lane clamp (x of vertical, y of horizontal) is
+     not spelled out in §11.3; it only matters on a canvas shorter than about
+     744 px with Large, and keeps "target + ring stays on the canvas" true everywhere.
+  4. **Scanning hint figure.** N is the drawn icon's diameter (2 x the cap),
+     matching the wireframe's "≈ 202 px" (= 2 x 101, the §11.1 table's 8-icon grid
+     on 1640x957). The dialog estimates from the screen's available area (not the
+     HUD-shown canvas), so the same case reads "≈ 211 px" on a 1920x1000 area;
+     the hint is labelled approximate, as the grid's is.
+  5. **`apply_target_size` key path.** Implemented as a `block` keyword (default
+     `"target"`, so Phase A call sites and tests keep working) that both callers
+     fill from `size_block(task_cfg)`, which keys on `task_cfg["task_id"] ==
+     "scanning"`. A task config without a `task_id` is treated as a target task.
+  6. **Nearest-slot tie.** A gaze point exactly equidistant from the target's
+     slot and another counts as on target (another slot must be strictly nearer
+     to reject it).
 
 ## 10. Log
 
@@ -536,6 +674,70 @@ Implements the user's answer to the §9 entry (fix it now).
   size), **B2 a** (preset = the visible scanning icon), **B3 a** (jitter
   tolerance stays in px, out of scope). §11 approved as written; SPEC
   committed. Next: /spec-run for Phase B, starting at the wireframe gate.
+- **2026-10-06** — /spec-run Phase B started. The user is away overnight and
+  authorized running the loop unattended, with the live check done by the hub
+  alone through qt-mcp (no subject; fake server). Gates kept: the wireframe
+  look and commit/push wait for the user, so nothing is committed. Wireframe
+  drawn (cards C Static Click, D Scanning Search; B Follow & Click now shows
+  Target size). §11.3 handed to `spec-implementer`.
+- **2026-10-06 (overnight, unattended)** — Phase B hub review + live check.
+  - **Review:** diff read against §11.3; all in scope (`dwell.jitter_tolerance_px`,
+    click_grid behaviour, `configs/default.yaml`, `local_state.json` untouched;
+    `canvas.py` only reads the shared constant). §9 Phase B items 1-6 read and
+    **accepted by the hub, pending the user's look** (each is the reading most
+    consistent with §11/§4; none changes the design).
+  - **Hub pytest: 648 passed, 0 failed** (exit 0; baseline 491). §11.4.1-7 are
+    covered by `tests/test_phase_b_sizes.py` (157 tests) plus the updated Phase A
+    tests. No stray files in the repo root at review time.
+  - **Live check (§11.4.9), no subject:** dashboard driven by qt-mcp against
+    `tools/fake_gazepoint_server.py` on port 4250, subject `LIVECHK02`, 1920x1080
+    @ 100 %, maximized. The modal Task settings dialog wedges the qt-mcp probe,
+    so a scratch-only QA harness (outside the repo) launched the real dashboard
+    with that one handler patched to open the dialog non-modally; app code
+    unchanged. Results:
+    - Dialogs: Static Click / Follow & Click show "Target size", Scanning shows
+      "Icon size"; no px radius row anywhere. Items read "Large — 8° (≈331 px)".
+      Scanning hint: none at 4 icons Medium; "Icons will be shrunk to ≈ 218 px to
+      fit 8 icons (approximate)" at 8 icons Large. Choices carry over between
+      runs.
+    - `click_static_run1` (Large, 8 trials, HUD hidden mid-run): radius 165.6 on
+      every trial; top/bottom rows recorded at y 0.1939 / 0.8061 (= (165.6 + 20) /
+      957), x 0.15/0.85 unchanged (margin 0.113); one `TARGET_INSET` + Log line;
+      no `TARGET_SHRUNK`; target fully on canvas in screenshots.
+    - `follow_moving_run1` Vertical, `run2` Diagonal ↙ (HUD shown mid-run, canvas
+      1920 to 1640), `run3` Diagonal ↘: all Large; start y 0.1939, start x follows
+      the live canvas (0.900 at 1920 px, 0.887 at 1640 px); screenshots show the
+      turn-around inside the canvas (Diagonal ↙ bounced at ≈ (0.114, 0.805), 6.2 s
+      in = 2027 px at 328 px/s along a 1398 px segment, as computed); one
+      `TARGET_INSET` per run; `metadata.settings.structural` holds size + path.
+    - `scanning_run1` (8 icons, Large): no overlap; `TARGET_SHRUNK` 212.3 to
+      129.6 hit px = 101 px drawn icon (§11.1 table: 101); `metadata.target_size`
+      has `radius_of: icon`; Log says "Icon size: Large". `scanning_run2`
+      (6 icons, Large, HUD hidden mid-run): 212.3 to 194.3 = 151.6 px drawn
+      (table: 152); icons stay apart after the resize.
+  - **Findings, not fixed (outside Phase B, for the user):**
+    1. *Pre-existing:* in the real on-screen Task settings dialog the form labels
+       ("Number of trials", "Target size", ...) and the shrink-hint text are almost
+       invisible (light text on the white card), seen in an OS screen capture with
+       Windows in dark mode. `task_settings_dialog.py` styling is unchanged by this
+       round, so it predates Phase B (likely the dark system palette not
+       overridden by the stylesheet for these labels).
+    2. *Cosmetic, Phase B side effect:* scanning draws the white "selectable"
+       outline (and dwell/instant rings) at the *hit* radius + 4, i.e. icon / 0.78,
+       so on a dense Large layout the outline touches a neighbouring icon. The
+       icons themselves never overlap and the nearest-slot hitbox is correct.
+       §4.3/§11.3 leave decorative rings out of scope.
+    3. *Pre-existing:* every task's target is drawn in the theme's
+       `target_default` colour; the task YAML `target.color` (e.g. follow_moving's
+       blue) is ignored.
+  - Not tested live: real gaze (no subject), Horizontal / Circular at Large
+    (unit-tested), a second monitor, a 125/150 % scale. `local_state.json`
+    restored to 127.0.0.1:4242; the user's own dashboard process (running since
+    02:33, real device) left untouched. **Nothing committed** (wireframe look +
+    commit/push gates wait for the user).
+- **2026-10-06** — User reviewed the Phase B wireframe ("looks fine") and
+  approved commit + push. §9 Phase B items 1-6 stand as implemented. Phase B
+  committed and pushed together with the SPEC/wireframe updates.
 
 ## 11. Phase B — no px radius anywhere (design APPROVED 2026-10-06: B1 a, B2 a, B3 a)
 
@@ -716,7 +918,12 @@ px)") as information; that is not a radius control and stays.
 1. User answers B1-B3 and approves §11. Commit. **DONE 2026-10-06.**
 2. Wireframe: update `docs/wireframes/task-settings.md` (Static Click,
    Follow & Click and Scanning dialogs with the size combo; scanning's
-   shrink hint), user approval, commit (the /spec-run wireframe gate).
-3. `spec-implementer`: §11.3 in one run.
+   shrink hint), user approval, commit (the /spec-run wireframe gate). **Drawn 2026-10-06** (Phase B section + Follow & Click card
+   updated in `docs/wireframes/task-settings.md`/`.html`); the user's look
+   is still pending: they authorized an unattended overnight run, so the
+   implementation went ahead against the approved §11 design. **Approved by the
+   user 2026-10-06** ("wireframe looks fine").
+3. `spec-implementer`: §11.3 in one run. **DONE 2026-10-06** (uncommitted).
 4. Hub review vs §11.4 + pytest, live check with the user, commit/push on
-   the user's OK, memory update.
+   the user's OK, memory update. Review + unattended live check **DONE 2026-10-06**;
+   committed + pushed 2026-10-06 on the user's OK.

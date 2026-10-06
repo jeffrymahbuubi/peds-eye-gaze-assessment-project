@@ -198,28 +198,24 @@ LIVE_SETTINGS: list[LiveSetting] = [
 
 STRUCTURAL_SETTINGS: list[StructuralSetting] = [
     StructuralSetting("trials", "Number of trials", "int", 1, 60, 1),
-    # click_grid takes its target size as a preset (visual angle) instead of px;
-    # click_static / follow_moving keep the px slider until Phase B of
-    # SPEC-target-size-and-motion-paths.md.
+    # Every task takes its size as a preset (visual angle), never px: Target
+    # size for the three target tasks, Icon size (the *visible* icon) for
+    # scanning. SPEC-target-size-and-motion-paths.md S4.5 / S11.3.
     StructuralSetting(
         "target.size",
         "Target size",
         "choice",
-        applies_to=("click_grid",),
+        applies_to=("click_grid", "click_static", "follow_moving"),
         choices=TARGET_SIZE_CHOICES,
         default=DEFAULT_SIZE,
     ),
     StructuralSetting(
-        "target.radius_px",
-        "Target radius (px)",
-        "int",
-        30,
-        200,
-        5,
-        applies_to=("click_static", "follow_moving"),
-    ),
-    StructuralSetting(
-        "layout.radius_px", "Icon radius (px)", "int", 30, 200, 5, applies_to=("scanning",)
+        "layout.size",
+        "Icon size",
+        "choice",
+        applies_to=("scanning",),
+        choices=TARGET_SIZE_CHOICES,
+        default=DEFAULT_SIZE,
     ),
     StructuralSetting("grid.rows", "Grid rows", "int", 2, 6, 1, applies_to=("click_grid",)),
     StructuralSetting("grid.cols", "Grid cols", "int", 2, 6, 1, applies_to=("click_grid",)),

@@ -20,6 +20,7 @@ from enum import Enum, auto
 from typing import Any
 
 from ..data.schema import TrialRecord
+from ..engine.target_size import EDGE_RING_PX
 from ..inputs.base import Pointer, circle_contains, norm_to_px
 from ..inputs.eye_input import DwellSelector
 
@@ -185,6 +186,9 @@ class BaseTask:
         # TARGET_SHRUNK is reported once per run, at the first trial start where
         # effective_radius_px() came out below the requested radius.
         self._shrink_reported = False
+        # Likewise TARGET_INSET: the first trial start where the layout had to
+        # move the target inward to keep it on the canvas.
+        self._inset_reported = False
 
     def set_screen_size(self, width_px: int, height_px: int) -> None:
         """Update the pixel-space dimensions used for hit-testing.
@@ -301,6 +305,30 @@ class BaseTask:
         return circle_contains(
             cx_px, cy_px, self.effective_radius_px(target) + self.jitter_px, px, py
         )
+
+    def start_position(self, target: TargetSpec) -> tuple[float, float]:
+        """Where the target actually is at trial start -- what ``trials.csv``
+        records as ``target_x/y``. The live position at elapsed 0, so a target a
+        task pulled inward to keep it on the canvas is recorded where it was
+        shown, not where it was configured (SPEC-target-size-and-motion-paths.md
+        S11.3)."""
+        return self.target_position(target, 0)
+
+    def inset_details(self, target: TargetSpec) -> dict[str, Any] | None:
+        """The ``TARGET_INSET`` payload when this task, at the live canvas size,
+        moves ``target`` inward from where it was configured so that it (and its
+        dwell ring) stays on the canvas; ``None`` when it does not. Default:
+        never (only click_static and follow_moving move targets, B1 a)."""
+        return None
+
+    def _edge_inset_payload(self, radius_px: float, margin_x: float, margin_y: float) -> dict[str, Any]:
+        return {
+            "radius_px": round(radius_px, 1),
+            "margin_x_norm": round(margin_x, 4),
+            "margin_y_norm": round(margin_y, 4),
+            "canvas_w": int(self.screen_w),
+            "canvas_h": int(self.screen_h),
+        }
 
     def _shrink_details(self) -> dict[str, Any]:
         """Extra ``TARGET_SHRUNK`` payload beyond requested/used px (layout facts)."""
@@ -441,14 +469,25 @@ class BaseTask:
         # The radius in effect at trial start is what trials.csv records; a
         # mid-trial HUD toggle is already visible as a CANVAS_RESIZED event.
         radius = self.effective_radius_px(target)
+        # Likewise the position: the one actually used (possibly pulled inward
+        # from the configured one to stay on the canvas).
+        x_norm, y_norm = self.start_position(target)
         self._current = TrialRecord(
             trial_id=self._trial_index,
             task_id=self.task_id,
-            target_x=target.x_norm,
-            target_y=target.y_norm,
+            target_x=x_norm,
+            target_y=y_norm,
             target_radius_px=radius,
             t_target_shown_ns=t_ns,
         )
+        inset = self.inset_details(target)
+        if inset is not None and not self._inset_reported:
+            self._inset_reported = True
+            self._record_event("TARGET_INSET", t_ns, **inset)
+            self._log(
+                f"Targets moved inward to stay on the canvas: {inset['radius_px']:.0f} px radius "
+                f"+ {EDGE_RING_PX:.0f} px ring on a {inset['canvas_w']}x{inset['canvas_h']} px canvas."
+            )
         if radius < target.radius_px - 1e-6 and not self._shrink_reported:
             self._shrink_reported = True
             self._record_event(
@@ -462,9 +501,9 @@ class BaseTask:
             self.dwell.reset()
         self._phase = Phase.WAIT_INPUT
         if self.feedback is not None:
-            self.feedback.on_target_shown(target.x_norm, target.y_norm)
+            self.feedback.on_target_shown(x_norm, y_norm)
         self._record_event("TARGET_SHOWN", t_ns, trial=self._trial_index,
-                           x=target.x_norm, y=target.y_norm)
+                           x=x_norm, y=y_norm)
 
     def _finish_trial(self, t_ns: int, timed_out: bool) -> None:
         assert self._current is not None

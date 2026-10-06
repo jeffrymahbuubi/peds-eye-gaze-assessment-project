@@ -51,6 +51,7 @@ from .engine.target_size import (
     DEFAULT_SIZE,
     apply_target_size,
     screen_scale,
+    size_block,
     target_size_log_line,
     viewing_distance_mm,
 )
@@ -505,7 +506,8 @@ class AssessmentApp:
         self.feedback = GuiFeedback(
             self.canvas, self.theme, self.config.get("task", {}).get("feedback", {})
         )
-        # Before build_task: tasks read the resolved ``target.radius_px``.
+        # Before build_task: tasks read the resolved ``radius_px`` (``target``'s,
+        # or ``layout``'s for scanning).
         self._resolve_target_size(screen)
         self.task = build_task(task_id, self.config, recorder=self.recorder, feedback=self.feedback)
         app_cfg = self.config.get("app", {})
@@ -564,9 +566,9 @@ class AssessmentApp:
         panel.reset_settings_requested.connect(self._reset_settings_to_defaults)
 
     def _resolve_target_size(self, screen: QScreen | None = None) -> None:
-        """Turn the task config's ``target.size`` preset into ``target.radius_px``
-        (SPEC-target-size-and-motion-paths.md S4.2), from the canvas's own
-        screen, and record what was resolved.
+        """Turn the task config's ``target.size`` preset (``layout.size`` for
+        scanning, SPEC-target-size-and-motion-paths.md S11.3) into ``radius_px``
+        (S4.2), from the canvas's own screen, and record what was resolved.
 
         With no ``size`` key (an old YAML or profile) nothing happens and the
         explicit ``radius_px`` is used unchanged; with both, ``size`` wins.
@@ -584,13 +586,15 @@ class AssessmentApp:
             screen = self.canvas.screen()
         scale = screen_scale(screen, self.config.get("app", {}))
         distance = viewing_distance_mm(self.config.get("app", {}))
-        requested = (task_cfg.get("target") or {}).get("size")
-        info = apply_target_size(task_cfg, scale, distance)
+        block = size_block(task_cfg)
+        requested = (task_cfg.get(block) or {}).get("size")
+        info = apply_target_size(task_cfg, scale, distance, block=block)
         if info is None:
             return
         self.metadata.target_size = info
         if str(requested).strip().lower() != info["preset"]:
-            self.recorder.log(f"Unknown target size {requested!r}; using {DEFAULT_SIZE!r}.")
+            what = "icon size" if block == "layout" else "target size"
+            self.recorder.log(f"Unknown {what} {requested!r}; using {DEFAULT_SIZE!r}.")
         self.recorder.log(target_size_log_line(info, scale))
 
     def calibration_snapshot(self) -> dict:

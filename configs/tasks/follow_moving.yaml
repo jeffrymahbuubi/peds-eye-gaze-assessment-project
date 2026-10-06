@@ -17,7 +17,13 @@ motion:
   select_window_ms: 2500      # window during which selection counts as hit
 
 target:
-  radius_px: 100
+  # Target size as a preset by visual angle (diameter): small 3 deg | medium
+  # 5 deg | large 8 deg, converted to px for the monitor and the 650 mm viewing
+  # distance (SPEC-target-size-and-motion-paths.md). The size never changes; a
+  # path end that would put the target past the canvas edge is moved inward.
+  # Legacy: an explicit `radius_px: <px>` (e.g. 100) is still read when `size`
+  # is absent (older configs/profiles); when both are present `size` wins.
+  size: medium
   color: "#03a9f4"
 
 feedback:

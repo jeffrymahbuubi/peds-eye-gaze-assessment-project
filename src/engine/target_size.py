@@ -42,6 +42,22 @@ PLAUSIBLE_MM_PER_PX = (0.10, 0.60)
 # the dialog's estimate can never drift apart.
 CELL_PAD_FRAC = 0.06
 
+# Scanning draws every icon at this fraction of the radius it is given
+# (TaskCanvas, "icons" scene). A scanning size preset is the *visible* icon, so
+# ``layout.radius_px`` -- the hit radius the canvas scales -- is the preset
+# radius divided by this (SPEC-target-size-and-motion-paths.md S11.3, B2 a).
+# Shared so drawing and sizing cannot drift apart.
+ICON_DRAW_FRAC = 0.78
+
+# How far beyond a target's circle its outermost drawn ring reaches: the dwell
+# ring sits at r + 16 with an 8 px stroke, so r + 20. A target (or icon) must
+# keep this much room to the canvas edge (SPEC S11.3).
+EDGE_RING_PX = 20.0
+
+# The task config block each task's size preset lives in; everything else has
+# ``target``.
+_SIZE_BLOCK_BY_TASK = {"scanning": "layout"}
+
 
 class ScaleInfo(NamedTuple):
     """Millimetres per logical px, where it came from, and the panel size if known."""
@@ -156,23 +172,37 @@ def radius_px_for(size: str, mm_per_px: float, viewing_distance_mm: float) -> fl
     return diameter_mm / 2.0 / scale
 
 
-def apply_target_size(
-    task_cfg: dict[str, Any], scale: ScaleInfo, viewing_distance: float
-) -> dict[str, Any] | None:
-    """Resolve ``target.size`` into ``target.radius_px`` in ``task_cfg``, in place.
+def size_block(task_cfg: dict[str, Any]) -> str:
+    """The key path (a block of the task config) a task's ``size`` preset and
+    ``radius_px`` live under: ``layout`` for scanning, ``target`` for the rest."""
+    return _SIZE_BLOCK_BY_TASK.get(str(task_cfg.get("task_id")), "target")
 
-    Tasks keep reading ``radius_px`` exactly as before. With no ``size`` key
-    (an old YAML or profile) nothing is touched and ``None`` is returned, so
-    the explicit ``radius_px`` stands; with both, ``size`` wins (SPEC S4.2).
-    Returns the ``metadata.target_size`` block.
+
+def apply_target_size(
+    task_cfg: dict[str, Any],
+    scale: ScaleInfo,
+    viewing_distance: float,
+    block: str = "target",
+) -> dict[str, Any] | None:
+    """Resolve ``<block>.size`` into ``<block>.radius_px`` in ``task_cfg``, in place.
+
+    ``block`` is the key path (:func:`size_block`): ``target`` for the three
+    target tasks, ``layout`` for scanning. Tasks keep reading ``radius_px``
+    exactly as before. With no ``size`` key (an old YAML or profile) nothing is
+    touched and ``None`` is returned, so the explicit ``radius_px`` stands; with
+    both, ``size`` wins (SPEC S4.2). Returns the ``metadata.target_size`` block.
+
+    Scanning (``layout``) is sized by the *visible* icon (SPEC S11.3, B2 a): the
+    preset radius is the drawn icon's, so the ``radius_px`` written for the
+    canvas to scale is that divided by :data:`ICON_DRAW_FRAC`, and the returned
+    block says ``"radius_of": "icon"``.
     """
-    target = task_cfg.get("target")
-    if not isinstance(target, dict) or target.get("size") is None:
+    section = task_cfg.get(block)
+    if not isinstance(section, dict) or section.get("size") is None:
         return None
-    preset = normalize_size(target["size"])
+    preset = normalize_size(section["size"])
     radius = round(radius_px_for(preset, scale.mm_per_px, viewing_distance), 1)
-    target["radius_px"] = radius
-    return {
+    info = {
         "preset": preset,
         "diameter_deg": SIZE_PRESETS_DEG[preset],
         "radius_px": radius,
@@ -180,11 +210,18 @@ def apply_target_size(
         "mm_per_px_source": scale.source,
         "viewing_distance_mm": viewing_distance,
     }
+    if block == "layout":
+        section["radius_px"] = radius / ICON_DRAW_FRAC
+        info["radius_of"] = "icon"
+    else:
+        section["radius_px"] = radius
+    return info
 
 
 def target_size_log_line(info: dict[str, Any], scale: ScaleInfo) -> str:
     """The Session Log line, e.g.
-    ``Target size: Medium (5.0°) = 102 px radius (EDID 531x299 mm, 650 mm).``"""
+    ``Target size: Medium (5.0°) = 102 px radius (EDID 531x299 mm, 650 mm).``
+    (scanning's says ``Icon size:``)."""
     if scale.source == "edid" and scale.width_mm and scale.height_mm:
         where = f"EDID {scale.width_mm:.0f}x{scale.height_mm:.0f} mm"
     elif scale.source == "edid":
@@ -194,8 +231,9 @@ def target_size_log_line(info: dict[str, Any], scale: ScaleInfo) -> str:
     else:
         where = f"fallback, assumed {REFERENCE_WIDTH_MM:.0f} mm wide"
     name = SIZE_NAMES[info["preset"]]
+    label = "Icon size" if info.get("radius_of") == "icon" else "Target size"
     return (
-        f"Target size: {name} ({info['diameter_deg']:.1f}°) = {info['radius_px']:.0f} px "
+        f"{label}: {name} ({info['diameter_deg']:.1f}°) = {info['radius_px']:.0f} px "
         f"radius ({where}, {info['viewing_distance_mm']:g} mm)."
     )
 
@@ -215,3 +253,46 @@ def estimate_grid_fit_radius_px(
     settings dialog's shrink hint, where the real canvas does not exist yet."""
     span = 1.0 - 2.0 * margin_frac
     return fit_radius_px(span / max(cols, 1) * canvas_w_px, span / max(rows, 1) * canvas_h_px)
+
+
+def edge_inset_norm(radius_px: float, canvas_w_px: float, canvas_h_px: float) -> tuple[float, float]:
+    """How far from the canvas edge a target of ``radius_px`` must stay, as
+    ``(margin_x, margin_y)`` fractions of the canvas width and height: the
+    circle plus its outermost drawn ring (:data:`EDGE_RING_PX`). click_static
+    and follow_moving pull positions inward by this much (SPEC S11.3, B1 a); the
+    size itself never changes."""
+    reach = max(float(radius_px), 0.0) + EDGE_RING_PX
+    return (
+        reach / canvas_w_px if canvas_w_px > 0 else 0.0,
+        reach / canvas_h_px if canvas_h_px > 0 else 0.0,
+    )
+
+
+def clamp_to_inset(value: float, margin: float) -> float:
+    """``value`` limited to ``[margin, 1 - margin]``; a canvas too small to hold
+    the target at all (``margin`` past one half) centres it instead. A value
+    already inside comes back unchanged."""
+    lo, hi = margin, 1.0 - margin
+    if lo > hi:
+        return 0.5
+    return min(max(value, lo), hi)
+
+
+def fit_icon_radius_px(
+    slots: list[tuple[float, float]], canvas_w_px: float, canvas_h_px: float
+) -> float:
+    """Largest *drawn* scanning-icon radius that keeps every icon clear of its
+    neighbours and of the canvas edge (SPEC S11.3): half the smallest pixel
+    distance between two slot centres less the grid's own padding
+    (:data:`CELL_PAD_FRAC`), and the smallest slot-centre-to-edge distance less
+    :data:`EDGE_RING_PX`. ``slots`` are normalized canvas coordinates; the
+    result is in canvas px. ``ScanningTask.effective_radius_px`` and the
+    settings dialog's shrink hint share it, so they cannot drift."""
+    points = [(x * canvas_w_px, y * canvas_h_px) for x, y in slots]
+    cap = math.inf
+    for i, (xi, yi) in enumerate(points):
+        edge = min(xi, canvas_w_px - xi, yi, canvas_h_px - yi)
+        cap = min(cap, edge - EDGE_RING_PX)
+        for xj, yj in points[i + 1 :]:
+            cap = min(cap, 0.5 * math.hypot(xi - xj, yi - yj) * (1.0 - 2.0 * CELL_PAD_FRAC))
+    return max(cap, 0.0)

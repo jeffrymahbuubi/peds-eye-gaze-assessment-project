@@ -192,10 +192,11 @@ def test_old_profile_radius_is_overridden_by_the_yaml_size_after_the_merge():
 
 
 def test_legacy_config_without_size_builds_with_its_radius():
-    cfg = load_task_config("click_static")  # still px: Phase B has not touched it
-    assert "size" not in cfg["task"]["target"]
+    cfg = load_task_config("click_static")
+    del cfg["task"]["target"]["size"]  # an old config: an explicit px radius only
+    cfg["task"]["target"]["radius_px"] = 120
     assert apply_target_size(cfg["task"], LAB, 650.0) is None
-    assert build_task("click_static", cfg).targets[0].radius_px == cfg["task"]["target"]["radius_px"]
+    assert build_task("click_static", cfg).targets[0].radius_px == 120
 
 
 # -- 6.2 grid fit: effective radius -----------------------------------------------

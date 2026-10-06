@@ -13,7 +13,7 @@ from PySide6.QtCore import QPointF, QRectF, Qt
 from PySide6.QtGui import QColor, QPainter, QPainterPath, QPen, QRadialGradient
 from PySide6.QtWidgets import QWidget
 
-from ..engine.target_size import CELL_PAD_FRAC
+from ..engine.target_size import CELL_PAD_FRAC, ICON_DRAW_FRAC
 from ..inputs.base import norm_to_px, outside_distance
 
 # Distractor glyphs for the scanning field (ported from resources/diki, see
@@ -289,7 +289,7 @@ class TaskCanvas(QWidget):
         if not slots:
             return
 
-        r = self.target_radius_px * 0.78
+        r = self.target_radius_px * ICON_DRAW_FRAC
         distractor = QColor(self.theme.get("cursor_color", "#ffffff"))
         distractor.setAlpha(64)
         for i, (xn, yn) in enumerate(slots):
@@ -347,7 +347,7 @@ class TaskCanvas(QWidget):
             # task into pop-out. Ported from resources/diki.
             shapes = self.scene.get("shapes") or []
             shape = shapes[self.active_slot] if self.active_slot < len(shapes) else _SHAPE_CIRCLE
-            painter.drawPath(self._shape_path(x, y, r * 0.78, shape))
+            painter.drawPath(self._shape_path(x, y, r * ICON_DRAW_FRAC, shape))
         else:
             painter.drawEllipse(QPointF(x, y), r, r)
 

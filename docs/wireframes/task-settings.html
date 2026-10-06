@@ -609,8 +609,13 @@ body.wmd-root {
   <input type="number" class="wmd-input" placeholder="6" style="width: 28ch; max-width: 28ch;" />
 </div>
     <div class="wmd-container-form-group">
-  Target radius (px)
-  <input type="number" class="wmd-input" placeholder="100" style="width: 26ch; max-width: 26ch;" />
+  Target size
+  <select class="wmd-select">
+    <option value="" disabled selected>Medium — 5° (≈ 205 px)</option>
+    <option value="Small — 3° (≈ 123 px)">Small — 3° (≈ 123 px)</option>
+    <option value="Medium — 5° (≈ 205 px)">Medium — 5° (≈ 205 px)</option>
+    <option value="Large — 8° (≈ 328 px)">Large — 8° (≈ 328 px)</option>
+  </select>
 </div>
     <div class="wmd-container-form-group">
   Movement path
@@ -636,8 +641,62 @@ body.wmd-root {
 <blockquote class="wmd-blockquote">
   <p class="wmd-paragraph"><strong>A — Target size:</strong> replaces the old "Target radius (px)" slider for Grid Click only (Phase A). Each item names the preset, its visual angle, and the diameter on <em>this</em> monitor, so the operator can picture it. Default = the task YAML's <code>target.size</code> (Medium).</p>
   <p class="wmd-paragraph"><strong>A — Shrink hint:</strong> shown only when the chosen size is estimated not to fit the chosen rows x cols (in a 6 x 6 grid even Small is shrunk slightly: a cell fits ≈ 111 px on a ~1000 px tall canvas). It updates live when the size, rows or cols change, and is hidden otherwise. It is an estimate from the screen height; the real fit is applied per frame during the run (target + hitbox kept inside the cell) and the size actually used is saved per trial.</p>
-  <p class="wmd-paragraph"><strong>B — Movement path:</strong> new; default = the task YAML's <code>motion.path</code> (Circular). Every straight path moves at the same on-screen speed (the live "Target speed" slider keeps its meaning). Follow & Click still uses the px radius in this round — it moves to Small/Medium/Large in Phase B.</p>
+  <p class="wmd-paragraph"><strong>B — Movement path:</strong> new; default = the task YAML's <code>motion.path</code> (Circular). Every straight path moves at the same on-screen speed (the live "Target speed" slider keeps its meaning). Phase B: Follow & Click's "Target radius (px)" slider is replaced by the same Target size combo (no hint: near the edge the path's turn-around points move inward, the size never changes).</p>
   <p class="wmd-paragraph"><strong>Both:</strong> the chosen values are recorded in the session's metadata and stored in / restored from a settings profile, like every other dialog value.</p>
+</blockquote>
+<hr class="wmd-separator" />
+<h2 class="wmd-h2">Phase B — size presets for the other tasks (SPEC §11)</h2>
+<div class="wmd-grid wmd-grid-2" style="--grid-columns: 2">
+  <div class="wmd-grid-item wmd-card wmd-grid-item-card">
+    <h3 class="wmd-h3">C · Static Click</h3>
+    <div class="wmd-container-form-group">
+  Number of trials
+  <input type="number" class="wmd-input" placeholder="32" style="width: 27ch; max-width: 27ch;" />
+</div>
+    <div class="wmd-container-form-group">
+  Target size
+  <select class="wmd-select">
+    <option value="" disabled selected>Medium — 5° (≈ 205 px)</option>
+    <option value="Small — 3° (≈ 123 px)">Small — 3° (≈ 123 px)</option>
+    <option value="Medium — 5° (≈ 205 px)">Medium — 5° (≈ 205 px)</option>
+    <option value="Large — 8° (≈ 328 px)">Large — 8° (≈ 328 px)</option>
+  </select>
+</div>
+    <div class="wmd-container-button-group">
+  <button class="wmd-button wmd-button-primary">Start task</button>
+  <button class="wmd-button wmd-outline">Cancel</button>
+</div>
+  </div>
+  <div class="wmd-grid-item wmd-card wmd-grid-item-card">
+    <h3 class="wmd-h3">D · Scanning Search</h3>
+    <div class="wmd-container-form-group">
+  Number of trials
+  <input type="number" class="wmd-input" placeholder="6" style="width: 28ch; max-width: 28ch;" />
+</div>
+    <div class="wmd-container-form-group">
+  Icon size
+  <select class="wmd-select">
+    <option value="" disabled selected>Medium — 5° (≈ 205 px)</option>
+    <option value="Small — 3° (≈ 123 px)">Small — 3° (≈ 123 px)</option>
+    <option value="Medium — 5° (≈ 205 px)">Medium — 5° (≈ 205 px)</option>
+    <option value="Large — 8° (≈ 328 px)">Large — 8° (≈ 328 px)</option>
+  </select>
+</div>
+    <div class="wmd-container-form-group">
+  Number of icons
+  <input type="number" class="wmd-input" placeholder="8" style="width: 28ch; max-width: 28ch;" />
+</div>
+    <span class="wmd-badge wmd-badge-warning">Icons will be shrunk to ≈ 202 px to fit 8 icons (approximate)</span>
+    <div class="wmd-container-button-group">
+  <button class="wmd-button wmd-button-primary">Start task</button>
+  <button class="wmd-button wmd-outline">Cancel</button>
+</div>
+  </div>
+</div>
+<blockquote class="wmd-blockquote">
+  <p class="wmd-paragraph"><strong>C — Target size:</strong> replaces "Target radius (px)". No hint: a target that would cross the canvas edge (e.g. Large on the top/bottom row) is moved inward instead, so the size is the same on every trial. The position actually used is saved per trial.</p>
+  <p class="wmd-paragraph"><strong>D — Icon size:</strong> replaces "Icon radius (px)". The size is the <em>visible</em> icon, so a Medium icon looks exactly as big as a Medium circle in the other tasks. The hint appears only when the icons would overlap each other or the edge (Large, or many icons); all icons then shrink together, and a look at a neighbouring icon never counts as the target.</p>
+  <p class="wmd-paragraph"><strong>All four tasks:</strong> no px radius control remains. "Jitter tolerance (px)" in the live Settings card is unchanged (out of scope).</p>
 </blockquote>
 <hr class="wmd-separator" />
 <h3 class="wmd-h3">Movement paths (Follow &amp; Click)</h3>

@@ -27,6 +27,7 @@ from .loop_rate import config_target_fps, resolve_target_fps
 from .target_size import (
     apply_target_size,
     screen_scale,
+    size_block,
     target_size_log_line,
     viewing_distance_mm,
 )
@@ -95,7 +96,10 @@ def run_headless_replay(
     # as the GUI does when it has no physical width to go on.
     app_cfg = config.get("app", {})
     scale = screen_scale(None, app_cfg)
-    size_info = apply_target_size(config.get("task", {}), scale, viewing_distance_mm(app_cfg))
+    task_cfg = config.get("task", {})
+    size_info = apply_target_size(
+        task_cfg, scale, viewing_distance_mm(app_cfg), block=size_block(task_cfg)
+    )
 
     session_id = session_id or f"replay_{task_id}_{subject_id}"
     metadata = SessionMetadata(

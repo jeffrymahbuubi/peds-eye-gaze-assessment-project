@@ -1,7 +1,7 @@
 """Pre-launch dialog for structural/layout task parameters
 (SPEC-live-settings-panel.md section 5.3).
 
-Grid size, target radius, icon count, trial count, and follow_moving's
+Grid size, target/icon size, icon count, trial count, and follow_moving's
 selection window are baked once into a task's trial list at
 ``build_targets()`` time -- they are not safe to change mid-task without a
 trial-rebuild mechanism this design deliberately avoids (see the SPEC's
@@ -10,8 +10,9 @@ section 4 classification table). Instead, they're collected here, before
 the same ``deep_merge`` an ``overrides:`` YAML block already goes through.
 
 A setting is a slider+spin row (int/float) or, for ``kind="choice"``, a themed
-combo box whose value is a string (grid-click's target size preset,
-follow_moving's movement path -- SPEC-target-size-and-motion-paths.md S4.5).
+combo box whose value is a string (the target / icon size preset of every task,
+follow_moving's movement path -- SPEC-target-size-and-motion-paths.md S4.5,
+S11.3).
 
 Shown modally by :func:`src.app.run_gui` and by ``DashboardWindow``'s Tasks
 tab. "Start task" accepts current values (defaults if untouched); "Cancel"
@@ -49,10 +50,12 @@ from PySide6.QtWidgets import (
 
 from ..engine.target_size import (
     estimate_grid_fit_radius_px,
+    fit_icon_radius_px,
     radius_px_for,
     screen_scale,
     viewing_distance_mm,
 )
+from ..tasks.scanning import scanning_layout_slots
 from .settings_registry import (
     StructuralSetting,
     initial_structural_values,
@@ -81,6 +84,7 @@ class TaskSettingsDialog(QDialog):
         self._distance_mm = viewing_distance_mm(app_cfg)
         self._canvas_px = self._estimated_canvas_px(screen, app_cfg)
         self._grid_margin = float(config.get("task", {}).get("grid", {}).get("margin_frac", 0.12))
+        self._layout_cfg = config.get("task", {}).get("layout", {})
 
         outer = QVBoxLayout(self)
         outer.setContentsMargins(20, 20, 20, 20)
@@ -119,8 +123,11 @@ class TaskSettingsDialog(QDialog):
 
         card_layout.addLayout(form)
 
-        # Shrink hint (SPEC-target-size-and-motion-paths.md S4.5): click_grid
-        # only -- the one task whose cells can be too small for a preset.
+        # Shrink hint (SPEC-target-size-and-motion-paths.md S4.5, S11.3): the two
+        # tasks with several things on screen at once -- click_grid (cells too
+        # small for a preset) and scanning (icons that would overlap or leave
+        # the canvas). click_static and follow_moving move the target inward
+        # instead, so their size never changes and they get no hint.
         self.fit_hint = QFrame()
         self.fit_hint.setObjectName("wtmhAlertWarning")
         hint_layout = QVBoxLayout(self.fit_hint)
@@ -134,6 +141,10 @@ class TaskSettingsDialog(QDialog):
             self._controls["grid.rows"].valueChanged.connect(self._update_fit_hint)
             self._controls["grid.cols"].valueChanged.connect(self._update_fit_hint)
             self._update_fit_hint()
+        if all(key in self._controls for key in ("layout.size", "layout.n_icons")):
+            self._controls["layout.size"].currentIndexChanged.connect(self._update_icon_hint)
+            self._controls["layout.n_icons"].valueChanged.connect(self._update_icon_hint)
+            self._update_icon_hint()
 
         buttons = QDialogButtonBox(QDialogButtonBox.StandardButton.Ok | QDialogButtonBox.StandardButton.Cancel)
         ok_button = buttons.button(QDialogButtonBox.StandardButton.Ok)
@@ -166,7 +177,7 @@ class TaskSettingsDialog(QDialog):
     def _build_choice(self, setting: StructuralSetting, value: Any) -> QComboBox:
         combo = QComboBox()
         for choice_value, label in setting.choices:
-            if setting.key == "target.size":
+            if setting.key in ("target.size", "layout.size"):
                 # The operator can't picture "5 degrees": show the diameter it
                 # comes to on this monitor.
                 diameter = 2 * radius_px_for(choice_value, self._scale.mm_per_px, self._distance_mm)
@@ -207,6 +218,34 @@ class TaskSettingsDialog(QDialog):
         if fits < wanted - 0.5:
             self.fit_hint_label.setText(
                 f"Will be shrunk to ≈ {round(2 * fits)} px to fit a {rows} x {cols} grid "
+                "(approximate)"
+            )
+            self.fit_hint.show()
+        else:
+            self.fit_hint.hide()
+
+    def _update_icon_hint(self, *_args) -> None:
+        """Show how far the chosen icon size will be shrunk to fit the chosen
+        number of icons (scanning).
+
+        An estimate from the screen's available area and the YAML's arrangement /
+        margin (labelled approximate); the real fit is applied per frame during
+        the run (``ScanningTask.effective_radius_px``). The size is the *visible*
+        icon, so the figure is the icon's diameter. Hidden when the preset fits.
+        """
+        n_icons = int(self._controls["layout.n_icons"].value())
+        slots = scanning_layout_slots(
+            n_icons,
+            str(self._layout_cfg.get("arrangement", "grid")),
+            float(self._layout_cfg.get("margin_frac", 0.14)),
+        )
+        wanted = radius_px_for(
+            self._controls["layout.size"].currentData(), self._scale.mm_per_px, self._distance_mm
+        )
+        fits = fit_icon_radius_px(slots, *self._canvas_px)
+        if fits < wanted - 0.5:
+            self.fit_hint_label.setText(
+                f"Icons will be shrunk to ≈ {round(2 * fits)} px to fit {n_icons} icons "
                 "(approximate)"
             )
             self.fit_hint.show()

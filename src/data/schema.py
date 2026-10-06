@@ -241,10 +241,12 @@ class SessionMetadata:
     loop_fps_source: str | None = None
     # The target size preset this run resolved (SPEC-target-size-and-motion-
     # paths.md S4.2): ``{"preset", "diameter_deg", "radius_px", "mm_per_px",
-    # "mm_per_px_source", "viewing_distance_mm"}``. None when the task config
-    # carries no ``target.size`` (the explicit ``radius_px`` was used) or on
-    # older sessions. Additive; ``schema_version`` deliberately not bumped,
-    # same reasoning as the geometry fields above.
+    # "mm_per_px_source", "viewing_distance_mm"}`` (scanning adds
+    # ``"radius_of": "icon"``: its radius is the drawn icon's, SPEC S11.3).
+    # None when the task config carries no ``target.size`` / ``layout.size``
+    # (the explicit ``radius_px`` was used) or on older sessions. Additive;
+    # ``schema_version`` deliberately not bumped, same reasoning as the
+    # geometry fields above.
     target_size: dict[str, Any] | None = None
 
     def to_dict(self) -> dict[str, Any]:

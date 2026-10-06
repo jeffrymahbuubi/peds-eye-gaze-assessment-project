@@ -84,11 +84,14 @@ def test_click_grid_has_a_size_choice_and_no_px_radius():
     assert "target.radius_px" not in keys
 
 
-def test_other_target_tasks_keep_the_px_radius_in_this_phase():
-    for task_id in ("click_static", "follow_moving"):
-        assert "target.radius_px" in _keys(task_id)
-        assert "target.size" not in _keys(task_id)
-    assert "layout.radius_px" in _keys("scanning")
+def test_every_target_task_has_a_size_choice_and_no_px_radius_row():
+    # Phase B (SPEC S11.3): no px radius control remains anywhere.
+    for task_id in ("click_grid", "click_static", "follow_moving"):
+        assert "target.size" in _keys(task_id)
+    assert "layout.size" in _keys("scanning")
+    assert "layout.size" not in _keys("click_static")
+    for task_id in ("click_grid", "click_static", "follow_moving", "scanning"):
+        assert not any(key.endswith("radius_px") for key in _keys(task_id))
 
 
 def test_follow_moving_has_a_movement_path_choice_and_only_it():
@@ -210,7 +213,7 @@ def test_follow_moving_dialog_never_shows_a_hint(qapp, lab_screen):
 # -- dialog: follow_moving ------------------------------------------------------------------
 
 
-def test_follow_moving_dialog_shows_a_path_combo_and_keeps_the_px_slider(qapp):
+def test_follow_moving_dialog_shows_a_path_combo_and_a_size_combo_not_a_px_slider(qapp):
     d = _dialog("follow_moving", qapp)
     combo = d._controls["motion.path"]
     assert isinstance(combo, QComboBox)
@@ -218,8 +221,8 @@ def test_follow_moving_dialog_shows_a_path_combo_and_keeps_the_px_slider(qapp):
     assert combo.itemText(0) == "Circular"
     assert combo.itemText(4) == "Diagonal ↙ (top-right ↔ bottom-left)"
     assert combo.currentData() == "circular"
-    assert isinstance(d._controls["target.radius_px"], SliderSpinRow)
-    assert "target.size" not in d._controls
+    assert isinstance(d._controls["target.size"], QComboBox)
+    assert "target.radius_px" not in d._controls
 
 
 @pytest.mark.parametrize("path", [v for v, _l in MOTION_PATH_CHOICES])
