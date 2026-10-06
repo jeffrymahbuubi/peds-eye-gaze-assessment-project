@@ -562,9 +562,9 @@ body.wmd-root {
   <div class="wmd-nav-content">
     <img src="../../configs/assets/branding/wtmh_logo.png" alt="WTMH logo" class="wmd-brand-logo">
     <div class="wmd-brand">Pediatric Eye-Gaze Assessment</div>
-    <a href="./setup.html" class="wmd-nav-item">Setup</a>
-    <a href="./tasks.html" class="wmd-nav-item">Tasks</a>
-    <a href="./results.html" class="wmd-nav-item">Results</a>
+    <a href="./setup.md" class="wmd-nav-item">Setup</a>
+    <a href="./tasks.md" class="wmd-nav-item">Tasks</a>
+    <a href="./results.md" class="wmd-nav-item">Results</a>
   </div>
 </nav>
 <h2 class="wmd-h2">Task settings dialog — target size presets and movement paths</h2>
@@ -698,6 +698,101 @@ body.wmd-root {
   <p class="wmd-paragraph"><strong>D — Icon size:</strong> replaces "Icon radius (px)". The size is the <em>visible</em> icon, so a Medium icon looks exactly as big as a Medium circle in the other tasks. The hint appears only when the icons would overlap each other or the edge (Large, or many icons); all icons then shrink together, and a look at a neighbouring icon never counts as the target.</p>
   <p class="wmd-paragraph"><strong>All four tasks:</strong> no px radius control remains. "Jitter tolerance (px)" in the live Settings card is unchanged (out of scope).</p>
 </blockquote>
+<hr class="wmd-separator" />
+<h2 class="wmd-h2">Grid Click — cell gap (SPEC-grid-cell-gap.md §4.5)</h2>
+<div class="wmd-grid wmd-grid-2" style="--grid-columns: 2">
+  <div class="wmd-grid-item wmd-card wmd-grid-item-card">
+    <h3 class="wmd-h3">E · Grid Click, 3 x 3, Wide gap</h3>
+    <div class="wmd-container-form-group">
+  Number of trials
+  <input type="number" class="wmd-input" placeholder="18" style="width: 27ch; max-width: 27ch;" />
+</div>
+    <div class="wmd-container-form-group">
+  Target size
+  <select class="wmd-select">
+    <option value="" disabled selected>Medium — 5° (≈ 205 px)</option>
+    <option value="Small — 3° (≈ 123 px)">Small — 3° (≈ 123 px)</option>
+    <option value="Medium — 5° (≈ 205 px)">Medium — 5° (≈ 205 px)</option>
+    <option value="Large — 8° (≈ 328 px)">Large — 8° (≈ 328 px)</option>
+  </select>
+</div>
+    <div class="wmd-container-form-group">
+  Grid rows
+  <input type="number" class="wmd-input" placeholder="3" style="width: 28ch; max-width: 28ch;" />
+</div>
+    <div class="wmd-container-form-group">
+  Grid cols
+  <input type="number" class="wmd-input" placeholder="3" style="width: 28ch; max-width: 28ch;" />
+</div>
+    <div class="wmd-container-form-group">
+  Cell gap
+  <select class="wmd-select">
+    <option value="" disabled selected>Wide — 1° (≈ 41 px)</option>
+    <option value="Standard">Standard</option>
+    <option value="Wide — 1° (≈ 41 px)">Wide — 1° (≈ 41 px)</option>
+    <option value="Extra wide — 2° (≈ 82 px)">Extra wide — 2° (≈ 82 px)</option>
+  </select>
+</div>
+    <span class="wmd-badge wmd-badge-warning">Will be shrunk to ≈ 201 px to fit a 3 x 3 grid (approximate)</span>
+    <div class="wmd-container-button-group">
+  <button class="wmd-button wmd-button-primary">Start task</button>
+  <button class="wmd-button wmd-outline">Cancel</button>
+</div>
+  </div>
+  <div class="wmd-grid-item wmd-card wmd-grid-item-card">
+    <h3 class="wmd-h3">F · Grid Click, 6 x 6, Extra wide gap (capped)</h3>
+    <div class="wmd-container-form-group">
+  Number of trials
+  <input type="number" class="wmd-input" placeholder="18" style="width: 27ch; max-width: 27ch;" />
+</div>
+    <div class="wmd-container-form-group">
+  Target size
+  <select class="wmd-select">
+    <option value="" disabled selected>Medium — 5° (≈ 205 px)</option>
+    <option value="Small — 3° (≈ 123 px)">Small — 3° (≈ 123 px)</option>
+    <option value="Medium — 5° (≈ 205 px)">Medium — 5° (≈ 205 px)</option>
+    <option value="Large — 8° (≈ 328 px)">Large — 8° (≈ 328 px)</option>
+  </select>
+</div>
+    <div class="wmd-container-form-group">
+  Grid rows
+  <input type="number" class="wmd-input" placeholder="6" style="width: 28ch; max-width: 28ch;" />
+</div>
+    <div class="wmd-container-form-group">
+  Grid cols
+  <input type="number" class="wmd-input" placeholder="6" style="width: 28ch; max-width: 28ch;" />
+</div>
+    <div class="wmd-container-form-group">
+  Cell gap
+  <select class="wmd-select">
+    <option value="" disabled selected>Extra wide — 2° (≈ 82 px)</option>
+    <option value="Standard">Standard</option>
+    <option value="Wide — 1° (≈ 41 px)">Wide — 1° (≈ 41 px)</option>
+    <option value="Extra wide — 2° (≈ 82 px)">Extra wide — 2° (≈ 82 px)</option>
+  </select>
+</div>
+    <span class="wmd-badge wmd-badge-warning">Gap limited to ≈ 60 px and targets shrunk to ≈ 61 px to fit a 6 x 6 grid (approximate)</span>
+    <div class="wmd-container-button-group">
+  <button class="wmd-button wmd-button-primary">Start task</button>
+  <button class="wmd-button wmd-outline">Cancel</button>
+</div>
+  </div>
+</div>
+<blockquote class="wmd-blockquote">
+  <p class="wmd-paragraph"><strong>Cell gap:</strong> new row, Grid Click only, placed after Grid cols. Default = <strong>Standard</strong>, which is exactly today's board (gap = 12 % of a cell; ≈ 29 px on 3 x 3, ≈ 15 px on 6 x 6). Wide and Extra wide set the space between two neighbouring cells by visual angle, so it is the same px for every child on this monitor; each item shows its px.</p>
+  <p class="wmd-paragraph"><strong>Dead zone:</strong> with Wide / Extra wide, a look into the gap selects no cell, even within the jitter tolerance; moving into the gap counts as leaving the target.</p>
+  <p class="wmd-paragraph"><strong>Hint:</strong> recomputed when the gap, rows, cols or size change. The board's outer size stays the same, so a wider gap makes the cells (and possibly the target) smaller: E shows Medium shrunk slightly on 3 x 3. On dense grids the gap is limited to half a cell (F: 82 px wanted, ≈ 60 px used) and the hint says so; the run records it (<code>GAP_CAPPED</code> + a Log line).</p>
+  <p class="wmd-paragraph"><strong>Recorded:</strong> the chosen gap goes into the session metadata and the Log ("Cell gap: Wide — 1° (≈41 px)") and is saved in / restored from a settings profile.</p>
+</blockquote>
+<pre class="wmd-code-block"><code> Standard (today)                 Wide / Extra wide
+ +--------+--------+              +-------+   +-------+
+ | [cell] | [cell] |              | cell  |   | cell  |
+ |  ( o ) |  ( o ) |              | ( o ) |   | ( o ) |
+ +--------+--------+              +-------+   +-------+
+ hit areas reach the cell edge            gap = no-hit zone
+ and touch the neighbour&#039;s        +-------+   +-------+
+                                  | cell  |   | cell  |
+                                  +-------+   +-------+</code></pre>
 <hr class="wmd-separator" />
 <h3 class="wmd-h3">Movement paths (Follow &amp; Click)</h3>
 <pre class="wmd-code-block"><code> Circular            Horizontal            Vertical            Diagonal TL-BR        Diagonal TR-BL

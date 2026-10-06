@@ -110,6 +110,88 @@ Number of icons
 
 ---
 
+## Grid Click — cell gap (SPEC-grid-cell-gap.md §4.5)
+
+::: grid-2 card
+
+### E · Grid Click, 3 x 3, Wide gap
+
+Number of trials
+[18___________________________]{type:number}
+
+Target size
+[Medium — 5° (≈ 205 px)______v]
+- Small — 3° (≈ 123 px)
+- Medium — 5° (≈ 205 px)
+- Large — 8° (≈ 328 px)
+
+Grid rows
+[3____________________________]{type:number}
+
+Grid cols
+[3____________________________]{type:number}
+
+Cell gap
+[Wide — 1° (≈ 41 px)_________v]
+- Standard
+- Wide — 1° (≈ 41 px)
+- Extra wide — 2° (≈ 82 px)
+
+|Will be shrunk to ≈ 201 px to fit a 3 x 3 grid (approximate)|{.warning}
+
+[Start task]* [Cancel]{.outline}
+
+### F · Grid Click, 6 x 6, Extra wide gap (capped)
+
+Number of trials
+[18___________________________]{type:number}
+
+Target size
+[Medium — 5° (≈ 205 px)______v]
+- Small — 3° (≈ 123 px)
+- Medium — 5° (≈ 205 px)
+- Large — 8° (≈ 328 px)
+
+Grid rows
+[6____________________________]{type:number}
+
+Grid cols
+[6____________________________]{type:number}
+
+Cell gap
+[Extra wide — 2° (≈ 82 px)___v]
+- Standard
+- Wide — 1° (≈ 41 px)
+- Extra wide — 2° (≈ 82 px)
+
+|Gap limited to ≈ 60 px and targets shrunk to ≈ 61 px to fit a 6 x 6 grid (approximate)|{.warning}
+
+[Start task]* [Cancel]{.outline}
+
+:::
+
+> **Cell gap:** new row, Grid Click only, placed after Grid cols. Default = **Standard**, which is exactly today's board (gap = 12 % of a cell; ≈ 29 px on 3 x 3, ≈ 15 px on 6 x 6). Wide and Extra wide set the space between two neighbouring cells by visual angle, so it is the same px for every child on this monitor; each item shows its px.
+>
+> **Dead zone:** with Wide / Extra wide, a look into the gap selects no cell, even within the jitter tolerance; moving into the gap counts as leaving the target.
+>
+> **Hint:** recomputed when the gap, rows, cols or size change. The board's outer size stays the same, so a wider gap makes the cells (and possibly the target) smaller: E shows Medium shrunk slightly on 3 x 3. On dense grids the gap is limited to half a cell (F: 82 px wanted, ≈ 60 px used) and the hint says so; the run records it (`GAP_CAPPED` + a Log line).
+>
+> **Recorded:** the chosen gap goes into the session metadata and the Log ("Cell gap: Wide — 1° (≈41 px)") and is saved in / restored from a settings profile.
+
+```
+ Standard (today)                 Wide / Extra wide
+ +--------+--------+              +-------+   +-------+
+ | [cell] | [cell] |              | cell  |   | cell  |
+ |  ( o ) |  ( o ) |              | ( o ) |   | ( o ) |
+ +--------+--------+              +-------+   +-------+
+ hit areas reach the cell edge            gap = no-hit zone
+ and touch the neighbour's        +-------+   +-------+
+                                  | cell  |   | cell  |
+                                  +-------+   +-------+
+```
+
+---
+
 ### Movement paths (Follow & Click)
 
 ```

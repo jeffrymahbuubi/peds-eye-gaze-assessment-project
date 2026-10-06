@@ -4,7 +4,7 @@ title: Grid Click — operator-set gap between cells (dead zone)
 status: approved — G1-G3 + H1-H4 (user, 2026-10-06); wireframe next
 created: 2026-10-06
 last_updated: 2026-10-06
-next_step: wireframe of the Cell gap row (GATE 1), then /spec-run
+next_step: /spec-run (implementation); wireframe approved
 related:
   - SPEC-target-size-and-motion-paths.md (size presets by visual angle, grid fit S4.3, Task settings choice kind S4.5)
   - SPEC-target-visual-fixes.md (running at the same time; touches canvas.py rings and the task YAML colours only)
@@ -12,7 +12,7 @@ related:
 
 # SPEC-grid-cell-gap — wider, operator-set gap between grid cells
 
-**Status: approved 2026-10-06 (written at `b6803a6`): G1-G3 and hub decisions H1-H4. Nothing implemented; wireframe next.**
+**Status: approved 2026-10-06 (written at `b6803a6`): G1-G3 and hub decisions H1-H4. Wireframe approved 2026-10-06 (`docs/wireframes/task-settings.md`, sections E/F). Nothing implemented yet.**
 
 ## 1. Origin
 
@@ -178,7 +178,7 @@ jitter tolerance.
 ## 7. Plan
 
 1. ~~User approves H1-H4 (and §4).~~ Done 2026-10-06.
-2. Wireframe: add the Cell gap row + capped hint to
+2. DONE 2026-10-06. Wireframe: add the Cell gap row + capped hint to
    `docs/wireframes/task-settings.md`, GATE 1.
 3. `/spec-run`: spec-implementer, hub review + pytest, live check against the
    fake server on port 4250 (3x3 and 6x6 at each gap, HUD hide mid-run), then
@@ -203,3 +203,6 @@ jitter tolerance.
   Hub decisions H1-H4 written; awaiting approval.
 - **2026-10-06** — User approved H1-H4 as written. SPEC approved; wireframe
   (Cell gap row + capped hint) next, after SPEC-target-visual-fixes is committed.
+- **2026-10-06** — Wireframe written (`docs/wireframes/task-settings.md`, new
+  section E: 3x3 Wide with the shrink hint; F: 6x6 Extra wide with the capped-gap
+  hint; dead-zone sketch) and approved by the user as is. Implementation next.
