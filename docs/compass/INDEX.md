@@ -27,6 +27,7 @@ The corpus has two layers:
 |---|---|
 | [synthesis/ui-ux-patterns.md](synthesis/ui-ux-patterns.md) | Screen/navigation map, reusable interaction patterns, the common configuration-screen anatomy, the eight tests' defaults side by side, results-screen design, feedback, accessibility and localisation, platform facts, UI version history, **traps and inconsistencies in the guide**, and what the guide does *not* say |
 | [synthesis/ui-ux-screen-walkthrough.md](synthesis/ui-ux-screen-walkthrough.md) | Screen-by-screen walkthrough of the Aim path, joining the 12 screenshots in [`screenshots/`](screenshots/) (captured from the installed 3.0.1) with the guide. Covers the visual language, real on-screen labels vs the guide's, guide-only screens, UX principles, and a factual mapping to the current peds-eye-gaze-assessment UI |
+| [synthesis/ui-ux-live-verification.md](synthesis/ui-ux-live-verification.md) | What the running 3.0.1 app showed in a driven session on 2026-10-06 (screenshots 09–31): corrections to the guide and the two files above, newly documented dialogs (registration, menubar, Preferences, file dialogs, Set Colors, Select Regions, rename warning, Copy/Delete, Quit flow, Preview, Practice, Multi-Test Report pages, Edit Client, End Client Session), **verified configuration defaults for all eight tests**, all eight Start-screen instruction texts, results-table averaging checked with misses, and what is still unverified |
 
 Note for its objective ("how the UI/UX is created"): the guide documents the product's
 **behaviour**, not how it was built. The synthesis states this up front and collects the few
@@ -95,10 +96,20 @@ preserved):
   **Partly offset (2026-10-06):** `screenshots/` holds 12 captures of the real 3.0.1 app
   (the Aim path, launch to report), described in `synthesis/ui-ux-screen-walkthrough.md`.
   They are app captures, not the guide's own figures.
+  **Further offset (2026-10-06, later):** `screenshots/09-*` to `31-*` (42 files, some cropped
+  to the dialog) come from a driven session on the installed 3.0.1: Java Access Bridge enabled
+  per user with `jabswitch -enable`, control trees read with a .NET probe (JavaAutoNet),
+  coordinate clicks, and a throwaway client "Probe JabTest". The control-tree dumps stay outside
+  the repo. The bridge does not expose the HTML instruction panes or combo values, so those were
+  read from the screenshots. Results in `synthesis/ui-ux-live-verification.md`.
 - Page headers and footers were dropped (the 137 "Compass Help - …" footers do not appear).
   Page numbers are gone; the guide's own table of contents still lists them.
 - **Version drift:** this is the guide for Compass **3.0** (copyright 2019); the installer
-  alongside it is **3.0.1**, so the guide may lag the shipping app by one patch release.
+  alongside it is **3.0.1**, so the guide may lag the shipping app by one patch release. The
+  live session found several such differences (for example Scan Initiation defaults to Manual,
+  Switch pause to Random); see `synthesis/ui-ux-live-verification.md` (a).
 - **One file, 2,670 lines.** Kept as a single file mapping 1:1 to the PDF for traceability,
   which exceeds the repo's 500-line guideline — a deliberate exception.
-- **Unresolved conflicts between sources:** none (single source).
+- **Unresolved conflicts between sources:** none inside `sources/` (single source). Conflicts
+  between the guide and the live app are listed, not resolved, in
+  `synthesis/ui-ux-live-verification.md` (a).
