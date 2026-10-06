@@ -1,7 +1,7 @@
 ---
 name: SPEC-target-size-and-motion-paths
 title: Target size presets (Small/Medium/Large by visual angle), grid fit, and new Follow & Click paths
-status: approved by the user 2026-10-06 (incl. hub decisions §4.4 speed, §4.4 corner diagonals, §4.2 size-wins, §5 phasing); wireframe approved 2026-10-06; Phase A + C implemented, reviewed, visually live-checked and committed 2026-10-06 (`0854ccf`); real-gaze grid check open; Phase B (§11) implemented, hub-reviewed, live-checked unattended and committed 2026-10-06 (wireframe approved by the user); real-gaze check still open
+status: approved by the user 2026-10-06 (incl. hub decisions §4.4 speed, §4.4 corner diagonals, §4.2 size-wins, §5 phasing); wireframe approved 2026-10-06; Phase A + C implemented, reviewed, visually live-checked and committed 2026-10-06 (`0854ccf`); real-gaze grid check open; Phase B (§11) implemented, hub-reviewed, live-checked unattended and committed 2026-10-06 (`6ba9306`; wireframe approved by the user); real-gaze check still open
 created: 2026-10-06
 last_updated: 2026-10-06
 next_step: (1) real-gaze grid check with the user as subject (§10); (2) optional follow-ups from the Phase B findings (§10 overnight entry: dark-mode dialog labels, scanning ring at hit radius, theme colour overrides task colour)
@@ -737,7 +737,7 @@ is on the QComboBox page); `QWidget.grab()` is used in a test only.
     commit/push gates wait for the user).
 - **2026-10-06** — User reviewed the Phase B wireframe ("looks fine") and
   approved commit + push. §9 Phase B items 1-6 stand as implemented. Phase B
-  committed and pushed together with the SPEC/wireframe updates.
+  committed and pushed together with the SPEC/wireframe updates (`6ba9306`).
 
 ## 11. Phase B — no px radius anywhere (design APPROVED 2026-10-06: B1 a, B2 a, B3 a)
 
@@ -926,4 +926,4 @@ px)") as information; that is not a radius control and stays.
 3. `spec-implementer`: §11.3 in one run. **DONE 2026-10-06** (uncommitted).
 4. Hub review vs §11.4 + pytest, live check with the user, commit/push on
    the user's OK, memory update. Review + unattended live check **DONE 2026-10-06**;
-   committed + pushed 2026-10-06 on the user's OK.
+   committed + pushed 2026-10-06 on the user's OK (`6ba9306`).
