@@ -20,18 +20,8 @@ from PySide6.QtWidgets import (
     QWidget,
 )
 
+from ..engine.task_info import TASK_INFO
 from ..engine.task_runner import TASK_REGISTRY
-
-# (display name, one-line description) -- text lifted from docs/wireframes/tasks.md
-# so the real UI matches the reviewed mockup, not re-worded independently.
-# Public (not module-private) since results_page.py also reads task display
-# names off it for the Results tab's page header.
-TASK_INFO: dict[str, tuple[str, str]] = {
-    "click_static": ("Static Click", "One still target on an empty field — baseline look-and-select."),
-    "click_grid": ("Grid Click (3×3)", "One cell of a visible 3x3 board lights up — selection among candidates."),
-    "follow_moving": ("Follow & Click", "The target travels; select it while it moves — smooth pursuit."),
-    "scanning": ("Scanning Search", "Find the cued shape in a 2D field of distractors — visual search."),
-}
 
 
 class _TaskCard(QFrame):

@@ -255,6 +255,15 @@ class SessionMetadata:
     # config) or on older sessions. Additive; ``schema_version`` deliberately
     # not bumped, same reasoning as the fields above.
     grid_gap: dict[str, Any] | None = None
+    # The Test List entry this run belongs to, and the random seed that drew
+    # its target order (SPEC-compass-task-flow.md 4A.7, R3). None for a run not
+    # started from a test (standalone ``--task X --gui``, older sessions);
+    # ``seed`` is then None on older sessions and 0 on a standalone run.
+    # Additive; ``schema_version`` deliberately not bumped, same reasoning as
+    # the fields above.
+    test_id: str | None = None
+    test_name: str | None = None
+    seed: int | None = None
 
     def to_dict(self) -> dict[str, Any]:
         return {f.name: getattr(self, f.name) for f in fields(self)}

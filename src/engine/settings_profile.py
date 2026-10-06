@@ -31,10 +31,15 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
 
+from .session_naming import safe_subject_dirname
+
 SETTINGS_DIRNAME = "_settings"
 # Written by setup_page.py's "Save Calibration", not by this module -- named
 # here only so ``known_subject_ids`` can look there too.
 CALIBRATIONS_DIRNAME = "_calibrations"
+# Written by subject_tests.py (the per-subject Test List, SPEC-compass-task-
+# flow.md 4A.2) -- likewise named here only for ``known_subject_ids``.
+TESTS_DIRNAME = "_tests"
 
 # Bumped only if the on-disk shape changes incompatibly. Readers ignore keys
 # they do not know (see ``apply_live_values_to_config``), so adding a settings
@@ -45,7 +50,9 @@ _FILENAME_TIME_FORMAT = "%Y-%m-%d_%H-%M-%S"
 
 
 def subject_settings_dir(output_root: str | Path, subject_id: str) -> Path:
-    return Path(output_root) / SETTINGS_DIRNAME / subject_id
+    # The folder name is sanitised (SPEC-compass-task-flow.md 4A.9); an
+    # ordinary ID maps to itself, so existing folders still match.
+    return Path(output_root) / SETTINGS_DIRNAME / safe_subject_dirname(subject_id)
 
 
 def settings_profile_path(output_root: str | Path, subject_id: str, task_id: str) -> Path:
@@ -81,10 +88,12 @@ def known_subject_ids(output_root: str | Path) -> list[str]:
     """Every subject ID with something already saved under them, sorted.
 
     Feeds the Setup page's Subject-ID completer (S10.7.3 B). Unions the
-    ``_settings`` and ``_calibrations`` subject directories rather than reading
-    only the former: a subject routinely has a saved calibration *before* they
-    have a settings profile, and a completer that couldn't offer them yet would
-    miss the first -- and most likely -- chance to mistype the ID.
+    ``_settings``, ``_calibrations`` and ``_tests`` subject directories rather
+    than reading only the first: a subject routinely has a saved calibration
+    *before* they have a settings profile, and a completer that couldn't offer
+    them yet would miss the first -- and most likely -- chance to mistype the
+    ID. The names are folder names, so an ID with illegal characters shows in
+    its sanitised form (SPEC-compass-task-flow.md 4A.9).
 
     Deliberately does not scan the dated run directories. Those are named
     ``<date>_<subject>_<task>_run<N>``, so recovering the subject from them
@@ -95,7 +104,7 @@ def known_subject_ids(output_root: str | Path) -> list[str]:
     simply "no known subjects".
     """
     names: set[str] = set()
-    for dirname in (SETTINGS_DIRNAME, CALIBRATIONS_DIRNAME):
+    for dirname in (SETTINGS_DIRNAME, CALIBRATIONS_DIRNAME, TESTS_DIRNAME):
         directory = Path(output_root) / dirname
         try:
             entries = list(directory.iterdir())

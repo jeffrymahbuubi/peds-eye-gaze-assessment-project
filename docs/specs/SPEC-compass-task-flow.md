@@ -1,10 +1,10 @@
 ---
 name: SPEC-compass-task-flow
 title: Compass-style task flow — per-subject Test List, configuration page, Preview/Practice, HUD-less run, per-test report
-status: approved 2026-10-06 (U1-U17, R1-R12 and all per-part hub decisions); not implemented; implementation on branch feature/compass-task-flow
+status: approved 2026-10-06 (U1-U17, R1-R12 and all per-part hub decisions); P1 DONE 2026-10-06; implementation on branch feature/compass-task-flow
 created: 2026-10-06
 last_updated: 2026-10-06
-next_step: P1 on branch feature/compass-task-flow (check the branch out first; see U17)
+next_step: P2 (or P5 / P6, which also depend only on P1/P0) on branch feature/compass-task-flow (check the branch out first; see U17)
 related:
   - docs/compass/synthesis/ui-ux-screen-walkthrough.md (the Compass reference this SPEC adapts; screenshots in docs/compass/screenshots/)
   - docs/compass/synthesis/ui-ux-patterns.md (Compass patterns from the guide)
@@ -1101,7 +1101,7 @@ a wiremd wireframe needs the user's approval first.
 | Phase | Content (part steps) | WF | Depends on |
 |---|---|---|---|
 | P0 | User approves this SPEC (§3.2 and the per-part hub decisions); the hub commits it | — | — |
-| P1 | **Store and path safety:** `safe_subject_dirname` (A1); `task_info.py` (A2); `subject_tests.py` with `seed`, `evaluator`, R1 names (A3); `test_id` / `test_name` / `seed` in metadata (A4) | no | P0 |
+| P1 **DONE 2026-10-06** | **Store and path safety:** `safe_subject_dirname` (A1); `task_info.py` (A2); `subject_tests.py` with `seed`, `evaluator`, R1 names (A3); `test_id` / `test_name` / `seed` in metadata (A4) | no | P0 |
 | P2 | **Run engine, no UI:** `is_skipped`, `pause` / `resume` / `skip_trial`, seed plumbing, new metadata fields, `NullRecorder`, `run_mode`, `discard_session`, `tracking_status`, `task_instructions`, `run_blockers`, the R8 pre-roll (C1); `MouseGazeSource` (B6) | no | P1 |
 | P3 | **Recording additions:** `EntryTracker`, `entries` / `end_x` / `end_y` / `slot_index`, `target_track.csv`, `layout_slots`, `raw_clock_offset_ns` (D2). The `trials.csv` header changes in the same commit as P2's `is_skipped` if possible (R6) | no | P2 |
 | P4 | **Analysis modules:** geometry, saccades, trial metrics, visual data, cache + `_shutdown` hook + CLI (D3–D6); run the CLI on real folders and log the numbers | no | P3 |
@@ -1115,11 +1115,52 @@ P1–P5 have no UI, so they can be reviewed and committed one by one before the 
 
 ## 8. Impl log
 
-*(empty — filled by the implementer per phase)*
+### 2026-10-06 — P1 (A1-A4), claude-sonnet-5-5 (spec-implementer), branch `feature/compass-task-flow`
+
+Nothing committed or staged. `configs/default.yaml` and `configs/local_state.json` untouched.
+
+**Files changed**
+- `src/engine/session_naming.py`: `safe_subject_dirname()` (4A.9); `next_run_number` and `next_session_id` use it.
+- `src/engine/settings_profile.py`: `subject_settings_dir` uses it; `TESTS_DIRNAME = "_tests"` added and listed in `known_subject_ids`.
+- `src/ui/setup_page.py`: `_subject_calibration_dir` uses it (one line plus the import; a named A1 call site).
+- `src/engine/task_info.py` (new): `TASK_INFO`, grid label now "Grid Click". `src/ui/tasks_page.py` and `src/ui/results_page.py` import it from there (the only UI edits).
+- `src/engine/subject_tests.py` (new, 418 lines) and `src/engine/subject_test_record.py` (new, 211 lines): the store. See "Deviations / judgement calls" for the split.
+- `src/data/schema.py`: `SessionMetadata.test_id`, `test_name`, `seed` (all default `None`).
+- `src/app.py`: `AssessmentApp(test_id=None, test_name=None, seed=0)`; the three go into `SessionMetadata`, and `seed` is forwarded to `build_task`.
+- Tests (new): `tests/test_safe_subject_dirname.py` (AA13), `tests/test_subject_tests.py` (AA1-AA3, R3, R9, R1, R4/R5, atomic writer, names), `tests/test_subject_tests_lifecycle.py` (AA4-AA8, AA14), `tests/test_task_info.py` (A2), `tests/test_session_test_link.py` (AA11 first half).
+
+**What was done**
+- A1: AA13 passes for `..\x`, `../x`, `A/B`, `CON`, `con.txt`, `x.`, `..`, blank, control characters, 200 characters, a decomposed accent; ordinary IDs (including `TESTING`) come back unchanged, so `_settings/TESTING` and `_calibrations/TESTING` still match.
+- A2: done as written.
+- A3: record fields = 4A.2 plus `evaluator` (R9), `seed` (R3), and R1's `planned_trials` / `completed_trials` / `outcome`. `status` stays `not_done` / `done` / `ended_early`. Seed is drawn in [0, 999_999] on create and again on Copy Test (the draw is repeated until it differs from the source's seed). Name, evaluator and notes are editable in every state; configuration and a second `record_result` raise `TestLockedError` unless Not Done. `validate_test_name` is 1-60 characters, no control characters, unique per subject case-insensitively on the trimmed value. No `mark_discarded` (R4), no legacy import (R5). `allowed_actions` has the 4A.4 matrix without the `run_blocked` asterisk (R2). Atomic writer: `.tmp` beside the target, flush + fsync, `os.replace` with 1 + 5 attempts at 40 ms on `PermissionError`, any `OSError` becomes `TestStoreError` and the temp file is removed. Tolerant reader: unreadable / non-dict / missing id / id differs from the file name / unknown task are skipped and counted; a subject mismatch (casefold) is skipped silently; an unknown status reads as done with a `session_dir`, else not done. Delete is a move into `_deleted/`.
+- A4: a run started with `test_id`, `test_name`, `seed` writes all three to `metadata.json`; a standalone run writes `null`, `null`, `0`.
+
+**Tests added:** 112 (`tests/test_safe_subject_dirname.py` 59, `tests/test_subject_tests.py` 24 + `_lifecycle.py` 22, `tests/test_task_info.py` 3, `tests/test_session_test_link.py` 4).
+
+**pytest** (`..\.venv\Scripts\python.exe -m pytest -o addopts=""`): baseline before the change `728 passed in 117.44s`; after `840 passed in 124.02s`. No failures, so the known `test_config_merges_task_over_default` failure did not show up on this machine today.
+
+**Deviations / judgement calls (none changes a SPEC decision)**
+1. The store is split in two modules to respect the 500-line rule: `subject_test_record.py` (dataclass, parser, name rules) and `subject_tests.py` (errors, disk, actions). `subject_tests` re-exports every public name, so callers import only from `subject_tests`.
+2. `allowed_actions(test)` takes no `run_blocked` parameter at all (R2 makes it meaningless). AA8 is therefore parametrised over the four selection states only.
+3. `created_at` has microsecond precision, kept strictly increasing within the process. The 4A.2 example shows whole seconds, but the Add dialog creates up to 10 tests at once and `list_tests` sorts by `(created_at, test_id)`, so with seconds the order of tests created together would be decided by the random id.
+4. `origin` is `created` or `copied` only (`imported` dropped with the legacy import, R5).
+5. `AssessmentApp(seed=...)` is forwarded to `build_task` in P1, not only recorded, so `metadata.seed` cannot disagree with the order that was drawn. Default 0 is today's behaviour. P2's "seed plumbing" item for `AssessmentApp` is therefore already done; see §9.
+6. Store functions raise `ValueError` (carrying the `validate_test_name` text) for a bad name, blank Subject ID, unknown task, non-dict configuration, bad trial counts, or a session folder that is not directly inside `output_root`. An unknown / missing / other-subject test id raises `TestStoreError`. The SPEC names only `TestStoreError` and `TestLockedError`.
+7. A Copy Test name from a long custom name is truncated so that the suffix fits in 60 characters.
+8. `next_session_id` also uses the safe name. Otherwise the run-number scan and the created folder would disagree for an unusual ID.
+9. `TestStoreError`, `TestLockedError` and `TestListLoad` carry `__test__ = False` so pytest does not try to collect them.
+
+**Noticed, not changed**
+- `TASK_INFO["click_grid"]` description still says "a visible 3x3 board" (the SPEC names only the label).
+- `run_headless_replay` (`src/engine/task_runner.py`, CLI `--replay` only) builds `replay_<task>_<subject>` from the raw `--subject`. It is not one of the four A1 call sites, so it still accepts an unsafe ID.
+
+**Left undone:** nothing in A1-A4. A stray empty file `str` (an arrow in a tool input) appeared in the repo root during the run and was removed.
 
 ## 9. Implementer open questions
 
-*(empty)*
+None blocking P1. Two points for the hub to confirm:
+- **2026-10-06** — Copy Test carries the **evaluator** over to the copy. **User 2026-10-06: keep it, as implemented.** 4A.6 and U3 ("identical unrun copy") list only notes, status, session link, date and counts as cleared, so this is the literal reading. If copies should start with a blank evaluator, change `evaluator=source.evaluator` in `copy_test` (`src/engine/subject_tests.py`) and the one assertion in `tests/test_subject_tests_lifecycle.py`.
+- **2026-10-06** — `AssessmentApp(seed=...)` already feeds `build_task` (judgement call 5 above). Confirm P2 should drop that item from its list rather than expect it still open.
 
 Points the hub should still confirm with the user while reviewing (from the drafts, not blocking):
 - (a) The Evaluator field exists only on the report (Setup is unchanged, U1). HD14.
@@ -1128,6 +1169,13 @@ Points the hub should still confirm with the user while reviewing (from the draf
 - (c) The read-aloud instruction text in 4C.3 needs a clinician's review before release.
 - (d) Esc during a recorded run becomes "Quit with confirmation" instead of an immediate end
   (HC10).
+
+**User answers 2026-10-06 (final):** (a) yes, Evaluator only on the report; (b) OK, smoothed
+peak velocity accepted with that comparability caveat; (c) noted, clinician review of the 4C.3
+text stays a release item; (d) yes, Esc in a recorded run = Quit with confirmation.
+
+**Hub 2026-10-06:** the P2 seed-plumbing item for `AssessmentApp` is done in P1 (`seed` already
+reaches `build_task`); P2 keeps only the practice/preview seeds and the rest of C1.
 
 ## 10. Log
 
@@ -1144,3 +1192,4 @@ Points the hub should still confirm with the user while reviewing (from the draf
   coordinate-click loop works, and it is available if any Compass behaviour needs checking
   during the wireframe phase.
 - **2026-10-06** — The user approved the SPEC (all hub decisions and R1–R12) and added U17: implement on a separate branch. The SPEC was committed on the new branch `feature/compass-task-flow`.
+- **2026-10-06** — P1 (A1-A4) implemented by spec-implementer (§8). Hub review: in scope, AA1-AA8, AA11 first half, AA13 and the store part of AA14 covered by tests; hub pytest 840 passed, 0 failed (728 before). User answered §9 (a)-(d) and kept the evaluator on Copy Test. Committed on the feature branch on the user's OK. No live check: P1 has no UI.

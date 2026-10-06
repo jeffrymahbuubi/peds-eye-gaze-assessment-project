@@ -203,6 +203,9 @@ class AssessmentApp:
         preset_calibration_source: str | None = None,
         preset_calibration_file: str | None = None,
         screen: QScreen | None = None,
+        test_id: str | None = None,
+        test_name: str | None = None,
+        seed: int = 0,
     ) -> None:
         """Build one task run.
 
@@ -226,6 +229,12 @@ class AssessmentApp:
         The dashboard passes its own window's screen: the embedded canvas is
         not yet in any window when this runs, so its own ``screen()`` would
         only be a default. Omitted, the canvas's own screen is used.
+
+        ``test_id``/``test_name`` link the run to its Test List entry and are
+        written to ``metadata.json`` (SPEC-compass-task-flow.md 4A.7);
+        ``seed`` is the target-order seed (R3: the test's own seed), written
+        there too. All three default to the standalone behaviour: no test, and
+        seed 0, the order every run had before tests existed.
         """
         self.config = load_task_config(task_id)
         self.task_id = task_id
@@ -405,6 +414,9 @@ class AssessmentApp:
             notes=notes,
             display_nonstandard_acknowledged=display_acknowledged,
             hud_hidden_at_start=bool(hud_hidden),
+            test_id=test_id,
+            test_name=test_name,
+            seed=int(seed),
             # Provenance (SPEC-live-settings-panel.md S10.4). Before settings
             # persisted, a run was reproducible because every run started from
             # the same YAML defaults; S10.3 removes that guarantee, so the
@@ -511,7 +523,9 @@ class AssessmentApp:
         # Before build_task: tasks read the resolved ``radius_px`` (``target``'s,
         # or ``layout``'s for scanning).
         self._resolve_target_size(screen)
-        self.task = build_task(task_id, self.config, recorder=self.recorder, feedback=self.feedback)
+        self.task = build_task(
+            task_id, self.config, recorder=self.recorder, feedback=self.feedback, seed=int(seed)
+        )
         app_cfg = self.config.get("app", {})
         self.recorder.log(
             f"Running {task_id} ({len(self.task.targets)} trials) at "

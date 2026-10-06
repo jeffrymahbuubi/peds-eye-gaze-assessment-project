@@ -48,6 +48,7 @@ from ..engine.calibration import (
 from ..engine.config import load_default
 from ..engine.display_check import DisplayCheck, check_display
 from ..engine.local_state import load_local_state, save_local_state
+from ..engine.session_naming import safe_subject_dirname
 from ..engine.settings_profile import known_subject_ids
 from ..inputs.gazepoint_client import DeviceInfo, GazepointClient
 from .wtmh_theme import BORDER, PANEL_BG
@@ -146,7 +147,7 @@ def _subject_calibration_dir(output_root: str | Path, subject_id: str) -> Path:
     run folders. Doesn't create the directory -- callers create it on save,
     or just check existence before using it as a browse-to default.
     """
-    return Path(output_root) / "_calibrations" / subject_id
+    return Path(output_root) / "_calibrations" / safe_subject_dirname(subject_id)
 
 
 def _subject_calibration_path(output_root: str | Path, subject_id: str, n_points: int) -> Path:

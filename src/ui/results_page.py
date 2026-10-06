@@ -38,7 +38,7 @@ from PySide6.QtWidgets import (
 
 from ..data.analysis_export import compute_saccade_metrics
 from ..data.exporter import compute_fixation_saccade_metrics, load_metadata, summarize
-from .tasks_page import TASK_INFO
+from ..engine.task_info import TASK_INFO
 
 
 def _fmt(value: Any, suffix: str = "", ndigits: int | None = None) -> str:
