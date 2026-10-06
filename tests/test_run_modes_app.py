@@ -491,3 +491,65 @@ def test_a_follow_moving_run_writes_a_target_track_and_a_practice_does_not(make_
         time.sleep(0.01)
     practice._shutdown()
     assert snapshot(make_app.root) == before
+
+
+# -- the report cache hook (SPEC 4D.6, P4, G10) ---------------------------------
+
+
+def test_a_recorded_run_leaves_a_report_json_equal_to_a_rebuild(make_app):
+    from src.data.report_cache import REPORT_VERSION, build_report, report_json
+
+    done: list[int] = []
+    app = make_app(
+        structural_overrides={"trials": 2},
+        live_overrides={"task.timeout_ms": 30, "task.inter_trial_interval_ms": 0},
+        on_finished=lambda: done.append(1),
+    )
+    tick_until(app, lambda: bool(done))
+    folder = app.recorder.session_dir
+    text = (folder / "report.json").read_text(encoding="utf-8")
+    report = json.loads(text)
+    assert report["report_version"] == REPORT_VERSION and len(report["trials"]) == 2
+    assert report["session"]["outcome"] == "completed" and report["session"]["planned_trials"] == 2
+    assert text == report_json(build_report(folder))  # AD1: the cache is exactly a rebuild
+
+
+def test_an_operator_ended_run_gets_a_report_with_the_partial_banner(make_app):
+    app = make_app(structural_overrides={"trials": 6})
+    app._tick()
+    app._skip_trial()
+    app._shutdown()
+    report = json.loads((app.recorder.session_dir / "report.json").read_text(encoding="utf-8"))
+    assert [t["outcome"] for t in report["trials"]] == ["skipped"]
+    assert report["quality"]["warnings"][0]["text"] == "Ended early — 1 of 6 trials"
+    assert report["session"]["n_skipped"] == 1 and report["session"]["n_scored"] == 0
+
+
+@pytest.mark.parametrize("mode", ["practice", "preview"])
+def test_practice_and_preview_never_build_a_report(make_app, monkeypatch, mode):
+    calls: list[object] = []
+    monkeypatch.setattr(app_module, "write_report_safely", lambda d: calls.append(d))
+    kw = {"client": MouseGazeSource()} if mode == "preview" else {}
+    app = make_app(run_mode=mode, replay=mode == "practice", **kw)
+    app._tick()
+    app._shutdown()
+    assert calls == [] and list(make_app.root.glob("**/report.json")) == []
+    record = make_app()
+    record._tick()
+    record._shutdown()
+    assert calls == [record.recorder.session_dir]  # the one recorded run did
+
+
+def test_a_report_failure_never_breaks_closing_a_recorded_run(make_app, monkeypatch):
+    import src.data.report_cache as report_cache
+
+    def boom(_folder):
+        raise RuntimeError("analysis bug")
+
+    monkeypatch.setattr(report_cache, "build_report", boom)
+    app = make_app()
+    app._tick()
+    app._shutdown()  # must not raise
+    folder = app.recorder.session_dir
+    assert (folder / "trials.csv").is_file() and (folder / "session_metrics.json").is_file()
+    assert not (folder / "report.json").exists()

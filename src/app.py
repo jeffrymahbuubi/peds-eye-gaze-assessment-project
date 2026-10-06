@@ -29,6 +29,7 @@ from .data.analysis_export import (
 )
 from .data.exporter import write_session_metrics
 from .data.recorder import NullRecorder, SessionRecorder
+from .data.report_cache import write_report_safely
 from .data.schema import SessionMetadata
 from .engine.calibration import (
     Calibration,
@@ -1104,6 +1105,10 @@ class AssessmentApp:
         if self._save_all_gaze:
             finalize_all_gaze(self.recorder.session_dir, width, height)
         write_session_metrics(self.recorder.session_dir)
+        # The per-test report cache (SPEC-compass-task-flow.md 4D.6, HD1), last, from the
+        # files just written; a failure is logged, never raised. Reached only by a
+        # recorded run: practice and preview use NullRecorder and skip this method.
+        write_report_safely(self.recorder.session_dir)
 
 
 def run_gui(
