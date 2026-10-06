@@ -248,6 +248,13 @@ class SessionMetadata:
     # ``schema_version`` deliberately not bumped, same reasoning as the
     # geometry fields above.
     target_size: dict[str, Any] | None = None
+    # Grid Click's cell gap preset this run resolved (SPEC-grid-cell-gap.md
+    # S4.2): ``{"preset", "gap_deg", "gap_px"}`` -- both None for ``standard``
+    # -- plus ``"gap_px_used"`` when the live canvas capped the wanted gap
+    # (H4). None when the task has no ``grid.gap`` (every other task, an old
+    # config) or on older sessions. Additive; ``schema_version`` deliberately
+    # not bumped, same reasoning as the fields above.
+    grid_gap: dict[str, Any] | None = None
 
     def to_dict(self) -> dict[str, Any]:
         return {f.name: getattr(self, f.name) for f in fields(self)}

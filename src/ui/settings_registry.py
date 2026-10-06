@@ -20,7 +20,13 @@ from dataclasses import dataclass
 from typing import Any
 
 from ..engine.settings_profile import parse_saved_at
-from ..engine.target_size import DEFAULT_SIZE, SIZE_NAMES, SIZE_PRESETS_DEG
+from ..engine.target_size import (
+    DEFAULT_GAP,
+    DEFAULT_SIZE,
+    GAP_CHOICES,
+    SIZE_NAMES,
+    SIZE_PRESETS_DEG,
+)
 
 # Target size presets (SPEC-target-size-and-motion-paths.md S4.1/S4.5): (value
 # stored in target.size, label). The dialog appends the diameter in px on the
@@ -219,6 +225,17 @@ STRUCTURAL_SETTINGS: list[StructuralSetting] = [
     ),
     StructuralSetting("grid.rows", "Grid rows", "int", 2, 6, 1, applies_to=("click_grid",)),
     StructuralSetting("grid.cols", "Grid cols", "int", 2, 6, 1, applies_to=("click_grid",)),
+    # The space between two neighbouring cells, by visual angle like the sizes;
+    # the dialog appends the px it comes to on this monitor. SPEC-grid-cell-gap.md
+    # S4.5 -- Standard is today's board.
+    StructuralSetting(
+        "grid.gap",
+        "Cell gap",
+        "choice",
+        applies_to=("click_grid",),
+        choices=GAP_CHOICES,
+        default=DEFAULT_GAP,
+    ),
     StructuralSetting(
         "layout.n_icons", "Number of icons", "int", 2, 8, 1, applies_to=("scanning",)
     ),

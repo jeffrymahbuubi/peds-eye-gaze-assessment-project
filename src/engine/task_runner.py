@@ -25,7 +25,9 @@ from ..tasks.scanning import ScanningTask
 from .config import load_task_config
 from .loop_rate import config_target_fps, resolve_target_fps
 from .target_size import (
+    apply_grid_gap,
     apply_target_size,
+    grid_gap_log_line,
     screen_scale,
     size_block,
     target_size_log_line,
@@ -100,6 +102,8 @@ def run_headless_replay(
     size_info = apply_target_size(
         task_cfg, scale, viewing_distance_mm(app_cfg), block=size_block(task_cfg)
     )
+    # Grid Click's cell gap, on the same reference monitor (SPEC-grid-cell-gap.md S4.2).
+    gap_info = apply_grid_gap(task_cfg, scale, viewing_distance_mm(app_cfg))
 
     session_id = session_id or f"replay_{task_id}_{subject_id}"
     metadata = SessionMetadata(
@@ -110,6 +114,7 @@ def run_headless_replay(
         tasks=[task_id],
         notes="headless replay",
         target_size=size_info,
+        grid_gap=gap_info,
     )
 
     with SessionRecorder(metadata, output_root=output_root) as recorder:
@@ -117,6 +122,8 @@ def run_headless_replay(
         recorder.log(f"Starting headless replay: task={task_id} fps={fps}")
         if size_info is not None:
             recorder.log(target_size_log_line(size_info, scale))
+        if gap_info is not None:
+            recorder.log(grid_gap_log_line(gap_info))
 
         max_frames = int(max_seconds * fps)
         save_gaze = config.get("recording", {}).get("save_gaze_stream", True)
@@ -141,6 +148,9 @@ def run_headless_replay(
             if task.is_done:
                 break
 
+        gap_used = getattr(task, "gap_capped_px", None)
+        if gap_used is not None and gap_info is not None:
+            gap_info["gap_px_used"] = round(gap_used, 1)  # metadata is rewritten on close
         trials_path = recorder.write_trials(task.trials)
         recorder.log(f"Wrote {len(task.trials)} trials -> {trials_path}")
         # Close explicitly (flushes gaze_stream.csv fully) so the metrics below

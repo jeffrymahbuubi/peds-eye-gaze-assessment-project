@@ -13,7 +13,7 @@ cells via ``scene_spec()``'s new ``"grid"`` mode.
 
 from __future__ import annotations
 
-from ..engine.target_size import fit_radius_px
+from ..engine.target_size import CellGeometry, grid_cell_geometry
 from ..inputs.base import circle_contains
 from .base_task import BaseTask, TargetSpec
 
@@ -25,6 +25,17 @@ class ClickGridTask(BaseTask):
         rows = int(grid.get("rows", 3))
         cols = int(grid.get("cols", 3))
         margin = float(grid.get("margin_frac", 0.12))
+        # The gap wanted between neighbouring cells, in px, resolved from
+        # ``grid.gap`` by apply_grid_gap (SPEC-grid-cell-gap.md S4.2). None --
+        # the standard gap, also when the config has no ``gap`` at all -- keeps
+        # the board exactly as it was (H1).
+        gap_px = grid.get("gap_px")
+        self.gap_px: float | None = float(gap_px) if gap_px else None
+        # GAP_CAPPED is reported once per run, at the first trial start where the
+        # live canvas makes grid_cell_geometry cap the gap (like TARGET_SHRUNK);
+        # ``gap_capped_px`` is then the gap actually used, for metadata.
+        self._gap_reported = False
+        self.gap_capped_px: float | None = None
         radius = float(cfg.get("target", {}).get("radius_px", 80))
         n_trials = int(cfg.get("trials", rows * cols))
 
@@ -68,25 +79,33 @@ class ClickGridTask(BaseTask):
     # -- target fit (SPEC-target-size-and-motion-paths.md S4.3) ---------------
 
     def _cell_px(self) -> tuple[float, float]:
-        """One grid cell's size in canvas px, from the live canvas size."""
+        """One grid cell's pitch in canvas px, from the live canvas size."""
         return self.cell_w * self.screen_w, self.cell_h * self.screen_h
+
+    def _geometry(self) -> CellGeometry:
+        """How a cell is drawn, fitted and hit-tested right now
+        (:func:`~src.engine.target_size.grid_cell_geometry`, SPEC-grid-cell-
+        gap.md S4.3). Evaluated per frame: the canvas resizes mid-run (HUD
+        hide/show), and the gap in px does not follow the canvas."""
+        return grid_cell_geometry(*self._cell_px(), self.gap_px)
 
     def effective_radius_px(self, target: TargetSpec) -> float:
         """The configured radius, capped so the circle sits fully inside its
-        cell as the canvas draws it (cell rectangle inset by the canvas's own
-        padding -- :func:`~src.engine.target_size.fit_radius_px`). Evaluated
+        cell as the canvas draws it (the drawn cell of ``_geometry``). Evaluated
         per frame: the canvas resizes mid-run (HUD hide/show)."""
-        return min(target.radius_px, fit_radius_px(*self._cell_px()))
+        return min(target.radius_px, self._geometry().fit_radius_px)
 
     def hit_test(
         self, target: TargetSpec, cx_px: float, cy_px: float, px: float, py: float
     ) -> bool:
         """The usual circle test (effective radius + jitter) AND the point lies
-        inside the target's own, unpadded cell: the hitbox never reaches a
-        neighbouring cell, yet keeps its full jitter tolerance in the cell's
-        corners."""
-        cell_w_px, cell_h_px = self._cell_px()
-        in_cell = abs(px - cx_px) <= cell_w_px / 2 and abs(py - cy_px) <= cell_h_px / 2
+        inside the target's own cell: the hitbox never reaches a neighbouring
+        cell, yet keeps its full jitter tolerance in the cell's corners. The
+        standard gap clips to the whole, unpadded pitch (as always); a wider
+        gap clips to the *drawn* cell, so the gap between two cells is a dead
+        zone that belongs to neither (SPEC-grid-cell-gap.md H3)."""
+        geometry = self._geometry()
+        in_cell = abs(px - cx_px) <= geometry.hit_w / 2 and abs(py - cy_px) <= geometry.hit_h / 2
         return in_cell and circle_contains(
             cx_px, cy_px, self.effective_radius_px(target) + self.jitter_px, px, py
         )
@@ -94,7 +113,29 @@ class ClickGridTask(BaseTask):
     def _shrink_details(self) -> dict:
         return {"rows": self.rows, "cols": self.cols}
 
+    def _start_trial(self, t_ns: int) -> None:
+        geometry = self._geometry()
+        if geometry.capped and not self._gap_reported:
+            self._gap_reported = True
+            self.gap_capped_px = geometry.gap_px
+            self._record_event(
+                "GAP_CAPPED",
+                t_ns,
+                requested_px=round(geometry.wanted_px, 1),
+                used_px=round(geometry.gap_px, 1),
+                **self._shrink_details(),
+            )
+            self._log(
+                f"Cell gap limited to ≈{geometry.gap_px:.0f} px (wanted "
+                f"≈{geometry.wanted_px:.0f} px) to fit a {self.rows} x {self.cols} grid."
+            )
+        super()._start_trial(t_ns)
+
     def scene_spec(self) -> dict:
+        # ``cell_inset_px`` is the live inset per side (it depends on the canvas
+        # size when the gap is standard or capped), so the canvas draws the very
+        # cell the target is fitted and hit-tested against; the app re-reads this
+        # every frame.
         return {
             "mode": "grid",
             "rows": self.rows,
@@ -102,4 +143,5 @@ class ClickGridTask(BaseTask):
             "cells": list(self.cells),
             "cell_w": self.cell_w,
             "cell_h": self.cell_h,
+            "cell_inset_px": self._geometry().inset,
         }

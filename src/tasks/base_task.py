@@ -342,8 +342,9 @@ class BaseTask:
     def scene_spec(self) -> dict[str, Any]:
         """Describe the task's persistent on-screen layout for the renderer.
 
-        Fetched once when a task starts (see ``AssessmentApp.__init__``), not
-        per frame. Default ``{"mode": "single"}`` matches today's rendering
+        Re-read every tick by ``AssessmentApp._tick`` (click_grid's cell inset
+        follows the live canvas size, SPEC-grid-cell-gap.md S4.3), so keep it
+        cheap and deterministic. Default ``{"mode": "single"}`` matches today's rendering
         (one target on an empty field, plus the generic dim ``layout_slots``
         outlines for tasks that set them) so every task not yet ported to a
         dedicated mode is unaffected. ``scanning`` is the first task to

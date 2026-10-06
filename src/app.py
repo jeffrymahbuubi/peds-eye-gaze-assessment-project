@@ -49,7 +49,9 @@ from .engine.session_naming import next_session_id
 from .engine.settings_profile import save_settings_profile
 from .engine.target_size import (
     DEFAULT_SIZE,
+    apply_grid_gap,
     apply_target_size,
+    grid_gap_log_line,
     screen_scale,
     size_block,
     target_size_log_line,
@@ -515,10 +517,11 @@ class AssessmentApp:
             f"Running {task_id} ({len(self.task.targets)} trials) at "
             f"{int(app_cfg.get('screen_width_px', 1920))}x{int(app_cfg.get('screen_height_px', 1080))}."
         )
-        # Fetched once, not per frame -- the task's persistent on-screen
-        # layout description (ported from resources/diki, see
-        # SPEC-diki-design-audit.md S3.1). Default {"mode": "single"} for
-        # tasks not yet ported to a dedicated scene.
+        # The task's persistent on-screen layout description (ported from
+        # resources/diki, see SPEC-diki-design-audit.md S3.1). Default
+        # {"mode": "single"} for tasks not yet ported to a dedicated scene.
+        # Re-read every tick (see _tick): click_grid's cell inset follows the
+        # live canvas size (SPEC-grid-cell-gap.md S4.3).
         self._scene = self.task.scene_spec()
 
         self._paused = False
@@ -589,13 +592,19 @@ class AssessmentApp:
         block = size_block(task_cfg)
         requested = (task_cfg.get(block) or {}).get("size")
         info = apply_target_size(task_cfg, scale, distance, block=block)
-        if info is None:
-            return
-        self.metadata.target_size = info
-        if str(requested).strip().lower() != info["preset"]:
-            what = "icon size" if block == "layout" else "target size"
-            self.recorder.log(f"Unknown {what} {requested!r}; using {DEFAULT_SIZE!r}.")
-        self.recorder.log(target_size_log_line(info, scale))
+        if info is not None:
+            self.metadata.target_size = info
+            if str(requested).strip().lower() != info["preset"]:
+                what = "icon size" if block == "layout" else "target size"
+                self.recorder.log(f"Unknown {what} {requested!r}; using {DEFAULT_SIZE!r}.")
+            self.recorder.log(target_size_log_line(info, scale))
+        # Grid Click's cell gap (SPEC-grid-cell-gap.md S4.2), resolved against
+        # the very same scale. No ``grid.gap`` (every other task, an old config
+        # or profile) leaves everything alone: the standard board.
+        gap_info = apply_grid_gap(task_cfg, scale, distance)
+        if gap_info is not None:
+            self.metadata.grid_gap = gap_info
+            self.recorder.log(grid_gap_log_line(gap_info))
 
     def calibration_snapshot(self) -> dict:
         """The calibration this run is operating under (S10.5.5).
@@ -898,6 +907,9 @@ class AssessmentApp:
             self._device_rate.update(sample.t_ns, t_ns)
 
         result = self.task.update(t_ns, pointer)
+        # After set_screen_size above, so the scene (a grid's cell inset) is for
+        # the same canvas size the task just fitted and hit-tested at.
+        self._scene = self.task.scene_spec()
 
         if self._dropout_log is not None:
             self._dropout_log.observe(t_ns, pointer.valid, result.cursor_xy_norm)
@@ -949,6 +961,11 @@ class AssessmentApp:
         sessions only) and
         the session median eye distance from ``eye_geometry.csv``."""
         meta = self.metadata
+        gap_used = getattr(self.task, "gap_capped_px", None)
+        if gap_used is not None and meta.grid_gap is not None:
+            # The cell gap the live canvas capped (SPEC-grid-cell-gap.md H4);
+            # the GAP_CAPPED event holds the same number at the moment it applied.
+            meta.grid_gap["gap_px_used"] = round(gap_used, 1)
         if self.client.is_live:
             # Records / device-time span of the raw file, not the on-screen
             # meter (capped by the GUI frame rate) -- SPEC S10.6.9.

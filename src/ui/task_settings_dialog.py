@@ -12,7 +12,7 @@ the same ``deep_merge`` an ``overrides:`` YAML block already goes through.
 A setting is a slider+spin row (int/float) or, for ``kind="choice"``, a themed
 combo box whose value is a string (the target / icon size preset of every task,
 follow_moving's movement path -- SPEC-target-size-and-motion-paths.md S4.5,
-S11.3).
+S11.3 -- and click_grid's cell gap, SPEC-grid-cell-gap.md S4.5).
 
 Shown modally by :func:`src.app.run_gui` and by ``DashboardWindow``'s Tasks
 tab. "Start task" accepts current values (defaults if untouched); "Cancel"
@@ -49,8 +49,9 @@ from PySide6.QtWidgets import (
 )
 
 from ..engine.target_size import (
-    estimate_grid_fit_radius_px,
+    estimate_grid_geometry,
     fit_icon_radius_px,
+    gap_px_for,
     radius_px_for,
     screen_scale,
     viewing_distance_mm,
@@ -140,6 +141,8 @@ class TaskSettingsDialog(QDialog):
             self._controls["target.size"].currentIndexChanged.connect(self._update_fit_hint)
             self._controls["grid.rows"].valueChanged.connect(self._update_fit_hint)
             self._controls["grid.cols"].valueChanged.connect(self._update_fit_hint)
+            if "grid.gap" in self._controls:
+                self._controls["grid.gap"].currentIndexChanged.connect(self._update_fit_hint)
             self._update_fit_hint()
         if all(key in self._controls for key in ("layout.size", "layout.n_icons")):
             self._controls["layout.size"].currentIndexChanged.connect(self._update_icon_hint)
@@ -182,6 +185,11 @@ class TaskSettingsDialog(QDialog):
                 # comes to on this monitor.
                 diameter = 2 * radius_px_for(choice_value, self._scale.mm_per_px, self._distance_mm)
                 label = f"{label} (≈{round(diameter)} px)"
+            elif setting.key == "grid.gap":
+                # Likewise the cell gap (Standard has no angle, so no px).
+                gap = gap_px_for(choice_value, self._scale.mm_per_px, self._distance_mm)
+                if gap is not None:
+                    label = f"{label} (≈{round(gap)} px)"
             combo.addItem(label, choice_value)
         index = combo.findData(value)
         combo.setCurrentIndex(index if index >= 0 else combo.findData(setting.default))
@@ -203,19 +211,41 @@ class TaskSettingsDialog(QDialog):
             )
 
     def _update_fit_hint(self, *_args) -> None:
-        """Show how far the chosen size will be shrunk to fit the chosen grid.
+        """Show how far the chosen size will be shrunk to fit the chosen grid
+        and cell gap, and whether the gap itself is limited.
 
         An estimate from the screen's available area (labelled approximate);
         the real fit is applied per frame during the run (``ClickGridTask.
-        effective_radius_px``). Hidden when the preset fits.
+        effective_radius_px`` / ``grid_cell_geometry``, which this reads too, so
+        they cannot disagree). Hidden when the preset fits and the gap is not
+        limited.
         """
         rows = int(self._controls["grid.rows"].value())
         cols = int(self._controls["grid.cols"].value())
         wanted = radius_px_for(
             self._controls["target.size"].currentData(), self._scale.mm_per_px, self._distance_mm
         )
-        fits = estimate_grid_fit_radius_px(rows, cols, *self._canvas_px, self._grid_margin)
-        if fits < wanted - 0.5:
+        gap_control = self._controls.get("grid.gap")
+        gap_px = (
+            gap_px_for(gap_control.currentData(), self._scale.mm_per_px, self._distance_mm)
+            if gap_control is not None
+            else None
+        )
+        geometry = estimate_grid_geometry(rows, cols, *self._canvas_px, self._grid_margin, gap_px)
+        fits = geometry.fit_radius_px
+        shrunk = fits < wanted - 0.5
+        if geometry.capped:
+            # H4: the wanted gap would leave cells under half their pitch.
+            limited = f"Gap limited to ≈ {round(geometry.gap_px)} px"
+            tail = f"to fit a {rows} x {cols} grid (approximate)"
+            if shrunk:
+                self.fit_hint_label.setText(
+                    f"{limited} and targets shrunk to ≈ {round(2 * fits)} px {tail}"
+                )
+            else:
+                self.fit_hint_label.setText(f"{limited} {tail}")
+            self.fit_hint.show()
+        elif shrunk:
             self.fit_hint_label.setText(
                 f"Will be shrunk to ≈ {round(2 * fits)} px to fit a {rows} x {cols} grid "
                 "(approximate)"

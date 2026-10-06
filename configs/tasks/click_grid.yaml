@@ -7,6 +7,10 @@ grid:
   rows: 3
   cols: 3
   margin_frac: 0.12          # margin around the grid, fraction of screen
+  # Space between neighbouring cells: standard (today's board) | wide 1 deg |
+  # extra_wide 2 deg, converted to px like the target size (SPEC-grid-cell-gap.md).
+  # Wide gaps are a dead zone: a look between two cells selects neither.
+  gap: standard
 
 trials: 18                    # <= rows*cols*repeats; order is randomized
 timeout_ms: 8000

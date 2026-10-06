@@ -155,7 +155,7 @@ def test_overrides_return_the_chosen_preset_as_a_string(qapp):
     result = d.overrides()
     assert result["target"] == {"size": "large"}  # no radius_px for click_grid
     assert isinstance(result["target"]["size"], str)
-    assert result["grid"] == {"rows": 3, "cols": 3}
+    assert result["grid"] == {"rows": 3, "cols": 3, "gap": "standard"}  # the Cell gap row's value
 
 
 def test_dialog_restores_the_size_from_the_config(qapp):

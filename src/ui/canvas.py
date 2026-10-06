@@ -13,7 +13,7 @@ from PySide6.QtCore import QPointF, QRectF, Qt
 from PySide6.QtGui import QColor, QPainter, QPainterPath, QPen, QRadialGradient
 from PySide6.QtWidgets import QWidget
 
-from ..engine.target_size import CELL_PAD_FRAC, ICON_DRAW_FRAC
+from ..engine.target_size import ICON_DRAW_FRAC, grid_cell_geometry
 from ..inputs.base import norm_to_px, outside_distance
 
 # Distractor glyphs for the scanning field (ported from resources/diki, see
@@ -245,9 +245,12 @@ class TaskCanvas(QWidget):
         if not cells or cw <= 0 or ch <= 0:
             return
 
-        # Same padding ClickGridTask.effective_radius_px caps the target
-        # circle by (SPEC-target-size-and-motion-paths.md S4.3).
-        pad = CELL_PAD_FRAC * min(cw, ch)
+        # The inset the task fits the target circle and hit-tests against
+        # (ClickGridTask._geometry; SPEC-target-size-and-motion-paths.md S4.3,
+        # SPEC-grid-cell-gap.md S4.4). A scene without one is the standard board.
+        pad = self.scene.get("cell_inset_px")
+        if pad is None:
+            pad = grid_cell_geometry(cw, ch).inset
         idle = QColor(self.theme.get("cursor_color", "#ffffff"))
         idle.setAlpha(38)
         for i, (xn, yn) in enumerate(cells):

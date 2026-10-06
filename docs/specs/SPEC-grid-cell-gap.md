@@ -1,10 +1,10 @@
 ---
 name: SPEC-grid-cell-gap
 title: Grid Click — operator-set gap between cells (dead zone)
-status: approved — G1-G3 + H1-H4 (user, 2026-10-06); wireframe next
+status: implemented — reviewed (728 passed) and live-checked vs the fake server; real-gaze dead-zone check OPEN
 created: 2026-10-06
 last_updated: 2026-10-06
-next_step: /spec-run (implementation); wireframe approved
+next_step: real-gaze check with the user as subject (3x3 Extra wide: look into the gap, nothing selects)
 related:
   - SPEC-target-size-and-motion-paths.md (size presets by visual angle, grid fit S4.3, Task settings choice kind S4.5)
   - SPEC-target-visual-fixes.md (running at the same time; touches canvas.py rings and the task YAML colours only)
@@ -12,7 +12,7 @@ related:
 
 # SPEC-grid-cell-gap — wider, operator-set gap between grid cells
 
-**Status: approved 2026-10-06 (written at `b6803a6`): G1-G3 and hub decisions H1-H4. Wireframe approved 2026-10-06 (`docs/wireframes/task-settings.md`, sections E/F). Nothing implemented yet.**
+**Status: approved 2026-10-06 (written at `b6803a6`): G1-G3 and hub decisions H1-H4. Wireframe approved 2026-10-06 (`docs/wireframes/task-settings.md`, sections E/F). Implemented, reviewed and live-checked against the fake server 2026-10-06; real-gaze check open.**
 
 ## 1. Origin
 
@@ -180,14 +180,76 @@ jitter tolerance.
 1. ~~User approves H1-H4 (and §4).~~ Done 2026-10-06.
 2. DONE 2026-10-06. Wireframe: add the Cell gap row + capped hint to
    `docs/wireframes/task-settings.md`, GATE 1.
-3. `/spec-run`: spec-implementer, hub review + pytest, live check against the
+3. DONE 2026-10-06 except the real-gaze part (open). `/spec-run`: spec-implementer, hub review + pytest, live check against the
    fake server on port 4250 (3x3 and 6x6 at each gap, HUD hide mid-run), then
    real gaze with the user as subject (looking into the gap must not select).
    Commit/push on the user's OK.
 
 ## 8. Impl log
 
-(empty)
+- **2026-10-06** — Implemented §4.1-§4.5 as approved. Model: `claude-sonnet-5-5`
+  (spec-implementer, Sonnet 5.5). Not committed, not staged; `configs/default.yaml`
+  and `configs/local_state.json` untouched; no live/GUI run.
+  - **Files changed:** `src/engine/target_size.py` (GAP_PRESETS_DEG / GAP_NAMES /
+    GAP_CHOICES / DEFAULT_GAP / GAP_MAX_PITCH_FRAC, `normalize_gap`, `gap_px_for`,
+    `apply_grid_gap`, `grid_gap_log_line`, `CellGeometry` + `grid_cell_geometry`,
+    `estimate_grid_geometry`; `fit_radius_px` and `estimate_grid_fit_radius_px` gain
+    `gap_px`, both now delegate to `grid_cell_geometry`),
+    `src/tasks/click_grid.py`, `src/ui/canvas.py`, `src/app.py`,
+    `src/engine/task_runner.py` (headless replay resolves the gap too),
+    `src/data/schema.py` (additive `SessionMetadata.grid_gap`),
+    `src/ui/settings_registry.py`, `src/ui/task_settings_dialog.py`,
+    `configs/tasks/click_grid.yaml` (`gap: standard` + comment).
+  - **Tests added:** `tests/test_grid_cell_gap.py`, 64 tests (53 functions,
+    parametrized): gap_px_for known values; the §3 effect table within 1 px; H1 pin
+    (geometry numbers, the old fit formula bit for bit, the old `hit_test` re-implemented
+    inline and compared over a lattice of points for explicit `standard` and for a config
+    with no `gap` key); floor / cap / capped flag; dead zone (a point in the gap is
+    inside radius + jitter of both targets yet hits neither; standard touches);
+    `GAP_CAPPED` once per run + Log line + not repeated on resize + first trial where it
+    applies; HUD resize re-evaluation; `_resolve_target_size` metadata / Log line at 100 %
+    and 150 % scale; `gap_px_used` copy at session end; headless replay (standard, and a
+    capped Extra wide 6x6 run end to end); canvas pixel tests (inset from the scene, standard
+    fallback, a task scene); dialog row (click_grid only, after Grid cols), item texts,
+    hint texts incl. the capped wording, profile save/restore, old profile without `gap`.
+  - **Existing tests edited (2 assertions, unavoidable since the dialog gains a row):**
+    `tests/test_phase_b_sizes.py::test_click_grid_dialog_is_unchanged` (control key set
+    now includes `grid.gap`) and `tests/test_task_settings_dialog.py::
+    test_overrides_return_the_chosen_preset_as_a_string` (`grid` override now
+    `{"rows": 3, "cols": 3, "gap": "standard"}`). Every other existing test passes unchanged.
+  - **pytest (full, `..\.venv\Scripts\python.exe -m pytest`):** `728 passed in 120.39s`.
+    Baseline before the change on the same checkout: `664 passed in 118.94s` (the known
+    `test_config_merges_task_over_default` failure did not occur).
+  - **Decisions inside what the SPEC leaves open (no SPEC decision changed):**
+    1. The canvas needs the inset to follow the live canvas size (standard and capped
+       insets depend on it; HUD hide/show resizes), but `AssessmentApp` fetched
+       `scene_spec()` once. It is now re-read every tick, right after `task.update`
+       (so it matches the size the task just fitted at). `cell_inset_px` is in px. The
+       canvas falls back to the standard inset when a scene has no `cell_inset_px`.
+    2. §4.2 says "in the grid / target-size block": recorded as a new additive block
+       `metadata.grid_gap` = `{"preset", "gap_deg", "gap_px"}` (both None for `standard`)
+       plus `"gap_px_used"` when capped. A separate block because `target_size` is None
+       for configs without `target.size` and its key set is pinned by tests.
+       `gap_px_used` is copied from `task.gap_capped_px` just before metadata is rewritten
+       on close (`_record_session_end_quality`, and in the replay runner).
+    3. Item texts follow §4.5 and the existing size items, `(≈41 px)` with no space; the
+       wireframe draws `(≈ 41 px)`. The hint keeps `≈ N px` with the space, as the
+       wireframe and the existing hint do.
+    4. `GAP_CAPPED` payload: `requested_px`, `used_px`, `rows`, `cols`; Log line
+       `Cell gap limited to ≈61 px (wanted ≈83 px) to fit a 6 x 6 grid.` (wording was
+       not specified). Emitted at trial start, before that trial's `TARGET_SHRUNK` and
+       `TARGET_SHOWN`. The hint also has a variant for "gap capped but target not shrunk"
+       (`Gap limited to ≈ N px to fit ...`); with the current presets it cannot occur.
+    5. The Log line for a standard gap has no trailing period, exactly as §4.2 quotes it.
+  - **Deviations:** none from the approved decisions G1-G3, H1-H4, §4, §6.
+  - **Left undone:** live checks (fake server on port 4250, real gaze, canvas screenshot
+    at each gap, HUD hide mid-run) are the hub's; the per-tick scene refresh in
+    `AssessmentApp._tick` has no unit test (it needs the full app), only the pieces it
+    relies on do. `tests/test_grid_cell_gap.py` is about 860 lines (over the 500-line
+    guideline; existing test files are as long).
+  - Housekeeping: the tool layer created four empty stray files (`bool`, `cap`, `dict`,
+    `the`) in the repo root from tool input text; all four were deleted, `git status`
+    shows only the files above.
 
 ## 9. Implementer open questions
 
@@ -206,3 +268,24 @@ jitter tolerance.
 - **2026-10-06** — Wireframe written (`docs/wireframes/task-settings.md`, new
   section E: 3x3 Wide with the shrink hint; F: 6x6 Extra wide with the capped-gap
   hint; dead-zone sketch) and approved by the user as is. Implementation next.
+- **2026-10-06** — Implemented by spec-implementer (§8). Hub review: diff in
+  scope; hub pytest **728 passed, 0 failed** (664 + 64). The four open-ended
+  choices in §8 are accepted: `scene_spec()` re-read every tick (all four
+  tasks' scenes checked: cheap and deterministic; `BaseTask.scene_spec`
+  docstring updated by the hub); new `metadata.grid_gap` block; item text
+  "(≈41 px)" without a space; capped Log wording. New test file 862 lines,
+  over the 500-line guideline, as other test files already are. Geometry
+  spot-checked against the §3 table by the hub (all within 1 px).
+  Live check vs the fake server on port 4250 (OS mouse/keyboard for the
+  modal dialog), sessions `2026-10-06_LIVECHK04_click_grid_run1` (3x3 Wide)
+  and `run2` (6x6 Extra wide): measured on-screen gap 40-41 px / 60 px
+  (expected 41.3 / capped 60.6), unchanged across HUD hide/show; target
+  `TARGET_SHRUNK` to 100.6 / 30.3 px; Log lines, `GAP_CAPPED` (82.7 to 60.6),
+  `metadata.grid_gap` (incl. `gap_px_used` 60.6) all as designed; dialog
+  carries the choice to the next run; capped hint wording shown. Note: the
+  dialog hint estimates from the screen's available area (≈1032 px tall)
+  rather than the real canvas (957 px), so it is optimistic (3x3 Wide: no
+  hint, run shrank 103 to 101 px; 6x6: hint 65 px, run 60 px) -- same
+  "approximate" behaviour as before, not changed. **Not tested: real gaze**
+  (the dead zone with a real subject) -- deferred by the user; open.
+  User approved commit + push.

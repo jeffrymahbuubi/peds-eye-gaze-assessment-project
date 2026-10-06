@@ -177,7 +177,8 @@ def test_scanning_dialog_shows_an_icon_size_combo_and_no_px_radius_row(qapp):
 
 def test_click_grid_dialog_is_unchanged(qapp):
     d = _dialog("click_grid")
-    assert set(d._controls) == {"trials", "target.size", "grid.rows", "grid.cols"}
+    # Plus the Cell gap choice (SPEC-grid-cell-gap.md S4.5); nothing else moved.
+    assert set(d._controls) == {"trials", "target.size", "grid.rows", "grid.cols", "grid.gap"}
 
 
 def test_size_items_of_every_task_show_degrees_and_the_diameter_on_this_monitor(qapp, lab_screen):

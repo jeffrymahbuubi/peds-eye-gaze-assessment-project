@@ -28,6 +28,23 @@ SIZE_PRESETS_DEG: dict[str, float] = {"small": 3.0, "medium": 5.0, "large": 8.0}
 DEFAULT_SIZE = "medium"
 SIZE_NAMES: dict[str, str] = {"small": "Small", "medium": "Medium", "large": "Large"}
 
+# Grid Click's gap between neighbouring cells, as a preset by visual angle
+# (SPEC-grid-cell-gap.md S4.1). ``standard`` (None) is today's board -- cells
+# inset by CELL_PAD_FRAC -- and stays the default (H1); the others are the
+# space in degrees between two drawn cells, converted to px like a target size.
+GAP_PRESETS_DEG: dict[str, float | None] = {"standard": None, "wide": 1.0, "extra_wide": 2.0}
+DEFAULT_GAP = "standard"
+GAP_NAMES: dict[str, str] = {"standard": "Standard", "wide": "Wide", "extra_wide": "Extra wide"}
+# (value stored in grid.gap, label). The dialog appends the px on the
+# operator's own monitor to the two angle presets.
+GAP_CHOICES: tuple[tuple[str, str], ...] = tuple(
+    (name, GAP_NAMES[name] if degrees is None else f"{GAP_NAMES[name]} — {degrees:g}°")
+    for name, degrees in GAP_PRESETS_DEG.items()
+)
+# A non-standard gap never takes more than this fraction of the pitch's smaller
+# side (H4), so a drawn cell stays at least half its pitch.
+GAP_MAX_PITCH_FRAC = 0.5
+
 # The lab standard monitor: 24" 16:9 at 1920x1080 (531.4 mm wide).
 REFERENCE_WIDTH_MM = 531.4
 REFERENCE_MM_PER_PX = REFERENCE_WIDTH_MM / 1920
@@ -76,6 +93,18 @@ def normalize_size(size: Any) -> str:
         return key
     _log.warning("Unknown target size %r; using %r.", size, DEFAULT_SIZE)
     return DEFAULT_SIZE
+
+
+def normalize_gap(gap: Any) -> str:
+    """A known gap preset name, lower-cased; a missing one is quietly
+    :data:`DEFAULT_GAP` and an unknown one becomes it too, logged."""
+    if gap is None:
+        return DEFAULT_GAP
+    key = str(gap).strip().lower()
+    if key in GAP_PRESETS_DEG:
+        return key
+    _log.warning("Unknown cell gap %r; using %r.", gap, DEFAULT_GAP)
+    return DEFAULT_GAP
 
 
 def mm_per_logical_px(
@@ -172,6 +201,21 @@ def radius_px_for(size: str, mm_per_px: float, viewing_distance_mm: float) -> fl
     return diameter_mm / 2.0 / scale
 
 
+def gap_px_for(gap: str, mm_per_px: float, viewing_distance_mm: float) -> float | None:
+    """Width in logical px of the gap preset ``gap``, the same visual-angle
+    maths as :func:`radius_px_for` (``extent_mm = 2 * D * tan(deg / 2)``, here
+    the whole extent rather than half of it). ``None`` for ``standard``: that
+    gap is a fraction of the cell, not an angle."""
+    degrees = GAP_PRESETS_DEG[normalize_gap(gap)]
+    if degrees is None:
+        return None
+    distance = viewing_distance_mm if viewing_distance_mm and viewing_distance_mm > 0 else (
+        DEFAULT_VIEWING_DISTANCE_MM
+    )
+    scale = mm_per_px if mm_per_px and mm_per_px > 0 else REFERENCE_MM_PER_PX
+    return 2.0 * distance * math.tan(math.radians(degrees) / 2.0) / scale
+
+
 def size_block(task_cfg: dict[str, Any]) -> str:
     """The key path (a block of the task config) a task's ``size`` preset and
     ``radius_px`` live under: ``layout`` for scanning, ``target`` for the rest."""
@@ -238,21 +282,140 @@ def target_size_log_line(info: dict[str, Any], scale: ScaleInfo) -> str:
     )
 
 
-def fit_radius_px(cell_w_px: float, cell_h_px: float) -> float:
+def apply_grid_gap(
+    task_cfg: dict[str, Any], scale: ScaleInfo, viewing_distance: float
+) -> dict[str, Any] | None:
+    """Resolve ``grid.gap`` into ``grid.gap_px`` in ``task_cfg``, in place
+    (SPEC-grid-cell-gap.md S4.2) -- against the same screen scale as
+    :func:`apply_target_size`.
+
+    ``gap_px`` is the *wanted* gap in logical px, ``None`` for ``standard``
+    (today's board: the task then draws, fits and hit-tests exactly as before).
+    With no ``gap`` key (an old YAML or profile) nothing is touched and ``None``
+    is returned, which is the same standard board. Returns the
+    ``metadata.grid_gap`` block.
+    """
+    section = task_cfg.get("grid")
+    if not isinstance(section, dict) or section.get("gap") is None:
+        return None
+    preset = normalize_gap(section["gap"])
+    gap_px = gap_px_for(preset, scale.mm_per_px, viewing_distance)
+    section["gap_px"] = None if gap_px is None else round(gap_px, 1)
+    return {"preset": preset, "gap_deg": GAP_PRESETS_DEG[preset], "gap_px": section["gap_px"]}
+
+
+def grid_gap_log_line(info: dict[str, Any]) -> str:
+    """The Session Log line, e.g. ``Cell gap: Wide — 1° (≈41 px)`` (Standard
+    says just ``Cell gap: Standard``)."""
+    name = GAP_NAMES[info["preset"]]
+    if info.get("gap_px") is None:
+        return f"Cell gap: {name}"
+    return f"Cell gap: {name} — {info['gap_deg']:g}° (≈{info['gap_px']:.0f} px)"
+
+
+class CellGeometry(NamedTuple):
+    """One grid cell as it is drawn, fitted and hit-tested (px). Everything that
+    needs the cell's shape reads it from here -- see :func:`grid_cell_geometry`."""
+
+    cell_w: float  # the drawn cell's width and height
+    cell_h: float
+    inset: float  # per side, pitch to drawn cell
+    gap_px: float  # space between two neighbouring drawn cells, as used
+    wanted_px: float | None  # the gap asked for; None for standard
+    capped: bool  # the wanted gap was above the H4 cap
+    fit_radius_px: float  # largest target radius that fits the drawn cell
+    hit_w: float  # the cell-shaped hit area (the circle test is clipped to it)
+    hit_h: float
+
+
+def grid_cell_geometry(
+    pitch_w_px: float, pitch_h_px: float, gap_px: float | None = None
+) -> CellGeometry:
+    """The single source for how a grid cell of the given pitch is drawn,
+    fitted and hit-tested (SPEC-grid-cell-gap.md S4.1), so the canvas, the
+    task's target cap and hit test and the dialog's hint cannot drift apart --
+    the :data:`CELL_PAD_FRAC` sharing pattern.
+
+    ``gap_px`` ``None`` is *standard* (H1): the cell is the pitch inset by
+    :data:`CELL_PAD_FRAC` of its smaller side per edge, and the hit area is the
+    whole, unpadded pitch -- exactly the board as it was before the setting
+    existed. A number is a wanted gap between two drawn cells (H2): never
+    below the standard gap of this pitch, and capped at
+    :data:`GAP_MAX_PITCH_FRAC` of the pitch's smaller side (H4, ``capped``
+    says so); the drawn cell is the pitch less that gap and the hit area is
+    that drawn cell (H3), so the gap belongs to no cell.
+    """
+    smaller = min(pitch_w_px, pitch_h_px)
+    if gap_px is None:
+        inset = CELL_PAD_FRAC * smaller
+        return CellGeometry(
+            cell_w=pitch_w_px - 2.0 * inset,
+            cell_h=pitch_h_px - 2.0 * inset,
+            inset=inset,
+            gap_px=2.0 * inset,
+            wanted_px=None,
+            capped=False,
+            fit_radius_px=0.5 * smaller * (1.0 - 2.0 * CELL_PAD_FRAC),
+            hit_w=pitch_w_px,
+            hit_h=pitch_h_px,
+        )
+    wanted = max(float(gap_px), 0.0)
+    used = max(wanted, 2.0 * CELL_PAD_FRAC * smaller)
+    cap = GAP_MAX_PITCH_FRAC * smaller
+    capped = used > cap
+    if capped:
+        used = cap
+    width, height = pitch_w_px - used, pitch_h_px - used
+    return CellGeometry(
+        cell_w=width,
+        cell_h=height,
+        inset=used / 2.0,
+        gap_px=used,
+        wanted_px=wanted,
+        capped=capped,
+        fit_radius_px=0.5 * min(width, height),
+        hit_w=width,
+        hit_h=height,
+    )
+
+
+def fit_radius_px(cell_w_px: float, cell_h_px: float, gap_px: float | None = None) -> float:
     """Largest circle radius that sits fully inside a grid cell as the canvas
-    draws it (the cell rectangle inset by :data:`CELL_PAD_FRAC` of its smaller
-    side on every edge)."""
-    return 0.5 * min(cell_w_px, cell_h_px) * (1.0 - 2.0 * CELL_PAD_FRAC)
+    draws it (:func:`grid_cell_geometry`; by default the cell rectangle inset by
+    :data:`CELL_PAD_FRAC` of its smaller side on every edge)."""
+    return grid_cell_geometry(cell_w_px, cell_h_px, gap_px).fit_radius_px
+
+
+def estimate_grid_geometry(
+    rows: int,
+    cols: int,
+    canvas_w_px: float,
+    canvas_h_px: float,
+    margin_frac: float = 0.12,
+    gap_px: float | None = None,
+) -> CellGeometry:
+    """:func:`grid_cell_geometry` for an R x C grid on a canvas of the given
+    size -- the same layout maths as ``ClickGridTask.build_targets``. Used by
+    the settings dialog's hint, where the real canvas does not exist yet."""
+    span = 1.0 - 2.0 * margin_frac
+    return grid_cell_geometry(
+        span / max(cols, 1) * canvas_w_px, span / max(rows, 1) * canvas_h_px, gap_px
+    )
 
 
 def estimate_grid_fit_radius_px(
-    rows: int, cols: int, canvas_w_px: float, canvas_h_px: float, margin_frac: float = 0.12
+    rows: int,
+    cols: int,
+    canvas_w_px: float,
+    canvas_h_px: float,
+    margin_frac: float = 0.12,
+    gap_px: float | None = None,
 ) -> float:
-    """:func:`fit_radius_px` for an R x C grid on a canvas of the given size --
-    the same layout maths as ``ClickGridTask.build_targets``. Used by the
-    settings dialog's shrink hint, where the real canvas does not exist yet."""
-    span = 1.0 - 2.0 * margin_frac
-    return fit_radius_px(span / max(cols, 1) * canvas_w_px, span / max(rows, 1) * canvas_h_px)
+    """:func:`fit_radius_px` for an R x C grid on a canvas of the given size
+    (``gap_px`` ``None`` = the standard gap)."""
+    return estimate_grid_geometry(
+        rows, cols, canvas_w_px, canvas_h_px, margin_frac, gap_px
+    ).fit_radius_px
 
 
 def edge_inset_norm(radius_px: float, canvas_w_px: float, canvas_h_px: float) -> tuple[float, float]:
