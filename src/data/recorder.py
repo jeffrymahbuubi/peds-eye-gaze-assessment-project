@@ -10,6 +10,7 @@ Writes one directory per session::
         all_gaze.csv       # every raw <REC>, Gazepoint Analysis export layout (optional)
         eye_geometry.csv   # 3D eye position + per-eye POG per raw <REC> (optional)
         trials.csv         # one row per trial
+        target_track.csv   # moving target's position at ~20 Hz (follow_moving only)
         events.jsonl       # discrete events (DWELL_START, TARGET_SHOWN, ...)
 
 The recorder is deliberately GUI-free and streams to disk incrementally so a
@@ -45,6 +46,13 @@ _GAZE_HEADER = [
     "pupil_right",
 ]
 
+# The moving target's path (SPEC-compass-task-flow.md 4D.4-2): ``t_ns`` is the
+# host clock, like ``trials.csv``; ``x``/``y`` are canvas-normalized. A trial
+# re-presented after a pause repeats its ``trial`` id, so a reader windows on
+# the trial's own ``[t_target_shown_ns, t_end_ns]``.
+TARGET_TRACK_FILENAME = "target_track.csv"
+TARGET_TRACK_COLUMNS = ["t_ns", "trial", "x", "y"]
+
 
 class SessionRecorder:
     """Streams gaze samples, trials and events to a session directory."""
@@ -78,6 +86,16 @@ class SessionRecorder:
         self._eye_file: TextIO | None = None
         self._eye_writer: Any = None
         self._eye_since_flush = 0
+
+        # target_track.csv is opened by the first record_target_track() call,
+        # so only a task that moves its target leaves one.
+        self._track_file: TextIO | None = None
+        self._track_writer: Any = None
+        self._track_since_flush = 0
+
+        # Smallest (host receive time - device TIME) seen in record_raw, in ns:
+        # the host-clock time of all_gaze.csv's TIME=0 (SPEC 4D.4-5).
+        self._raw_clock_offset_ns: int | None = None
 
     # -- lifecycle ---------------------------------------------------------
 
@@ -155,6 +173,13 @@ class SessionRecorder:
         if self._all_gaze_time_origin_s is None:
             self._all_gaze_time_origin_s = now_s
         time_s = now_s - self._all_gaze_time_origin_s
+        # ``t_ns`` is the host receive time of a record whose device time is
+        # ``time_s``: the delay is never negative, so the minimum is the best
+        # estimate of where TIME=0 sits on the host clock. Without a device TIME
+        # ``time_s`` is host-relative and this is the constant first t_ns.
+        offset_ns = t_ns - round(time_s * 1e9)
+        if self._raw_clock_offset_ns is None or offset_ns < self._raw_clock_offset_ns:
+            self._raw_clock_offset_ns = offset_ns
         if self._all_gaze_writer is not None:
             row = rec_to_all_gaze_row(
                 attrs,
@@ -172,6 +197,29 @@ class SessionRecorder:
             if self._eye_since_flush >= self._gaze_flush_every:
                 self._eye_file.flush()
                 self._eye_since_flush = 0
+
+    @property
+    def raw_clock_offset_ns(self) -> int | None:
+        """Host-clock time (ns) of ``all_gaze.csv`` ``TIME=0``; None until a raw
+        record was written (SPEC 4D.4-5)."""
+        return self._raw_clock_offset_ns
+
+    def record_target_track(self, t_ns: int, trial: int, x: float, y: float) -> None:
+        """Append one moving-target position to ``target_track.csv`` (created,
+        with its header, by the first call)."""
+        if self._track_writer is None:
+            if self._events_file is None:
+                raise RuntimeError("Recorder is not open.")
+            self._track_file = (self.session_dir / TARGET_TRACK_FILENAME).open(
+                "w", newline="", encoding="utf-8"
+            )
+            self._track_writer = csv.writer(self._track_file)
+            self._track_writer.writerow(TARGET_TRACK_COLUMNS)
+        self._track_writer.writerow([t_ns, trial, round(x, 5), round(y, 5)])
+        self._track_since_flush += 1
+        if self._track_since_flush >= self._gaze_flush_every:
+            self._track_file.flush()
+            self._track_since_flush = 0
 
     def record_gaze(self, sample: GazeSample) -> None:
         if self._gaze_writer is None:
@@ -226,6 +274,7 @@ class SessionRecorder:
             self._gaze_file,
             self._all_gaze_file,
             self._eye_file,
+            self._track_file,
             self._events_file,
             self._log_file,
         ):
@@ -233,6 +282,69 @@ class SessionRecorder:
                 fh.flush()
                 fh.close()
         self._closed = True
+
+
+class NullRecorder:
+    """A recorder that records nothing (SPEC-compass-task-flow.md 4C.4).
+
+    Stands in for :class:`SessionRecorder` in a practice or preview run, which
+    must leave no trace on disk: the same surface, every call a no-op, no
+    session directory (``session_dir`` is ``None``). Lets the run code call the
+    recorder unguarded, as it does for a real one.
+    """
+
+    def __init__(self, metadata: SessionMetadata | None = None) -> None:
+        self.metadata = metadata
+        self.session_dir: Path | None = None
+
+    def __enter__(self) -> NullRecorder:
+        return self
+
+    def __exit__(self, *exc: object) -> None:
+        return None
+
+    def open(self) -> None:
+        return None
+
+    def open_all_gaze(self, media_name: str, tick_frequency: int | None) -> None:
+        return None
+
+    def open_eye_geometry(self) -> None:
+        return None
+
+    def flush_eye_geometry(self) -> None:
+        return None
+
+    def flush_all_gaze(self) -> None:
+        return None
+
+    def record_raw(self, t_ns: int, attrs: dict[str, str]) -> None:
+        return None
+
+    @property
+    def raw_clock_offset_ns(self) -> int | None:
+        return None
+
+    def record_target_track(self, t_ns: int, trial: int, x: float, y: float) -> None:
+        return None
+
+    def record_gaze(self, sample: GazeSample) -> None:
+        return None
+
+    def record_event(self, kind: str, t_ns: int, **payload: Any) -> None:
+        return None
+
+    def log(self, message: str) -> None:
+        return None
+
+    def write_trials(self, trials: list[TrialRecord]) -> None:
+        return None
+
+    def write_metadata(self) -> None:
+        return None
+
+    def close(self) -> None:
+        return None
 
 
 def _parse_float(raw: str | None) -> float | None:

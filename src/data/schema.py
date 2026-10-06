@@ -79,6 +79,22 @@ class TrialRecord:
     # t_target_shown_ns for every task except follow_moving, the only one that
     # overrides BaseTask.is_selectable(); None if the window never opened.
     t_selectable_start_ns: int | None = None
+    # The operator skipped this trial (SPEC-compass-task-flow.md 4C.6, R6): a
+    # skip is neither a hit nor a timeout, so both stay False and ``t_click_ns``
+    # blank; ``t_end_ns`` is when the skip happened.
+    is_skipped: bool = False
+    # Debounced entries into the target's hitbox (SPEC-compass-task-flow.md 4D.4-1,
+    # ``EntryTracker``): 0 when the gaze never reached it. ``time_to_first_
+    # fixation_ms`` is the time of the first of them.
+    entries: int = 0
+    # Where the target was at ``t_end`` (canvas-normalized, 4D.4-2): equals
+    # ``target_x/y`` for a static task, the live position for follow_moving,
+    # which stores only the start otherwise. None until the trial ends.
+    end_x: float | None = None
+    end_y: float | None = None
+    # Which grid cell / scanning icon the target was (4D.4-3); -1 for a task
+    # with no fixed multi-item layout (``TargetSpec.slot_index``).
+    slot_index: int = -1
 
     @property
     def reaction_time_ms(self) -> float | None:
@@ -134,6 +150,11 @@ class TrialRecord:
                 _round(self.reaction_time_from_selectable_ms)
             ),
             "time_to_first_fixation_ms": _blank(_round(self.time_to_first_fixation_ms)),
+            "is_skipped": int(self.is_skipped),
+            "entries": self.entries,
+            "end_x": _blank(self.end_x),
+            "end_y": _blank(self.end_y),
+            "slot_index": self.slot_index,
         }
         return row
 
@@ -156,6 +177,11 @@ class TrialRecord:
             "reaction_time_ms",
             "reaction_time_from_selectable_ms",
             "time_to_first_fixation_ms",
+            "is_skipped",
+            "entries",
+            "end_x",
+            "end_y",
+            "slot_index",
         ]
 
 
@@ -264,6 +290,36 @@ class SessionMetadata:
     test_id: str | None = None
     test_name: str | None = None
     seed: int | None = None
+    # What kind of run wrote this folder (SPEC-compass-task-flow.md 4C.4): only
+    # ``"record"`` runs reach disk, so a folder carries it as ``"record"`` (None
+    # on older sessions). ``config_name`` is the Test List configuration the run
+    # used (R7; also in ``settings``). Additive; ``schema_version`` not bumped.
+    run_mode: str | None = None
+    config_name: str | None = None
+    # How the run ended (4C.9, R1): planned = ``len(task.targets)``; completed =
+    # rows written to ``trials.csv`` (skipped ones included); ``outcome`` is
+    # ``"completed"`` / ``"ended_early"`` and ``ended_by`` ``"finished"`` /
+    # ``"operator_quit"``. There is no ``"discarded"``: a discard deletes the
+    # folder. All None on older sessions. Additive; ``schema_version`` not bumped.
+    planned_trials: int | None = None
+    completed_trials: int | None = None
+    skipped_trials: int | None = None
+    interrupted_trials: int | None = None
+    pause_count: int | None = None
+    outcome: str | None = None
+    ended_by: str | None = None
+    ended_ns: int | None = None
+    # Canvas-normalized centres of the task's fixed layout (grid cells, scanning
+    # icons) as ``[[x, y], ...]``, so the report can outline the empty slots
+    # without re-reading the task config (SPEC 4D.4-4); None for a task with no
+    # fixed layout (click_static, follow_moving) and on older sessions.
+    layout_slots: list[list[float]] | None = None
+    # Host-clock time (ns, ``time.time_ns`` domain) of ``all_gaze.csv`` ``TIME=0``
+    # (4D.4-5): the smallest ``host receive time - device TIME`` seen, within ~5 ms
+    # of the median. Aligns device-rate rows with trial windows:
+    # ``t_ns = raw_clock_offset_ns + TIME * 1e9``. None when no raw file was
+    # written and on older sessions. Additive; ``schema_version`` not bumped.
+    raw_clock_offset_ns: int | None = None
 
     def to_dict(self) -> dict[str, Any]:
         return {f.name: getattr(self, f.name) for f in fields(self)}

@@ -454,3 +454,54 @@ def test_click_static_records_hits(tmp_path: Path):
         if row["is_hit"] == "1":
             assert row["time_to_first_fixation_ms"] != ""
             assert float(row["time_to_first_fixation_ms"]) <= float(row["reaction_time_ms"])
+
+
+# -- G11 (SPEC-compass-task-flow.md 4D.10): entries through the live trial pipeline --
+
+
+def _run_click_static_trial_with_visits(tmp_path: Path, visits: list[tuple[int, int]]) -> dict:
+    """Trial 0 of click_static against a scripted eye pointer: on the target for
+    each ``(start_ms, end_ms)`` span, elsewhere otherwise, one frame per 10 ms.
+    Returns its ``trials.csv`` row, read back from disk."""
+    from src.data.exporter import load_trials_rows
+    from src.data.recorder import SessionRecorder
+    from src.data.schema import SessionMetadata
+
+    cfg = load_task_config("click_static")
+    cfg["input"] = {"mode": "eye"}
+    cfg["dwell"] = {**cfg.get("dwell", {}), "threshold_ms": 400, "refractory_ms": 0}
+    meta = SessionMetadata(subject_id="P001", session_id="entries", started_ns=0)
+    with SessionRecorder(meta, output_root=tmp_path) as recorder:
+        task = build_task("click_static", cfg, recorder=recorder, feedback=NullFeedback())
+        target = task.targets[0]
+        on = Pointer(x=target.x_norm, y=target.y_norm, valid=True, clicked=False)
+        away_x = target.x_norm + 0.4 if target.x_norm < 0.5 else target.x_norm - 0.4
+        off = Pointer(x=away_x, y=target.y_norm, valid=True, clicked=False)
+        for frame in range(300):
+            t_ms = frame * 10
+            on_now = any(start <= t_ms < end for start, end in visits)
+            task.update(t_ms * 1_000_000, on if on_now else off)
+            if task.trials:
+                break
+        assert task.trials, "the scripted visits never completed the trial"
+        recorder.write_trials(task.trials)
+    return load_trials_rows(tmp_path / "entries")[0]
+
+
+def test_a_gaze_that_visits_twice_is_two_entries_and_the_first_look_is_unchanged(tmp_path: Path):
+    # On at 100 ms, away for 300 ms (well past the 120 ms hold), on again from 450 ms.
+    row = _run_click_static_trial_with_visits(tmp_path, [(100, 150), (450, 2000)])
+    assert row["is_hit"] == "1"
+    assert row["entries"] == "2"
+    assert float(row["time_to_first_fixation_ms"]) == 100.0  # the first of the two
+    assert float(row["reaction_time_ms"]) == 850.0  # dwell restarted at 450 ms: 400 ms later
+    assert float(row["end_x"]) == float(row["target_x"]) and float(row["end_y"]) == float(row["target_y"])
+    assert row["slot_index"] == "-1"
+
+
+def test_a_flicker_off_the_target_shorter_than_the_hold_is_still_one_entry(tmp_path: Path):
+    row = _run_click_static_trial_with_visits(tmp_path, [(100, 150), (200, 2000)])
+    assert row["is_hit"] == "1"
+    assert row["entries"] == "1"
+    assert float(row["time_to_first_fixation_ms"]) == 100.0
+    assert float(row["reaction_time_ms"]) == 500.0  # the 50 ms gap is bridged by the dwell too

@@ -28,7 +28,7 @@ from .data.analysis_export import (
     median_eye_distance_mm,
 )
 from .data.exporter import write_session_metrics
-from .data.recorder import SessionRecorder
+from .data.recorder import NullRecorder, SessionRecorder
 from .data.schema import SessionMetadata
 from .engine.calibration import (
     Calibration,
@@ -44,6 +44,7 @@ from .engine.gaze_diagnostics import GazeDropoutLog, gaze_dropout_log_path
 from .engine.feedback import FeedbackBus
 from .engine.latency import LatencyTracker
 from .engine.loop_rate import config_target_fps, resolve_target_fps, target_fps_is_invalid
+from .engine.run_mode import apply_outcome, is_recorded, preroll_ms, run_seed, validate_run_mode
 from .engine.sample_rate import SampleRateTracker
 from .engine.session_naming import next_session_id
 from .engine.settings_profile import save_settings_profile
@@ -206,6 +207,9 @@ class AssessmentApp:
         test_id: str | None = None,
         test_name: str | None = None,
         seed: int = 0,
+        run_mode: str = "record",
+        practice_index: int = 0,
+        config_name: str | None = None,
     ) -> None:
         """Build one task run.
 
@@ -235,7 +239,17 @@ class AssessmentApp:
         ``seed`` is the target-order seed (R3: the test's own seed), written
         there too. All three default to the standalone behaviour: no test, and
         seed 0, the order every run had before tests existed.
+
+        ``run_mode`` (SPEC-compass-task-flow.md 4C.4, :mod:`src.engine.run_mode`)
+        is ``"record"`` (default), ``"practice"`` or ``"preview"``. The last two
+        write nothing (a :class:`NullRecorder`: no folder, calibration file or
+        diagnostics), have no pre-roll, and ignore ``seed``: ``practice_index``
+        picks a practice's own seed. A preview gets a ``MouseGazeSource`` as
+        ``client``. ``config_name`` is recorded in the metadata.
         """
+        self.run_mode = validate_run_mode(run_mode)
+        recorded = is_recorded(self.run_mode)
+        seed = run_seed(self.run_mode, seed, practice_index)
         self.config = load_task_config(task_id)
         self.task_id = task_id
         if structural_overrides:
@@ -273,8 +287,10 @@ class AssessmentApp:
         # known before Calibration.run() executes.
         output_root = self.config.get("recording", {}).get("output_root", "sessions")
         self._output_root = output_root
-        session_id = next_session_id(output_root, subject_id, task_id)
-        session_dir = Path(output_root) / session_id
+        # A practice or preview run has no folder: its "session id" is a sentinel
+        # and the run-number scan is never made.
+        session_id = next_session_id(output_root, subject_id, task_id) if recorded else self.run_mode
+        session_dir = Path(output_root) / session_id if recorded else None
 
         # A --calibration-file is loaded and subject-checked before touching
         # the device at all, so a bad path or subject mismatch fails fast
@@ -324,9 +340,11 @@ class AssessmentApp:
             # wasn't measured this run -- every session directory carries its
             # own self-contained calibration record, matching the fresh-
             # calibration branch below, and lets --calibration-file work
-            # against any individual run's folder later.
-            session_dir.mkdir(parents=True, exist_ok=True)
-            save_calibration_result(session_dir / "calibration.json", subject_id, cal)
+            # against any individual run's folder later. (Not for a practice or
+            # preview, which has no folder.)
+            if recorded:
+                session_dir.mkdir(parents=True, exist_ok=True)
+                save_calibration_result(session_dir / "calibration.json", subject_id, cal)
         else:
             calibration = Calibration(
                 self.client,
@@ -335,11 +353,11 @@ class AssessmentApp:
                 show=bool(cal_cfg.get("show", True)),
                 point_timeout_s=cal_cfg.get("timeout_s"),
                 point_delay_s=cal_cfg.get("delay_s"),
-                timing_log_path=calibration_timing_log_path(output_root),
+                timing_log_path=calibration_timing_log_path(output_root) if recorded else None,
             )
             cal = calibration.run()
             fresh_is_stub = calibration.is_stub
-            if not calibration.is_stub:
+            if recorded and not calibration.is_stub:
                 # A real calibration just ran (not the no-hardware/disabled
                 # stub) -- auto-save it so a later launch can reuse it via
                 # --calibration-file. No separate save flag, per the user's
@@ -417,6 +435,8 @@ class AssessmentApp:
             test_id=test_id,
             test_name=test_name,
             seed=int(seed),
+            run_mode=self.run_mode,
+            config_name=config_name,
             # Provenance (SPEC-live-settings-panel.md S10.4). Before settings
             # persisted, a run was reproducible because every run started from
             # the same YAML defaults; S10.3 removes that guarantee, so the
@@ -430,6 +450,7 @@ class AssessmentApp:
             # settings at any moment of the run; a single mutated block
             # could not.
             settings={
+                "config_name": config_name,  # SPEC-compass-task-flow.md R7
                 "source": self._settings_source,
                 "profile_saved_at": self._settings_saved_at,
                 # Which saved version this run started from (S10.12) -- with
@@ -440,7 +461,11 @@ class AssessmentApp:
                 "structural": self._structural_overrides,
             },
         )
-        self.recorder = SessionRecorder(self.metadata, output_root=output_root)
+        self.recorder = (
+            SessionRecorder(self.metadata, output_root=output_root)
+            if recorded
+            else NullRecorder(self.metadata)
+        )
         self.recorder.open()
         recording_cfg = self.config.get("recording", {})
         self._save_all_gaze = bool(recording_cfg.get("save_all_gaze", True))
@@ -524,13 +549,24 @@ class AssessmentApp:
         # or ``layout``'s for scanning).
         self._resolve_target_size(screen)
         self.task = build_task(
-            task_id, self.config, recorder=self.recorder, feedback=self.feedback, seed=int(seed)
+            task_id,
+            self.config,
+            recorder=self.recorder,
+            feedback=self.feedback,
+            seed=int(seed),
+            preroll_ms=preroll_ms(self.run_mode),
         )
         app_cfg = self.config.get("app", {})
         self.recorder.log(
             f"Running {task_id} ({len(self.task.targets)} trials) at "
             f"{int(app_cfg.get('screen_width_px', 1920))}x{int(app_cfg.get('screen_height_px', 1080))}."
         )
+        if recorded:
+            self.recorder.log(f"Pre-roll: {preroll_ms(self.run_mode)} ms blank before trial 1.")
+        # The task's fixed slots (grid cells, scanning icons), canvas-normalized,
+        # for the report's map outlines (SPEC-compass-task-flow.md 4D.4-4).
+        slots = self.task.layout_slots
+        self.metadata.layout_slots = [[round(x, 5), round(y, 5)] for x, y in slots] if slots else None
         # The task's persistent on-screen layout description (ported from
         # resources/diki, see SPEC-diki-design-audit.md S3.1). Default
         # {"mode": "single"} for tasks not yet ported to a dedicated scene.
@@ -556,14 +592,14 @@ class AssessmentApp:
         # Dropout / off-canvas diagnostic (SPEC-gaze-cursor-redesign.md S6).
         # Live device only: a replay fixture's dropouts are the fixture's, not
         # the tracker's, and would pollute the aggregate the fade threshold is
-        # meant to be read from.
+        # meant to be read from. Recorded runs only: a practice leaves no trace.
         self._dropout_log = (
             GazeDropoutLog(
                 gaze_dropout_log_path(output_root),
                 raw_probe=getattr(self.client, "last_raw_pog", None),
                 task_id=task_id,
             )
-            if self.client.is_live
+            if recorded and self.client.is_live
             else None
         )
 
@@ -690,8 +726,9 @@ class AssessmentApp:
         self._paused = paused
 
     def _skip_trial(self) -> None:
-        # Force a timeout on the current trial by rewinding its start time.
-        self.task._trial_start_ns = 0  # noqa: SLF001 - deliberate operator override
+        # Recorded as skipped, not as a timeout (SPEC-compass-task-flow.md 4C.6);
+        # does nothing unless a trial is running.
+        self.task.skip_trial(time.time_ns())
 
     def _on_hud_hidden_changed(self, hidden: bool) -> None:
         """Record one operator HUD toggle (SPEC-hud-hide-toggle.md S4.4)."""
@@ -1023,6 +1060,19 @@ class AssessmentApp:
             # Flush a dropout still open at the end, so one that never
             # recovered is recorded rather than silently lost.
             self._dropout_log.close(time.time_ns())
+        if is_recorded(self.run_mode):
+            self._write_session_files()
+        if self._owns_client:
+            self.client.stop()
+        if self._embedded:
+            if self._on_finished is not None:
+                self._on_finished()
+        else:
+            QApplication.quit()
+
+    def _write_session_files(self) -> None:
+        """Everything a recorded run leaves on disk at its end. Skipped for a
+        practice or preview run, which has nothing to write (NullRecorder)."""
         if self._save_all_gaze or self._save_eye_geometry:
             for raw_t_ns, attrs in self.client.drain_raw():  # whatever arrived since the last tick
                 self.recorder.record_raw(raw_t_ns, attrs)
@@ -1041,18 +1091,19 @@ class AssessmentApp:
                     f"SCREEN_SIZE unknown; saccade pixels scaled by configured {width}x{height}."
                 )
             self.recorder.log(f"Saccade metrics scaled by {width}x{height}px.")
+        # How the run ended, before close() so metadata.json carries it
+        # (SPEC-compass-task-flow.md 4C.9). Anything but running out of trials is
+        # the operator ending it (End task / Esc today).
+        self.recorder.log(apply_outcome(self.metadata, self.task, time.time_ns()))
+        # Host-clock time of all_gaze.csv TIME=0, after the last raw record was
+        # written above, to align device-rate rows with the trial windows
+        # (SPEC-compass-task-flow.md 4D.4-5).
+        self.metadata.raw_clock_offset_ns = self.recorder.raw_clock_offset_ns
         self._record_session_end_quality()
         self.recorder.close()
         if self._save_all_gaze:
             finalize_all_gaze(self.recorder.session_dir, width, height)
         write_session_metrics(self.recorder.session_dir)
-        if self._owns_client:
-            self.client.stop()
-        if self._embedded:
-            if self._on_finished is not None:
-                self._on_finished()
-        else:
-            QApplication.quit()
 
 
 def run_gui(

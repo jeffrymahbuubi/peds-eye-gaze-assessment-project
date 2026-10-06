@@ -345,16 +345,33 @@ class SetupPage(QWidget):
     def _display_needs_ack(self) -> bool:
         return self._display_check is not None and not self._display_check.standard
 
+    def run_blockers(self) -> list[str]:
+        """Why a test cannot be started right now, as sentences for the Start
+        page's banner (SPEC-compass-task-flow.md 4C.2); empty when it can.
+
+        The same conditions as :meth:`can_continue` (which is exactly "no
+        blockers"), in the order the banner lists them. Pure: reads state, changes
+        nothing, so the page can re-evaluate it on a timer.
+        """
+        blockers: list[str] = []
+        if self._client is None or not self._client.is_connected():
+            blockers.append("The tracker is not connected. Connect it on the Setup page.")
+        if self._calibration_result is None:
+            blockers.append("No calibration yet. Calibrate on the Setup page.")
+        if not self.subject_id():
+            blockers.append("Subject ID is empty.")
+        if not self.assessment_date():
+            blockers.append("Assessment date is empty.")
+        if not self.sex():
+            blockers.append("Sex is not selected.")
+        if self._display_needs_ack() and not self.display_ack_checkbox.isChecked():
+            blockers.append(
+                "The display is not 1920x1080 at 100 %. Tick the acknowledgement on the Setup page."
+            )
+        return blockers
+
     def can_continue(self) -> bool:
-        return (
-            self._client is not None
-            and self._client.is_connected()
-            and self._calibration_result is not None
-            and bool(self.subject_id())
-            and bool(self.assessment_date())
-            and bool(self.sex())
-            and (not self._display_needs_ack() or self.display_ack_checkbox.isChecked())
-        )
+        return not self.run_blockers()
 
     # -- UI -----------------------------------------------------------------
 

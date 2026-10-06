@@ -1,10 +1,10 @@
 ---
 name: SPEC-compass-task-flow
 title: Compass-style task flow — per-subject Test List, configuration page, Preview/Practice, HUD-less run, per-test report
-status: approved 2026-10-06 (U1-U17, R1-R12 and all per-part hub decisions); P1 DONE 2026-10-06; implementation on branch feature/compass-task-flow
+status: approved 2026-10-06 (U1-U17, R1-R12 and all per-part hub decisions); P1, P2, P3 DONE 2026-10-06; implementation on branch feature/compass-task-flow
 created: 2026-10-06
 last_updated: 2026-10-06
-next_step: P2 (or P5 / P6, which also depend only on P1/P0) on branch feature/compass-task-flow (check the branch out first; see U17)
+next_step: P4 (analysis modules), or P5 / P6 on branch feature/compass-task-flow (check the branch out first; see U17)
 related:
   - docs/compass/synthesis/ui-ux-screen-walkthrough.md (the Compass reference this SPEC adapts; screenshots in docs/compass/screenshots/)
   - docs/compass/synthesis/ui-ux-patterns.md (Compass patterns from the guide)
@@ -1102,8 +1102,8 @@ a wiremd wireframe needs the user's approval first.
 |---|---|---|---|
 | P0 | User approves this SPEC (§3.2 and the per-part hub decisions); the hub commits it | — | — |
 | P1 **DONE 2026-10-06** | **Store and path safety:** `safe_subject_dirname` (A1); `task_info.py` (A2); `subject_tests.py` with `seed`, `evaluator`, R1 names (A3); `test_id` / `test_name` / `seed` in metadata (A4) | no | P0 |
-| P2 | **Run engine, no UI:** `is_skipped`, `pause` / `resume` / `skip_trial`, seed plumbing, new metadata fields, `NullRecorder`, `run_mode`, `discard_session`, `tracking_status`, `task_instructions`, `run_blockers`, the R8 pre-roll (C1); `MouseGazeSource` (B6) | no | P1 |
-| P3 | **Recording additions:** `EntryTracker`, `entries` / `end_x` / `end_y` / `slot_index`, `target_track.csv`, `layout_slots`, `raw_clock_offset_ns` (D2). The `trials.csv` header changes in the same commit as P2's `is_skipped` if possible (R6) | no | P2 |
+| P2 **DONE 2026-10-06** | **Run engine, no UI:** `is_skipped`, `pause` / `resume` / `skip_trial`, seed plumbing, new metadata fields, `NullRecorder`, `run_mode`, `discard_session`, `tracking_status`, `task_instructions`, `run_blockers`, the R8 pre-roll (C1); `MouseGazeSource` (B6) | no | P1 |
+| P3 **DONE 2026-10-06** | **Recording additions:** `EntryTracker`, `entries` / `end_x` / `end_y` / `slot_index`, `target_track.csv`, `layout_slots`, `raw_clock_offset_ns` (D2). The `trials.csv` header changes in the same commit as P2's `is_skipped` if possible (R6) | no | P2 |
 | P4 | **Analysis modules:** geometry, saccades, trial metrics, visual data, cache + `_shutdown` hook + CLI (D3–D6); run the CLI on real folders and log the numbers | no | P3 |
 | P5 | **Settings layer:** structural `bool` kind, `config_groups_for_task`, profile schema v2 with `name`, `list_named_configurations`, the extracted fit hints, the bool branch in `TaskSettingsDialog` (B2–B4) | no | P1 |
 | P6 | **Wireframes:** `test-list.md` (A5), `task-config.md` (B1), `start-test.md`, the `run.md` rewrite and `run-end.md` (C2), `report-summary.md` / `report-detailed.md` (D1). All replace stale `tasks.md`, `task-settings.md` (dashboard part) and `run.md` | **WF** | P0 (can run in parallel with P1–P5) |
@@ -1156,7 +1156,101 @@ Nothing committed or staged. `configs/default.yaml` and `configs/local_state.jso
 
 **Left undone:** nothing in A1-A4. A stray empty file `str` (an arrow in a tool input) appeared in the repo root during the run and was removed.
 
+### 2026-10-06 — P2 (C1 engine + data side of `run_mode` + R8 pre-roll + B6), claude-sonnet-5-5 (spec-implementer), branch `feature/compass-task-flow`
+
+Nothing committed or staged (the hub holds P2 and commits it with P3, R6). `configs/default.yaml` and `configs/local_state.json` untouched. Branch confirmed before the first edit.
+
+**Files changed**
+- `src/data/schema.py`: `TrialRecord.is_skipped` (last column of `csv_header` and `as_row`; no `outcome` column, R6); `SessionMetadata` gains `run_mode`, `config_name`, `planned_trials`, `completed_trials`, `skipped_trials`, `interrupted_trials`, `pause_count`, `outcome`, `ended_by`, `ended_ns` (all `None` by default, additive, `schema_version` stays 1).
+- `src/tasks/base_task.py`: `pause(t_ns)` / `resume(t_ns)` / `skip_trial(t_ns)`, the `_finish_trial(skipped=...)` path, the pre-roll gate (`preroll_ms` ctor argument, `_preroll_over`), a defensive idle frame when `update` is called while paused, `pause_count` / `interrupted_trials` counters and a `trial_number` property.
+- `src/data/exporter.py`: `summarize()` adds `n_skipped`; `hit_rate` is hits over (trials minus skipped); an older `trials.csv` without the column reads as 0 skips.
+- `src/data/recorder.py`: `NullRecorder` (same public surface as `SessionRecorder`, every call a no-op, `session_dir = None`).
+- `src/engine/run_mode.py` (new): `RECORD/PRACTICE/PREVIEW`, `validate_run_mode`, `is_recorded`, `run_seed` (record = the test's seed; practice = `1_000_000 + practice_index`; preview = `PREVIEW_SEED = 2_000_000`), `preroll_ms` (500 for a recorded run, else 0), `outcome_fields`, `outcome_log_line`, `apply_outcome`.
+- `src/engine/session_files.py` (new): `discard_session(session_dir, output_root)` with every 4C.8 guard, `SessionDiscardError`.
+- `src/engine/tracking_status.py` (new): `GAZE_LOST_AFTER_S = 1.0`, `tracking_status(connected, seconds_since_valid)`, `run_status_line(...)`.
+- `src/ui/task_instructions.py` (new, Qt-free): `build_instructions(task_id, cfg, values=None)` returning `Instructions(heading, steps, note, clinician)`, `format_seconds`.
+- `src/ui/setup_page.py`: `run_blockers()` (the six 4C.2 sentences, in that order); `can_continue()` is now `not self.run_blockers()`. No layout change.
+- `src/inputs/mouse_gaze.py` (new): `MouseGazeSource` (4B.6.3 contract, `bind_canvas`, injectable `cursor_pos` for tests).
+- `src/engine/task_runner.py`: `build_task(..., preroll_ms=0.0)` forwarded to the task (headless replay unchanged: 0).
+- `src/app.py`: `AssessmentApp(run_mode="record", practice_index=0, config_name=None)`; run mode validated first; practice/preview get a sentinel session id (no run-number scan), a `NullRecorder`, no `session_dir.mkdir` / `calibration.json`, no calibration timing log, no `GazeDropoutLog`; `_shutdown` now calls the new `_write_session_files()` (the old body, plus `apply_outcome` before `recorder.close()`) for a recorded run only, then stops an owned client and calls `on_finished` as before; `metadata.run_mode`, `config_name` (also `settings.config_name`, R7); the Skip handler calls `task.skip_trial` instead of the `_trial_start_ns = 0` hack. The literal `clear_raw()` / `open_all_gaze(` / `open_eye_geometry()` lines and their order in `__init__` are untouched (the source-order test passes).
+- Tests (new): `tests/test_run_engine.py` (24), `tests/test_run_mode.py` (26), `tests/test_session_files.py` (26, of which 2 skip where symlinks cannot be created; the same refusals are also tested with the link check simulated), `tests/test_tracking_status.py` (20), `tests/test_task_instructions.py` (48), `tests/test_run_blockers.py` (7), `tests/test_mouse_gaze.py` (22), `tests/test_run_modes_app.py` (20).
+
+**What was done**
+- AC9 (engine side): a pause in `WAIT_INPUT` drops the trial unrecorded, re-presents the same target with a fresh clock and the same `trial_id` (N and the csv stay contiguous), emits `TRIAL_INTERRUPTED {trial, reason, elapsed_ms}` and `PAUSED {trial, interrupted}` / `RESUMED`; a pause longer than `timeout_ms` creates no timeout; a pause in the ITI keeps the remaining ITI; a pause during the pre-roll does not eat it.
+- AC10 (engine side): a skip sets `is_skipped`, leaves `is_hit` / `is_timeout` 0 and `t_click_ns` blank, plays neither hit nor miss feedback, emits `SKIPPED`; `summarize()` reports `n_skipped` and keeps it out of `n_timeouts`.
+- AC4, AC6, AC16 and AB13/AB14 (data side) through `AssessmentApp`: a practice run leaves `sessions/` byte-identical (a folder with a finished run, `_diagnostics` and `_settings` in it), does not mutate the caller's dicts, uses `1_000_000 + k`; a practice then a record keep `all_gaze.csv` to the record run's own records and start it at `TIME 0`; a preview with a `MouseGazeSource` writes nothing, uses `PREVIEW_SEED`, and a mouse hover of the dwell length on the target scores a hit while a mouse off the canvas never does.
+- R8: with `run_mode="record"` the first frame starts a 500 ms pre-roll; `TARGET_SHOWN` of trial 1 comes at least 500 ms after the first tick (tested with the real clock; the test fails with the pre-roll at 0). Practice and preview start trial 1 on the first tick. Gaze and raw records are recorded during the pre-roll because the app records before it calls `task.update`.
+- 4C.9: the outcome fields are written at the end of a recorded run (`planned_trials` = `len(task.targets)`, `completed_trials` = rows in `trials.csv`, skipped included) with the two `session.log` lines.
+
+**Tests added:** 193 (191 pass, 2 skip).
+
+**pytest** (`..\.venv\Scripts\python.exe -m pytest -o addopts=""`): baseline before the change `840 passed in 125.17s`; after `1031 passed, 2 skipped in 130.75s`. No failures (`test_config_merges_task_over_default` did not show up on this machine today). `ruff` is clean on every new file and every changed region (the two findings left in changed files, `app.py` I001 and `exporter.py:115` B905, were there before).
+
+**Deviations / judgement calls (none changes a SPEC decision)**
+1. **Seed arguments.** `AssessmentApp` takes `practice_index` (k) and derives the seed from `run_mode` itself (`run_seed`), so the `seed` argument is ignored for practice and preview. 4C.4 reads as if the call site computes `1_000_000 + k`, 4B.7 passes no seed for a preview. If P8 should pass the seed instead, drop the `run_seed` line in `AssessmentApp.__init__`.
+2. **"Blank" pre-roll.** The canvas shows no target for the pre-roll, with the persistent scene (grid cells, icons) drawn exactly as in the ITI, not an empty canvas. That makes trial 1's baseline the same screen as every later trial's ITI baseline. A fully empty canvas would be a `TaskCanvas` change (P7).
+3. **HUD fields kept.** `hud_hidden_at_start` and `hud_toggle_count` stay in `SessionMetadata` (HC13 / 4C.9 removes them): `AssessmentApp`, `DashboardWindow` and `tests/test_hud_hide_toggle.py` still use them until P7 deletes the HUD. **Deferred to P7.**
+4. **Pause is not wired into the app.** `AssessmentApp._set_paused` still only sets the old `_paused` flag (so the HUD's Pause button behaves as before, including the wall-clock timeout after a long pause). Wiring `task.pause` / `resume`, the paused tick (drain and discard the raw queue, no `gaze_stream` row) and the Paused canvas is the P7 paused-tick work (C4). `pause_count` / `interrupted_trials` are written to metadata (0 today). Skip *is* wired: the HUD's "Skip trial" button now records a skip, not a forced timeout (4C.6 says it replaces the hack).
+5. **`outcome` / `ended_by` today.** Anything other than the task running out of trials (`task.is_done`) is written as `ended_early` / `operator_quit`, which is what End task and Esc are now. P7's quit flow (confirm, Save partial / Discard) does not change these values.
+6. **`run_mode` value.** `metadata.run_mode` is `"record"` for a recorded run (4C.4's `record | practice | preview`); `metadata.config_name` is written both at top level (4C.9) and as `settings.config_name` (R7).
+7. **Not in the SPEC text:** a `session.log` line "Pre-roll: 500 ms blank before trial 1." for recorded runs; `BaseTask.trial_number`; `apply_outcome`; `build_task(preroll_ms=...)`; `run_status_line` covers the record and practice wording of 4C.5 only, not the Preview wording of 4B.6.6 (that belongs with the Preview bar, P7/P8).
+8. **File sizes.** `src/tasks/base_task.py` 526 to 639 lines (it was already over 500; the pause / skip / pre-roll code from 4C.6 and R8 is in it as the SPEC names `BaseTask.pause/resume/skip_trial`), `src/app.py` 1092 to 1135 (+43: the logic lives in `src/engine/run_mode.py`, `NullRecorder` and the helper `_write_session_files`), `src/ui/setup_page.py` 1124 to 1141. New files are all under 130 lines.
+9. `discard_session` returns the number of files removed, raises `SessionDiscardError` (a `ValueError`) for a missing folder rather than succeeding silently, and also refuses Windows junctions.
+10. `build_instructions(task_id, cfg, values=None)`: `cfg` is the merged run config (planned trials from `cfg["task"]["trials"]`, "all" if absent), `values` the live settings keyed as `initial_live_values`, partial or omitted (missing keys come from `cfg`). The `NOTE:` label is part of `note`; steps are unnumbered sentences (the page numbers them).
+
+**Left undone (belongs to later phases):** the app-level paused tick and the Quit flow / `RunResult` / end dialogs (P7); removal of the HUD fields, handlers, live-settings code (P7); P3 recording additions (`entries`, `end_x`, `end_y`, `slot_index`, `target_track.csv`, `raw_clock_offset_ns`); no `StartTestPage`, dashboard wiring or wireframe. Five empty stray files named after Python return annotations (`BaseTask`, `FrameResult`, `None`, `bool`, `practice`) appeared in the repo root during the run (the arrow-in-tool-input quirk, here from code in edits) and were removed; `git status` shows only the files listed above.
+
+### 2026-10-06 — P3 (4D.4 recording additions), claude-sonnet-5-5 (spec-implementer), branch `feature/compass-task-flow`
+
+Nothing committed or staged. Branch confirmed before the first edit. P2's uncommitted changes were built on, not reverted (the hub commits P2 + P3 together, R6). `configs/default.yaml` and `configs/local_state.json` untouched. No live run, no app launch.
+
+**Files changed**
+- `src/tasks/entry_tracker.py` (new, 82 lines): `EntryTracker(exit_hold_ms)` with `entries`, `first_entry_ns`, `inside`, `reset()`, `update(t_ns, valid, on_target)` (returns `"enter"` / `"exit"` / `None`); `DEFAULT_EXIT_HOLD_MS = DwellConfig().hold_grace_ms` (120), so the hold is the dwell's own grace by construction.
+- `src/tasks/target_track.py` (new, 31 lines): `TrackThrottle` (due on a trial's first frame, then every 50 ms = 20 Hz).
+- `src/tasks/base_task.py` (639 to 672 lines): `records_target_track = False` class flag; an `EntryTracker` (hold from `dwell.config.hold_grace_ms`, else 120 ms) and a `TrackThrottle`; `_entries.update(t_ns, pointer.valid, on_target)` right after `on_target` is computed (before the dwell, so a hit frame is counted); both reset in `_start_trial`; `slot_index` set on the `TrialRecord` at trial start; `entries` and `end_x/end_y` (= `target_position(target, t_ns - trial start)`) set in `_finish_trial`, so they hold for hit, timeout and skip; `_record_track` helper.
+- `src/tasks/follow_moving.py`: `records_target_track = True` (the only task that moves its target).
+- `src/data/schema.py`: `TrialRecord.entries` (0), `end_x`, `end_y` (None, blank in the csv), `slot_index` (-1); `csv_header()` and `as_row()` append `entries, end_x, end_y, slot_index` after `is_skipped` (R6, no `outcome`); `SessionMetadata.layout_slots` and `raw_clock_offset_ns` (None, additive, `schema_version` stays 1).
+- `src/data/recorder.py`: `TARGET_TRACK_FILENAME` / `TARGET_TRACK_COLUMNS` (`t_ns,trial,x,y`); `SessionRecorder.record_target_track` (file and header created by the first call, x/y rounded to 5 decimals, flushed every 60 rows and on close); running `min(t_ns - round(time_s * 1e9))` in `record_raw` and the `raw_clock_offset_ns` property; `NullRecorder` gets `record_target_track` (no-op) and `raw_clock_offset_ns` (None).
+- `src/app.py` (1135 to 1143 lines): `metadata.layout_slots` (canvas-normalized `[[x, y], ...]`, 5 decimals, None for a task with no fixed layout) and `metadata.raw_clock_offset_ns`.
+- Tests: new `tests/test_entry_tracker.py` (23, G1), `tests/test_recording_additions.py` (34: columns and defaults, older csv, target_track writer / throttle / `NullRecorder`, G9, `BaseTask` wiring, real click_grid / scanning slots, headless replay); `tests/test_task_pipeline.py` +2 (G11); `tests/test_run_modes_app.py` +6 (raw offset, layout slots for click_grid / scanning / click_static, follow_moving writes `target_track.csv` and a practice writes nothing). Two P2 assertions that said `is_skipped` was the last column were updated (`tests/test_run_engine.py` header test, renamed; `tests/test_run_modes_app.py` ended-run test).
+
+**What was done**
+- 4D.4-1: the debounce is exactly the SPEC's: an invalid frame is ignored (no enter, no exit, no timer); the first valid on-target frame while outside is an entry; valid off-target frames while inside commit the exit only when the first of them is at least `exit_hold_ms` old, and an on-target frame before that cancels it; a return after a committed exit is a new entry. `first_entry_ns` is the first valid on-target frame, so it equals `t_first_gaze_on_target_ns` and `time_to_first_fixation_ms` is unchanged (G11 asserts it for a trial that visits twice and for a flicker). In eye mode and in switch mode every hit has `entries >= 1` (the frame is counted before it is scored).
+- 4D.4-2: `end_x/end_y` for all four tasks (equal to the start for the static ones); `target_track.csv` for follow_moving only, via the recorder, a no-op for `NullRecorder` (practice and preview write nothing, tested through `AssessmentApp`).
+- 4D.4-3, 4D.4-4: `slot_index` per trial (-1 for click_static and follow_moving); `metadata.layout_slots`.
+- 4D.4-5: `metadata.raw_clock_offset_ns`; G9 (jittered host times give exactly the minimum; replay without device `TIME` gives one consistent offset, within 5 ns of float rounding).
+- G1, G9, G11 as listed in 4D.10, plus the extras above.
+
+**Tests added:** 65 (23 + 34 + 2 + 6).
+
+**pytest** (`..\.venv\Scripts\python.exe -m pytest -o addopts=""`): baseline after P2 `1031 passed, 2 skipped`; after `1096 passed, 2 skipped in 134.55s`. No failures. `ruff` is clean on every new and changed file except the `app.py` I001 import-order finding that was there before.
+
+**Deviations / judgement calls (none changes a SPEC decision)**
+1. `EntryTracker` is at `src/tasks/entry_tracker.py` (the path 4D.4-1 gives), not under `src/engine/`.
+2. **The optional `TARGET_ENTER` / `TARGET_EXIT` events (4D.4-1) are not built.** `EntryTracker.update` already returns the committed transition, so adding them is a three-line change in `BaseTask.update`. They would change the event streams that several existing tests assert exactly. See §9.
+3. `metadata.layout_slots` is set in `AssessmentApp.__init__` right after `build_task`, not at the first tick: the slots are constants of the task, so the values are identical, and `_record_geometry` is driven by seven existing tests with a `SimpleNamespace` app that has no `task`. See §9.
+4. `raw_clock_offset_ns` is copied in `_write_session_files`, just before `_record_session_end_quality()`, not inside that method, because `tests/test_grid_cell_gap.py` calls it on a fake app without a recorder. Same moment, after the last raw record and before `recorder.close()` writes `metadata.json`.
+5. Exit commit, read literally: only a *valid off-target frame* commits (the passage of time does not). So a visit followed by a valid off frame, then an invalid gap, then an on-target frame is one entry, however long the gap; and with a regular 10 ms frame stream an exit needs 13 consecutive off-target frames (the 13th is 120 ms after the first). Documented in the module docstring and tested.
+6. `slot_index` is written as `-1` (the `TargetSpec` value) for a task with no fixed layout, not blank. `end_x/end_y` are always filled in `trials.csv` (only finished trials are written).
+7. `target_track.csv` details for P4's reader: created by the first sample (so a follow_moving run that never shows a trial has none, like any older folder); a trial interrupted by a pause and re-presented repeats its `trial` id, so the reader windows on the trial's own `[t_target_shown_ns, t_end_ns]`; a later trial's first row is the frame after it starts (the ITI frame that starts a trial does not run the target code), so about 10 to 16 ms after `t_target_shown_ns`; the final position is `end_x/end_y`, not always a row.
+8. `BaseTask._record_track` looks the writer up with `getattr`: several existing task tests pass a recorder double that has only `record_event` and `log`.
+9. `base_task.py` grew 33 lines (to 672; it was already over 500) and `app.py` 8; the logic is in the two new modules.
+
+**Left undone (belongs to later phases):** P4 analysis modules (geometry, saccades, trial metrics, visual data, cache, CLI), which are the readers of everything added here; the UI; HUD removal; pause wiring in the app. `docs/DATA_SCHEMA.md` and the README are P8. Three empty stray files named after Python annotations (`None`, `int`, `t_before,`; the arrow-in-tool-input quirk) appeared in the repo root during the run and were removed; `git status` shows only the files listed above.
+
 ## 9. Implementer open questions
+
+**P3, 2026-10-06 — none blocking.** Points for the hub to confirm (details in the §8 P3 entry):
+- **2026-10-06** — the optional `TARGET_ENTER` / `TARGET_EXIT` audit events are not built (judgement call 2). Say if P4 or the report wants them; they would also have to be added to the tests that assert exact event lists.
+- **2026-10-06** — `metadata.layout_slots` is set in `__init__` and `raw_clock_offset_ns` in `_write_session_files`, not at the exact places 4D.4-4 / 4D.4-5 name (judgement calls 3 and 4); same values, same moment for the file.
+- **2026-10-06** — exit commit reads literally: a valid off-target frame must carry the 120 ms, an invalid gap never does (judgement call 5). If a long gap between two valid frames should also count as time, that is a one-line change in `EntryTracker.update` plus G1 cases.
+- **Resolved 2026-10-06 (hub):** all three accepted. The optional audit events stay unbuilt (not needed by P4/4D). Call 5 is the 4D.4-1 rule as written.
+
+**P2, 2026-10-06 — none blocking.** Points for the hub to confirm (details in the §8 P2 entry):
+- **2026-10-06** — `AssessmentApp` derives the practice and preview seeds itself from `run_mode` (`practice_index` for k), instead of the caller passing them (judgement call 1).
+- **2026-10-06** — the R8 pre-roll shows the ITI-style scene without a target, not a fully empty canvas (judgement call 2).
+- **2026-10-06** — pause is not yet wired into `AssessmentApp` (P7), skip is (judgement call 4). The HUD fields stay until P7 (judgement call 3).
+- **Resolved 2026-10-06:** hub accepts calls 1, 3 and 4. **User chose the between-trials (ITI) screen for the R8 pre-roll** (same brightness as every later baseline); R8's "blank canvas" means "no target". P2's commit is held and goes in with P3 (R6).
 
 None blocking P1. Two points for the hub to confirm:
 - **2026-10-06** — Copy Test carries the **evaluator** over to the copy. **User 2026-10-06: keep it, as implemented.** 4A.6 and U3 ("identical unrun copy") list only notes, status, session link, date and counts as cleared, so this is the literal reading. If copies should start with a blank evaluator, change `evaluator=source.evaluator` in `copy_test` (`src/engine/subject_tests.py`) and the one assertion in `tests/test_subject_tests_lifecycle.py`.
@@ -1193,3 +1287,4 @@ reaches `build_task`); P2 keeps only the practice/preview seeds and the rest of 
   during the wireframe phase.
 - **2026-10-06** — The user approved the SPEC (all hub decisions and R1–R12) and added U17: implement on a separate branch. The SPEC was committed on the new branch `feature/compass-task-flow`.
 - **2026-10-06** — P1 (A1-A4) implemented by spec-implementer (§8). Hub review: in scope, AA1-AA8, AA11 first half, AA13 and the store part of AA14 covered by tests; hub pytest 840 passed, 0 failed (728 before). User answered §9 (a)-(d) and kept the evaluator on Copy Test. Committed on the feature branch on the user's OK. No live check: P1 has no UI.
+- **2026-10-06** — P2 (C1 engine, data side of `run_mode`, R8 pre-roll, B6 `MouseGazeSource`) and P3 (4D.4 recording additions) implemented by spec-implementer (§8). Hub review: in scope; hub pytest after P2 1031 passed / 2 skipped, after P3 1096 passed / 2 skipped, 0 failed. User chose the ITI screen for the R8 pre-roll; hub accepted the other §9 points. Committed together (R6: all new `trials.csv` columns in one commit) on the user's OK. No live check: no UI; exercised live in P9.

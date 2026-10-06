@@ -49,6 +49,9 @@ def _axis_bounds(margin: float) -> tuple[float, float]:
 
 
 class FollowMovingTask(BaseTask):
+    # The target's path goes to target_track.csv (SPEC-compass-task-flow.md 4D.4-2).
+    records_target_track = True
+
     def build_targets(self) -> list[TargetSpec]:
         cfg = self.task_cfg
         n_trials = int(cfg.get("trials", 12))

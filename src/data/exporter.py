@@ -186,7 +186,12 @@ def summarize(session_dir: str | Path) -> dict[str, Any]:
     n = len(rows)
     hits = sum(1 for r in rows if r.get("is_hit") == "1")
     timeouts = sum(1 for r in rows if r.get("is_timeout") == "1")
-    rts = [float(r["reaction_time_ms"]) for r in rows if r.get("reaction_time_ms")]
+    # A skipped trial (SPEC-compass-task-flow.md 4C.6) is neither: it has
+    # is_hit=0 and is_timeout=0, and is left out of the hit-rate denominator.
+    # trials.csv files written before the column existed read as 0 skips.
+    skipped = sum(1 for r in rows if r.get("is_skipped") == "1")
+    answered = n - skipped
+    rts =[float(r["reaction_time_ms"]) for r in rows if r.get("reaction_time_ms")]
     mean_rt = sum(rts) / len(rts) if rts else None
     median_rt = statistics.median(rts) if rts else None
     attempts = [int(r["attempts"]) for r in rows if r.get("attempts")]
@@ -208,7 +213,8 @@ def summarize(session_dir: str | Path) -> dict[str, Any]:
         "n_trials": n,
         "n_hits": hits,
         "n_timeouts": timeouts,
-        "hit_rate": (hits / n) if n else None,
+        "n_skipped": skipped,
+        "hit_rate": (hits / answered) if answered else None,
         "mean_reaction_time_ms": round(mean_rt, 2) if mean_rt is not None else None,
         "median_reaction_time_ms": round(median_rt, 2) if median_rt is not None else None,
         "mean_reaction_time_from_selectable_ms": (

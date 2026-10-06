@@ -48,6 +48,7 @@ def build_task(
     recorder: SessionRecorder | None = None,
     feedback=None,
     seed: int = 0,
+    preroll_ms: float = 0.0,
 ) -> BaseTask:
     if task_id not in TASK_REGISTRY:
         raise KeyError(f"Unknown task '{task_id}'. Known: {sorted(TASK_REGISTRY)}")
@@ -68,6 +69,7 @@ def build_task(
         dwell=dwell,
         input_mode=config.get("input", {}).get("mode", "eye"),
         seed=seed,
+        preroll_ms=preroll_ms,
     )
 
 

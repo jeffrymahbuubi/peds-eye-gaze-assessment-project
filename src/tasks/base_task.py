@@ -23,6 +23,8 @@ from ..data.schema import TrialRecord
 from ..engine.target_size import EDGE_RING_PX
 from ..inputs.base import Pointer, circle_contains, norm_to_px
 from ..inputs.eye_input import DwellSelector
+from .entry_tracker import DEFAULT_EXIT_HOLD_MS, EntryTracker
+from .target_track import TrackThrottle
 
 
 def gaze_geometry_from_screen(
@@ -134,6 +136,10 @@ class FrameResult:
 
 
 class BaseTask:
+    # Log the target's position to ``target_track.csv`` (SPEC-compass-task-flow.md
+    # 4D.4-2); only a task whose target moves has a path worth recording.
+    records_target_track = False
+
     def __init__(
         self,
         config: dict[str, Any],
@@ -144,6 +150,7 @@ class BaseTask:
         dwell: DwellSelector | None = None,
         input_mode: str = "eye",
         seed: int = 0,
+        preroll_ms: float = 0.0,
     ) -> None:
         self.config = config
         self.task_cfg: dict[str, Any] = config.get("task", {})
@@ -178,6 +185,13 @@ class BaseTask:
         self.targets: list[TargetSpec] = self.build_targets()
         self.trials: list[TrialRecord] = []
 
+        # Entries into the active target (4D.4-1), debounced with the dwell's own
+        # hold-grace; and the pace the moving target's path is logged at (4D.4-2).
+        self._entries = EntryTracker(
+            dwell.config.hold_grace_ms if dwell is not None else DEFAULT_EXIT_HOLD_MS
+        )
+        self._track = TrackThrottle()
+
         self._phase = Phase.READY
         self._trial_index = -1
         self._current: TrialRecord | None = None
@@ -189,6 +203,20 @@ class BaseTask:
         # Likewise TARGET_INSET: the first trial start where the layout had to
         # move the target inward to keep it on the canvas.
         self._inset_reported = False
+
+        # Pre-roll (SPEC-compass-task-flow.md R8): a recorded run holds trial 1
+        # back for this long after the first frame, so the gaze and pupil
+        # recorded just before it give trial 1 a baseline like every later
+        # trial has (its ITI). Counted from the first ``update``; 0 = start at
+        # once, which is every headless replay and every practice/preview run.
+        self._preroll_ns = int(preroll_ms * 1e6)
+        self._preroll_end_ns: int | None = None
+        self._preroll_done = False
+
+        # Pause (4C.6): when it began, and what the run's pauses cost.
+        self._paused_at_ns: int | None = None
+        self.pause_count = 0
+        self.interrupted_trials = 0
 
     def set_screen_size(self, width_px: int, height_px: int) -> None:
         """Update the pixel-space dimensions used for hit-testing.
@@ -364,10 +392,20 @@ class BaseTask:
     def is_done(self) -> bool:
         return self._phase is Phase.DONE
 
+    @property
+    def trial_number(self) -> int:
+        """1-based number of the trial the run is on (0 before the first)."""
+        return self._trial_index + 1
+
     def update(self, t_ns: int, pointer: Pointer) -> FrameResult:
         just_finished = False
 
-        if self._phase is Phase.READY:
+        if self._paused_at_ns is not None:
+            # The app does not tick a paused task; if a caller does, nothing
+            # advances (a long pause must never time a trial out, 4C.6).
+            return self._paused_frame(pointer)
+
+        if self._phase is Phase.READY and self._preroll_over(t_ns):
             self._start_trial(t_ns)
 
         target = self.targets[self._trial_index] if 0 <= self._trial_index < len(self.targets) else None
@@ -387,6 +425,10 @@ class BaseTask:
             # region the tool treats as "on target" for both dwell and the
             # first-fixation metric, so the two never disagree.
             on_target = pointer.valid and self.hit_test(target, cx_px, cy_px, px, py)
+
+            self._entries.update(t_ns, pointer.valid, on_target)
+            if self.records_target_track and self._track.due(t_ns):
+                self._record_track(t_ns, tx_norm, ty_norm)
 
             if on_target and self._current.t_first_gaze_on_target_ns is None:
                 self._current.t_first_gaze_on_target_ns = t_ns
@@ -461,7 +503,94 @@ class BaseTask:
             target_radius_px=self.effective_radius_px(target) if target is not None else 0.0,
         )
 
+    # -- operator actions (SPEC-compass-task-flow.md 4C.6) -----------------
+
+    def pause(self, t_ns: int) -> bool:
+        """Stop the clocks. Returns whether a trial in flight was interrupted.
+
+        A trial in ``WAIT_INPUT`` is dropped, never recorded: it goes back to
+        ``READY`` one step behind, so the next ``update`` after :meth:`resume`
+        re-presents the **same target** as a fresh trial with the same
+        ``trial_id`` and a new clock (N stays N and ``trials.csv`` stays
+        contiguous). In the ITI the remaining wait is kept, and a pause during
+        the pre-roll does not eat it. Ignored once the run is done and when
+        already paused.
+        """
+        if self._paused_at_ns is not None or self._phase is Phase.DONE:
+            return False
+        self._paused_at_ns = t_ns
+        self.pause_count += 1
+        index = self._trial_index
+        interrupted = self._phase is Phase.WAIT_INPUT and self._current is not None
+        if interrupted:
+            self.interrupted_trials += 1
+            self._record_event(
+                "TRIAL_INTERRUPTED",
+                t_ns,
+                trial=index,
+                reason="pause",
+                elapsed_ms=round((t_ns - self._trial_start_ns) / 1e6, 1),
+            )
+            self._current = None
+            self._trial_index -= 1
+            self._phase = Phase.READY
+            if self.dwell is not None:
+                self.dwell.reset()
+        self._record_event(
+            "PAUSED", t_ns, trial=index if index >= 0 else None, interrupted=interrupted
+        )
+        return interrupted
+
+    def resume(self, t_ns: int) -> None:
+        """End a pause; every deadline that was counting down moves by the time
+        spent paused. A no-op when not paused."""
+        if self._paused_at_ns is None:
+            return
+        paused_ns = max(0, t_ns - self._paused_at_ns)
+        self._paused_at_ns = None
+        if self._phase is Phase.ITI:
+            self._phase_deadline_ns += paused_ns
+        if self._preroll_end_ns is not None and not self._preroll_done:
+            self._preroll_end_ns += paused_ns
+        self._record_event("RESUMED", t_ns)
+
+    def skip_trial(self, t_ns: int) -> bool:
+        """Finish the trial in flight as **skipped**: ``is_skipped`` set, neither
+        a hit nor a timeout, no hit/miss feedback (U5). Only a running trial can
+        be skipped; returns whether one was."""
+        if self._paused_at_ns is not None or self._phase is not Phase.WAIT_INPUT or self._current is None:
+            return False
+        self._current.is_skipped = True
+        self._finish_trial(t_ns, timed_out=False, skipped=True)
+        return True
+
     # -- internals ---------------------------------------------------------
+
+    def _preroll_over(self, t_ns: int) -> bool:
+        """Whether trial 1 may start. The pre-roll counts from the first frame
+        and applies only before the first trial: a trial re-presented after a
+        pause is ``READY`` too, but starts at once."""
+        if self._preroll_done:
+            return True
+        if self._preroll_end_ns is None:
+            self._preroll_end_ns = t_ns + self._preroll_ns
+        if t_ns >= self._preroll_end_ns:
+            self._preroll_done = True
+            return True
+        return False
+
+    def _paused_frame(self, pointer: Pointer) -> FrameResult:
+        """What ``update`` reports while paused: no target, nothing scored."""
+        return FrameResult(
+            phase=self._phase,
+            trial_index=self._trial_index,
+            target=None,
+            target_xy_norm=None,
+            dwell_progress=0.0,
+            pointer=pointer,
+            just_finished_trial=False,
+            cursor_xy_norm=self.pointer_to_canvas_norm(pointer),
+        )
 
     def _start_trial(self, t_ns: int) -> None:
         self._trial_index += 1
@@ -480,7 +609,10 @@ class BaseTask:
             target_y=y_norm,
             target_radius_px=radius,
             t_target_shown_ns=t_ns,
+            slot_index=target.slot_index,
         )
+        self._entries.reset()
+        self._track.reset()
         inset = self.inset_details(target)
         if inset is not None and not self._inset_reported:
             self._inset_reported = True
@@ -506,16 +638,23 @@ class BaseTask:
         self._record_event("TARGET_SHOWN", t_ns, trial=self._trial_index,
                            x=x_norm, y=y_norm)
 
-    def _finish_trial(self, t_ns: int, timed_out: bool) -> None:
+    def _finish_trial(self, t_ns: int, timed_out: bool, skipped: bool = False) -> None:
         assert self._current is not None
         self._current.t_end_ns = t_ns
+        self._current.entries = self._entries.entries
+        # Where the target is now: equals the start for a static task, the live
+        # position for a moving one (4D.4-2).
+        self._current.end_x, self._current.end_y = self.target_position(
+            self.targets[self._trial_index], t_ns - self._trial_start_ns
+        )
         self.trials.append(self._current)
-        if self.feedback is not None:
+        # A skip plays neither cue: it is not a hit, and not a miss either (U5).
+        if self.feedback is not None and not skipped:
             if self._current.is_hit:
                 self.feedback.on_hit(self._current.target_x, self._current.target_y)
             else:
                 self.feedback.on_miss(self._current.target_x, self._current.target_y)
-        kind = "TIMEOUT" if timed_out else "HIT"
+        kind = "SKIPPED" if skipped else ("TIMEOUT" if timed_out else "HIT")
         self._record_event(kind, t_ns, trial=self._trial_index)
         self._current = None
         self._phase = Phase.ITI
@@ -524,3 +663,10 @@ class BaseTask:
     def _record_event(self, kind: str, t_ns: int, **payload: Any) -> None:
         if self.recorder is not None:
             self.recorder.record_event(kind, t_ns, **payload)
+
+    def _record_track(self, t_ns: int, x_norm: float, y_norm: float) -> None:
+        # getattr: a recorder double that only knows events and log lines (the
+        # task tests use several) has no target-track writer.
+        record = getattr(self.recorder, "record_target_track", None)
+        if record is not None:
+            record(t_ns, self._trial_index, x_norm, y_norm)
