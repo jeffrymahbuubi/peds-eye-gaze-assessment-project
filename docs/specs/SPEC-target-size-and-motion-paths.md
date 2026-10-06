@@ -16,7 +16,7 @@ related:
 
 # SPEC-target-size-and-motion-paths — target size presets, grid fit, Follow & Click paths
 
-**Status: APPROVED by the user 2026-10-06 (whole SPEC, incl. the four hub decisions). Wireframe approved 2026-10-06. Phase A + C implemented and committed 2026-10-06 (`0854ccf`; visual live check passed; real-gaze grid check still open). Phase B approved by the user for the next round (§10).**
+**Status: APPROVED by the user 2026-10-06 (whole SPEC, incl. the four hub decisions). Wireframe approved 2026-10-06. Phase A + C implemented and committed 2026-10-06 (`0854ccf`; visual live check passed; real-gaze grid check still open). Phase B (§11, no px radius anywhere) implemented, live-checked unattended and committed 2026-10-06 (`6ba9306`).**
 
 **Created:** 2026-10-06
 **Last updated:** 2026-10-06
@@ -280,7 +280,8 @@ cannot be baked in at `build_targets` time.
    the user's OK → memory update. **DONE 2026-10-06** except the real-gaze
    part of the live check (open, see §10).
 5. Phase B: separate go from the user. **Go given 2026-10-06** (scope widened:
-   no px radius left anywhere, scanning included); next round.
+   no px radius left anywhere, scanning included). **DONE 2026-10-06**
+   (`6ba9306`, §11).
 
 ## 8. Impl log
 
@@ -919,11 +920,11 @@ px)") as information; that is not a radius control and stays.
 2. Wireframe: update `docs/wireframes/task-settings.md` (Static Click,
    Follow & Click and Scanning dialogs with the size combo; scanning's
    shrink hint), user approval, commit (the /spec-run wireframe gate). **Drawn 2026-10-06** (Phase B section + Follow & Click card
-   updated in `docs/wireframes/task-settings.md`/`.html`); the user's look
-   is still pending: they authorized an unattended overnight run, so the
-   implementation went ahead against the approved §11 design. **Approved by the
-   user 2026-10-06** ("wireframe looks fine").
-3. `spec-implementer`: §11.3 in one run. **DONE 2026-10-06** (uncommitted).
+   updated in `docs/wireframes/task-settings.md`/`.html`); implementation
+   went ahead overnight (user-authorized unattended run) before the user's
+   look. **Approved by the user 2026-10-06** ("wireframe looks fine"),
+   committed in `6ba9306`.
+3. `spec-implementer`: §11.3 in one run. **DONE 2026-10-06** (`6ba9306`).
 4. Hub review vs §11.4 + pytest, live check with the user, commit/push on
    the user's OK, memory update. Review + unattended live check **DONE 2026-10-06**;
    committed + pushed 2026-10-06 on the user's OK (`6ba9306`).
