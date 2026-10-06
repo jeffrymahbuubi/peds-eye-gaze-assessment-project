@@ -20,10 +20,6 @@ layout:
   arrangement: grid          # row | ring | grid -- grid is real 2D visual search
   margin_frac: 0.14          # inset from screen edge, as a fraction of screen size
 
-target:
-  color: "#9c27b0"
-  highlight_color: "#ffeb3b"
-
 feedback:
   hit_sound: true
   miss_sound: true

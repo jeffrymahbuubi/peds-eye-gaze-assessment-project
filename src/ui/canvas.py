@@ -331,6 +331,17 @@ class TaskCanvas(QWidget):
         path.closeSubpath()
         return path
 
+    def _ring_base_radius(self) -> float:
+        """Radius the selectable outline and the instant / dwell rings are drawn
+        around -- the radius of what is actually painted (SPEC-target-visual-
+        fixes.md F2 a). In the ``icons`` scene the cued icon is painted at
+        ``ICON_DRAW_FRAC`` of the hit radius (see :meth:`_draw_target`), so the
+        rings follow that, not the hit radius, and stay clear of neighbouring
+        icons; every other scene paints the target at ``target_radius_px``."""
+        if self.scene.get("mode", "single") == "icons" and self.active_slot >= 0:
+            return self.target_radius_px * ICON_DRAW_FRAC
+        return self.target_radius_px
+
     def _draw_target(self, painter: QPainter, x: float, y: float) -> None:
         r = self.target_radius_px
         color = self.target_color if self.selectable else self.target_color.darker(180)
@@ -359,7 +370,8 @@ class TaskCanvas(QWidget):
             # does not change its style, so the outline silently never drew.
             painter.setPen(QPen(QColor("#ffffff"), 4))
             painter.setBrush(Qt.BrushStyle.NoBrush)
-            painter.drawEllipse(QPointF(x, y), r + 4, r + 4)
+            ring = self._ring_base_radius() + 4
+            painter.drawEllipse(QPointF(x, y), ring, ring)
 
     def _draw_instant_feedback(self, painter: QPainter, x: float, y: float) -> None:
         """Immediate acknowledgment that gaze is on the target right now.
@@ -371,13 +383,13 @@ class TaskCanvas(QWidget):
         identical. This is a full-brightness ring drawn the instant on_target
         is true, not gated by dwell progress at all.
         """
-        r = self.target_radius_px + 10
+        r = self._ring_base_radius() + 10
         painter.setPen(QPen(QColor(self.theme.get("cursor_color", "#ffffff")), 5))
         painter.setBrush(Qt.BrushStyle.NoBrush)
         painter.drawEllipse(QPointF(x, y), r, r)
 
     def _draw_progress_ring(self, painter: QPainter, x: float, y: float) -> None:
-        r = self.target_radius_px + 16
+        r = self._ring_base_radius() + 16
         # Same NoPen-carryover fix as _draw_instant_feedback/_draw_target: a
         # fresh QPen, not painter.pen() mutated in place -- this arc was
         # silently never drawn before, which is very likely the real cause

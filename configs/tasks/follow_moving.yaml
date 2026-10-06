@@ -24,7 +24,6 @@ target:
   # Legacy: an explicit `radius_px: <px>` (e.g. 100) is still read when `size`
   # is absent (older configs/profiles); when both are present `size` wins.
   size: medium
-  color: "#03a9f4"
 
 feedback:
   hit_sound: true

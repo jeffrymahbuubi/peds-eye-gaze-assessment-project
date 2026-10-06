@@ -1,10 +1,10 @@
 ---
 name: SPEC-target-visual-fixes
 title: Follow-ups from target-size Phase B — dialog label visibility, scanning rings, target colour
-status: approved — F1 a, F2 a, F3 a (user, 2026-10-06); not implemented
+status: complete — F2 a + F3 a implemented, reviewed, live-checked (fake server); F1 closed (not reproduced)
 created: 2026-10-06
 last_updated: 2026-10-06
-next_step: /spec-run this SPEC (F2 a + F3 a; F1 closed, no code)
+next_step: none
 related:
   - SPEC-target-size-and-motion-paths.md (§8 Phase B impl log, "Findings, not fixed" 1-3 — the origin of this SPEC)
   - SPEC-ui-setup-task-selection.md (§12-§13: Fusion style + light standardPalette for Windows dark mode)
@@ -13,7 +13,7 @@ related:
 
 # SPEC-target-visual-fixes — three Phase B follow-ups
 
-**Status: approved 2026-10-06 (written at `d7af777`): F1 a (close, no code), F2 a (rings around the drawn icon), F3 a (remove the dead colour keys). Nothing implemented yet.**
+**Status: approved 2026-10-06 (written at `d7af777`): F1 a (close, no code), F2 a (rings around the drawn icon), F3 a (remove the dead colour keys). Implemented, reviewed (664 passed) and live-checked against the fake server 2026-10-06.**
 
 ## 1. Origin
 
@@ -140,7 +140,7 @@ test or the recorded data (except the metadata field under F3 b).
 ## 5. Plan
 
 1. ~~User picks F1 / F2 / F3.~~ Done 2026-10-06: F1 a, F2 a, F3 a.
-2. `/spec-run` this SPEC: spec-implementer implements the chosen items, the hub
+2. DONE 2026-10-06. `/spec-run` this SPEC: spec-implementer implements the chosen items, the hub
    reviews and runs pytest. Live check against the fake server on port 4250
    (not 4242/4243, which Gazepoint Control holds). Commit and push on the
    user's OK.
@@ -150,7 +150,56 @@ and F1 has at most a palette call.
 
 ## 6. Impl log
 
-(empty)
+- **2026-10-06** — Implemented F2 a and F3 a; F1 a is closed with no code
+  (`task_settings_dialog.py` untouched). Model: `claude-sonnet-5-5` (spec-implementer).
+  Not committed, not staged.
+  - **Files changed:**
+    - `src/ui/canvas.py`: new `TaskCanvas._ring_base_radius()`; the selectable
+      outline (+4), `_draw_instant_feedback` (+10) and `_draw_progress_ring`
+      (+16) now add their offset to it instead of to `target_radius_px`. Same
+      offsets, same pens. It returns `target_radius_px * ICON_DRAW_FRAC` in the
+      `icons` scene and `target_radius_px` in every other scene (`single`,
+      `grid`, `moving`). Hit-testing, `TARGET_SHRUNK`, metadata and every other
+      draw call are unchanged.
+    - `configs/tasks/click_grid.yaml`: removed `target.color` and
+      `target.highlight_color`.
+    - `configs/tasks/click_static.yaml`: removed `target.color`.
+    - `configs/tasks/follow_moving.yaml`: removed `target.color`.
+    - `configs/tasks/scanning.yaml`: removed `target.color` and
+      `target.highlight_color`; that left an empty `target:` section, deleted too
+      (checked first: scanning reads its size and radius from `layout`, via
+      `size_block`; `src/tasks/click_static.py`, `click_grid.py` and
+      `follow_moving.py` read `target`, `scanning.py` does not).
+    - `docs/specs/SPEC-target-visual-fixes.md`: this log only.
+  - **Tests added:** new `tests/test_target_visual_fixes.py` (16 tests):
+    ring base radius is the drawn icon in `icons` and the hit radius in
+    `single` / `grid` / `moving`; a render test on the 800x600 canvas with the
+    outline, instant ring and dwell ring all on, measuring the outermost lit
+    pixel (97 px in `icons` vs 119 px with the old behaviour, hit radius 100,
+    expected `base + 20`); the four task YAMLs (raw and through
+    `load_task_config`) carry no `color` / `highlight_color` under `target`; a
+    saved profile whose `live` and `structural` blocks still hold the two keys
+    loads, resolves, deep-merges and builds all four tasks without error (the
+    existing `test_unknown_keys_are_ignored` only covered live keys); and a scan
+    that `configs/` and `src/` contain no `highlight_color`.
+  - **Grep (F3 a):** `highlight_color` appears nowhere under `configs/`, `src/`,
+    `tools/` or `tests/` except as a test literal in the new file. `target.color`
+    / `["color"]` is not read anywhere in `src/`; `TaskCanvas.target_color` still
+    comes only from the theme's `target_default`. `configs/default.yaml` (skip-
+    worktree, not touched) has no colour keys under `target`.
+  - **pytest** (`..\.venv\Scripts\python.exe -m pytest`, repo root):
+    `664 passed in 116.09s`. The known `test_config_merges_task_over_default`
+    failure did not appear on this machine's run.
+  - **Deviations from the SPEC:** none. One reading to confirm in review:
+    `_ring_base_radius()` uses the drawn icon radius only when the icons scene
+    has a cued slot (`active_slot >= 0`), the same condition `_draw_target` uses
+    to paint the icon silhouette; with no cued slot it paints a plain circle at
+    the hit radius and the rings follow that. Scanning always sets `active_slot`
+    whenever a target exists, so for scanning this is identical to "icons scene
+    only"; it only matters for a hand-built icons scene with no `active_slot`.
+  - **Not done / left for the hub:** the F2 a live real-screen capture (scanning,
+    8 icons Large, rings clear of the neighbours) and the commit. No live test,
+    no app launch.
 
 ## 7. Log
 
@@ -163,3 +212,21 @@ and F1 has at most a palette call.
   photo if seen again), **F2 a** (scanning rings around the drawn icon),
   **F3 a** (remove `target.color` / `target.highlight_color` from the four
   task YAMLs). SPEC approved; ready for /spec-run.
+- **2026-10-06** — Implemented by spec-implementer (§6). Hub review: diff in
+  scope (canvas.py `_ring_base_radius()`, four task YAMLs, new
+  `tests/test_target_visual_fixes.py`); hub pytest **664 passed, 0 failed**
+  (648 + 16). Accepted the disclosed reading: the drawn-icon base applies when
+  the icons scene has a cued slot (`active_slot >= 0`), the same condition
+  `_draw_target` uses for the silhouette; scanning always sets it.
+  Live check vs the fake server on port 4250, session
+  `2026-10-06_LIVECHK03_scanning_run1` (scanning, 8 icons, Large):
+  `TARGET_SHRUNK` 212.3 to 129.6 hit px (unchanged from Phase B), metadata
+  `preset: large`, `radius_of: icon`. On a real-screen capture, measured from
+  the cued icon's centre: icon edge 102 px, selectable outline outer 107 px,
+  neighbouring diamond tip 130 px (the old code put the outline at about 136
+  px, over the diamond). The instant / dwell rings were not seen live (the fake
+  gaze never landed on the cued icon); by calculation the dwell ring's outer
+  edge is about 122 px, 8 px clear; covered by the render test. Target colour
+  is still the theme red. F1 re-confirmed on the real screen: the dialog labels
+  and the shrink hint are readable with Windows in dark mode. Not tested: real
+  gaze. `local_state.json` restored to 127.0.0.1:4242. User approved commit + push.
