@@ -26,6 +26,7 @@ The corpus has two layers:
 | File | Covers |
 |---|---|
 | [synthesis/ui-ux-patterns.md](synthesis/ui-ux-patterns.md) | Screen/navigation map, reusable interaction patterns, the common configuration-screen anatomy, the eight tests' defaults side by side, results-screen design, feedback, accessibility and localisation, platform facts, UI version history, **traps and inconsistencies in the guide**, and what the guide does *not* say |
+| [synthesis/ui-ux-screen-walkthrough.md](synthesis/ui-ux-screen-walkthrough.md) | Screen-by-screen walkthrough of the Aim path, joining the 12 screenshots in [`screenshots/`](screenshots/) (captured from the installed 3.0.1) with the guide. Covers the visual language, real on-screen labels vs the guide's, guide-only screens, UX principles, and a factual mapping to the current peds-eye-gaze-assessment UI |
 
 Note for its objective ("how the UI/UX is created"): the guide documents the product's
 **behaviour**, not how it was built. The synthesis states this up front and collects the few
@@ -91,6 +92,9 @@ preserved):
   `[FIGURE]`. For a UI/UX reference this is the main loss: every UI walkthrough and
   configuration-screen description is incomplete without its screenshot. Consult the source
   PDF for anything visual. Extracting the screenshot pages as images is possible later.
+  **Partly offset (2026-10-06):** `screenshots/` holds 12 captures of the real 3.0.1 app
+  (the Aim path, launch to report), described in `synthesis/ui-ux-screen-walkthrough.md`.
+  They are app captures, not the guide's own figures.
 - Page headers and footers were dropped (the 137 "Compass Help - …" footers do not appear).
   Page numbers are gone; the guide's own table of contents still lists them.
 - **Version drift:** this is the guide for Compass **3.0** (copyright 2019); the installer
