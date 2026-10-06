@@ -12,7 +12,10 @@ the same ``deep_merge`` an ``overrides:`` YAML block already goes through.
 A setting is a slider+spin row (int/float) or, for ``kind="choice"``, a themed
 combo box whose value is a string (the target / icon size preset of every task,
 follow_moving's movement path -- SPEC-target-size-and-motion-paths.md S4.5,
-S11.3 -- and click_grid's cell gap, SPEC-grid-cell-gap.md S4.5).
+S11.3 -- and click_grid's cell gap, SPEC-grid-cell-gap.md S4.5) or, for
+``kind="bool"``, a check box (the two sound toggles, SPEC-compass-task-flow.md
+HB3/HB11). The shrink-hint texts come from :mod:`src.engine.target_size`, shared
+with the configuration page.
 
 Shown modally by :func:`src.app.run_gui` and by ``DashboardWindow``'s Tasks
 tab. "Start task" accepts current values (defaults if untouched); "Cancel"
@@ -37,6 +40,7 @@ from typing import Any
 from PySide6.QtCore import Qt
 from PySide6.QtGui import QColor
 from PySide6.QtWidgets import (
+    QCheckBox,
     QComboBox,
     QDialog,
     QDialogButtonBox,
@@ -49,9 +53,9 @@ from PySide6.QtWidgets import (
 )
 
 from ..engine.target_size import (
-    estimate_grid_geometry,
-    fit_icon_radius_px,
     gap_px_for,
+    grid_fit_hint,
+    icon_fit_hint,
     radius_px_for,
     screen_scale,
     viewing_distance_mm,
@@ -174,6 +178,10 @@ class TaskSettingsDialog(QDialog):
     def _build_control(self, setting: StructuralSetting, value: Any) -> QWidget:
         if setting.kind == "choice":
             return self._build_choice(setting, value)
+        if setting.kind == "bool":
+            check = QCheckBox()
+            check.setChecked(bool(setting.default if value is None else value))
+            return check
         initial = value if value is not None else setting.min
         return SliderSpinRow(setting.kind, setting.min, setting.max, setting.step, initial)
 
@@ -214,49 +222,34 @@ class TaskSettingsDialog(QDialog):
         """Show how far the chosen size will be shrunk to fit the chosen grid
         and cell gap, and whether the gap itself is limited.
 
-        An estimate from the screen's available area (labelled approximate);
-        the real fit is applied per frame during the run (``ClickGridTask.
-        effective_radius_px`` / ``grid_cell_geometry``, which this reads too, so
-        they cannot disagree). Hidden when the preset fits and the gap is not
-        limited.
+        The text is :func:`~src.engine.target_size.grid_fit_hint`, the one the
+        configuration page shows too: an estimate from the screen's available
+        area (labelled approximate); the real fit is applied per frame during
+        the run (``ClickGridTask.effective_radius_px`` / ``grid_cell_geometry``,
+        which that reads too, so they cannot disagree). Hidden when the preset
+        fits and the gap is not limited.
         """
-        rows = int(self._controls["grid.rows"].value())
-        cols = int(self._controls["grid.cols"].value())
-        wanted = radius_px_for(
-            self._controls["target.size"].currentData(), self._scale.mm_per_px, self._distance_mm
-        )
         gap_control = self._controls.get("grid.gap")
-        gap_px = (
-            gap_px_for(gap_control.currentData(), self._scale.mm_per_px, self._distance_mm)
-            if gap_control is not None
-            else None
-        )
-        geometry = estimate_grid_geometry(rows, cols, *self._canvas_px, self._grid_margin, gap_px)
-        fits = geometry.fit_radius_px
-        shrunk = fits < wanted - 0.5
-        if geometry.capped:
-            # H4: the wanted gap would leave cells under half their pitch.
-            limited = f"Gap limited to ≈ {round(geometry.gap_px)} px"
-            tail = f"to fit a {rows} x {cols} grid (approximate)"
-            if shrunk:
-                self.fit_hint_label.setText(
-                    f"{limited} and targets shrunk to ≈ {round(2 * fits)} px {tail}"
-                )
-            else:
-                self.fit_hint_label.setText(f"{limited} {tail}")
-            self.fit_hint.show()
-        elif shrunk:
-            self.fit_hint_label.setText(
-                f"Will be shrunk to ≈ {round(2 * fits)} px to fit a {rows} x {cols} grid "
-                "(approximate)"
+        self._show_hint(
+            grid_fit_hint(
+                int(self._controls["grid.rows"].value()),
+                int(self._controls["grid.cols"].value()),
+                *self._canvas_px,
+                radius_px_for(
+                    self._controls["target.size"].currentData(),
+                    self._scale.mm_per_px,
+                    self._distance_mm,
+                ),
+                self._grid_margin,
+                gap_px_for(gap_control.currentData(), self._scale.mm_per_px, self._distance_mm)
+                if gap_control is not None
+                else None,
             )
-            self.fit_hint.show()
-        else:
-            self.fit_hint.hide()
+        )
 
     def _update_icon_hint(self, *_args) -> None:
         """Show how far the chosen icon size will be shrunk to fit the chosen
-        number of icons (scanning).
+        number of icons (scanning), via :func:`~src.engine.target_size.icon_fit_hint`.
 
         An estimate from the screen's available area and the YAML's arrangement /
         margin (labelled approximate); the real fit is applied per frame during
@@ -272,15 +265,14 @@ class TaskSettingsDialog(QDialog):
         wanted = radius_px_for(
             self._controls["layout.size"].currentData(), self._scale.mm_per_px, self._distance_mm
         )
-        fits = fit_icon_radius_px(slots, *self._canvas_px)
-        if fits < wanted - 0.5:
-            self.fit_hint_label.setText(
-                f"Icons will be shrunk to ≈ {round(2 * fits)} px to fit {n_icons} icons "
-                "(approximate)"
-            )
-            self.fit_hint.show()
-        else:
+        self._show_hint(icon_fit_hint(n_icons, slots, *self._canvas_px, wanted))
+
+    def _show_hint(self, text: str | None) -> None:
+        if text is None:
             self.fit_hint.hide()
+            return
+        self.fit_hint_label.setText(text)
+        self.fit_hint.show()
 
     def overrides(self) -> dict[str, Any]:
         """Return a nested dict (dotted keys expanded) suitable for
@@ -290,6 +282,9 @@ class TaskSettingsDialog(QDialog):
             control = self._controls[setting.key]
             if setting.kind == "choice":
                 set_nested(result, setting.key, str(control.currentData()))
+                continue
+            if setting.kind == "bool":
+                set_nested(result, setting.key, control.isChecked())
                 continue
             value = control.value()
             set_nested(result, setting.key, int(value) if setting.kind == "int" else float(value))

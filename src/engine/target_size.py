@@ -418,6 +418,27 @@ def estimate_grid_fit_radius_px(
     ).fit_radius_px
 
 
+def grid_fit_hint(
+    rows: int, cols: int, canvas_w_px: float, canvas_h_px: float, wanted_radius_px: float,
+    margin_frac: float = 0.12, gap_px: float | None = None,
+) -> str | None:
+    """The shrink hint of an R x C grid (SPEC-compass-task-flow.md 4B.3), or ``None``
+    when ``wanted_radius_px`` fits and the wanted gap is not capped (H4). An
+    estimate from the screen's available area, hence "approximate"; the run
+    applies the real fit through :func:`grid_cell_geometry`. Shared by the
+    settings dialog and the configuration page."""
+    geometry = estimate_grid_geometry(rows, cols, canvas_w_px, canvas_h_px, margin_frac, gap_px)
+    fits = geometry.fit_radius_px
+    shrunk = fits < wanted_radius_px - 0.5
+    tail = f"to fit a {rows} x {cols} grid (approximate)"
+    if geometry.capped:
+        limited = f"Gap limited to ≈ {round(geometry.gap_px)} px"
+        if shrunk:
+            return f"{limited} and targets shrunk to ≈ {round(2 * fits)} px {tail}"
+        return f"{limited} {tail}"
+    return f"Will be shrunk to ≈ {round(2 * fits)} px {tail}" if shrunk else None
+
+
 def edge_inset_norm(radius_px: float, canvas_w_px: float, canvas_h_px: float) -> tuple[float, float]:
     """How far from the canvas edge a target of ``radius_px`` must stay, as
     ``(margin_x, margin_y)`` fractions of the canvas width and height: the
@@ -459,3 +480,17 @@ def fit_icon_radius_px(
         for xj, yj in points[i + 1 :]:
             cap = min(cap, 0.5 * math.hypot(xi - xj, yi - yj) * (1.0 - 2.0 * CELL_PAD_FRAC))
     return max(cap, 0.0)
+
+
+def icon_fit_hint(
+    n_icons: int, slots: list[tuple[float, float]], canvas_w_px: float, canvas_h_px: float,
+    wanted_radius_px: float,
+) -> str | None:
+    """The shrink hint of ``n_icons`` scanning icons at ``slots`` (4B.3), or ``None``
+    when the wanted *drawn* radius fits. The caller lays the slots out with
+    ``scanning_layout_slots`` (the task imports this module, so it cannot be
+    imported here). Shared by the settings dialog and the page."""
+    fits = fit_icon_radius_px(slots, canvas_w_px, canvas_h_px)
+    if fits < wanted_radius_px - 0.5:
+        return f"Icons will be shrunk to ≈ {round(2 * fits)} px to fit {n_icons} icons (approximate)"
+    return None

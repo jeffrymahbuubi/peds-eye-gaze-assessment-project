@@ -19,7 +19,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 from typing import Any
 
-from ..engine.settings_profile import parse_saved_at
+from ..engine.settings_profile import format_saved_at  # noqa: F401 -- re-exported (moved there)
 from ..engine.target_size import (
     DEFAULT_GAP,
     DEFAULT_SIZE,
@@ -70,7 +70,7 @@ class LiveSetting:
 class StructuralSetting:
     key: str  # dotted path within the task config's "task" block, e.g. "target.radius_px"
     label: str
-    kind: str  # "int" | "float" | "choice"
+    kind: str  # "int" | "float" | "choice" | "bool"
     min: float = 0.0
     max: float = 0.0
     step: float = 0.0
@@ -78,7 +78,9 @@ class StructuralSetting:
     # "choice" only (SPEC-target-size-and-motion-paths.md S4.5): (value, label)
     # pairs rendered as a combo box; the saved/overridden value is the string.
     choices: tuple[tuple[str, str], ...] = ()
-    default: str = ""  # "choice" only: used when the task config has no value
+    # "choice" (a string) and "bool" (a bool, SPEC-compass-task-flow.md HB3): used
+    # when the task config has no value.
+    default: Any = ""
 
     def applies(self, task_id: str) -> bool:
         return not self.applies_to or task_id in self.applies_to
@@ -256,6 +258,10 @@ STRUCTURAL_SETTINGS: list[StructuralSetting] = [
         100,
         applies_to=("follow_moving",),
     ),
+    # The two sound toggles (SPEC-compass-task-flow.md HB3): read once at
+    # GuiFeedback construction, so structural. `feedback.particles` stays unexposed.
+    StructuralSetting("feedback.hit_sound", "Play hit sound", "bool", default=True),
+    StructuralSetting("feedback.miss_sound", "Play miss sound", "bool", default=True),
 ]
 
 
@@ -349,23 +355,6 @@ def format_calibration(calibration: dict[str, Any] | None) -> str:
     return ", ".join(parts)
 
 
-def format_saved_at(saved_at: str, with_time: bool = True) -> str:
-    """Render a profile's ``saved_at`` in **local** time, e.g. ``09/18 14:32``.
-
-    The date is the label an operator picks a version by (S10.12), so it has
-    to be the local date: slicing the stored ISO string (``saved_at[:10]``,
-    as the badge and panel did before S10.12) showed the UTC date, which is
-    the previous day for any save before 08:00 in this lab's timezone.
-    Legacy UTC-stamped profiles and S10.12 local-offset ones both convert
-    correctly. Returns "" for an empty or unparseable value.
-    """
-    when = parse_saved_at(saved_at)
-    if when is None:
-        return ""
-    local = when.astimezone()
-    return local.strftime("%m/%d %H:%M" if with_time else "%m/%d")
-
-
 def apply_live_values_to_config(config: dict[str, Any], values: dict[str, Any]) -> None:
     """Write live values back into the merged config, in place.
 
@@ -402,6 +391,10 @@ def initial_structural_values(task_id: str, config: dict[str, Any]) -> dict[str,
 
 
 def _initial_structural_value(setting: StructuralSetting, task_cfg: dict[str, Any]) -> Any:
+    if setting.kind == "bool":
+        # The task config's own switch (a profile merged over it), else the default.
+        value = get_nested(task_cfg, setting.key, setting.default)
+        return value if isinstance(value, bool) else setting.default
     if setting.kind != "choice":
         return get_nested(task_cfg, setting.key, setting.min)
     # A choice yields the task config's string (the YAML's default, or what a
@@ -409,3 +402,84 @@ def _initial_structural_value(setting: StructuralSetting, task_cfg: dict[str, An
     # for a missing or no-longer-valid value.
     value = get_nested(task_cfg, setting.key, setting.default)
     return value if value in {v for v, _label in setting.choices} else setting.default
+
+
+# -- configuration page layout (SPEC-compass-task-flow.md 4B.1, 4B.2) ----------
+
+
+@dataclass(frozen=True, slots=True)
+class ConfigControl:
+    key: str  # a registry key, or "test.name" / "test.config_name" / "test.notes"
+    layer: str  # "live" | "structural" | "page"
+    # line_edit | combo_edit | notes | check | slider_int | slider_float | radio
+    widget: str
+    label: str
+    depends_on: str | None = None  # key of a check box that greys this one while it is off
+    setting: LiveSetting | StructuralSetting | None = None  # None for a "page" control
+
+
+@dataclass(frozen=True, slots=True)
+class ConfigGroup:
+    id: str  # the card's object-name stem ("test", "feedback", "target", ...)
+    title: str
+    column: int  # 0, 1 or 2: columns A, B, C of 4B.1
+    controls: tuple[ConfigControl, ...]
+    hint: str | None = None  # HINT_*: the amber fit hint shown under the controls
+
+
+HINT_GRID_FIT, HINT_ICON_FIT = "grid_fit", "icon_fit"
+# The page's own controls: not options of a task, so no registry entry.
+_PAGE_CONTROLS = {
+    "test.name": ("Test Name", "line_edit"),
+    "test.config_name": ("Configuration Name", "combo_edit"),
+    "test.notes": ("Notes", "notes"),
+}
+_WIDGET_BY_KIND = {"bool": "check", "int": "slider_int", "float": "slider_float", "choice": "radio"}
+# 4B.3: greyed in place, never hidden, while the control it names is off.
+_DEPENDS_ON = {"dwell.smoothing.alpha": "dwell.smoothing.enabled"}
+# The cards in 4B.1 order: (id, title, column, hint, control keys in order). A key the task
+# has no setting for is skipped and a card left empty is dropped, so one table lays out all
+# four pages (scanning has Icons where the others have Target; only click_grid has a grid).
+_CARDS = (
+    ("test", "Test", 0, None, ("test.name", "test.config_name", "trials", "test.notes")),
+    ("feedback", "Feedback", 0, None, (
+        "dwell.visual_cursor", "dwell.progress_ring", "dwell.instant_feedback",
+        "feedback.hit_sound", "feedback.miss_sound")),
+    ("target", "Target", 1, None, ("target.size",)),
+    ("icons", "Icons", 1, HINT_ICON_FIT, ("layout.size", "layout.n_icons")),
+    ("grid", "Grid Layout", 1, HINT_GRID_FIT, ("grid.rows", "grid.cols", "grid.gap")),
+    ("motion", "Motion", 1, None, ("motion.path", "motion.speed_frac_per_s")),
+    ("timing", "Timing", 1, None, (
+        "task.timeout_ms", "task.inter_trial_interval_ms", "motion.select_window_ms")),
+    ("selection", "Selection (Dwell)", 2, None, (
+        "dwell.threshold_ms", "dwell.refractory_ms", "dwell.jitter_tolerance_px")),
+    ("smoothing", "Gaze Smoothing", 2, None, ("dwell.smoothing.enabled", "dwell.smoothing.alpha")),
+)
+
+
+def config_groups_for_task(task_id: str) -> list[ConfigGroup]:
+    """The configuration page for ``task_id`` as data: its cards in order, each
+    control with the widget kind that edits it (a one-of is ``radio``, a number
+    a slider row, on/off a ``check``) and what greys it (4B.2, 4B.3).
+
+    Pure, so a test can hold it against the registries: every setting that
+    applies to the task has exactly one control, none hidden (AB1, AB2), and
+    the page widget (``TaskConfigPage``) is just a renderer of this.
+    """
+    known: dict[str, ConfigControl] = {}
+    for layer, settings in (
+        ("live", live_settings_for_task(task_id)),
+        ("structural", structural_settings_for_task(task_id)),
+    ):
+        for s in settings:
+            known[s.key] = ConfigControl(
+                s.key, layer, _WIDGET_BY_KIND[s.kind], s.label, _DEPENDS_ON.get(s.key), s
+            )
+    for key, (label, widget) in _PAGE_CONTROLS.items():
+        known[key] = ConfigControl(key, "page", widget, label)
+    groups = []
+    for group_id, title, column, hint, keys in _CARDS:
+        controls = tuple(known[key] for key in keys if key in known)
+        if controls:
+            groups.append(ConfigGroup(group_id, title, column, controls, hint))
+    return groups

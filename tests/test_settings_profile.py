@@ -8,9 +8,17 @@ src/engine/local_state.py.
 from __future__ import annotations
 
 import json
+import re
+
+import pytest
 
 from src.engine.settings_profile import (
+    CONFIG_NAME_MAX_LEN,
+    PROFILE_SCHEMA_VERSION,
+    NamedConfig,
+    effective_config_name,
     known_subject_ids,
+    list_named_configurations,
     list_settings_profiles,
     load_settings_profile,
     load_settings_profile_file,
@@ -19,6 +27,8 @@ from src.engine.settings_profile import (
     save_settings_profile,
     settings_profile_dir,
     settings_profile_path,
+    task_live_values,
+    validate_config_name,
 )
 from src.ui.settings_registry import (
     apply_live_values_to_config,
@@ -354,3 +364,232 @@ def test_known_subject_ids_ignores_loose_files(tmp_path):
     (tmp_path / "_settings" / "S1").mkdir()
     (tmp_path / "_settings" / "notes.txt").write_text("x", encoding="utf-8")
     assert known_subject_ids(tmp_path) == ["S1"]
+
+
+# -- named configurations, schema v2 (SPEC-compass-task-flow.md 4B.4, AB8-AB10 data) ----------
+
+ALL_LIVE = {
+    "dwell.threshold_ms": 900, "dwell.visual_cursor": True, "dwell.progress_ring": True,
+    "dwell.instant_feedback": True, "dwell.refractory_ms": 500, "dwell.jitter_tolerance_px": 40,
+    "dwell.smoothing.enabled": True, "dwell.smoothing.alpha": 0.22, "task.timeout_ms": 8000,
+    "task.inter_trial_interval_ms": 800, "motion.speed_frac_per_s": 0.2,
+}
+
+
+def _write_named(directory, filename, saved_at, name, alpha=0.1, schema=2, structural=None):
+    """A version file as a v1 (no ``name`` key) or v2 save would leave it."""
+    directory.mkdir(parents=True, exist_ok=True)
+    data = {
+        "schema_version": schema,
+        "subject_id": "S1",
+        "task_id": "click_grid",
+        "saved_at": saved_at,
+        "live": {"dwell.smoothing.alpha": alpha},
+        "structural": structural or {},
+    }
+    if name is not None:
+        data["name"] = name
+    path = directory / filename
+    path.write_text(json.dumps(data), encoding="utf-8")
+    return path
+
+
+def test_a_named_save_writes_the_name_and_schema_v2(tmp_path):
+    """AB8, data part: a profile file with ``name`` and ``schema_version == 2``."""
+    path = save_settings_profile(
+        tmp_path, "S1", "click_grid", LIVE, {"trials": 6}, name="  Calm room  "
+    )
+    data = json.loads(path.read_text(encoding="utf-8"))
+    assert data["name"] == "Calm room"  # trimmed
+    assert data["schema_version"] == 2 == PROFILE_SCHEMA_VERSION
+    assert load_settings_profile_file(path)["name"] == "Calm room"
+
+
+def test_a_save_without_a_name_has_an_empty_one(tmp_path):
+    path = save_settings_profile(tmp_path, "S1", "click_grid", LIVE)
+    assert json.loads(path.read_text(encoding="utf-8"))["name"] == ""
+    assert load_settings_profile_file(path)["name"] == ""
+
+
+def test_a_schema_v1_file_has_no_name_and_still_loads(tmp_path):
+    """AB10, data part: ``name == ""`` for v1, the name for v2."""
+    d = settings_profile_dir(tmp_path, "S1", "click_grid")
+    v1 = _write_named(d, "old.json", "2026-09-17T10:00:00+08:00", None, schema=1)
+    v2 = _write_named(d, "new.json", "2026-09-18T10:00:00+08:00", "Window seat")
+    got = load_settings_profile_file(v1)
+    assert got["name"] == ""
+    assert got["schema_version"] == 1
+    assert got["live"] == {"dwell.smoothing.alpha": 0.1}
+    assert load_settings_profile_file(v2)["name"] == "Window seat"
+    assert load_settings_profile(tmp_path, "S1", "click_grid")["name"] == "Window seat"
+
+
+def test_a_non_string_name_in_a_file_reads_as_no_name(tmp_path):
+    d = settings_profile_dir(tmp_path, "S1", "click_grid")
+    path = _write_named(d, "odd.json", "2026-09-17T10:00:00+08:00", None)
+    data = json.loads(path.read_text(encoding="utf-8"))
+    data["name"] = ["not", "a", "string"]
+    path.write_text(json.dumps(data), encoding="utf-8")
+    assert load_settings_profile_file(path)["name"] == ""
+
+
+@pytest.mark.parametrize(
+    "bad",
+    ["Standard", "standard", "  STANDARD ", "x" * (CONFIG_NAME_MAX_LEN + 1), "two\nlines", "a\x00b"],
+)
+def test_a_name_that_cannot_be_stored_is_refused_and_nothing_is_written(tmp_path, bad):
+    with pytest.raises(ValueError):
+        save_settings_profile(tmp_path, "S1", "click_grid", LIVE, name=bad)
+    assert not settings_profile_dir(tmp_path, "S1", "click_grid").exists()
+
+
+def test_validate_config_name_rules():
+    assert validate_config_name("Calm") is None
+    assert validate_config_name("x" * CONFIG_NAME_MAX_LEN) is None  # exactly the limit
+    assert validate_config_name("  Calm  ") is None  # trimmed first
+    assert validate_config_name("Standard 2") is None  # only the whole word is reserved
+    assert "name" in validate_config_name("")
+    assert "name" in validate_config_name("   ")
+    assert validate_config_name(None) is not None
+    assert "at most 40" in validate_config_name("x" * 41)
+    assert "reserved" in validate_config_name("sTaNdArD")
+    assert CONFIG_NAME_MAX_LEN == 40  # R10
+
+
+def test_the_live_block_holds_only_keys_that_apply_to_the_task(tmp_path):
+    """4B.4: a static task's file no longer carries ``motion.speed_frac_per_s``."""
+    dirty = {**ALL_LIVE, "target.color": "#fff", "totally.made.up": 1}
+    static = save_settings_profile(tmp_path, "S1", "click_static", dirty)
+    follow = save_settings_profile(tmp_path, "S1", "follow_moving", dirty)
+    live_static = load_settings_profile_file(static)["live"]
+    live_follow = load_settings_profile_file(follow)["live"]
+    assert "motion.speed_frac_per_s" not in live_static
+    assert live_follow["motion.speed_frac_per_s"] == 0.2
+    assert set(live_follow) == set(ALL_LIVE)
+    assert set(live_static) == set(ALL_LIVE) - {"motion.speed_frac_per_s"}
+    for live in (live_static, live_follow):
+        assert "target.color" not in live and "totally.made.up" not in live
+
+
+def test_task_live_values_does_not_touch_the_callers_dict():
+    live = dict(ALL_LIVE)
+    assert task_live_values("scanning", live) == {
+        k: v for k, v in ALL_LIVE.items() if k != "motion.speed_frac_per_s"
+    }
+    assert live == ALL_LIVE
+
+
+def test_the_structural_block_is_stored_exactly_as_given(tmp_path):
+    """The caller passes the complete block (every control); the writer adds nothing."""
+    block = {"trials": 6, "feedback": {"hit_sound": False, "miss_sound": True}}
+    path = save_settings_profile(tmp_path, "S1", "click_grid", LIVE, block)
+    assert load_settings_profile_file(path)["structural"] == block
+
+
+def test_listing_gives_one_entry_per_name_newest_first_and_the_newest_values(tmp_path):
+    """AB9, data part: Update adds a version, the old file stays, the list shows
+    one entry for the name with the newest values."""
+    d = settings_profile_dir(tmp_path, "S1", "click_grid")
+    old_calm = _write_named(d, "a.json", "2026-09-15T10:00:00+08:00", "Calm", alpha=0.1)
+    seat = _write_named(d, "b.json", "2026-09-16T10:00:00+08:00", "Window seat", alpha=0.2)
+    new_calm = _write_named(d, "c.json", "2026-09-17T10:00:00+08:00", "Calm", alpha=0.3)
+
+    found = list_named_configurations(tmp_path, "S1", "click_grid")
+    assert [c.name for c in found] == ["Calm", "Window seat"]  # by each name's newest version
+    assert all(isinstance(c, NamedConfig) for c in found)
+    assert found[0].path == new_calm
+    assert found[0].live == {"dwell.smoothing.alpha": 0.3}
+    assert found[1].path == seat
+    assert old_calm.is_file()  # history, not deleted
+    assert found[0].saved_at == "2026-09-17T10:00:00+08:00"
+
+
+def test_updating_a_name_through_the_writer_keeps_the_old_file(tmp_path):
+    first = save_settings_profile(tmp_path, "S1", "click_grid", {"dwell.smoothing.alpha": 0.1},
+                                  {"trials": 6}, name="Calm")
+    second = save_settings_profile(tmp_path, "S1", "click_grid", {"dwell.smoothing.alpha": 0.5},
+                                   {"trials": 9}, name="Calm")
+    assert first != second and first.is_file() and second.is_file()
+    (entry,) = list_named_configurations(tmp_path, "S1", "click_grid")
+    assert entry.name == "Calm"
+    assert entry.path == second
+    assert entry.live == {"dwell.smoothing.alpha": 0.5}
+    assert entry.structural == {"trials": 9}
+
+
+def test_names_compare_case_insensitively_and_keep_the_newest_spelling(tmp_path):
+    d = settings_profile_dir(tmp_path, "S1", "click_grid")
+    _write_named(d, "a.json", "2026-09-15T10:00:00+08:00", "Calm")
+    _write_named(d, "b.json", "2026-09-16T10:00:00+08:00", "calm")
+    (entry,) = list_named_configurations(tmp_path, "S1", "click_grid")
+    assert entry.name == "calm"
+
+
+def test_a_v1_profile_is_listed_as_saved_mm_dd_hh_mm_and_loads(tmp_path):
+    """AB10: ``Saved MM/DD HH:MM`` in local time, so every old profile stays reachable."""
+    d = settings_profile_dir(tmp_path, "S1", "click_grid")
+    saved_at = "2026-09-17T10:00:00+08:00"
+    v1 = _write_named(d, "2026-09-17_10-00-00.json", saved_at, None, schema=1,
+                      structural={"trials": 12})
+    (entry,) = list_named_configurations(tmp_path, "S1", "click_grid")
+    assert entry.name == f"Saved {format_saved_at(saved_at)}"
+    assert re.fullmatch(r"Saved \d\d/\d\d \d\d:\d\d", entry.name)
+    assert entry.path == v1
+    assert entry.live == {"dwell.smoothing.alpha": 0.1}
+    assert entry.structural == {"trials": 12}
+
+
+def test_the_pre_s10_12_flat_file_is_listed_too(tmp_path):
+    legacy = settings_profile_path(tmp_path, "S1", "click_grid")
+    _write_named(legacy.parent, legacy.name, "2026-09-11T10:00:00+00:00", None, schema=1)
+    (entry,) = list_named_configurations(tmp_path, "S1", "click_grid")
+    assert entry.name == f"Saved {format_saved_at('2026-09-11T10:00:00+00:00')}"
+    assert entry.path == legacy
+
+
+def test_an_unnamed_v2_save_is_listed_like_a_v1_file(tmp_path):
+    path = save_settings_profile(tmp_path, "S1", "click_grid", LIVE)
+    (entry,) = list_named_configurations(tmp_path, "S1", "click_grid")
+    assert entry.name == f"Saved {format_saved_at(load_settings_profile_file(path)['saved_at'])}"
+
+
+def test_a_stored_name_that_could_not_be_chosen_today_falls_back_to_the_label(tmp_path):
+    """"Standard" is the computed defaults and never stored; a hand-edited file
+    must not shadow it in the combo, yet must stay reachable."""
+    d = settings_profile_dir(tmp_path, "S1", "click_grid")
+    _write_named(d, "x.json", "2026-09-17T10:00:00+08:00", "Standard")
+    (entry,) = list_named_configurations(tmp_path, "S1", "click_grid")
+    assert entry.name.startswith("Saved ")
+
+
+def test_an_unparseable_timestamp_is_labelled_with_the_file_name(tmp_path):
+    d = settings_profile_dir(tmp_path, "S1", "click_grid")
+    _write_named(d, "mystery.json", "not a date", None, schema=1)
+    (entry,) = list_named_configurations(tmp_path, "S1", "click_grid")
+    assert entry.name == "Saved mystery"
+
+
+def test_effective_config_name_prefers_a_valid_name():
+    assert effective_config_name({"name": "Calm", "saved_at": ""}) == "Calm"
+    assert effective_config_name({"name": "", "saved_at": "2026-09-17T10:00:00+08:00"}).startswith(
+        "Saved "
+    )
+    assert effective_config_name({}, "folder/old.json") == "Saved old"
+
+
+def test_the_listing_is_per_subject_and_per_task_and_skips_unreadable_files(tmp_path):
+    save_settings_profile(tmp_path, "S1", "click_grid", LIVE, name="Calm")
+    assert list_named_configurations(tmp_path, "S2", "click_grid") == []
+    assert list_named_configurations(tmp_path, "S1", "scanning") == []
+    d = settings_profile_dir(tmp_path, "S1", "click_grid")
+    d.joinpath("broken.json").write_text("{not json", encoding="utf-8")
+    assert [c.name for c in list_named_configurations(tmp_path, "S1", "click_grid")] == ["Calm"]
+    assert list_named_configurations(tmp_path / "nowhere", "S1", "click_grid") == []
+
+
+def test_a_named_save_does_not_change_the_automatic_newest_rule(tmp_path):
+    """The listing does not replace S10.3's ``load_settings_profile`` (still the newest file)."""
+    save_settings_profile(tmp_path, "S1", "click_grid", {"dwell.smoothing.alpha": 0.1}, name="A")
+    save_settings_profile(tmp_path, "S1", "click_grid", {"dwell.smoothing.alpha": 0.2}, name="B")
+    assert load_settings_profile(tmp_path, "S1", "click_grid")["name"] == "B"
+    assert [c.name for c in list_named_configurations(tmp_path, "S1", "click_grid")] == ["B", "A"]
