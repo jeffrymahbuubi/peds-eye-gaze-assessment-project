@@ -44,7 +44,7 @@ from ..engine.subject_test_record import validate_test_name
 from ..engine.target_size import screen_scale, viewing_distance_mm
 from ..engine.task_info import TASK_INFO
 from .config_form import ConfigForm
-from .config_widgets import ask_two_choice, estimated_canvas_px
+from .config_widgets import ask_two_choice, estimated_canvas_px, screen_dpr
 from .settings_registry import get_nested, set_nested
 from .settings_snapshot import complete_settings, settings_snapshot
 
@@ -78,6 +78,7 @@ class TaskConfigPage(QWidget):
             screen_scale(screen, app_cfg),
             viewing_distance_mm(app_cfg),
             estimated_canvas_px(screen, app_cfg),
+            screen_dpr(screen),
         )
         self._subject_id = ""
         self._existing_names: list[str] = []

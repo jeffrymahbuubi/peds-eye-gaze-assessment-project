@@ -24,14 +24,14 @@ from PySide6.QtWidgets import (
     QButtonGroup,
     QComboBox,
     QFrame,
-    QMessageBox,
     QRadioButton,
     QVBoxLayout,
     QWidget,
 )
 
 from ..engine.target_size import gap_px_for, radius_px_for
-from .wtmh_theme import BORDER, PANEL_BG, STYLESHEET
+from .run_dialogs import GHOST, PRIMARY, ask_choice
+from .wtmh_theme import BORDER, PANEL_BG
 
 # Plain-language tooltips (SPEC 4B.1: every structural control gets one, same
 # convention as the live settings' ``LiveSetting.tooltip``), by registry key.
@@ -73,16 +73,28 @@ def estimated_canvas_px(screen: Any, app_cfg: dict[str, Any]) -> tuple[float, fl
     return float(app_cfg.get("screen_width_px", 1920)), float(app_cfg.get("screen_height_px", 1080))
 
 
-def choice_label(key: str, value: str, label: str, mm_per_px: float, distance_mm: float) -> str:
+def screen_dpr(screen: Any) -> float:
+    """The device pixel ratio of ``screen`` (a QScreen, duck-typed): 1.0 without one."""
+    dpr = float(screen.devicePixelRatio()) if screen is not None else 1.0
+    return dpr if dpr > 0 else 1.0
+
+
+def choice_label(
+    key: str, value: str, label: str, mm_per_px: float, distance_mm: float, dpr: float = 1.0
+) -> str:
     """A choice's label with the px it comes to on this monitor: the operator
-    can't picture "5 degrees". Standard cell gap has no angle, so no px."""
+    can't picture "5 degrees". Standard cell gap has no angle, so no px.
+
+    The size maths is in Qt's logical px; ``dpr`` (the screen's device pixel ratio) turns
+    them into the physical px of the panel, the unit the run's metadata records (FX4: at
+    150 % scaling the label said 83 px for a target that is 124 px on the panel)."""
     if key in ("target.size", "layout.size"):
         diameter = 2 * radius_px_for(value, mm_per_px, distance_mm)
-        return f"{label} (≈{round(diameter)} px)"
+        return f"{label} (≈{round(diameter * dpr)} px)"
     if key == "grid.gap":
         gap = gap_px_for(value, mm_per_px, distance_mm)
         if gap is not None:
-            return f"{label} (≈{round(gap)} px)"
+            return f"{label} (≈{round(gap * dpr)} px)"
     return label
 
 
@@ -105,22 +117,16 @@ def ask_two_choice(
 ) -> bool:
     """A themed two-button question; True when ``accept`` is chosen. The wireframe's
     modals (``task-config.md``): the safe answer is the primary (default) button, and
-    Esc is ``reject``."""
-    box = QMessageBox(parent)
-    box.setObjectName("wtmhDashboard")
-    box.setStyleSheet(STYLESHEET)
-    box.setIcon(QMessageBox.Icon.NoIcon)
-    box.setWindowTitle(title)
-    box.setText(text)
-    accept_button = box.addButton(accept, QMessageBox.ButtonRole.AcceptRole)
-    reject_button = box.addButton(reject, QMessageBox.ButtonRole.RejectRole)
-    primary, other = (accept_button, reject_button) if default_accept else (reject_button, accept_button)
-    primary.setObjectName("wtmhPrimary")
-    other.setObjectName("wtmhGhost")
-    box.setDefaultButton(primary)
-    box.setEscapeButton(reject_button)
-    box.exec()
-    return box.clickedButton() is accept_button
+    Esc is ``reject``.
+
+    It is the dashboard's own choice dialog, not Qt's stock message box: that took none of
+    the theme in the live check of FX1 (dark body, dark grey buttons)."""
+    buttons = [
+        ("accept", accept, PRIMARY if default_accept else GHOST),
+        ("reject", reject, GHOST if default_accept else PRIMARY),
+    ]
+    default = "accept" if default_accept else "reject"
+    return ask_choice(parent, title, text, buttons, default, "reject") == "accept"
 
 
 class RadioChoice(QWidget):

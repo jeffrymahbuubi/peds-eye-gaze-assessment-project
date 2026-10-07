@@ -25,7 +25,8 @@ from collections.abc import Callable, Sequence
 from PySide6.QtWidgets import QDialog, QHBoxLayout, QLabel, QPushButton, QVBoxLayout, QWidget
 
 from ..engine.run_result import DISCARD, SAVE, SAVE_AND_VIEW, RunResult
-from .wtmh_theme import DANGER, STYLESHEET
+from .dialog_theme import apply_dialog_theme
+from .wtmh_theme import DANGER
 
 # A destructive answer: the theme has primary and ghost tiers only, so the dialogs
 # add this one (scoped by object name, so no other page changes).
@@ -67,8 +68,7 @@ class _ChoiceDialog(QDialog):
         heading: bool = False,
     ) -> None:
         super().__init__(parent)
-        self.setObjectName("wtmhDashboard")
-        self.setStyleSheet(STYLESHEET + _DANGER_STYLE)
+        apply_dialog_theme(self, _DANGER_STYLE)
         self.setWindowTitle(title)
         self.setModal(True)
         self.choice = on_close

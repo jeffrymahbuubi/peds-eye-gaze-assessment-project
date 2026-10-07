@@ -420,23 +420,24 @@ def estimate_grid_fit_radius_px(
 
 def grid_fit_hint(
     rows: int, cols: int, canvas_w_px: float, canvas_h_px: float, wanted_radius_px: float,
-    margin_frac: float = 0.12, gap_px: float | None = None,
+    margin_frac: float = 0.12, gap_px: float | None = None, px_scale: float = 1.0,
 ) -> str | None:
     """The shrink hint of an R x C grid (SPEC-compass-task-flow.md 4B.3), or ``None``
     when ``wanted_radius_px`` fits and the wanted gap is not capped (H4). An
     estimate from the screen's available area, hence "approximate"; the run
     applies the real fit through :func:`grid_cell_geometry`. Shared by the
-    settings dialog and the configuration page."""
+    settings dialog and the configuration page. ``px_scale`` multiplies only the px *shown*
+    (the page passes the device pixel ratio: the panel's px); the fit stays in logical px."""
     geometry = estimate_grid_geometry(rows, cols, canvas_w_px, canvas_h_px, margin_frac, gap_px)
     fits = geometry.fit_radius_px
     shrunk = fits < wanted_radius_px - 0.5
     tail = f"to fit a {rows} x {cols} grid (approximate)"
     if geometry.capped:
-        limited = f"Gap limited to ≈ {round(geometry.gap_px)} px"
+        limited = f"Gap limited to ≈ {round(geometry.gap_px * px_scale)} px"
         if shrunk:
-            return f"{limited} and targets shrunk to ≈ {round(2 * fits)} px {tail}"
+            return f"{limited} and targets shrunk to ≈ {round(2 * fits * px_scale)} px {tail}"
         return f"{limited} {tail}"
-    return f"Will be shrunk to ≈ {round(2 * fits)} px {tail}" if shrunk else None
+    return f"Will be shrunk to ≈ {round(2 * fits * px_scale)} px {tail}" if shrunk else None
 
 
 def edge_inset_norm(radius_px: float, canvas_w_px: float, canvas_h_px: float) -> tuple[float, float]:
@@ -484,13 +485,14 @@ def fit_icon_radius_px(
 
 def icon_fit_hint(
     n_icons: int, slots: list[tuple[float, float]], canvas_w_px: float, canvas_h_px: float,
-    wanted_radius_px: float,
+    wanted_radius_px: float, px_scale: float = 1.0,
 ) -> str | None:
     """The shrink hint of ``n_icons`` scanning icons at ``slots`` (4B.3), or ``None``
     when the wanted *drawn* radius fits. The caller lays the slots out with
     ``scanning_layout_slots`` (the task imports this module, so it cannot be
-    imported here). Shared by the settings dialog and the page."""
+    imported here). Shared by the settings dialog and the page; ``px_scale`` as in
+    :func:`grid_fit_hint`."""
     fits = fit_icon_radius_px(slots, canvas_w_px, canvas_h_px)
     if fits < wanted_radius_px - 0.5:
-        return f"Icons will be shrunk to ≈ {round(2 * fits)} px to fit {n_icons} icons (approximate)"
+        return f"Icons will be shrunk to ≈ {round(2 * fits * px_scale)} px to fit {n_icons} icons (approximate)"
     return None

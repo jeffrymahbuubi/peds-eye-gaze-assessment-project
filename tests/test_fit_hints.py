@@ -15,6 +15,8 @@ from PySide6.QtWidgets import QApplication, QCheckBox, QComboBox
 
 from src.engine.config import load_task_config
 from src.engine.target_size import (
+    estimate_grid_geometry,
+    fit_icon_radius_px,
     gap_px_for,
     grid_fit_hint,
     icon_fit_hint,
@@ -122,6 +124,52 @@ def test_no_icon_hint_when_the_icons_fit():
     assert icon_fit_hint(4, slots, *CANVAS, MEDIUM) is None
     assert icon_fit_hint(8, scanning_layout_slots(8, "grid", 0.14), *CANVAS,
                          radius_px_for("small", MM_PER_PX, DISTANCE)) is None
+
+
+# -- px_scale: the px shown are the panel's, the decision stays logical (FX4 follow-up) ----------
+
+
+def test_px_scale_multiplies_the_px_shown_in_the_grid_hint_and_nothing_else():
+    shrunk = estimate_grid_geometry(6, 6, *CANVAS).fit_radius_px
+    assert grid_fit_hint(6, 6, *CANVAS, MEDIUM, 0.12, None, 1.0) == grid_fit_hint(6, 6, *CANVAS, MEDIUM)
+    assert grid_fit_hint(6, 6, *CANVAS, MEDIUM, 0.12, None, 1.5) == (
+        f"Will be shrunk to ≈ {round(2 * shrunk * 1.5)} px to fit a 6 x 6 grid (approximate)"
+    )
+    # The gap and the shrunk target are both scaled in the capped text.
+    wide = gap_px_for("extra_wide", MM_PER_PX, DISTANCE)
+    geometry = estimate_grid_geometry(6, 6, *CANVAS, 0.12, wide)
+    assert geometry.capped
+    assert grid_fit_hint(6, 6, *CANVAS, MEDIUM, 0.12, wide, 1.5) == (
+        f"Gap limited to ≈ {round(geometry.gap_px * 1.5)} px and targets shrunk to "
+        f"≈ {round(2 * geometry.fit_radius_px * 1.5)} px to fit a 6 x 6 grid (approximate)"
+    )
+    assert grid_fit_hint(5, 5, *CANVAS, 10.0, 0.12, wide, 1.5).startswith(
+        f"Gap limited to ≈ {round(estimate_grid_geometry(5, 5, *CANVAS, 0.12, wide).gap_px * 1.5)} px"
+    )
+
+
+def test_px_scale_multiplies_the_px_shown_in_the_icon_hint():
+    slots = scanning_layout_slots(8, "grid", 0.14)
+    large = radius_px_for("large", MM_PER_PX, DISTANCE)
+    fits = fit_icon_radius_px(slots, *CANVAS)
+    assert icon_fit_hint(8, slots, *CANVAS, large, 1.0) == icon_fit_hint(8, slots, *CANVAS, large)
+    assert icon_fit_hint(8, slots, *CANVAS, large, 1.5) == (
+        f"Icons will be shrunk to ≈ {round(2 * fits * 1.5)} px to fit 8 icons (approximate)"
+    )
+
+
+def test_px_scale_never_decides_whether_a_hint_shows():
+    """A ratio only changes the figures: a layout that fits stays hint-free at 150 % and one
+    that is shrunk keeps its hint, because the fit is judged in the px the run draws in."""
+    wide = gap_px_for("wide", MM_PER_PX, DISTANCE)
+    small = radius_px_for("small", MM_PER_PX, DISTANCE)
+    for scale in (1.0, 1.25, 1.5, 2.0):
+        assert grid_fit_hint(3, 3, *CANVAS, MEDIUM, 0.12, None, scale) is None
+        assert grid_fit_hint(3, 3, *CANVAS, small, 0.12, wide, scale) is None
+        assert grid_fit_hint(6, 6, *CANVAS, MEDIUM, 0.12, None, scale) is not None
+        assert icon_fit_hint(4, scanning_layout_slots(4, "grid", 0.14), *CANVAS, MEDIUM, scale) is None
+        assert icon_fit_hint(8, scanning_layout_slots(8, "grid", 0.14), *CANVAS,
+                             radius_px_for("large", MM_PER_PX, DISTANCE), scale) is not None
 
 
 # -- the dialog calls them ----------------------------------------------------------------

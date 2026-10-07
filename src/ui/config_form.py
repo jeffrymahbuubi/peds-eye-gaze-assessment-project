@@ -62,15 +62,18 @@ class ConfigForm:
         scale: ScaleInfo,
         distance_mm: float,
         canvas_px: tuple[float, float],
+        dpr: float = 1.0,
     ) -> None:
         """``standard`` is the task's default ``{"live", "structural"}`` snapshot (what
         each control starts at); ``config`` the merged run config (the hint reads
-        its grid margin and scanning layout)."""
+        its grid margin and scanning layout); ``dpr`` the screen's device pixel ratio
+        (the size and gap labels show physical px)."""
         self.task_id = task_id
         self._standard = standard
         self._scale = scale
         self._distance_mm = distance_mm
         self._canvas_px = canvas_px
+        self._dpr = dpr
         task_cfg = config.get("task", {})
         self._grid_margin = float(task_cfg.get("grid", {}).get("margin_frac", 0.12))
         self._layout_cfg = task_cfg.get("layout", {})
@@ -179,7 +182,12 @@ class ConfigForm:
             widget.setChecked(bool(initial))
         elif kind == "radio":
             choices = [
-                (value, choice_label(key, value, label, self._scale.mm_per_px, self._distance_mm))
+                (
+                    value,
+                    choice_label(
+                        key, value, label, self._scale.mm_per_px, self._distance_mm, self._dpr
+                    ),
+                )
                 for value, label in setting.choices
             ]
             widget = RadioChoice(object_name(key), choices, str(initial))
@@ -238,6 +246,7 @@ class ConfigForm:
                 radius_px_for(values["target.size"], mm_per_px, distance),
                 self._grid_margin,
                 gap_px_for(gap, mm_per_px, distance) if gap is not None else None,
+                self._dpr,  # the px shown are the panel's, like the labels' (FX4)
             )
         elif self._hint_kind == HINT_ICON_FIT:
             n_icons = values["layout.n_icons"]
@@ -247,7 +256,7 @@ class ConfigForm:
                 float(self._layout_cfg.get("margin_frac", 0.14)),
             )
             wanted = radius_px_for(values["layout.size"], mm_per_px, distance)
-            text = icon_fit_hint(n_icons, slots, *self._canvas_px, wanted)
+            text = icon_fit_hint(n_icons, slots, *self._canvas_px, wanted, self._dpr)
         if text is None:
             self.fit_hint.hide()
         else:

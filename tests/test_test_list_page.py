@@ -18,6 +18,7 @@ from src.engine.subject_tests import (
     STATUS_DONE,
     STATUS_ENDED_EARLY,
     create_test,
+    delete_test,
     subject_tests_dir,
 )
 from src.ui.test_list_page import NO_SUBJECT_TEXT, NO_TESTS_TEXT
@@ -149,8 +150,83 @@ def test_a_done_test_whose_folder_is_gone_says_so_and_has_no_report(qapp, root):
 def test_with_nothing_selected_only_add_is_on(qapp, root):
     create_test(root, SUBJECT, "click_grid")
     page = page_for(root)
+    page.table.clearSelection()  # the page opens with a row selected (FX3); the operator can clear it
     assert page.selected_test() is None
     assert enabled(page) == dict(add=True, configure=False, run=False, report=False, copy=False, delete=False)
+
+
+# -- FX3: the selection matches the focus the table shows ----------------------------------------------------
+
+
+def test_the_page_opens_with_the_first_row_selected_and_current(qapp, root):
+    first = create_test(root, SUBJECT, "click_grid")
+    create_test(root, SUBJECT, "click_static")
+    page = page_for(root)
+    assert page.selected_test().test_id == first.test_id
+    assert page.table.currentRow() == 0 and page.table.currentColumn() == COL_NAME
+    # The buttons follow the 4A.4 matrix for a Not Done row, not the "nothing selected" row.
+    assert enabled(page) == dict(add=True, configure=True, run=True, report=False, copy=True, delete=True)
+
+
+def test_a_done_first_row_opens_with_the_done_buttons(qapp, root):
+    done = done_test(root)
+    create_test(root, SUBJECT, "click_static")
+    page = page_for(root)
+    assert page.selected_test().test_id == done.test_id
+    assert enabled(page) == dict(add=True, configure=False, run=False, report=True, copy=True, delete=True)
+
+
+def test_the_test_used_last_stays_selected_through_a_reload(qapp, root):
+    create_test(root, SUBJECT, "click_grid")
+    second = create_test(root, SUBJECT, "click_static")
+    page = page_for(root)
+    select(page, second.test_id)
+    page.reload()
+    assert page.selected_test().test_id == second.test_id
+    page.set_subject(SUBJECT, root)  # the Tests tab is opened again
+    assert page.selected_test().test_id == second.test_id
+    page.reload(select=second.test_id)  # what the dashboard asks for after a flow
+    assert page.selected_test().test_id == second.test_id
+
+
+def test_a_test_that_is_gone_falls_back_to_the_first_row(qapp, root):
+    first = create_test(root, SUBJECT, "click_grid")
+    second = create_test(root, SUBJECT, "click_static")
+    page = page_for(root)
+    select(page, second.test_id)
+    delete_test(root, SUBJECT, second.test_id)
+    page.reload()
+    assert page.selected_test().test_id == first.test_id
+    assert page.table.currentRow() == 0
+
+
+def test_the_first_row_is_the_first_one_shown_when_the_list_is_sorted(qapp, root):
+    for name in ("Grid Click 2", "Grid Click 1", "Grid Click 3"):
+        create_test(root, SUBJECT, "click_grid", name=name)
+    page = page_for(root)
+    click_header(page, COL_NAME)
+    click_header(page, COL_NAME)  # descending
+    page.table.clearSelection()
+    page.reload()
+    assert names(page)[0] == "Grid Click 3"
+    assert page.selected_test().name == "Grid Click 3" and page.table.currentRow() == 0
+
+
+def test_another_subject_opens_on_its_own_first_row(qapp, root):
+    create_test(root, "A", "click_grid", name="A's test")
+    b_first = create_test(root, "B", "click_static", name="B's first")
+    create_test(root, "B", "click_grid", name="B's second")
+    page = page_for(root, "A")
+    assert page.selected_test().name == "A's test"
+    page.set_subject("B", root)  # A's selected test is not B's: fall back to B's first row
+    assert page.selected_test().test_id == b_first.test_id
+
+
+def test_with_no_tests_nothing_is_selected(qapp, root):
+    page = page_for(root)  # no tests yet
+    assert page.selected_test() is None
+    assert enabled(page) == dict(add=True, configure=False, run=False, report=False, copy=False, delete=False)
+    page_for(root, subject="")  # no Subject ID: nothing, not even Add, and nothing raised
 
 
 def test_a_not_done_test_can_be_configured_and_run_but_not_reported(qapp, root):

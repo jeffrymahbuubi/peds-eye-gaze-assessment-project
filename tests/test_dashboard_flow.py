@@ -13,6 +13,8 @@ import pytest
 
 os.environ.setdefault("QT_QPA_PLATFORM", "offscreen")
 
+from PySide6.QtCore import Qt
+from PySide6.QtGui import QColor
 from PySide6.QtWidgets import QApplication
 
 from src.engine.subject_tests import create_test, list_tests, record_result
@@ -26,6 +28,7 @@ from src.ui.dashboard_flow import (
 )
 from src.ui.dashboard_window import DashboardWindow
 from src.ui.test_list_page import SubjectTestListPage
+from src.ui.wtmh_theme import TITLEBAR_BG, TITLEBAR_TEXT
 
 
 @pytest.fixture(scope="module")
@@ -129,6 +132,23 @@ def test_the_title_bar_alone(qapp):
     assert seen == [TESTS_INDEX, SETUP_INDEX]
     bar.set_active(TESTS_INDEX)
     assert [bool(b.property("active")) for b in bar.buttons] == [False, True]
+
+
+def test_the_title_bar_paints_its_navy_background_so_the_light_text_is_readable(win):
+    # FX5: a QWidget subclass paints a style-sheet background only with WA_StyledBackground;
+    # without it the bar took the page colour and the light brand and nav text vanished.
+    assert win.title_bar.testAttribute(Qt.WidgetAttribute.WA_StyledBackground)
+    win.resize(900, 500)
+    win.show()
+    QApplication.processEvents()
+    image = win.title_bar.grab().toImage()
+    assert image.pixelColor(image.width() // 2, 2) == QColor(TITLEBAR_BG)
+    assert image.pixelColor(2, image.height() // 2) == QColor(TITLEBAR_BG)
+    assert QColor(TITLEBAR_TEXT).lightness() > QColor(TITLEBAR_BG).lightness() + 100  # light on navy
+
+
+def test_the_title_bar_alone_has_the_styled_background_attribute(qapp):
+    assert TitleBar().testAttribute(Qt.WidgetAttribute.WA_StyledBackground)
 
 
 def test_the_output_root_is_the_default_configs(qapp):

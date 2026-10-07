@@ -390,6 +390,7 @@ def test_the_delete_key_deletes_after_asking(qapp, root, monkeypatch):
 def test_the_delete_key_with_nothing_selected_asks_nothing(qapp, root, monkeypatch):
     create_test(root, SUBJECT, "click_grid")
     page = page_for(root)
+    page.table.clearSelection()  # the page opens with the first row selected (FX3)
     calls = stub_dialog(monkeypatch, "delete")
     QTest.keyClick(page.table, Qt.Key.Key_Delete)
     assert not calls
@@ -413,11 +414,12 @@ def test_back_to_setup_and_the_saved_line(qapp, root):
 
 
 def test_a_message_is_cleared_by_the_next_selection(qapp, root):
-    test = create_test(root, SUBJECT, "click_grid")
+    create_test(root, SUBJECT, "click_grid")
+    other = create_test(root, SUBJECT, "click_static")  # the first row is the one selected at open
     page = page_for(root)
     page.show_message("Run Test is not connected yet.")
     assert not page.message_label.isHidden()
-    select(page, test.test_id)
+    select(page, other.test_id)
     assert page.message_label.isHidden() and page.message_label.text() == ""
 
 

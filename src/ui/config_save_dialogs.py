@@ -25,8 +25,8 @@ from PySide6.QtWidgets import (
 )
 
 from ..engine.settings_profile import validate_config_name
+from .dialog_theme import apply_dialog_theme
 from .run_dialogs import GHOST, PRIMARY, ask_choice
-from .wtmh_theme import STYLESHEET
 
 UPDATE, NEW_NAME, CANCEL = "update", "new", "cancel"
 
@@ -37,8 +37,7 @@ NEW_NAME_INTRO = "Save these settings as:"
 class ConfigNameDialog(QDialog):
     def __init__(self, intro: str, default: str, parent: QWidget | None = None) -> None:
         super().__init__(parent)
-        self.setObjectName("wtmhDashboard")
-        self.setStyleSheet(STYLESHEET)
+        apply_dialog_theme(self)
         self.setWindowTitle("Save as a new configuration")
         self.setModal(True)
 

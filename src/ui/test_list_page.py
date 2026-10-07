@@ -77,7 +77,6 @@ SAVED_TEXT = "Changes are saved automatically."
 _TABLE_STYLE = "QHeaderView::section:vertical { padding: 0px; border: none; }"
 
 
-
 class SubjectTestListPage(QWidget):
     configureRequested = Signal(str)  # test id
     runRequested = Signal(str)
@@ -136,8 +135,11 @@ class SubjectTestListPage(QWidget):
             else ""
         )
         self.unreadable_label.setVisible(bool(unreadable))
-        if keep is not None:
-            self.select_test(keep)
+        # The selection matches the focus the table shows (FX3): the test used last if it is
+        # still listed, else the first row; nothing when the list is empty.
+        first = self.table.item(0, COL_NAME) if tests else None
+        if not (keep and self.select_test(keep)) and first is not None:
+            self.select_test(first.data(Qt.ItemDataRole.UserRole))
         self._update_buttons()
 
     def selected_test(self) -> SubjectTest | None:

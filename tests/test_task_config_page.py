@@ -9,6 +9,7 @@ against the registries; its values are held against ``settings_snapshot`` and
 from __future__ import annotations
 
 import os
+import re
 from pathlib import Path
 from types import SimpleNamespace
 
@@ -32,9 +33,10 @@ from PySide6.QtWidgets import (
 from src.engine.config import load_task_config
 from src.engine.settings_profile import NamedConfig
 from src.engine.subject_test_record import validate_test_name
-from src.engine.target_size import gap_px_for, radius_px_for
+from src.engine.target_size import gap_px_for, grid_fit_hint, icon_fit_hint, radius_px_for
+from src.tasks.scanning import scanning_layout_slots
 from src.ui import wtmh_theme
-from src.ui.config_widgets import RadioChoice
+from src.ui.config_widgets import RadioChoice, choice_label, screen_dpr
 from src.ui.settings_registry import (
     config_groups_for_task,
     live_settings_for_task,
@@ -186,6 +188,67 @@ def test_the_size_labels_carry_the_px_of_this_monitor(qapp):
     wide = page.findChild(QRadioButton, "cfg_grid_gap_wide")
     assert wide.text() == f"Wide — 1° (≈{round(gap_px_for('wide', MM_PER_PX, DISTANCE))} px)"
     assert page.findChild(QRadioButton, "cfg_grid_gap_standard").text() == "Standard"
+
+
+# -- FX4: the px in a size or gap label are the panel's, whatever the Windows scaling ---------------
+
+# The same 24 inch monitor at 150 % Windows scaling: Qt's logical screen is 1280 x 720 and one
+# logical px is 1.5 physical px (mm per logical px is 1.5 times the 100 % value).
+SCALED_SCREEN = SimpleNamespace(
+    geometry=lambda: _Rect(1280, 720),
+    availableGeometry=lambda: _Rect(CANVAS[0] / 1.5, CANVAS[1] / 1.5),  # the lab canvas, in logical px
+    devicePixelRatio=lambda: 1.5,
+    physicalSize=lambda: _Rect(531.4, 298.9),
+)
+
+
+def _px_labels(page):
+    names = ("cfg_target_size_small", "cfg_target_size_medium", "cfg_target_size_large",
+             "cfg_grid_gap_standard", "cfg_grid_gap_wide", "cfg_grid_gap_extra_wide")
+    return {name: page.findChild(QRadioButton, name).text() for name in names}
+
+
+def test_choice_label_shows_physical_px_when_given_a_device_pixel_ratio():
+    mm_per_logical_px = MM_PER_PX * 1.5  # the 150 % screen
+    logical = 2 * radius_px_for("small", mm_per_logical_px, DISTANCE)
+    assert choice_label("target.size", "small", "Small — 3°", mm_per_logical_px, DISTANCE) == (
+        f"Small — 3° (≈{round(logical)} px)"  # no ratio: the logical px, as before (82)
+    )
+    assert choice_label("target.size", "small", "Small — 3°", mm_per_logical_px, DISTANCE, 1.5) == (
+        f"Small — 3° (≈{round(logical * 1.5)} px)"  # the panel's px (123)
+    )
+    gap = gap_px_for("extra_wide", mm_per_logical_px, DISTANCE)
+    assert choice_label("grid.gap", "extra_wide", "Extra wide — 2°", mm_per_logical_px, DISTANCE, 1.5) == (
+        f"Extra wide — 2° (≈{round(gap * 1.5)} px)"
+    )
+    assert choice_label("layout.size", "large", "Large — 8°", mm_per_logical_px, DISTANCE, 1.5).endswith(
+        f"(≈{round(2 * radius_px_for('large', mm_per_logical_px, DISTANCE) * 1.5)} px)"
+    )
+    # A standard gap has no angle, and any other key is returned as it is.
+    assert choice_label("grid.gap", "standard", "Standard", mm_per_logical_px, DISTANCE, 1.5) == "Standard"
+    assert choice_label("motion.path", "circular", "Circular", mm_per_logical_px, DISTANCE, 1.5) == "Circular"
+
+
+def test_screen_dpr_reads_the_ratio_and_never_returns_zero():
+    assert screen_dpr(SCALED_SCREEN) == 1.5 and screen_dpr(LAB_SCREEN) == 1.0
+    assert screen_dpr(None) == 1.0
+    assert screen_dpr(SimpleNamespace(devicePixelRatio=lambda: 0.0)) == 1.0
+
+
+def test_the_labels_show_physical_px_at_a_scaled_display(qapp):
+    config = load_task_config("click_grid")
+    scaled = TaskConfigPage("click_grid", config, screen=SCALED_SCREEN)
+    unscaled = TaskConfigPage("click_grid", config, screen=LAB_SCREEN)
+    # The same monitor: a 3 degree target is the same number of the panel's px at 100 % and
+    # at 150 %, and that number is the physical one (not the 82 logical px of the 150 % screen).
+    assert _px_labels(scaled) == _px_labels(unscaled)
+    small = scaled.findChild(QRadioButton, "cfg_target_size_small").text()
+    assert small == f"Small — 3° (≈{round(2 * radius_px_for('small', MM_PER_PX, DISTANCE))} px)"
+    logical = round(2 * radius_px_for("small", MM_PER_PX * 1.5, DISTANCE))
+    assert f"≈{logical} px" not in small and logical < round(logical * 1.5)
+    scanning = TaskConfigPage("scanning", load_task_config("scanning"), screen=SCALED_SCREEN)
+    large = scanning.findChild(QRadioButton, "cfg_layout_size_large").text()
+    assert large == f"Large — 8° (≈{round(2 * radius_px_for('large', MM_PER_PX, DISTANCE))} px)"
 
 
 def test_the_cards_scroll_above_a_pinned_footer(qapp):
@@ -344,6 +407,68 @@ def test_only_the_grid_and_scanning_pages_have_a_hint(qapp):
     assert _page("follow_moving")[0].fit_hint is None
     assert _page("click_grid")[0].fit_hint is not None
     assert _page("scanning")[0].fit_hint is not None
+
+
+# -- FX4 follow-up: the amber hint shows the panel's px too -----------------------------------------------------
+
+
+def _figures(text):
+    return [int(n) for n in re.findall(r"≈ (\d+) px", text)]
+
+
+def _set_grid(page, rows, cols, size, gap):
+    for key, value in (("grid.rows", rows), ("grid.cols", cols), ("target.size", size), ("grid.gap", gap)):
+        page._form.controls[key].setValue(value)
+
+
+@pytest.mark.parametrize("rows, cols, size, gap", [
+    (6, 6, "medium", "standard"), (6, 6, "large", "extra_wide"), (4, 4, "large", "wide"),
+])
+def test_the_grid_hint_shows_physical_px_at_a_scaled_display(qapp, rows, cols, size, gap):
+    config = load_task_config("click_grid")
+    scaled = TaskConfigPage("click_grid", config, screen=SCALED_SCREEN)
+    plain = TaskConfigPage("click_grid", config, screen=LAB_SCREEN)
+    for page in (scaled, plain):
+        _set_grid(page, rows, cols, size, gap)
+    # The same monitor and layout give the same figures, in the panel's px, at 100 % and 150 %.
+    assert _hint_text(plain) is not None and _hint_text(scaled) is not None
+    assert len(_figures(_hint_text(scaled))) == len(_figures(_hint_text(plain)))
+    for shown, expected in zip(_figures(_hint_text(scaled)), _figures(_hint_text(plain)), strict=True):
+        assert abs(shown - expected) <= 1
+    # The page asks the engine for logical px worked out on the logical canvas, with the ratio.
+    mm_per_logical_px = MM_PER_PX * 1.5
+    margin = float(config["task"]["grid"].get("margin_frac", 0.12))
+    args = (rows, cols, CANVAS[0] / 1.5, CANVAS[1] / 1.5,
+            radius_px_for(size, mm_per_logical_px, DISTANCE), margin,
+            gap_px_for(gap, mm_per_logical_px, DISTANCE))
+    assert _hint_text(scaled) == grid_fit_hint(*args, 1.5)
+    assert _hint_text(scaled) != grid_fit_hint(*args)  # not the logical figures (the live bug)
+
+
+@pytest.mark.parametrize("n_icons, size", [(8, "large"), (5, "large")])
+def test_the_scanning_hint_shows_physical_px_at_a_scaled_display(qapp, n_icons, size):
+    config = load_task_config("scanning")
+    scaled = TaskConfigPage("scanning", config, screen=SCALED_SCREEN)
+    scaled._form.controls["layout.n_icons"].setValue(n_icons)
+    scaled._form.controls["layout.size"].setValue(size)
+    layout = config["task"].get("layout", {})
+    slots = scanning_layout_slots(
+        n_icons, str(layout.get("arrangement", "grid")), float(layout.get("margin_frac", 0.14))
+    )
+    args = (n_icons, slots, CANVAS[0] / 1.5, CANVAS[1] / 1.5,
+            radius_px_for(size, MM_PER_PX * 1.5, DISTANCE))
+    assert _hint_text(scaled) is not None
+    assert _hint_text(scaled) == icon_fit_hint(*args, 1.5)
+    assert _hint_text(scaled) != icon_fit_hint(*args)
+
+
+def test_a_hint_that_fits_stays_hidden_at_a_scaled_display(qapp):
+    scaled = TaskConfigPage("click_grid", load_task_config("click_grid"), screen=SCALED_SCREEN)
+    assert scaled.fit_hint.isHidden()  # 3 x 3 medium fits: the ratio changes figures, not the verdict
+    _set_grid(scaled, 6, 6, "medium", "standard")
+    assert not scaled.fit_hint.isHidden()
+    _set_grid(scaled, 3, 3, "medium", "standard")
+    assert scaled.fit_hint.isHidden()
 
 
 # -- AB7: saved names ---------------------------------------------------------------------------------------
@@ -676,22 +801,35 @@ def test_a_note_shows_until_the_next_edit_and_a_problem_outranks_it(qapp):
 # -- the real question box -----------------------------------------------------------------------------------------
 
 
-def _click_later(button_text):
+def _click_later(button_text, seen):
+    """Press the button labelled ``button_text`` of the next modal question from inside its
+    event loop, noting what it was in ``seen``."""
+
     def press():
-        box = next(w for w in QApplication.topLevelWidgets() if isinstance(w, QMessageBox) and w.isVisible())
-        next(b for b in box.buttons() if b.text() == button_text).click()
+        box = QApplication.activeModalWidget()
+        if box is None:  # not open yet: look again shortly
+            QTimer.singleShot(5, press)
+            return
+        seen.append(box)
+        next(b for b in box.buttons.values() if b.text() == button_text).click()
 
     QTimer.singleShot(0, press)
 
 
 def test_cancel_with_edits_really_asks_in_a_themed_box(qapp):
     page, _ = _page("click_grid")
-    cancelled = []
+    cancelled, seen = [], []
     page.cancelRequested.connect(lambda: cancelled.append(True))
     page._form.controls["trials"].setValue(7)
-    _click_later("Keep editing")
+    _click_later("Keep editing", seen)
     page.cancel_button.click()
     assert cancelled == []
-    _click_later("Discard")
+    _click_later("Discard", seen)
     page.cancel_button.click()
     assert cancelled == [True]
+    # FX1: the dashboard's own themed dialog (light palette and sheet), not a QMessageBox,
+    # whose body and buttons stayed dark in the live check.
+    assert [type(box).__name__ for box in seen] == ["_ChoiceDialog"] * 2
+    assert not any(isinstance(box, QMessageBox) for box in seen)
+    assert seen[0].windowTitle() == "Discard changes"
+    assert seen[0].text_label.text() == "Discard your changes?"

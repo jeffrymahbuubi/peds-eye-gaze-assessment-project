@@ -10,7 +10,7 @@ from __future__ import annotations
 
 from collections.abc import Sequence
 
-from PySide6.QtCore import Qt
+from PySide6.QtCore import QEvent, Qt
 from PySide6.QtGui import QFont
 from PySide6.QtWidgets import (
     QAbstractItemView,
@@ -22,6 +22,20 @@ from PySide6.QtWidgets import (
     QWidget,
 )
 
+# What changes the size a row or the header needs: the style sheet it ends up under (a table
+# is filled before the page is put in the dashboard, so the theme's cell padding arrives
+# later), the font, the screen's scale.
+_REFIT_EVENTS = frozenset(
+    {
+        QEvent.Type.Polish,
+        QEvent.Type.StyleChange,
+        QEvent.Type.FontChange,
+        QEvent.Type.ParentChange,
+        QEvent.Type.Show,
+        QEvent.Type.DevicePixelRatioChange,
+    }
+)
+
 
 class FitTable(QTableWidget):
     """A table with a header row and no editing, as tall as its rows.
@@ -29,7 +43,13 @@ class FitTable(QTableWidget):
     ``stretch_column`` takes the spare width; the other columns fit their contents.
     With ``wrap`` the long cells of that column wrap, and the height follows the
     width; ``compact`` halves the cell padding. The theme's ``QTableWidget`` rule gives it its look inside the dashboard.
+
+    The height is the header plus every row's real height plus the frame, measured when
+    the rows are set and again whenever the style sheet, font or screen scale changes,
+    so no row is ever cut and the table never needs a scroll bar of its own.
     """
+
+    _ready = False  # events during construction have nothing to fit yet
 
     def __init__(
         self,
@@ -69,6 +89,7 @@ class FitTable(QTableWidget):
         self.setHorizontalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAlwaysOff)
         self.setVerticalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAlwaysOff)
         self.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Fixed)
+        self._ready = True
 
     def set_rows(
         self,
@@ -102,12 +123,26 @@ class FitTable(QTableWidget):
         ]
 
     def fit_height(self) -> None:
-        """Make the table exactly tall enough for its header and rows."""
+        """Make the table exactly tall enough for its header and rows, as they are now."""
+        # Polish the headers first: a header not yet polished has not got the style sheet's
+        # padding and font, and its size hint (and every row's) would come out too small.
+        head = self.horizontalHeader()
+        for part in (self, head, self.verticalHeader()):
+            part.ensurePolished()
         self.resizeRowsToContents()
-        height = self.horizontalHeader().height() + 2 * self.frameWidth()
-        height += sum(self.rowHeight(r) for r in range(self.rowCount()))
-        if self.height() != height:
+        # QTableView lays the header out at its size hint (or its minimum height), not at
+        # whatever height() it had before the first layout.
+        header_height = 0 if head.isHidden() else max(head.minimumHeight(), head.sizeHint().height())
+        rows_height = sum(self.rowHeight(r) for r in range(self.rowCount()))
+        height = header_height + rows_height + 2 * self.frameWidth()
+        if self.maximumHeight() != height or self.minimumHeight() != height:
             self.setFixedHeight(height)
+
+    def event(self, event) -> bool:
+        handled = super().event(event)
+        if self._ready and event.type() in _REFIT_EVENTS:
+            self.fit_height()
+        return handled
 
     def resizeEvent(self, event) -> None:  # noqa: N802 (Qt naming)
         super().resizeEvent(event)

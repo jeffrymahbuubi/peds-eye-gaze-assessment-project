@@ -21,7 +21,7 @@ from __future__ import annotations
 from enum import Enum
 from pathlib import Path
 
-from PySide6.QtCore import Signal
+from PySide6.QtCore import Qt, Signal
 from PySide6.QtGui import QPixmap
 from PySide6.QtWidgets import QHBoxLayout, QLabel, QPushButton, QWidget
 
@@ -80,6 +80,10 @@ class TitleBar(QWidget):
     def __init__(self, logo_path: Path | None = None, parent: QWidget | None = None) -> None:
         super().__init__(parent)
         self.setObjectName("wtmhTitleBar")
+        # A QWidget subclass paints a style-sheet background only with this attribute (or a
+        # paintEvent that draws PE_Widget): without it the navy rule never paints and the
+        # light title text lands on the light page.
+        self.setAttribute(Qt.WidgetAttribute.WA_StyledBackground, True)
         layout = QHBoxLayout(self)
         layout.setContentsMargins(16, 10, 16, 10)
         layout.setSpacing(10)

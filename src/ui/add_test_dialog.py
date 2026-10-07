@@ -25,7 +25,8 @@ from PySide6.QtWidgets import (
 
 from ..engine.task_info import TASK_INFO
 from ..engine.task_runner import TASK_REGISTRY
-from .wtmh_theme import MUTED, STYLESHEET
+from .dialog_theme import apply_dialog_theme
+from .wtmh_theme import MUTED
 
 MAX_COUNT = 10
 
@@ -33,8 +34,7 @@ MAX_COUNT = 10
 class AddTestDialog(QDialog):
     def __init__(self, parent: QWidget | None = None) -> None:
         super().__init__(parent)
-        self.setObjectName("wtmhDashboard")
-        self.setStyleSheet(STYLESHEET)
+        apply_dialog_theme(self)  # light list and text whatever the Windows colour mode (FX1)
         self.setWindowTitle("Add New Test")
         self.setModal(True)
 
