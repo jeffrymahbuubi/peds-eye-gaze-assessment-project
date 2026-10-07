@@ -50,8 +50,8 @@ Movement path
 - Diagonal ↘ (top-left ↔ bottom-right)
 - Diagonal ↙ (top-right ↔ bottom-left)
 
-Selection window (ms)
-[2500_________________________]{type:number}
+Selection window (s)
+[2.5__________________________]{type:number}
 
 [Start task]* [Cancel]{.outline}
 

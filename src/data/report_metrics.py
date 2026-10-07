@@ -143,12 +143,18 @@ def build_trials(
     task_id: str | None,
     path_params: PathParams = DEFAULT_PATH,
     pupil_params: PupilParams = DEFAULT_PUPIL,
+    path_index: FrameIndex | None = None,
 ) -> list[dict[str, Any]]:
     """One dict per ``trials.csv`` row, in order (see 4D.6 for the shape).
 
     The trial window is ``[t_target_shown_ns, t_end_ns]``. A trial re-presented after
     a pause repeats its trial id but has its own row and window, so nothing here is
     keyed by the id alone.
+
+    ``path`` (the Detailed view's full gaze path) is drawn from ``path_index``, the same
+    stream passed through the on-screen cursor's filter (:func:`~.report_visual.smooth_frames`);
+    without one it is the raw stream. ``scanpath`` (the Summary map's) is the trial's
+    fixation centroids in time order, whatever the smoothing.
     """
     moving = task_id == "follow_moving"
     logical = geometry.canvas_logical_size()
@@ -206,6 +212,7 @@ def build_trials(
             "reaction_time_s": reaction,
             "entries": entries,
             "fixations": _empty_fixations(),
+            "scanpath": [],
             "saccades": _empty_saccades(),
             "pupil": {k: None for k in ("mean_mm", "baseline_mm", "change_mm", "change_pct")},
             "path": [],
@@ -221,7 +228,10 @@ def build_trials(
                     "mean_dur_ms": mean_or_none([f.dur_ms for f in fixes], 1),
                     "items": [[round(f.x, 4), round(f.y, 4), round(f.dur_ms, 1)] for f in fixes],
                 }
-                item["path"] = gaze_path(window, geometry, path_params)
+                item["scanpath"] = [[round(f.x, 4), round(f.y, 4)] for f in fixes]
+                item["path"] = gaze_path(
+                    (path_index or index).window(onset, end), geometry, path_params
+                )
             if raw is not None:
                 if raw.saccades is not None:
                     item["saccades"] = _saccade_block(

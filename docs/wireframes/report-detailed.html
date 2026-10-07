@@ -570,7 +570,7 @@ body.wmd-root {
     <th class="wmd-table-cell wmd-align-left">Reaction Time (s)</th>
     <th class="wmd-table-cell wmd-align-left">Entries</th>
     <th class="wmd-table-cell wmd-align-left">Fixations</th>
-    <th class="wmd-table-cell wmd-align-left">Mean fix. dur. (ms)</th>
+    <th class="wmd-table-cell wmd-align-left">Mean fix. dur. (s)</th>
     <th class="wmd-table-cell wmd-align-left">Saccades</th>
     <th class="wmd-table-cell wmd-align-left">Mean peak vel. (deg/s)</th>
     <th class="wmd-table-cell wmd-align-left">Pupil (mm)</th>
@@ -587,7 +587,7 @@ body.wmd-root {
     <td class="wmd-table-cell wmd-align-left"><strong>0.30</strong></td>
     <td class="wmd-table-cell wmd-align-left"><strong>1</strong></td>
     <td class="wmd-table-cell wmd-align-left"><strong>3</strong></td>
-    <td class="wmd-table-cell wmd-align-left"><strong>250</strong></td>
+    <td class="wmd-table-cell wmd-align-left"><strong>0.25</strong></td>
     <td class="wmd-table-cell wmd-align-left"><strong>3</strong></td>
     <td class="wmd-table-cell wmd-align-left"><strong>70</strong></td>
     <td class="wmd-table-cell wmd-align-left"><strong>3.6</strong></td>
@@ -602,7 +602,7 @@ body.wmd-root {
     <td class="wmd-table-cell wmd-align-left">0.41</td>
     <td class="wmd-table-cell wmd-align-left">2</td>
     <td class="wmd-table-cell wmd-align-left">5</td>
-    <td class="wmd-table-cell wmd-align-left">220</td>
+    <td class="wmd-table-cell wmd-align-left">0.22</td>
     <td class="wmd-table-cell wmd-align-left">5</td>
     <td class="wmd-table-cell wmd-align-left">81</td>
     <td class="wmd-table-cell wmd-align-left">3.6</td>
@@ -617,7 +617,7 @@ body.wmd-root {
     <td class="wmd-table-cell wmd-align-left">0.95</td>
     <td class="wmd-table-cell wmd-align-left">3</td>
     <td class="wmd-table-cell wmd-align-left">14</td>
-    <td class="wmd-table-cell wmd-align-left">300</td>
+    <td class="wmd-table-cell wmd-align-left">0.30</td>
     <td class="wmd-table-cell wmd-align-left">13</td>
     <td class="wmd-table-cell wmd-align-left">77</td>
     <td class="wmd-table-cell wmd-align-left">3.7</td>
@@ -647,7 +647,7 @@ body.wmd-root {
     <td class="wmd-table-cell wmd-align-left">0.22</td>
     <td class="wmd-table-cell wmd-align-left">1</td>
     <td class="wmd-table-cell wmd-align-left">3</td>
-    <td class="wmd-table-cell wmd-align-left">260</td>
+    <td class="wmd-table-cell wmd-align-left">0.26</td>
     <td class="wmd-table-cell wmd-align-left">2</td>
     <td class="wmd-table-cell wmd-align-left">66</td>
     <td class="wmd-table-cell wmd-align-left">3.5</td>
@@ -676,7 +676,7 @@ body.wmd-root {
 |                            o-----------(   ●  3    )  ← target   |
 |                                         &#039;- - - - -&#039;   + dashed   |
 |                                               ★ selected  hitbox |
-|      gaze path dark → light by time; circles = fixations,        |
+|      smoothed gaze path dark → light by time; circles = fixations|
 |      size ∝ duration, numbered in order                          |
 +------------------------------------------------------------------+
   Scan path 12.3 deg · 3 fixations · 3 saccades</code></pre>

@@ -16,6 +16,7 @@ from dataclasses import asdict, dataclass
 from pathlib import Path
 from typing import Any
 
+from ..inputs.eye_input import GazeSmoother, SmoothingConfig
 from .recorder import TARGET_TRACK_FILENAME
 from .report_eye import GazeFrame
 from .report_geometry import Geometry
@@ -43,12 +44,67 @@ class HeatParams:
         return asdict(self)
 
 
+# The on-screen cursor's smoothing weight when a run did not record one (SPEC-compass-task-flow.md
+# 7.1, V2): the same exponential moving average, ``dwell.smoothing.alpha`` of the run's settings.
+DEFAULT_SMOOTHING_ALPHA = 0.22
+
+
+@dataclass(frozen=True)
+class SmoothParams:
+    """The filter the Detailed view's gaze path is drawn with: the on-screen cursor's own
+    (:class:`~src.inputs.eye_input.GazeSmoother`), switched on and weighted as the run was."""
+
+    enabled: bool = True
+    alpha: float = DEFAULT_SMOOTHING_ALPHA
+
+    @classmethod
+    def from_values(cls, enabled: Any, alpha: Any) -> SmoothParams:
+        """From a run's ``dwell.smoothing.enabled`` / ``alpha`` (``None`` or unusable: the
+        defaults; an alpha outside (0, 1] is not a weight, so the default too)."""
+        on = True if enabled is None else bool(enabled)
+        try:
+            weight = float(alpha)
+        except (TypeError, ValueError):
+            weight = DEFAULT_SMOOTHING_ALPHA
+        if isinstance(alpha, bool) or not 0.0 < weight <= 1.0:
+            weight = DEFAULT_SMOOTHING_ALPHA
+        return cls(on, weight)
+
+    def as_dict(self) -> dict[str, Any]:
+        return asdict(self)
+
+
 DEFAULT_PATH = PathParams()
 DEFAULT_HEAT = HeatParams()
+DEFAULT_SMOOTHING = SmoothParams()
 TRACK_MAX_POINTS = 100  # a moving target's drawn track, per trial
 
 
 # -- gaze path -------------------------------------------------------------------
+
+
+def smooth_frames(
+    frames: Sequence[GazeFrame], params: SmoothParams = DEFAULT_SMOOTHING
+) -> list[GazeFrame]:
+    """The gaze stream as the on-screen cursor drew it: every valid frame passed through the
+    cursor's own filter (:class:`~src.inputs.eye_input.GazeSmoother`, no second one), the
+    running average dropped at an invalid frame as ``EyeInput.poll`` does. Times, validity
+    and fixation fields are untouched, so the result indexes like the input. Unchanged when
+    smoothing is off. Applied once per frame it is given, i.e. once per distinct gaze sample
+    (the loader drops the repeats that a render tick faster than the device writes again).
+    Monitor-normalized in and out: the average is linear, so it is the same on any axes."""
+    if not params.enabled:
+        return list(frames)
+    smoother = GazeSmoother(SmoothingConfig(enabled=True, alpha=params.alpha))
+    out: list[GazeFrame] = []
+    for f in frames:
+        if not f.valid:
+            smoother.reset()
+            out.append(f)
+            continue
+        x, y = smoother.update(f.x, f.y)
+        out.append(f._replace(x=x, y=y))
+    return out
 
 
 def _uniform_indices(n: int, cap: int) -> list[int]:

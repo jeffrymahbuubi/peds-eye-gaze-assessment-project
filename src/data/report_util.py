@@ -23,6 +23,26 @@ def to_float(raw: Any) -> float | None:
         return None
 
 
+def ms_to_seconds(ms: Any) -> float | None:
+    """Milliseconds (a stored figure) as seconds (what is shown); ``None`` for anything
+    that is not a number. The data files keep milliseconds, the screen and the PDF show
+    seconds (SPEC-compass-task-flow.md 7.1, V5)."""
+    if isinstance(ms, bool):
+        return None
+    try:
+        return float(ms) / 1000.0
+    except (TypeError, ValueError):
+        return None
+
+
+def seconds_text(ms: Any, digits: int = 3, dash: str = "—") -> str:
+    """Milliseconds as compact seconds: ``800`` -> "0.8 s", ``8000`` -> "8 s", ``120`` ->
+    "0.12 s"; ``dash`` when ``ms`` is not a number. At most ``digits`` decimals, no
+    trailing zeros."""
+    seconds = ms_to_seconds(ms)
+    return dash if seconds is None else f"{round(seconds, digits):g} s"
+
+
 def round_or_none(value: float | None, digits: int) -> float | None:
     return None if value is None else round(value, digits)
 

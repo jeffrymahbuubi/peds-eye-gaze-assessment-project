@@ -28,7 +28,7 @@ from PySide6.QtWidgets import (
 )
 
 from src.ui import config_widgets
-from src.ui.add_test_dialog import AddTestDialog
+from src.ui.add_test_dialog import SPACING, AddTestDialog
 from src.ui.config_save_dialogs import ConfigNameDialog
 from src.ui.config_widgets import ask_two_choice
 from src.ui.dialog_theme import ITEM_VIEW_STYLESHEET, apply_dialog_theme
@@ -142,8 +142,9 @@ def test_the_chosen_add_test_row_is_the_soft_tint_not_the_dark_highlight(qapp, d
     image = shown(dialog)
     viewport = dialog.task_list.viewport()
     row = dialog.task_list.visualItemRect(dialog.task_list.currentItem())
-    # A pixel inside the row's right-hand end (inside the visible part), away from the text.
-    spot = viewport.mapTo(dialog, QPoint(viewport.width() - 6, row.top() + 3))
+    # A pixel inside the row's right-hand end (inside the visible part), away from the text. The
+    # rows are spaced apart (V4): the row ends SPACING px before the viewport's edge.
+    spot = viewport.mapTo(dialog, QPoint(viewport.width() - SPACING - 6, row.top() + 3))
     assert image.pixelColor(spot.x(), spot.y()) == QColor(SOFT_ACCENT)
 
 

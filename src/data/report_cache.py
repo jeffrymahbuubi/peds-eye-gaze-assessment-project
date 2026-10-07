@@ -39,10 +39,20 @@ from .report_metrics import (
     summary_rows,
 )
 from .report_quality import eye_summary, frames_by_window, gaze_valid_share, quality_block
-from .report_visual import DEFAULT_HEAT, DEFAULT_PATH, heat_map, load_target_track, map_marks
+from .report_visual import (
+    DEFAULT_HEAT,
+    DEFAULT_PATH,
+    SmoothParams,
+    heat_map,
+    load_target_track,
+    map_marks,
+    smooth_frames,
+)
 from .saccades import DEFAULT_IVT
 
-REPORT_VERSION = 1
+# 2: ``path`` is the gaze stream smoothed as the on-screen cursor was (it was the raw
+# stream), trials gain ``scanpath`` (fixation centroids), the config rows show seconds.
+REPORT_VERSION = 2
 REPORT_FILENAME = "report.json"
 
 _log = logging.getLogger(__name__)
@@ -97,6 +107,11 @@ def build_report(session_dir: str | Path) -> dict[str, Any]:
     settings = meta.get("settings") if isinstance(meta.get("settings"), dict) else {}
     geometry = Geometry.from_metadata(meta)
     index = FrameIndex(load_gaze_frames(session_dir))
+    smoothing = SmoothParams.from_values(
+        setting(settings, "dwell.smoothing.enabled", "dwell", "smoothing", "enabled"),
+        setting(settings, "dwell.smoothing.alpha", "dwell", "smoothing", "alpha"),
+    )
+    path_index = FrameIndex(smooth_frames(index.frames, smoothing))
     raw = analyse_raw(load_raw_samples(session_dir), meta, geometry)
     track = load_target_track(session_dir)
     events = _events(session_dir)
@@ -105,7 +120,8 @@ def build_report(session_dir: str | Path) -> dict[str, Any]:
     iti_ms = _number(setting(settings, "task.inter_trial_interval_ms", "inter_trial_interval_ms"))
 
     trials = build_trials(
-        trial_rows, geometry, index, raw, track, iti_ms=iti_ms, task_id=task_id
+        trial_rows, geometry, index, raw, track, iti_ms=iti_ms, task_id=task_id,
+        path_index=path_index,
     )
     heat = heat_map(frames_by_window(index, trials), geometry)
     share = gaze_valid_share(index, trials)
@@ -121,7 +137,9 @@ def build_report(session_dir: str | Path) -> dict[str, Any]:
             "entries": {"exit_hold_ms": DEFAULT_EXIT_HOLD_MS},
             "pupil": DEFAULT_PUPIL.as_dict(),
             "heat": DEFAULT_HEAT.as_dict(),
-            "path": DEFAULT_PATH.as_dict(),
+            # The gaze path's thinning (raw-path parameters, unchanged) and the cursor filter
+            # it is drawn through (``enabled`` off: the raw stream).
+            "path": {**DEFAULT_PATH.as_dict(), "smoothing": smoothing.as_dict()},
         },
         "session": {
             "session_id": meta.get("session_id") or session_dir.name,

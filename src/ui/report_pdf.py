@@ -1,12 +1,13 @@
-"""Print Report: the per-test report as an A4 landscape PDF
-(SPEC-compass-task-flow.md 4D.8, U9, HD13).
+"""Print Report: the per-test report as an A4 **portrait** PDF
+(SPEC-compass-task-flow.md 4D.8, U9, HD13; portrait since 7.1, V3).
 
 A :class:`QTextDocument` filled from HTML and printed by a :class:`QPdfWriter` (both
-in QtGui): no printer dialog, no QtPrintSupport. The page holds the header, the
-Test Configuration table, the Summary of Results and Eye Metrics tables, the Target
-Map (Targets only, as one PNG) and the Trial-by-Trial table with its header row
-repeated on every page, then the definitions of the measures. The text is the
-page's own (:mod:`report_format`), so the printout and the screen cannot disagree.
+in QtGui): no printer dialog, no QtPrintSupport. One column, stacked: the header, the
+Test Configuration table, the Summary of Results, then the Target Map (Targets only, as
+one PNG, with its symbol legend) and the Eye Metrics on a page of their own, the
+Trial-by-Trial table with its header row repeated on every page, and the definitions of
+the measures. The text is the page's own (:mod:`report_format`), so the printout and the
+screen cannot disagree.
 
 Units: the document lays out in the writer's own pixels (300 dpi) and the layout
 scales every length written in CSS ``px`` (padding, margins, an image's width) by the
@@ -16,15 +17,15 @@ converted again (doing so made rows three times too tall). Fonts are in pt.
 
 from __future__ import annotations
 
-import base64
 import os
 from html import escape
 from pathlib import Path
 from typing import Any
 
-from PySide6.QtCore import QBuffer, QByteArray, QIODevice, QMarginsF, QSizeF
+from PySide6.QtCore import QMarginsF, QSizeF
 from PySide6.QtGui import QImage, QPageLayout, QPageSize, QPdfWriter, QTextDocument
 
+from .map_legend import legend_html, png_data_uri
 from .report_format import (
     DASH,
     DEFINITIONS,
@@ -42,8 +43,10 @@ from .wtmh_theme import BORDER, INK, MUTED, SOFT_ACCENT, SOFT_ACCENT_TEXT, WARNI
 
 PDF_RESOLUTION = 300  # dpi of the writer
 MARGIN_MM = 10.0
-MAP_WIDTH_MM = 150.0
+MAP_WIDTH_MM = 186.0  # of the 190 mm between the margins of an A4 portrait page (190 spills over)
 BODY_PT = 8.5
+TRIAL_TABLE_PT = 7.5  # thirteen columns across 190 mm: a size down keeps each cell on few lines
+CONFIG_LABEL_WIDTH = "30%"  # the Setting column of the configuration table
 
 
 def mm_to_css_px(mm: float) -> int:
@@ -62,12 +65,21 @@ def _table(
     *,
     bold_first: bool = False,
     grey_rows: frozenset[int] = frozenset(),
+    first_width: str | None = None,
+    font_pt: float | None = None,
 ) -> str:
     """A bordered table with ``aligns`` per column. The header is a ``<thead>`` row,
-    which Qt repeats on every page the table spans."""
+    which Qt repeats on every page the table spans. ``first_width`` is the first column's
+    width (``"30%"``), ``font_pt`` a font size for the whole table."""
     head = "".join(
-        f'<th bgcolor="{SOFT_ACCENT}" align="{align}"><span style="color:{SOFT_ACCENT_TEXT}">{_e(h)}</span></th>'
-        for h, align in zip(header, aligns, strict=True)
+        f'<th bgcolor="{SOFT_ACCENT}" align="{align}"{width}>'
+        f'<span style="color:{SOFT_ACCENT_TEXT}">{_e(h)}</span></th>'
+        for h, align, width in zip(
+            header,
+            aligns,
+            [f' width="{first_width}"' if first_width else ""] + [""] * (len(header) - 1),
+            strict=True,
+        )
     )
     body = []
     for n, cells in enumerate(rows):
@@ -77,20 +89,12 @@ def _table(
             for i, (text, align) in enumerate(zip(cells, aligns, strict=True))
         )
         body.append(f"<tr>{tds}</tr>")
+    size = f"; font-size:{font_pt}pt" if font_pt else ""
     return (
         f'<table border="1" cellspacing="0" cellpadding="3" width="100%" '
-        f'style="border-collapse:collapse; border-color:{BORDER}">'
+        f'style="border-collapse:collapse; border-color:{BORDER}{size}">'
         f"<thead><tr>{head}</tr></thead><tbody>{''.join(body)}</tbody></table>"
     )
-
-
-def _png_data_uri(image: QImage) -> str:
-    data = QByteArray()
-    buffer = QBuffer(data)
-    buffer.open(QIODevice.OpenModeFlag.WriteOnly)
-    image.save(buffer, "PNG")
-    buffer.close()
-    return "data:image/png;base64," + base64.b64encode(bytes(data)).decode("ascii")
 
 
 def build_report_html(
@@ -122,40 +126,36 @@ def build_report_html(
         ["Setting", "Value"],
         [[str(label), str(value)] for label, value in report.get("config", {}).get("rows", [])],
         ["left", "left"],
+        first_width=CONFIG_LABEL_WIDTH,
     )
     notes_block = (
-        f'<h3 style="margin-bottom:2px">Notes</h3><p>{_e(notes).replace(chr(10), "<br>") or DASH}</p>'
+        f'<h3 style="margin-bottom:2px">Notes</h3><p style="margin-top:0">{_e(notes).replace(chr(10), "<br>") or DASH}</p>'
     )
-    left = (
+    configuration = (
         f'<h3 style="margin-top:0; margin-bottom:2px">Test Configuration</h3>'
         f'<p style="margin-top:0">Configuration Name: <b>{_e(config_name)}</b></p>{config}{notes_block}'
     )
 
     summary = _table(list(SUMMARY_COLUMNS), summary_table(report), ["left"] + ["right"] * 4, bold_first=True)
-    eye = _table(["Metric", "Value"], [[a, b] for a, b in eye_rows(report)], ["left", "left"])
-    right = (
-        f'<p style="margin-top:0">{_e(TASK_SENTENCES.get(task_id, ""))}</p>'
+    eye = _table(["Metric", "Value"], [[a, b] for a, b in eye_rows(report)], ["left", "left"], first_width=CONFIG_LABEL_WIDTH)
+    summary_block = (
+        f'<p style="margin-bottom:2px">{_e(TASK_SENTENCES.get(task_id, ""))}</p>'
         f'<h3 style="margin-bottom:2px">Summary of Results</h3>{summary}'
         f'<p style="font-size:{BODY_PT - 1}pt; color:{MUTED}">{_e(summary_footnote(report))}</p>'
-        f'<h3 style="margin-bottom:2px">Eye Metrics</h3>{eye}'
     )
-    layout = (
-        f'<table border="0" cellspacing="0" cellpadding="0" width="100%"><tr>'
-        f'<td width="38%" valign="top">{left}</td>'
-        f'<td valign="top" style="padding-left:8px">{right}</td></tr></table>'
-    )
+    eye_block = f'<h3 style="margin-bottom:2px">Eye Metrics</h3>{eye}'
 
-    parts = [header, banner, layout]
+    parts = [header, banner, configuration, summary_block]
     if map_image is not None:
         width = mm_to_css_px(MAP_WIDTH_MM)
         note = report.get("map", {}).get("note")
         parts.append(
-            f'<h3 style="page-break-before:always; margin-bottom:2px">Target Map</h3>'
-            f'<p style="margin:0"><img src="{_png_data_uri(map_image)}" width="{width}"></p>'
-            f'<p style="font-size:{BODY_PT - 1}pt; color:{MUTED}">hit = green circle · not selected = red X · '
-            f'skipped = dashed ring · numbers = trials on that place'
-            f'{" · " + _e(note) if note else ""}</p>'
+            f'<h3 style="page-break-before:always; margin-top:0; margin-bottom:2px">Target Map</h3>'
+            f'<p style="margin-top:0; margin-bottom:4px"><img src="{png_data_uri(map_image)}" width="{width}"></p>'
+            f'{legend_html(width)}'
+            + (f'<p style="font-size:{BODY_PT - 1}pt; color:{MUTED}">{_e(note)}</p>' if note else "")
         )
+    parts.append(eye_block)
 
     trials = report.get("trials", [])
     rows = [[cell.text for cell in trial_cells(trial)] for trial in trials]
@@ -163,7 +163,7 @@ def build_report_html(
     aligns = ["left", "right", "right", "left"] + ["right"] * (len(TRIAL_COLUMNS) - 4)
     parts.append(
         '<h3 style="margin-bottom:2px">Trial-by-Trial Results</h3>'
-        + _table(list(TRIAL_COLUMNS), rows, aligns, grey_rows=skipped)
+        + _table(list(TRIAL_COLUMNS), rows, aligns, grey_rows=skipped, font_pt=TRIAL_TABLE_PT)
     )
     definitions = "".join(f"<li>{_e(text)}</li>" for text in DEFINITIONS)
     parts.append(
@@ -183,7 +183,7 @@ def _write(path: Path, html: str, title: str) -> None:
     writer.setPageLayout(
         QPageLayout(
             QPageSize(QPageSize.PageSizeId.A4),
-            QPageLayout.Orientation.Landscape,
+            QPageLayout.Orientation.Portrait,
             QMarginsF(MARGIN_MM, MARGIN_MM, MARGIN_MM, MARGIN_MM),
             QPageLayout.Unit.Millimeter,
         )

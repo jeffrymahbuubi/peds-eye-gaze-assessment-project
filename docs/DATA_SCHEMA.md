@@ -251,16 +251,19 @@ the Summary / Detailed pages and in the PDF. It is written when a run is saved
 and rebuilt from the raw files when it is missing, unreadable or from another
 `report_version`; the raw files stay the source of truth. The same folder always
 gives byte-identical JSON. A figure a folder's files cannot give is `null`,
-never 0, so an old folder degrades instead of failing.
+never 0, so an old folder degrades instead of failing. Every time stored here
+and in the other data files stays in milliseconds (`mean_dur_ms`,
+`fixation_duration_ms`, the `*_ms` parameters); only what a person reads, on the
+pages and in the PDF, shows seconds.
 
 | top-level key | contents |
 |---------------|----------|
-| `report_version` | `REPORT_VERSION` (currently `1`); a cache with another value is rebuilt |
-| `params` | the analysis parameters used (`ivt` saccade detector, `entries` exit hold, `pupil`, `heat`, `path`), so the numbers are reproducible |
+| `report_version` | `REPORT_VERSION` (currently `2`); a cache with another value is rebuilt |
+| `params` | the analysis parameters used (`ivt` saccade detector, `entries` exit hold, `pupil`, `heat`, `path`), so the numbers are reproducible. `path` holds the gaze path's thinning (`min_step_deg`, `min_step_ms`, `split_gap_ms`, `max_points`, applied to the raw stream) and `smoothing` (`{enabled, alpha}`), the on-screen cursor's own filter the path is drawn through (`alpha` is the run's `dwell.smoothing.alpha`, 0.22 when none was recorded; `enabled: false` leaves the raw stream) |
 | `session` | `session_id`, `task_id`, `subject`, `test_name`, `config_name`, `started_ns`, `planned_trials`, `completed_trials`, `outcome`, `n_rows`, `n_scored`, `n_skipped`, `n_not_presented`, and `sources` (which input files the folder had, so the UI can say why a value is shown as a dash) |
 | `geometry` | the monitor / canvas geometry the degree and pixel figures use, and `assumed_for_visuals` (true when the folder lacks the monitor size) |
 | `config` | `rows`: the Test Configuration table, `[label, value]` pairs |
-| `trials` | one object per `trials.csv` row: `trial` (1-based), `outcome` (`hit` / `timeout` / `skipped`), `size_deg`, `distance_deg`, `target` (`x`, `y`, `end_x`, `end_y`, radii, `slot`), `onset_ns`, `end_ns`, `attempts`, `error_free`, `trial_time_s`, `reaction_time_s`, `entries`, and the per-trial `fixations`, `saccades`, `pupil` and `path` |
+| `trials` | one object per `trials.csv` row: `trial` (1-based), `outcome` (`hit` / `timeout` / `skipped`), `size_deg`, `distance_deg`, `target` (`x`, `y`, `end_x`, `end_y`, radii, `slot`), `onset_ns`, `end_ns`, `attempts`, `error_free`, `trial_time_s`, `reaction_time_s`, `entries`, and the per-trial `fixations`, `saccades`, `pupil`, `scanpath` (the fixation centroids `[[x, y], ...]` in time order, canvas-normalized: the Summary map's path) and `path` (the whole gaze as polylines, thinned and smoothed with the cursor's filter: the Detailed view's path) |
 | `summary` | `rows`: the Summary of Results table (error-free, all selected, not selected, all trials); `eye`: the Eye Metrics table |
 | `map` | the Target Map: `aspect`, `slots`, `hit_tolerance_px`, `marks` and `note` |
 | `heat` | the gaze heat map: `w`, `h`, `data` (empty when there was no gaze on the canvas, with `empty: true`) and `off_canvas_share` |

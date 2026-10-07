@@ -2,14 +2,14 @@
 
 Pure drawing: given a :class:`MapModel` (read once from ``report.json``) and the
 rectangle of the canvas, :func:`paint_map` draws the whole test (target marks, the
-faint layout, gaze paths, the heat map) or one trial (target and hitbox rings, the
-gaze path dark to light, numbered fixations). Everything is in **canvas-normalized**
+faint layout, each trial's fixation scanpath, the heat map) or one trial (target and
+hitbox rings, the smoothed gaze path dark to light, numbered fixations). Everything is in **canvas-normalized**
 coordinates, so a mark sits where the target was and a circle stays a circle (the
 rectangle has the canvas's own aspect). Used by :class:`TargetMapWidget` for the
 screen and its ``render_to_image`` for the PDF, so both draw the same.
 
-Nothing here computes analysis: the paths, fixations, heat values and marks are the
-report's.
+Nothing here computes analysis: the scanpaths, paths, fixations, heat values and marks are
+the report's. :func:`paint_symbol` draws the four marks of the map's legend with the same code.
 """
 
 from __future__ import annotations
@@ -249,13 +249,25 @@ def _paint_track(p: QPainter, rect: QRectF, track: list[list[float]], unit: floa
     p.drawPolyline(QPolygonF([_point(rect, x, y) for x, y in track]))
 
 
-def _paint_paths(p: QPainter, rect: QRectF, model: MapModel, unit: float) -> None:
+def _paint_scanpaths(p: QPainter, rect: QRectF, model: MapModel, unit: float) -> None:
+    """The whole test's fixation scanpaths (V2): per trial, one dot at each fixation's
+    centroid, joined by straight lines in time order, in the trial's own colour. It is not
+    the raw gaze, so fixational tremor does not scribble the map."""
     for trial in model.trials:
         colour = PATH_COLOURS[(int(trial.get("trial") or 1) - 1) % len(PATH_COLOURS)]
-        p.setPen(_pen(_alpha(colour, 190), 1.5 * unit))
-        for segment in trial.get("path", []):
-            if len(segment) >= 2:
-                p.drawPolyline(QPolygonF([_point(rect, x, y) for x, y in segment]))
+        points = [
+            _point(rect, pt[0], pt[1])
+            for pt in trial.get("scanpath") or []
+            if isinstance(pt, (list, tuple)) and len(pt) >= 2
+        ]
+        if len(points) >= 2:
+            p.setPen(_pen(_alpha(colour, 190), 1.5 * unit))
+            p.drawPolyline(QPolygonF(points))
+        p.setPen(_pen("#FFFFFF", unit))
+        p.setBrush(QColor(colour))
+        for point in points:
+            _circle(p, point, max(4.5 * unit, 3.0))
+        p.setBrush(Qt.BrushStyle.NoBrush)
 
 
 def _blend(t: float) -> QColor:
@@ -337,6 +349,29 @@ def _paint_trial(p: QPainter, rect: QRectF, model: MapModel, trial: dict[str, An
     p.setBrush(Qt.BrushStyle.NoBrush)
 
 
+LEGEND_KINDS = ("hit", "timeout", "skipped", "slot")
+
+
+def paint_symbol(p: QPainter, rect: QRectF, kind: str) -> None:
+    """One of the map's four marks, centred in ``rect`` (the legend's icon): ``hit`` (green
+    circle), ``timeout`` (red X), ``skipped`` (dashed ring) or ``slot`` (a faint layout
+    circle). The first three are the map's own drawing (:func:`_paint_mark`, no number); the
+    layout circle is the map's too, a little stronger because it is alone on the box."""
+    unit = max(0.5, min(rect.width(), rect.height()) / 40.0)  # a map is 900 px wide for unit 1
+    side = min(rect.width(), rect.height())
+    centre = rect.center()
+    square = QRectF(centre.x() - side / 2, centre.y() - side / 2, side, side)
+    p.save()
+    p.setRenderHint(QPainter.RenderHint.Antialiasing)
+    if kind == "slot":
+        p.setBrush(Qt.BrushStyle.NoBrush)
+        p.setPen(_pen(_alpha(MUTED, 150), 1.4 * unit, Qt.PenStyle.DashLine))
+        _circle(p, centre, 0.42 * side)
+    else:
+        _paint_mark(p, square, {"x": 0.5, "y": 0.5, "r": 0.42, "outcome": kind, "label": ""}, unit)
+    p.restore()
+
+
 def paint_map(
     p: QPainter,
     rect: QRectF,
@@ -372,7 +407,7 @@ def paint_map(
                 for t in model.trials:
                     _paint_track(p, rect, t.get("track") or [], unit)
         if path:
-            _paint_paths(p, rect, model, unit)
+            _paint_scanpaths(p, rect, model, unit)
         if targets:
             for mark in model.marks:
                 _paint_mark(p, rect, mark, unit)

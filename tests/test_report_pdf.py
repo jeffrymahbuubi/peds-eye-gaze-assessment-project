@@ -7,6 +7,7 @@ from __future__ import annotations
 
 import copy
 import os
+import re
 from pathlib import Path
 
 import pytest
@@ -18,9 +19,11 @@ from PySide6.QtGui import QTextDocument, QTextTable
 from PySide6.QtWidgets import QApplication
 
 import src.ui.report_pdf as report_pdf
+from src.ui.map_legend import LEGEND_ENTRIES, NUMBERS_NOTE
 from src.ui.report_format import DEFINITIONS, TRIAL_COLUMNS, eye_rows, summary_table, trial_cells
 from src.ui.report_pdf import build_report_html, export_report_pdf
 from src.ui.target_map import TargetMapWidget
+from src.ui.wtmh_theme import SOFT_ACCENT
 from tests.report_ui_fixtures import folder_report
 
 QtPdf = pytest.importorskip("PySide6.QtPdf")
@@ -81,13 +84,34 @@ def test_the_pdf_is_a_valid_file_of_a_reasonable_size(qapp, tmp_path):
     assert data.rstrip().endswith(b"%%EOF")
 
 
-def test_the_pdf_is_a4_landscape_with_the_map_on_its_own_page_after_the_summary(qapp, tmp_path):
+def test_the_pdf_is_a4_portrait_with_the_map_on_its_own_page_after_the_summary(qapp, tmp_path):
+    """V3: portrait (it was landscape). Every page is 595 x 842 pt, taller than wide."""
     report = folder_report(tmp_path / "data")
     path = export_report_pdf(tmp_path / "r.pdf", report, test_name="T", map_image=map_image(report))
     doc = read_back(path)
-    size = doc.pagePointSize(0)
-    assert size.width() == pytest.approx(841.9, abs=1.0) and size.height() == pytest.approx(595.3, abs=1.0)
-    assert doc.pageCount() >= 2  # the summary page, then the map and the trial table
+    assert doc.pageCount() >= 2  # the configuration and summary page, then the map and the rest
+    for page in range(doc.pageCount()):
+        size = doc.pagePointSize(page)
+        assert size.width() == pytest.approx(595.3, abs=1.0)
+        assert size.height() == pytest.approx(841.9, abs=1.0)
+        assert size.height() > size.width()
+
+
+def test_the_page_layout_the_writer_is_given_is_a4_portrait(qapp, tmp_path, monkeypatch):
+    """The orientation is what the writer is told, not just what comes back."""
+    from PySide6.QtGui import QPageLayout, QPageSize, QPdfWriter
+
+    seen = {}
+    real = QPdfWriter.setPageLayout
+
+    def spy(self, layout):
+        seen["orientation"] = layout.orientation()
+        seen["size"] = layout.pageSize().id()
+        return real(self, layout)
+
+    monkeypatch.setattr(QPdfWriter, "setPageLayout", spy)
+    export_report_pdf(tmp_path / "r.pdf", folder_report(tmp_path / "data"), test_name="T")
+    assert seen == {"orientation": QPageLayout.Orientation.Portrait, "size": QPageSize.PageSizeId.A4}
 
 
 def test_a_long_trial_table_continues_on_more_pages(qapp, tmp_path):
@@ -110,7 +134,8 @@ def test_the_html_holds_header_configuration_both_tables_the_map_and_every_trial
         assert row[0] in html and row[1] in html
     for label, _value in eye_rows(report):
         assert label in html
-    assert html.count("data:image/png;base64,") == 1  # the Target Map, as one PNG
+    # the Target Map, as one PNG, and the legend's four icons
+    assert html.count("data:image/png;base64,") == 1 + len(LEGEND_ENTRIES)
     assert "Trial-by-Trial Results" in html and "Target Map" in html and "Definitions" in html
     for text in DEFINITIONS:
         assert text.split(":")[0] in html
@@ -227,4 +252,63 @@ def test_a_target_that_is_a_folder_raises_oserror(qapp, tmp_path):
 
 def test_the_map_width_is_given_in_css_px_which_the_layout_scales_itself():
     assert report_pdf.mm_to_css_px(25.4) == 96  # an inch is 96 CSS px, whatever the writer's dpi
-    assert report_pdf.mm_to_css_px(report_pdf.MAP_WIDTH_MM) == 567
+    assert report_pdf.mm_to_css_px(report_pdf.MAP_WIDTH_MM) == round(report_pdf.MAP_WIDTH_MM / 25.4 * 96)
+
+
+def test_the_map_fits_between_the_margins_of_a_portrait_page():
+    """No clipping (V3): the picture is no wider than the 190 mm between the 10 mm margins
+    (the first portrait version used 190 and spilled 2 mm over the right edge when rendered)."""
+    assert report_pdf.MAP_WIDTH_MM < 210.0 - 2 * report_pdf.MARGIN_MM
+
+
+# -- V3: one stacked column; V1: the legend; V5: seconds ---------------------------------------------
+
+
+def test_the_sections_are_stacked_in_the_order_configuration_summary_map_eye_metrics(qapp, tmp_path):
+    report = folder_report(tmp_path / "data")
+    html = build_report_html(report, test_name="T", evaluator="", notes="", map_image=map_image(report))
+    order = [html.index(h) for h in (
+        "Test Configuration</h3>", "Summary of Results</h3>", "Target Map</h3>", "Eye Metrics</h3>",
+        "Trial-by-Trial Results</h3>", "Definitions</h3>",
+    )]
+    assert order == sorted(order)
+    # one column: the old side-by-side layout table (a 38 % first cell) is gone
+    assert 'width="38%"' not in html
+
+
+def test_the_map_starts_a_new_page_so_it_is_never_split_from_its_legend(qapp, tmp_path):
+    report = folder_report(tmp_path / "data")
+    html = build_report_html(report, test_name="T", evaluator="", notes="", map_image=map_image(report))
+    assert 'page-break-before:always; margin-top:0; margin-bottom:2px">Target Map' in html
+
+
+def test_the_legend_is_under_the_map_with_its_four_entries_and_the_numbers_note(qapp, tmp_path):
+    report = folder_report(tmp_path / "data")
+    html = build_report_html(report, test_name="T", evaluator="", notes="", map_image=map_image(report))
+    assert html.index("data:image/png;base64,") < html.index(LEGEND_ENTRIES[0][1]) < html.index("Eye Metrics</h3>")
+    for _kind, label in LEGEND_ENTRIES:
+        assert label in html
+    assert NUMBERS_NOTE in html
+    assert SOFT_ACCENT in html  # the light tinted box
+    assert f'width="{report_pdf.mm_to_css_px(report_pdf.MAP_WIDTH_MM)}"' in html  # as wide as the map
+
+
+def test_no_legend_without_a_map(qapp, tmp_path):
+    html = build_report_html(folder_report(tmp_path / "data"), test_name="T", evaluator="", notes="", map_image=None)
+    assert NUMBERS_NOTE not in html and "data:image" not in html
+
+
+def test_the_old_one_line_legend_is_gone(qapp, tmp_path):
+    report = folder_report(tmp_path / "data")
+    html = build_report_html(report, test_name="T", evaluator="", notes="", map_image=map_image(report))
+    assert "hit = green circle" not in html
+
+
+def test_the_pdf_shows_seconds_never_milliseconds(qapp, tmp_path):
+    """V5: configuration rows, the tables and the definitions all read in seconds."""
+    report = folder_report(tmp_path / "data")
+    html = build_report_html(report, test_name="T", evaluator="", notes="", map_image=map_image(report))
+    visible = re.sub(r"<[^>]*>", " ", re.sub(r"data:image/png;base64,[A-Za-z0-9+/=]+", "", html))
+    assert not re.search(r"\bms\b", visible), re.findall(r".{20}\bms\b.{10}", visible)
+    assert "Dwell 0.8 s, refractory 0.5 s" in visible
+    assert "Mean fix. dur. (s)" in visible and "0.12 s" in visible

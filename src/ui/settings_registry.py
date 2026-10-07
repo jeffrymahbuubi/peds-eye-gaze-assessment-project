@@ -27,6 +27,8 @@ from ..engine.target_size import (
     SIZE_PRESETS_DEG,
 )
 
+MS_PER_S = 1000.0  # a stored millisecond figure is shown in seconds (``display_divisor``)
+
 # Target size presets (SPEC-target-size-and-motion-paths.md S4.1/S4.5): (value
 # stored in target.size, label). The dialog appends the diameter in px on the
 # operator's own monitor, which only it can know.
@@ -60,6 +62,10 @@ class LiveSetting:
     # audit.md S8 -- ported from diki's per-slider tooltip pattern, e.g.
     # "Higher = steadier cursor, slightly slower to follow a new look").
     tooltip: str | None = None
+    # A time is stored in milliseconds but shown in seconds (SPEC-compass-task-flow.md 7.1, V5):
+    # 1000.0 makes the slider row's number ``value / 1000`` and its label say "(s)". Only the
+    # display changes; the stored value, the profiles and the data files stay in ms.
+    display_divisor: float = 1.0
 
     def applies(self, task_id: str) -> bool:
         return not self.applies_to or task_id in self.applies_to
@@ -80,6 +86,7 @@ class StructuralSetting:
     # "choice" (a string) and "bool" (a bool, SPEC-compass-task-flow.md HB3): used
     # when the task config has no value.
     default: Any = ""
+    display_divisor: float = 1.0  # as on LiveSetting: 1000.0 shows a stored ms figure in seconds
 
     def applies(self, task_id: str) -> bool:
         return not self.applies_to or task_id in self.applies_to
@@ -96,7 +103,7 @@ class StructuralSetting:
 LIVE_SETTINGS: list[LiveSetting] = [
     LiveSetting(
         "dwell.threshold_ms",
-        "Dwell threshold (ms)",
+        "Dwell threshold (s)",
         "settings",
         "int",
         300,
@@ -104,6 +111,7 @@ LIVE_SETTINGS: list[LiveSetting] = [
         50,
         tooltip="How long the gaze must rest on the target before it counts as a"
         " selection. Higher = fewer accidental selections, but slower to react.",
+        display_divisor=MS_PER_S,
     ),
     LiveSetting(
         "dwell.visual_cursor",
@@ -129,7 +137,7 @@ LIVE_SETTINGS: list[LiveSetting] = [
     ),
     LiveSetting(
         "dwell.refractory_ms",
-        "Refractory period (ms)",
+        "Refractory period (s)",
         "settings",
         "int",
         0,
@@ -137,6 +145,7 @@ LIVE_SETTINGS: list[LiveSetting] = [
         50,
         tooltip="Minimum time after a selection before dwell can trigger again,"
         " to stop one long look from re-selecting the same target repeatedly.",
+        display_divisor=MS_PER_S,
     ),
     LiveSetting(
         "dwell.jitter_tolerance_px",
@@ -169,23 +178,25 @@ LIVE_SETTINGS: list[LiveSetting] = [
     ),
     LiveSetting(
         "task.timeout_ms",
-        "Trial timeout (ms)",
+        "Trial timeout (s)",
         "pacing",
         "int",
         1000,
         20000,
         500,
         tooltip="How long a trial waits for a selection before it counts as a timeout.",
+        display_divisor=MS_PER_S,
     ),
     LiveSetting(
         "task.inter_trial_interval_ms",
-        "Inter-trial interval (ms)",
+        "Inter-trial interval (s)",
         "pacing",
         "int",
         0,
         3000,
         100,
         tooltip="Pause between one trial ending and the next one's target appearing.",
+        display_divisor=MS_PER_S,
     ),
     LiveSetting(
         "motion.speed_frac_per_s",
@@ -251,12 +262,13 @@ STRUCTURAL_SETTINGS: list[StructuralSetting] = [
     ),
     StructuralSetting(
         "motion.select_window_ms",
-        "Selection window (ms)",
+        "Selection window (s)",
         "int",
         500,
         5000,
         100,
         applies_to=("follow_moving",),
+        display_divisor=MS_PER_S,
     ),
     # The two sound toggles (SPEC-compass-task-flow.md HB3): read once at
     # GuiFeedback construction, so structural. `feedback.particles` stays unexposed.

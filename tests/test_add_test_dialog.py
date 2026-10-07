@@ -10,11 +10,11 @@ os.environ.setdefault("QT_QPA_PLATFORM", "offscreen")
 
 from PySide6.QtCore import QCoreApplication, QEvent, Qt
 from PySide6.QtGui import QFont
-from PySide6.QtWidgets import QApplication, QDialog, QLabel
+from PySide6.QtWidgets import QApplication, QDialog, QLabel, QSizePolicy
 
 from src.engine.task_info import TASK_INFO
 from src.engine.task_runner import TASK_REGISTRY
-from src.ui.add_test_dialog import MAX_COUNT, AddTestDialog
+from src.ui.add_test_dialog import MAX_COUNT, MAX_VISIBLE_ROWS, SPACING, AddTestDialog
 
 
 @pytest.fixture(scope="module")
@@ -162,3 +162,59 @@ def test_the_list_gives_its_items_no_padding_of_their_own(qapp):
     from src.ui.dialog_theme import ITEM_VIEW_STYLESHEET
 
     assert "padding" not in ITEM_VIEW_STYLESHEET
+
+
+# -- V4: spacing, a list that fills the dialog, a scroll bar only when needed (SPEC 7.1) ---------------
+
+
+def test_the_rows_are_spaced_apart_and_the_list_scrolls_only_when_needed(qapp):
+    dialog = AddTestDialog()
+    assert SPACING > 0 and dialog.task_list.spacing() == SPACING > 0
+    assert dialog.task_list.verticalScrollBarPolicy() == Qt.ScrollBarPolicy.ScrollBarAsNeeded
+    # never a horizontal bar: the list asks for its widest row, and a bar would eat height
+    assert dialog.task_list.horizontalScrollBarPolicy() == Qt.ScrollBarPolicy.ScrollBarAlwaysOff
+
+
+def test_neighbouring_rows_have_a_gap_between_them(qapp):
+    dialog = shown_dialog()
+    rects = [dialog.task_list.visualItemRect(item) for item, _ in rows_of(dialog)]
+    gaps = [b.top() - a.bottom() - 1 for a, b in zip(rects, rects[1:], strict=False)]
+    assert gaps and all(gap >= SPACING for gap in gaps)  # they used to touch (a gap of 0)
+
+
+def test_the_list_takes_the_spare_height_of_the_dialog(qapp):
+    dialog = shown_dialog()
+    layout = dialog.layout()
+    index = layout.indexOf(dialog.task_list)
+    assert layout.stretch(index) == 1  # the only stretch: the list fills what is left
+    assert dialog.task_list.sizePolicy().verticalPolicy() == QSizePolicy.Policy.Expanding
+    before = dialog.task_list.height()
+    dialog.resize(dialog.width(), dialog.height() + 150)
+    QCoreApplication.processEvents()
+    assert dialog.task_list.height() >= before + 140
+
+
+def test_the_dialog_opens_just_tall_enough_for_the_rows_with_no_scroll_bar(qapp):
+    """Four spaced rows used to be taller than the list's fixed 192 px preference (a scroll bar),
+    and before the spacing they left empty space under the last one. The list now asks for its
+    rows' height, so the dialog opens with all of them showing and nothing left over."""
+    dialog = shown_dialog()
+    lst = dialog.task_list
+    assert lst.verticalScrollBar().maximum() == 0 and not lst.verticalScrollBar().isVisible()
+    last = lst.visualItemRect(rows_of(dialog)[-1][0])
+    assert lst.viewport().height() - last.bottom() <= 2 * SPACING + 2  # no empty band under the rows
+    assert lst.sizeHint().height() >= sum(item.sizeHint().height() + 2 * SPACING for item, _ in rows_of(dialog))
+
+
+def test_more_tasks_than_fit_scroll_and_the_scroll_bar_appears(qapp, monkeypatch):
+    """A future task type: ten tasks do not all fit, so the list scrolls instead of growing."""
+    import src.ui.add_test_dialog as module
+
+    monkeypatch.setattr(module, "TASK_REGISTRY", {f"task_{n}": None for n in range(10)})
+    dialog = shown_dialog()
+    lst = dialog.task_list
+    assert lst.count() == 10
+    assert lst.verticalScrollBar().maximum() > 0 and lst.verticalScrollBar().isVisible()
+    # it asked for MAX_VISIBLE_ROWS rows, not ten
+    assert lst.sizeHint().height() < 8 * (lst.item(0).sizeHint().height() + 2 * SPACING)
+    assert lst.sizeHint().height() >= MAX_VISIBLE_ROWS * (lst.item(0).sizeHint().height() + 2 * SPACING)

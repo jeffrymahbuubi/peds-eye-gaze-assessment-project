@@ -2,7 +2,7 @@
 
 A custom widget painting with :class:`QPainter` from the report dict: no
 per-sample graphics items. The drawing itself is :mod:`target_map_paint`; this class
-keeps the model, the overlay switches (Targets / Gaze path / Heat map) and the
+keeps the model, the overlay switches (Targets / Scanpath / Heat map) and the
 selected trial, centres the canvas rectangle at its true aspect in whatever room it
 has, and renders to an image for the PDF.
 
@@ -24,12 +24,12 @@ MARGIN = 2  # px around the canvas rectangle, so its border is not clipped
 
 
 class TargetMapWidget(QWidget):
-    """Marks, gaze paths and heat map of one test on the canvas's own aspect.
+    """Marks, fixation scanpaths and heat map of one test on the canvas's own aspect.
 
     The overlays are ``targets`` (the marks and the faint layout, default on),
-    ``path`` and ``heat`` (default off); they apply to the whole-test view. After
-    :meth:`set_trial` the widget shows that one trial instead and the overlays do
-    not matter.
+    ``path`` (each trial's fixation scanpath) and ``heat`` (default off); they apply to the
+    whole-test view. After :meth:`set_trial` the widget shows that one trial (its target, its
+    smoothed gaze path, its numbered fixations) and the overlays do not matter.
     """
 
     def __init__(self, parent: QWidget | None = None) -> None:

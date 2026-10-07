@@ -11,11 +11,16 @@ Each row is as tall as its label needs (F6): the item's size hint is the label's
 hint, measured once the label sits in the list under the dashboard's sheet (a label measured
 before that has other margins and fonts) and again whenever its font, style sheet or the
 screen's scale changes.
+
+The rows are spaced apart (V4), the list is as tall as its rows need (up to
+:data:`MAX_VISIBLE_ROWS` of them, so no empty space is left under the last one) and takes
+whatever height the dialog is given; a vertical scroll bar appears only when more tasks exist
+than fit (a future task type).
 """
 
 from __future__ import annotations
 
-from PySide6.QtCore import QEvent, Qt, Signal
+from PySide6.QtCore import QEvent, QSize, Qt, Signal
 from PySide6.QtWidgets import (
     QDialog,
     QHBoxLayout,
@@ -34,6 +39,8 @@ from .dialog_theme import apply_dialog_theme
 from .wtmh_theme import MUTED
 
 MAX_COUNT = 10
+SPACING = 8  # px of space around each task row: the rows no longer sit tight against each other
+MAX_VISIBLE_ROWS = 6  # the list asks for the height of this many rows; more rows scroll
 
 # What changes the height a label needs.
 _REMEASURE_EVENTS = frozenset(
@@ -65,6 +72,26 @@ class _TaskRow(QLabel):
         return handled
 
 
+class _TaskList(QListWidget):
+    """The task list. Its preferred height is that of its rows (at most
+    :data:`MAX_VISIBLE_ROWS`) with their spacing, so the dialog opens just tall enough; an
+    ordinary list prefers a fixed 192 px, which left empty space under four rows and would
+    have put a scroll bar on them once they were spaced apart."""
+
+    def sizeHint(self) -> QSize:  # noqa: N802 (Qt naming)
+        hint = super().sizeHint()
+        if not self.count():
+            return hint
+        frame = 2 * self.frameWidth()
+        sizes = [self.item(row).sizeHint() for row in range(self.count())]
+        height = sum(size.height() + 2 * self.spacing() for size in sizes[:MAX_VISIBLE_ROWS])
+        # Wide enough for the widest row too, so no horizontal scroll bar takes height from the rows.
+        width = max(size.width() for size in sizes) + 2 * self.spacing() + frame
+        if len(sizes) > MAX_VISIBLE_ROWS:
+            width += self.verticalScrollBar().sizeHint().width()
+        return QSize(max(hint.width(), self.minimumWidth(), width), height + frame)
+
+
 class AddTestDialog(QDialog):
     def __init__(self, parent: QWidget | None = None) -> None:
         super().__init__(parent)
@@ -80,10 +107,15 @@ class AddTestDialog(QDialog):
         title.setObjectName("wtmhSectionTitle")
         layout.addWidget(title)
 
-        self.task_list = QListWidget()
+        self.task_list = _TaskList()
         self.task_list.setObjectName("addTestList")
         self.task_list.setSelectionMode(QListWidget.SelectionMode.SingleSelection)
         self.task_list.setMinimumWidth(460)
+        self.task_list.setSpacing(SPACING)
+        self.task_list.setVerticalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAsNeeded)
+        # The list asks for the width of its widest row, so a horizontal bar is never wanted; one
+        # would also take height from the rows and bring up a vertical bar they do not need.
+        self.task_list.setHorizontalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAlwaysOff)
         self._rows: list[tuple[QListWidgetItem, _TaskRow]] = []
         for task_id in TASK_REGISTRY:
             name, description = TASK_INFO.get(task_id, (task_id, ""))
@@ -94,7 +126,7 @@ class AddTestDialog(QDialog):
             self.task_list.setItemWidget(item, label)
             label.remeasure.connect(self.fit_items)
             self._rows.append((item, label))
-        layout.addWidget(self.task_list)
+        layout.addWidget(self.task_list, 1)  # the stretch: the list takes the spare height
 
         count_row = QHBoxLayout()
         count_row.addWidget(QLabel("How many"))
@@ -132,6 +164,7 @@ class AddTestDialog(QDialog):
             hint = label.sizeHint()
             if item.sizeHint() != hint:
                 item.setSizeHint(hint)
+        self.task_list.updateGeometry()  # the list's preferred height follows its rows
 
     def showEvent(self, event) -> None:  # noqa: N802 (Qt naming)
         super().showEvent(event)

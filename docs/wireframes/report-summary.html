@@ -584,7 +584,7 @@ body.wmd-root {
   </tr>
     <tr>
     <td class="wmd-table-cell wmd-align-left">Selection</td>
-    <td class="wmd-table-cell wmd-align-left">Dwell 800 ms, refractory 500 ms</td>
+    <td class="wmd-table-cell wmd-align-left">Dwell 0.8 s, refractory 0.5 s</td>
   </tr>
     <tr>
     <td class="wmd-table-cell wmd-align-left">Target size</td>
@@ -692,7 +692,7 @@ body.wmd-root {
   </label>
   <label class="wmd-checkbox">
     <input type="checkbox" />
-    <span>Gaze path</span>
+    <span>Scanpath</span>
   </label>
   <label class="wmd-checkbox">
     <input type="checkbox" />
@@ -709,12 +709,16 @@ body.wmd-root {
 |   .- - -.        .- - -.        .- - -.                          |
 |  (   7   )      (   8   )      (  ◌ 11 )     drawn at the canvas |
 |   &#039;- - -&#039;        &#039;- - -&#039;        &#039;- - -&#039;      aspect ratio        |
-+------------------------------------------------------------------+
-  Legend: ● hit   X not selected   ◌ skipped   numbers = trials on that cell</code></pre>
++------------------------------------------------------------------+</code></pre>
+    <div class="wmd-container-callout">
+  <p class="wmd-paragraph"><strong>Legend</strong> (tinted box under the map, body-size dark text; the same box in the PDF)</p>
+  <p class="wmd-paragraph">● Target selected (hit) · X Target not selected · ◌ Trial skipped · ○ Layout position (cell or icon)</p>
+  <p class="wmd-paragraph">Numbers = trials shown at that place</p>
+</div>
     <blockquote class="wmd-blockquote">
   <p class="wmd-paragraph"><strong>Overlays:</strong></p>
   <ul class="wmd-list">
-  <li class="wmd-list-item">Gaze path draws each trial&#039;s path in a 6-colour cycle.</li>
+  <li class="wmd-list-item">Scanpath draws one dot per fixation, joined by straight lines in time order, per trial in a 6-colour cycle. The Detailed per-trial view draws the full gaze path smoothed like the on-screen cursor (the run&#039;s smoothing alpha), with numbered fixation circles.</li>
   <li class="wmd-list-item">Heat map is an alpha ramp over the whole test.</li>
   <li class="wmd-list-item">Follow &amp; Click also shows the target&#039;s track as a faint line, with the mark at its end position.</li>
 </ul>
@@ -734,7 +738,7 @@ body.wmd-root {
   </tr>
     <tr>
     <td class="wmd-table-cell wmd-align-left">Mean fixation duration</td>
-    <td class="wmd-table-cell wmd-align-left">240 ms (median 210)</td>
+    <td class="wmd-table-cell wmd-align-left">0.24 s (median 0.21 s)</td>
   </tr>
     <tr>
     <td class="wmd-table-cell wmd-align-left">Saccades</td>
@@ -791,7 +795,7 @@ body.wmd-root {
   <ul class="wmd-list">
   <li class="wmd-list-item">Save &amp; Continue keeps Test Name, Evaluator and Notes (the only editable fields), then returns to the Test List.</li>
   <li class="wmd-list-item">Cancel drops those edits.</li>
-  <li class="wmd-list-item">Print Report exports a PDF (A4 landscape) to TESTING_Grid Click 1_2026-10-06.pdf in the subject&#039;s folder. The PDF holds the header, configuration, both tables, the map with Targets only, the Trial-by-Trial table and the definitions.</li>
+  <li class="wmd-list-item">Print Report exports a PDF (A4 portrait) to TESTING_Grid Click 1_2026-10-06.pdf in the run folder. One stacked column: page 1 holds the header, configuration and summary; the map with Targets only, its legend box and the Eye Metrics start page 2; then the Trial-by-Trial table and the definitions.</li>
   <li class="wmd-list-item">The run data itself is never editable.</li>
 </ul>
 </blockquote>

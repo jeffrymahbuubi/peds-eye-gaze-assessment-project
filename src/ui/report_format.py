@@ -13,6 +13,7 @@ from __future__ import annotations
 from datetime import datetime
 from typing import Any, NamedTuple
 
+from ..data.report_util import ms_to_seconds, seconds_text
 from ..engine.session_naming import safe_subject_dirname
 
 DASH = "—"
@@ -31,7 +32,7 @@ TASK_SENTENCES = {
 SUMMARY_COLUMNS = ("", "% (N)", "Trial Time (s)", "Reaction Time (s)", "Entries")
 TRIAL_COLUMNS = (
     "Trial", "Size (deg)", "Distance (deg)", "Outcome", "Trial Time (s)", "Reaction Time (s)",
-    "Entries", "Fixations", "Mean fix. dur. (ms)", "Saccades", "Mean peak vel. (deg/s)",
+    "Entries", "Fixations", "Mean fix. dur. (s)", "Saccades", "Mean peak vel. (deg/s)",
     "Pupil (mm)", "Pupil change (mm)",
 )
 
@@ -46,13 +47,13 @@ DEFINITIONS = (
     "Reaction Time: from the target appearing to the first time the gaze entered the target area; "
     "about 0 if the gaze already rested on the new target's place.",
     "Entries: how many separate times the gaze entered the target area (leaving for less than "
-    "120 ms does not count as a new entry).",
+    f"{seconds_text(120)} does not count as a new entry).",
     "Error-free Target Selection: a Hit selected on the first gaze entry, with no earlier attempt.",
     "Fixations follow the Gazepoint definition and count for the trial in which they start.",
     "Saccades are found by velocity threshold (50 deg/s) on the device-rate gaze; peak velocity is a "
     "smoothed value, comparable only between children measured on the same device and sample rate.",
-    "Pupil change: the mean diameter during the trial minus the mean of the 300 ms before the target "
-    "appeared; blinks (100 ms either side of any invalid sample) are excluded.",
+    f"Pupil change: the mean diameter during the trial minus the mean of the {seconds_text(300)} before "
+    f"the target appeared; blinks ({seconds_text(100)} either side of any invalid sample) are excluded.",
     "Skipped trials are excluded from every percentage.",
 )
 
@@ -71,6 +72,13 @@ def num(value: Any, digits: int = 1, *, signed: bool = False) -> str:
 def whole(value: Any) -> str:
     """A whole-number figure (a count, a rounded rate)."""
     return num(value, 0)
+
+
+def seconds_figure(ms: Any, digits: int = 2) -> str:
+    """A stored millisecond figure as seconds to ``digits`` decimals, no unit ("0.23"): for
+    table cells whose column says "(s)". "—" for ``None`` or anything not a number. The data
+    files keep milliseconds; every text a person reads shows seconds (V5)."""
+    return num(ms_to_seconds(ms), digits)
 
 
 def percent_text(row: dict[str, Any]) -> str:
@@ -118,9 +126,9 @@ def eye_rows(report: dict[str, Any]) -> list[tuple[str, str]]:
             fixations += f" ({num(fix['mean_per_trial'], 1)} per trial)"
     duration = DASH
     if dur.get("mean") is not None:
-        duration = f"{whole(dur['mean'])} ms"
+        duration = f"{seconds_figure(dur['mean'])} s"
         if dur.get("median") is not None:
-            duration += f" (median {whole(dur['median'])})"
+            duration += f" (median {seconds_figure(dur['median'])} s)"
     velocity = DASH
     if sac.get("mean_peak_velocity_deg_s") is not None:
         velocity = f"{whole(sac['mean_peak_velocity_deg_s'])} deg/s"
@@ -182,7 +190,7 @@ def trial_cells(trial: dict[str, Any]) -> list[Cell]:
         number(trial.get("reaction_time_s"), 2),
         number(trial.get("entries"), 0),
         number(fix.get("count"), 0),
-        number(fix.get("mean_dur_ms"), 0),
+        Cell(seconds_figure(fix.get("mean_dur_ms")), ms_to_seconds(fix.get("mean_dur_ms"))),
         number(sac.get("count"), 0),
         number(sac.get("mean_peak"), 0),
         number(pup.get("mean_mm"), 2),

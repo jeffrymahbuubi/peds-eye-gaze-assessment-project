@@ -111,6 +111,8 @@ The target travels; select it while it moves — smooth pursuit.
 **Scanning Search**
 Find the cued shape in a field of distractors — visual search.
 
+> Rows are spaced apart (8 px); the list takes the dialog's spare height and shows a vertical scroll bar only when more task types exist than fit (6 rows).
+
 How many
 [1______]{type:number}
 

@@ -17,6 +17,7 @@ from typing import Any
 
 from ..engine.target_size import GAP_NAMES, SIZE_NAMES
 from ..engine.task_info import TASK_INFO
+from .report_util import seconds_text
 
 DASH = "—"
 
@@ -60,7 +61,7 @@ def _num(value: Any) -> float | None:
 
 def _seconds(ms: Any) -> str:
     n = _num(ms)
-    return DASH if n is None else f"{n / 1000.0:g} s"
+    return DASH if n is None else seconds_text(n, dash=DASH)
 
 
 def _yes_no(value: Any) -> str:
@@ -89,11 +90,11 @@ def _input_row(meta: dict[str, Any]) -> str:
 
 def _selection_row(snapshot: dict[str, Any], meta: dict[str, Any]) -> str:
     refractory = _num(setting(snapshot, "dwell.refractory_ms", "dwell", "refractory_ms"))
-    tail = f", refractory {refractory:g} ms" if refractory is not None else ""
+    tail = f", refractory {_seconds(refractory)}" if refractory is not None else ""
     if meta.get("input_mode") in ("gaze_switch", "switch"):
         return f"Switch press{tail}"
     threshold = _num(setting(snapshot, "dwell.threshold_ms", "dwell", "threshold_ms"))
-    return DASH if threshold is None else f"Dwell {threshold:g} ms{tail}"
+    return DASH if threshold is None else f"Dwell {_seconds(threshold)}{tail}"
 
 
 def _size_row(snapshot: dict[str, Any], meta: dict[str, Any], task: str | None, shrunk: Any) -> str:
@@ -143,7 +144,7 @@ def _layout_row(snapshot: dict[str, Any], meta: dict[str, Any], task: str | None
             text += f", {speed * 100:g}% of the width per second"
         window = _num(setting(snapshot, None, "motion", "select_window_ms"))
         if window is not None:
-            text += f", selection window {window / 1000.0:g} s"
+            text += f", selection window {_seconds(window)}"
         return text
     if task == "click_static":
         positions = setting(snapshot, None, "target", "positions")

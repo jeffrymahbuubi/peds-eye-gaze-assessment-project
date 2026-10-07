@@ -39,7 +39,7 @@ Configuration Name: **Large targets**
 | Task | Grid Click |
 | Input | Eye (dwell) · GP3 HD 150 Hz |
 | Trials (planned) | 18 |
-| Selection | Dwell 800 ms, refractory 500 ms |
+| Selection | Dwell 0.8 s, refractory 0.5 s |
 | Target size | Large — 8° (328 px), capped to 180 px |
 | Layout | Grid 3x3, gap Standard |
 | Maximum time per trial | 8.0 s |
@@ -77,7 +77,7 @@ One cell of a visible board lights up; the child selects it by looking at it.
 #### Target Map
 
 - [x] Targets
-- [ ] Gaze path
+- [ ] Scanpath
 - [ ] Heat map
 
 ```
@@ -92,11 +92,20 @@ One cell of a visible board lights up; the child selects it by looking at it.
 |  (   7   )      (   8   )      (  ◌ 11 )     drawn at the canvas |
 |   '- - -'        '- - -'        '- - -'      aspect ratio        |
 +------------------------------------------------------------------+
-  Legend: ● hit   X not selected   ◌ skipped   numbers = trials on that cell
 ```
 
+::: callout
+
+**Legend** (tinted box under the map, body-size dark text; the same box in the PDF)
+
+● Target selected (hit) · X Target not selected · ◌ Trial skipped · ○ Layout position (cell or icon)
+
+Numbers = trials shown at that place
+
+:::
+
 > **Overlays:**
-> - Gaze path draws each trial's path in a 6-colour cycle.
+> - Scanpath draws one dot per fixation, joined by straight lines in time order, per trial in a 6-colour cycle. The Detailed per-trial view draws the full gaze path smoothed like the on-screen cursor (the run's smoothing alpha), with numbered fixation circles.
 > - Heat map is an alpha ramp over the whole test.
 > - Follow & Click also shows the target's track as a faint line, with the mark at its end position.
 
@@ -105,7 +114,7 @@ One cell of a visible board lights up; the child selects it by looking at it.
 | Metric | Value |
 |---|---|
 | Fixations | 76 (4.2 per trial) |
-| Mean fixation duration | 240 ms (median 210) |
+| Mean fixation duration | 0.24 s (median 0.21 s) |
 | Saccades | 76 |
 | Mean saccade amplitude | 2.9° |
 | Mean peak saccade velocity | 74 deg/s (max 180) |
@@ -130,5 +139,5 @@ One cell of a visible board lights up; the child selects it by looking at it.
 > **Footer:**
 > - **Save & Continue** keeps Test Name, Evaluator and Notes (the only editable fields), then returns to the Test List.
 > - **Cancel** drops those edits.
-> - **Print Report** exports a PDF (A4 landscape) to `TESTING_Grid Click 1_2026-10-06.pdf` in the subject's folder. The PDF holds the header, configuration, both tables, the map with Targets only, the Trial-by-Trial table and the definitions.
+> - **Print Report** exports a PDF (A4 portrait) to `TESTING_Grid Click 1_2026-10-06.pdf` in the run folder. One stacked column: page 1 holds the header, configuration and summary; the map with Targets only, its legend box and the Eye Metrics start page 2; then the Trial-by-Trial table and the definitions.
 > - The run data itself is never editable.

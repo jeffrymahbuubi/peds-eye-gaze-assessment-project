@@ -192,7 +192,10 @@ class ConfigForm:
             ]
             widget = RadioChoice(object_name(key), choices, str(initial))
         else:  # slider_int | slider_float
-            widget = SliderSpinRow(setting.kind, setting.min, setting.max, setting.step, initial)
+            widget = SliderSpinRow(
+                setting.kind, setting.min, setting.max, setting.step, initial,
+                display_divisor=setting.display_divisor,  # a time shown in seconds (V5)
+            )
             # The page scrolls at 125 / 150 % scaling: a wheel over a slider must scroll it,
             # not change the value (a slider or spin box without focus ignores the wheel).
             guard_wheel(widget, self._wheel_guard)

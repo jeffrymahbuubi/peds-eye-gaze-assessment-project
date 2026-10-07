@@ -28,7 +28,7 @@ def test_a_full_run_gives_the_17_rows_in_order_with_the_values_it_used():
         "Task": "Grid Click",
         "Input": "Eye gaze (dwell), GP3HD, 150 Hz",
         "Trials (planned)": "6",
-        "Selection": "Dwell 800 ms, refractory 500 ms",
+        "Selection": "Dwell 0.8 s, refractory 0.5 s",
         "Target size": "Medium (5°), 103 px radius",
         "Layout": "3×3 grid, gap Standard",
         "Maximum time per trial": "8 s",
@@ -99,10 +99,10 @@ def test_layout_per_task():
 def test_input_and_selection_for_the_switch_modes():
     switch = dict(RIG_META, input_mode="switch")
     assert rows(switch)["Input"] == "Switch (mouse pointer)"
-    assert rows(switch)["Selection"] == "Switch press, refractory 500 ms"
+    assert rows(switch)["Selection"] == "Switch press, refractory 0.5 s"
     both = dict(RIG_META, input_mode="gaze_switch")
     assert rows(both)["Input"] == "Gaze pointer + switch, GP3HD, 150 Hz"
-    assert rows(both)["Selection"] == "Switch press, refractory 500 ms"
+    assert rows(both)["Selection"] == "Switch press, refractory 0.5 s"
 
 
 def test_the_device_rate_falls_back_to_the_measured_one():

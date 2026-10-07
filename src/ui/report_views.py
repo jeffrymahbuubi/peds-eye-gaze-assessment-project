@@ -2,8 +2,8 @@
 wireframes ``report-summary.md`` / ``report-detailed.md``).
 
 :class:`SummaryView`: the task sentence, the Summary of Results table and its
-footnote, the Target Map with its Targets / Gaze path / Heat map switches, and the
-whole-test Eye Metrics table. :class:`DetailedView`: the Trial-by-Trial table (first
+footnote, the Target Map with its Targets / Scanpath / Heat map switches and its symbol
+legend, and the whole-test Eye Metrics table. :class:`DetailedView`: the Trial-by-Trial table (first
 column frozen, every column sortable) above the selected trial's map.
 
 Both are scroll areas that only **show** a report: every figure is formatted by
@@ -29,6 +29,7 @@ from PySide6.QtWidgets import (
 )
 
 from .frozen_table import FrozenColumnTable
+from .map_legend import MapLegend
 from .report_format import (
     EYE_NOTE,
     SUMMARY_COLUMNS,
@@ -46,10 +47,6 @@ from .wtmh_theme import MUTED
 
 MAP_MAX_WIDTH = 880  # the Summary's map, so a wide window does not make it enormous
 
-SUMMARY_LEGEND = (
-    "Green circle = hit · red X = not selected · dashed ring = skipped · numbers = trials on that "
-    "place · faint dashed circles = the layout."
-)
 # A run that did not record the monitor's physical size (an old folder): the path is thinned
 # and the heat map blurred in degrees of an assumed monitor (4D.5; geometry.assumed_for_visuals).
 ASSUMED_GEOMETRY_NOTE = (
@@ -57,8 +54,8 @@ ASSUMED_GEOMETRY_NOTE = (
 )
 TRIAL_LEGEND = (
     "S = gaze when the target appeared · star = gaze at the selection · numbered circles = "
-    "fixations (bigger = longer) · the path runs dark to light with time · dashed ring = target "
-    "area."
+    "fixations (bigger = longer) · the path (smoothed like the on-screen gaze cursor) runs dark "
+    "to light with time · dashed ring = target area."
 )
 
 _RIGHT = Qt.AlignmentFlag.AlignRight
@@ -129,7 +126,7 @@ class SummaryView(QScrollArea):
         switches = QHBoxLayout()
         self.targets_check = QCheckBox("Targets")
         self.targets_check.setChecked(True)
-        self.path_check = QCheckBox("Gaze path")
+        self.path_check = QCheckBox("Scanpath")  # a dot per fixation, joined in time order (V2)
         self.heat_check = QCheckBox("Heat map")
         for check in (self.targets_check, self.path_check, self.heat_check):
             check.toggled.connect(self._on_overlays)
@@ -140,7 +137,9 @@ class SummaryView(QScrollArea):
         self.map.set_fit_to_width(True)
         self.map.setMaximumWidth(MAP_MAX_WIDTH)
         layout.addWidget(self.map)  # no alignment: it takes up to its maximum width
-        layout.addWidget(muted_label(SUMMARY_LEGEND))
+        self.legend = MapLegend()
+        self.legend.setMaximumWidth(MAP_MAX_WIDTH)  # as wide as the map above it, no wider
+        layout.addWidget(self.legend)
         self.map_note = muted_label()
         layout.addWidget(self.map_note)
 

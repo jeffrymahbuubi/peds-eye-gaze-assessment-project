@@ -39,11 +39,11 @@ Notes
 
 ### C · Selection (Dwell)
 
-Dwell threshold (ms)
-[800___]{type:number}
+Dwell threshold (s)
+[0.8___]{type:number}
 
-Refractory period (ms)
-[500___]{type:number}
+Refractory period (s)
+[0.5___]{type:number}
 
 Jitter tolerance (px)
 [40____]{type:number}
@@ -94,11 +94,11 @@ Greyed (not hidden) while Smoothing enabled is off: the only dependent control.
 
 ### B · Timing
 
-Trial timeout (ms)
-[8000__]{type:number}
+Trial timeout (s)
+[8_____]{type:number}
 
-Inter-trial interval (ms)
-[800___]{type:number}
+Inter-trial interval (s)
+[0.8___]{type:number}
 
 ### (column C ends)
 
@@ -134,7 +134,7 @@ Target card only (no task card). Defaults: 32 trials, timeout 8000, interval 800
 
 ### Follow & Click — Motion
 
-Movement path: (*) Circular ( ) Horizontal ( ) Vertical ( ) Diagonal ↘ ( ) Diagonal ↙ · Target speed (frac/s) 0.20 · Timing card gains "Selection window (ms) 2500".
+Movement path: (*) Circular ( ) Horizontal ( ) Vertical ( ) Diagonal ↘ ( ) Diagonal ↙ · Target speed (frac/s) 0.20 · Timing card gains "Selection window (s) 2.5".
 
 ### Scanning Search — Icons
 

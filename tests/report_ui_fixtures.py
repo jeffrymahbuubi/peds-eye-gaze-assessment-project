@@ -82,13 +82,14 @@ def folder_report(
 
 def synthetic_map_report(**overrides: Any) -> dict[str, Any]:
     """Two trials on a 1640x957 canvas: a hit at (0.65, 0.5) and a timeout at (0.3, 0.7),
-    each radius 0.05 (canvas-x units), with paths, fixations and a heat map."""
+    each radius 0.05 (canvas-x units), with paths, scanpaths, fixations and a heat map."""
     hit = {
         "trial": 1, "outcome": "hit",
         "target": {"x": 0.65, "y": 0.5, "end_x": 0.65, "end_y": 0.5, "radius_norm_x": 0.05, "slot": 0},
         "path": [[[0.15, 0.2], [0.4, 0.35]], [[0.45, 0.4], [0.64, 0.49]]],
         "fixations": {"count": 3, "mean_dur_ms": 350,
                       "items": [[0.16, 0.21, 300], [0.4, 0.35, 150], [0.64, 0.49, 600]]},
+        "scanpath": [[0.16, 0.21], [0.4, 0.35], [0.64, 0.49]],
         "saccades": {"scanpath_deg": 12.3, "count": 2},
     }
     miss = {
@@ -96,10 +97,11 @@ def synthetic_map_report(**overrides: Any) -> dict[str, Any]:
         "target": {"x": 0.3, "y": 0.7, "end_x": 0.3, "end_y": 0.7, "radius_norm_x": 0.05, "slot": 1},
         "path": [[[0.1, 0.7], [0.5, 0.8], [0.9, 0.2]]],
         "fixations": {"count": 0, "mean_dur_ms": None, "items": []},
+        "scanpath": [],
         "saccades": {"scanpath_deg": None, "count": None},
     }
     report: dict[str, Any] = {
-        "report_version": 1,
+        "report_version": 2,
         "session": {"task_id": "click_grid", "subject": "P001", "test_name": "Grid Click 1"},
         "geometry": {"canvas_px": [1640, 957], "canvas_units": "physical", "display_scale_percent": 100,
                      "canvas_aspect": round(1640 / 957, 5)},

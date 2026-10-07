@@ -160,9 +160,11 @@ are reused across every test in the session.
    Results** (deletes the run). A run ended early offers **Save partial
    results** or **Discard results**.
 7. **Report.** Summary and Detailed views (summary of results, target map with
-   gaze path and heat map, eye metrics, trial-by-trial table). **Print Report**
-   writes a PDF, by default into the run's own folder. The Test Name, Evaluator
-   and Notes are edited here.
+   a symbol legend, fixation scanpath and heat map, eye metrics, trial-by-trial
+   table whose selected trial shows the gaze path smoothed like the on-screen
+   cursor). Times read in seconds. **Print Report** writes an A4 portrait PDF, by
+   default into the run's own folder. The Test Name, Evaluator and Notes are
+   edited here.
 
 Each recorded run is its own `<date>_<subject>_<task>_run<N>` folder under
 `sessions/`, so a repeat of the same task by the same subject on the same day is

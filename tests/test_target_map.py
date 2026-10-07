@@ -241,25 +241,58 @@ def test_a_shared_place_draws_each_outcome_once_with_the_report_label(qapp):
     assert reddish(at(image, rect, 0.55, 0.5, 0.5 * r_px, 0.5 * r_px))
 
 
-# -- gaze path and heat map overlays --------------------------------------------------------------
+# -- scanpath and heat map overlays ------------------------------------------------------------------
 
 
-def test_the_gaze_path_overlay_is_off_by_default_and_draws_each_trial_in_its_colour(qapp):
+def test_the_scanpath_overlay_is_off_by_default_and_draws_each_trial_in_its_colour(qapp):
     report = synthetic_map_report()
-    report["trials"][0]["path"] = [[[0.1, 0.1], [0.9, 0.1]]]
-    report["trials"][1]["path"] = [[[0.1, 0.9], [0.9, 0.9]]]
+    report["trials"][0]["scanpath"] = [[0.1, 0.1], [0.5, 0.1], [0.9, 0.1]]
+    report["trials"][1]["scanpath"] = [[0.1, 0.9], [0.5, 0.9], [0.9, 0.9]]
     off, rect = render(report)
-    assert is_white(at(off, rect, 0.5, 0.1)) and is_white(at(off, rect, 0.5, 0.9))
+    assert is_white(at(off, rect, 0.3, 0.1)) and is_white(at(off, rect, 0.3, 0.9))
     on, rect = render(report, targets=False, path=True)
-    first, second = at(on, rect, 0.5, 0.1), at(on, rect, 0.5, 0.9)
+    first, second = at(on, rect, 0.3, 0.1), at(on, rect, 0.3, 0.9)  # on the line between two dots
     assert not is_white(first) and not is_white(second)
     assert first.blue() > first.red()  # trial 1: the cycle's blue
     assert first.rgb() != second.rgb()  # trial 2 has another colour
 
 
-def test_a_path_leaving_the_canvas_is_clipped_to_it(qapp):
+def test_the_scanpath_is_a_dot_per_fixation_joined_by_straight_lines_in_time_order(qapp):
+    """V2: dots at the centroids, straight lines between consecutive ones, nothing else."""
     report = synthetic_map_report()
-    report["trials"][0]["path"] = [[[-0.5, 0.5], [1.5, 0.5]]]
+    report["trials"][0]["scanpath"] = [[0.2, 0.2], [0.8, 0.2], [0.8, 0.8]]  # right, then down
+    report["trials"][1]["scanpath"] = []
+    image, rect = render(report, targets=False, path=True)
+    for x, y in ((0.2, 0.2), (0.8, 0.2), (0.8, 0.8)):
+        assert not is_white(at(image, rect, x, y))  # a dot at every fixation
+    assert not is_white(at(image, rect, 0.5, 0.2))  # the line of the first leg
+    assert not is_white(at(image, rect, 0.8, 0.5))  # the line of the second leg
+    assert is_white(at(image, rect, 0.2, 0.5))  # no line from the last fixation back to the first
+    assert is_white(at(image, rect, 0.5, 0.5))  # and none as a diagonal shortcut
+
+
+def test_the_scanpath_does_not_draw_the_raw_or_smoothed_gaze_path(qapp):
+    """The Summary map is the fixation scanpath only: the full path is the Detailed view's."""
+    report = synthetic_map_report()
+    report["trials"][0]["path"] = [[[0.1, 0.5], [0.9, 0.5]]]
+    report["trials"][0]["scanpath"] = []
+    image, rect = render(report, targets=False, path=True)
+    assert is_white(at(image, rect, 0.5, 0.5))
+
+
+def test_a_scanpath_of_one_fixation_is_one_dot_and_a_missing_one_draws_nothing(qapp):
+    report = synthetic_map_report()
+    report["trials"][0]["scanpath"] = [[0.4, 0.4]]
+    image, rect = render(report, targets=False, path=True)
+    assert not is_white(at(image, rect, 0.4, 0.4)) and is_white(at(image, rect, 0.6, 0.4))
+    stripped = synthetic_map_report()  # a report from before the scanpath existed
+    image, rect = render(stripped, targets=False, path=True)
+    assert is_white(at(image, rect, 0.5, 0.5))
+
+
+def test_a_scanpath_leaving_the_canvas_is_clipped_to_it(qapp):
+    report = synthetic_map_report()
+    report["trials"][0]["scanpath"] = [[-0.5, 0.5], [1.5, 0.5]]
     image, rect = render(report, size=(1200, 584), targets=False, path=True)  # room around the canvas
     assert not is_white(at(image, rect, 0.5, 0.5))
     assert is_white(at(image, rect, 1.0, 0.5, 8, 0))  # outside the canvas stays white

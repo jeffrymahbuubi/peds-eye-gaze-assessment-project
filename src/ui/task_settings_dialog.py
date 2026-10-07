@@ -180,7 +180,10 @@ class TaskSettingsDialog(QDialog):
             check.setChecked(bool(setting.default if value is None else value))
             return check
         initial = value if value is not None else setting.min
-        return SliderSpinRow(setting.kind, setting.min, setting.max, setting.step, initial)
+        return SliderSpinRow(
+            setting.kind, setting.min, setting.max, setting.step, initial,
+            display_divisor=setting.display_divisor,  # a time shown in seconds (V5)
+        )
 
     def _build_choice(self, setting: StructuralSetting, value: Any) -> QComboBox:
         combo = QComboBox()
