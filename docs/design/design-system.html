@@ -1,0 +1,1057 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Gaze App Design System</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500&family=Open+Sans:wght@400;600;700&display=swap">
+<style>
+/* Layout: one reading column (max 1120 px) of reference sections; the app's own surfaces
+   sit inside it as fixed-light panels so the proposed tokens read true in both page themes. */
+:root {
+  --bg: #F5F8F8;
+  --surface: #FFFFFF;
+  --fg: #1B2222;
+  --muted: #5B6767;
+  --line: #D4DCDC;
+  --line-strong: #A9B5B5;
+  --accent: #1F669E;
+  --accent-soft: #E3EEF7;
+  --code-bg: #EDF2F2;
+  --ok: #198038;
+  --ok-bg: #DEFBE6;
+  --warn: #8A3800;
+  --warn-bg: #FCF4D6;
+  --bad: #A2191F;
+  --bad-bg: #FFF1F1;
+  --font-doc: "IBM Plex Sans", "Segoe UI", system-ui, -apple-system, sans-serif;
+  --font-mono: "IBM Plex Mono", Consolas, "Cascadia Mono", monospace;
+  --font-app: "Segoe UI", "Open Sans", "Noto Sans", system-ui, sans-serif;
+
+  /* The proposed app tokens (fable-proposal.md 2.2). Constant on purpose: they are the subject
+     of the page and never follow the page theme. */
+  --a-ink: #161616;
+  --a-text-secondary: #525252;
+  --a-text-disabled: #6F6F6F;
+  --a-page: #F4F4F4;
+  --a-panel: #FFFFFF;
+  --a-border-subtle: #E0E0E0;
+  --a-border-strong: #8D8D8D;
+  --a-header: #E0E0E0;
+  --a-row-selected: #CFE2F1;
+  --a-title-bar: #12374A;
+  --a-accent: #1F669E;
+  --a-accent-hover: #17507D;
+  --a-accent-focus: #2D7EB3;
+  --a-accent-subtle: #E3EEF7;
+  --a-slider-groove: #C6C6C6;
+  --a-danger: #DA1E28;
+  --a-danger-text: #A2191F;
+  --a-danger-subtle: #FFF1F1;
+  --a-success: #198038;
+  --a-success-text: #0E6027;
+  --a-success-subtle: #DEFBE6;
+  --a-warning: #BA4E00;
+  --a-warning-text: #8A3800;
+  --a-warning-subtle: #FCF4D6;
+  --a-warning-chip: #F1C21B;
+  --a-disabled-fill: #E0E0E0;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg: #121717; --surface: #1A2121; --fg: #E6ECEC; --muted: #9DAAAA; --line: #2B3535;
+    --line-strong: #4A5858; --accent: #7FB8E6; --accent-soft: #15324A; --code-bg: #222B2B;
+    --ok: #6FDC8C; --ok-bg: #0E3A1F; --warn: #F1C21B; --warn-bg: #3B2A00; --bad: #FF8389; --bad-bg: #4A1216;
+    color-scheme: dark;
+  }
+}
+:root[data-theme="dark"] {
+  --bg: #121717; --surface: #1A2121; --fg: #E6ECEC; --muted: #9DAAAA; --line: #2B3535;
+  --line-strong: #4A5858; --accent: #7FB8E6; --accent-soft: #15324A; --code-bg: #222B2B;
+  --ok: #6FDC8C; --ok-bg: #0E3A1F; --warn: #F1C21B; --warn-bg: #3B2A00; --bad: #FF8389; --bad-bg: #4A1216;
+  color-scheme: dark;
+}
+
+body { margin: 0; background: var(--bg); color: var(--fg); font-family: var(--font-doc); font-size: 15px; line-height: 1.55; }
+* { box-sizing: border-box; }
+.wrap { max-width: 1120px; margin: 0 auto; padding-inline: 20px; padding-block: 32px 64px; }
+@media (max-width: 480px) { .wrap { padding-inline: 16px; } }
+h1, h2, h3, h4 { margin: 0; text-wrap: balance; line-height: 1.2; }
+h1 { font-size: clamp(28px, 4vw, 38px); font-weight: 700; letter-spacing: -0.01em; }
+h2 { font-size: 24px; font-weight: 600; padding-top: 48px; margin-top: 16px; border-top: 1px solid var(--line); }
+h3 { font-size: 17px; font-weight: 600; margin-top: 28px; }
+h4 { font-size: 14px; font-weight: 600; color: var(--muted); text-transform: uppercase; letter-spacing: 0.06em; margin-top: 20px; }
+p { margin: 0; max-width: 70ch; }
+p + p { margin-top: 10px; }
+.sec > p, .sec > ul { margin-top: 12px; }
+ul { margin: 0; padding-left: 20px; max-width: 70ch; }
+li + li { margin-top: 4px; }
+a { color: var(--accent); }
+code, .mono { font-family: var(--font-mono); font-size: 0.92em; }
+code { background: var(--code-bg); padding: 1px 5px; border-radius: 3px; }
+.num { font-variant-numeric: tabular-nums; }
+.muted { color: var(--muted); }
+.small { font-size: 13px; }
+.eyebrow { font-size: 12px; font-weight: 600; letter-spacing: 0.08em; text-transform: uppercase; color: var(--accent); }
+.ref { font-size: 12px; color: var(--muted); font-family: var(--font-mono); }
+
+/* header */
+.hdr { display: grid; gap: 14px; padding-bottom: 28px; border-bottom: 1px solid var(--line); }
+.status-row { display: flex; flex-wrap: wrap; gap: 8px 10px; align-items: center; }
+.tag { display: inline-flex; align-items: center; gap: 6px; font-size: 12px; font-weight: 600; border: 1px solid var(--line-strong); border-radius: 3px; padding: 3px 8px; }
+.tag.warn { color: var(--warn); background: var(--warn-bg); border-color: transparent; }
+.meta { display: grid; grid-template-columns: max-content 1fr; gap: 4px 16px; font-size: 13px; }
+.meta dt { color: var(--muted); }
+.meta dd { margin: 0; }
+.toc { display: flex; flex-wrap: wrap; gap: 6px 14px; font-size: 13px; padding-top: 4px; }
+.toc a { text-decoration: none; border-bottom: 1px solid var(--line-strong); }
+.toc a:hover { border-color: var(--accent); }
+
+/* document tables */
+.tbl-wrap { overflow-x: auto; margin-top: 12px; border: 1px solid var(--line); border-radius: 4px; }
+table.doc { border-collapse: collapse; width: 100%; font-size: 13.5px; }
+table.doc th, table.doc td { text-align: left; padding: 8px 12px; border-bottom: 1px solid var(--line); vertical-align: top; }
+table.doc th { font-weight: 600; background: var(--code-bg); white-space: nowrap; }
+table.doc tr:last-child td { border-bottom: 0; }
+table.doc td.num, table.doc th.num { text-align: right; font-variant-numeric: tabular-nums; }
+
+/* app surfaces (fixed light) */
+.app { background: var(--a-page); color: var(--a-ink); font-family: var(--font-app); font-size: 14px; line-height: 20px;
+  border: 1px solid var(--line); border-radius: 4px; padding: 24px; margin-top: 12px; color-scheme: light; }
+.app.panel { background: var(--a-panel); }
+.app-label { font-family: var(--font-mono); font-size: 11px; color: var(--muted); margin-top: 6px; }
+.scroll { overflow-x: auto; }
+.row { display: flex; flex-wrap: wrap; gap: 16px; align-items: flex-start; }
+.row.center { align-items: center; }
+.stack { display: grid; gap: 12px; }
+.spec-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 16px; margin-top: 12px; }
+.spec { display: grid; gap: 8px; }
+.spec .cap { font-size: 12.5px; color: var(--muted); line-height: 1.4; }
+.spec .cap b { color: var(--fg); font-weight: 600; }
+
+/* type scale specimen */
+.type-row { display: grid; grid-template-columns: 1fr 200px; gap: 8px 24px; align-items: baseline; padding: 14px 0; border-bottom: 1px solid var(--a-border-subtle); }
+.type-row:last-child { border-bottom: 0; }
+.type-row .m { font-family: var(--font-mono); font-size: 12px; color: var(--a-text-secondary); line-height: 1.5; }
+@media (max-width: 640px) { .type-row { grid-template-columns: 1fr; } }
+.t-display { font-size: 28px; font-weight: 700; line-height: 36px; }
+.t-heading { font-size: 20px; font-weight: 600; line-height: 28px; }
+.t-body-lg { font-size: 16px; font-weight: 400; line-height: 24px; }
+.t-body { font-size: 14px; font-weight: 400; line-height: 20px; }
+.t-body-600 { font-size: 14px; font-weight: 600; line-height: 20px; }
+.t-caption { font-size: 12px; font-weight: 400; line-height: 16px; }
+.t-caption-600 { font-size: 12px; font-weight: 600; line-height: 16px; }
+
+/* swatches */
+.sw-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); gap: 12px; margin-top: 12px; }
+.sw { display: grid; grid-template-columns: 56px 1fr; border: 1px solid var(--line); border-radius: 4px; background: var(--surface); overflow: hidden; min-width: 0; }
+.sw-chip { border-right: 1px solid var(--line); }
+.sw-body { padding: 10px 12px; min-width: 0; display: grid; gap: 6px; align-content: start; }
+.sw-head { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 8px; }
+.sw-head b { font-weight: 600; }
+.sw-head code { font-size: 12.5px; }
+.copy { font: 600 11px var(--font-doc); color: var(--accent); background: none; border: 1px solid var(--line-strong); border-radius: 3px; padding: 2px 7px; cursor: pointer; }
+.copy:hover { border-color: var(--accent); }
+.copy:focus-visible, a:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+.sw-role { font-size: 12.5px; color: var(--muted); line-height: 1.4; }
+.sw-pairs { list-style: none; padding: 0; margin: 0; display: grid; gap: 4px; }
+.sw-pairs li { display: flex; align-items: center; gap: 8px; font-size: 12px; flex-wrap: wrap; }
+.sw-pairs li + li { margin-top: 0; }
+.pd { width: 28px; height: 20px; border-radius: 2px; display: inline-flex; align-items: center; justify-content: center; font: 600 12px var(--font-app); flex: none; }
+.cr { font-family: var(--font-mono); font-variant-numeric: tabular-nums; min-width: 44px; text-align: right; }
+.lvl { font-size: 10.5px; font-weight: 700; letter-spacing: 0.04em; border-radius: 999px; padding: 1px 7px; }
+.lvl.aaa { background: var(--ok-bg); color: var(--ok); }
+.lvl.aa { background: var(--accent-soft); color: var(--accent); }
+.lvl.ex, .lvl.deco { background: var(--code-bg); color: var(--muted); }
+.lvl.fail { background: var(--bad-bg); color: var(--bad); }
+.sw-note { font-size: 12px; color: var(--muted); }
+
+/* spacing rulers */
+.ruler { display: grid; gap: 6px; margin-top: 12px; }
+.ruler .r { display: grid; grid-template-columns: 40px 1fr; align-items: center; gap: 10px; font-family: var(--font-mono); font-size: 12px; }
+.ruler .bar { height: 14px; background: var(--accent); border-radius: 1px; }
+.widths { display: grid; gap: 8px; margin-top: 12px; }
+.widths .w { display: grid; gap: 3px; font-size: 12px; font-family: var(--font-mono); }
+.widths .track { position: relative; height: 18px; background: var(--code-bg); border-radius: 2px; }
+.widths .fill { position: absolute; inset: 0 auto 0 0; background: var(--accent-soft); border-right: 2px solid var(--accent); }
+.widths .track span { position: absolute; right: 6px; top: 0; line-height: 18px; color: var(--muted); }
+.fields { display: flex; gap: 16px; align-items: flex-start; padding-bottom: 4px; }
+.f { display: grid; gap: 4px; flex: none; }
+.f label { font-size: 14px; line-height: 20px; }
+.f .cap { font-family: var(--font-mono); font-size: 11px; color: var(--a-text-secondary); }
+
+/* app components (2.5) */
+.ap-btn { display: inline-flex; align-items: center; justify-content: center; gap: 8px; height: 40px; min-width: 96px; padding: 0 16px;
+  font: 600 14px/20px var(--font-app); border-radius: 4px; border: 1px solid transparent; white-space: nowrap; }
+.ap-btn.primary { background: var(--a-accent); color: #FFFFFF; }
+.ap-btn.primary.hover { background: var(--a-accent-hover); }
+.ap-btn.primary.disabled { background: var(--a-disabled-fill); color: var(--a-text-disabled); }
+.ap-btn.secondary { background: var(--a-panel); color: var(--a-accent); border-color: var(--a-accent); }
+.ap-btn.secondary.disabled { background: var(--a-disabled-fill); color: var(--a-text-disabled); border-color: var(--a-border-strong); }
+.ap-btn.tertiary { background: transparent; color: var(--a-accent); }
+.ap-btn.danger { background: var(--a-danger); color: #FFFFFF; }
+.ap-btn.focus { box-shadow: 0 0 0 1px #FFFFFF, 0 0 0 3px var(--a-accent-focus); }
+.ap-btn.sm { height: 36px; background: var(--a-panel); color: var(--a-ink); border-color: var(--a-border-strong); }
+.ap-btn svg { flex: none; }
+.ap-field { display: flex; align-items: center; height: 36px; padding: 0 8px; background: var(--a-panel); border: 1px solid var(--a-border-strong); border-radius: 4px; font: 400 14px/20px var(--font-app); color: var(--a-ink); }
+.ap-field.focus { border: 2px solid var(--a-accent-focus); padding: 0 7px; }
+.ap-field.disabled { background: var(--a-disabled-fill); color: var(--a-text-disabled); }
+.ap-field.error { border-color: var(--a-danger); }
+.ap-field.placeholder { color: var(--a-text-secondary); }
+.ap-spin { padding-right: 0; justify-content: space-between; width: 88px; }
+.ap-spin .step { width: 24px; align-self: stretch; border-left: 1px solid var(--a-border-strong); display: grid; grid-template-rows: 1fr 1fr; }
+.ap-spin .step i { display: block; border-bottom: 1px solid var(--a-border-strong); position: relative; }
+.ap-spin .step i:last-child { border-bottom: 0; }
+.ap-spin .step i::after { content: ""; position: absolute; left: 8px; top: 5px; border: 3px solid transparent; border-bottom-color: currentColor; border-top: 0; }
+.ap-spin .step i:last-child::after { top: 6px; border-bottom: 0; border-top: 3px solid currentColor; }
+.ap-check { display: inline-flex; align-items: center; gap: 8px; font: 400 14px/20px var(--font-app); }
+.ind { width: 20px; height: 20px; flex: none; border: 1px solid var(--a-border-strong); background: var(--a-panel); display: inline-grid; place-items: center; }
+.ind.box { border-radius: 2px; }
+.ind.radio { border-radius: 50%; }
+.ind.on { background: var(--a-accent); border-color: var(--a-accent); }
+.ind.on.radio::after { content: ""; width: 8px; height: 8px; border-radius: 50%; background: #FFFFFF; }
+.ind.off-dis { background: var(--a-disabled-fill); }
+.ind.on-dis { background: var(--a-border-strong); border-color: var(--a-border-strong); }
+.ind.focus { box-shadow: 0 0 0 1px #FFFFFF, 0 0 0 3px var(--a-accent-focus); }
+.ap-check.disabled { color: var(--a-text-disabled); }
+.ap-ssr { display: flex; align-items: center; gap: 16px; }
+.ap-slider { position: relative; width: 240px; height: 20px; flex: none; }
+.ap-slider .groove { position: absolute; left: 0; right: 0; top: 8px; height: 4px; background: var(--a-slider-groove); border-radius: 2px; }
+.ap-slider .fill { position: absolute; left: 0; top: 8px; height: 4px; background: var(--a-accent); border-radius: 2px; }
+.ap-slider .handle { position: absolute; top: 0; width: 20px; height: 20px; border-radius: 50%; background: var(--a-accent); margin-left: -10px; }
+.ap-slider .ticks { position: absolute; left: 0; right: 0; top: 16px; display: flex; justify-content: space-between; padding: 0 0; }
+.ap-slider .ticks i { width: 1px; height: 4px; background: var(--a-border-strong); }
+.ap-slider.disabled .fill, .ap-slider.disabled .handle { background: var(--a-border-strong); }
+.ap-slider.long { width: 360px; }
+.ap-group-label { font-weight: 600; margin-bottom: 8px; }
+.ap-radios { display: grid; gap: 8px; }
+.ap-alert { display: flex; gap: 12px; align-items: flex-start; background: var(--a-panel); border: 1px solid var(--a-border-strong); border-radius: 4px; padding: 16px; font: 400 16px/24px var(--font-app); color: var(--a-ink); }
+.ap-alert .tile { width: 20px; height: 20px; flex: none; margin-top: 2px; display: grid; place-items: center; }
+.ap-alert .body { flex: 1; min-width: 0; }
+.ap-alert .body b { font-weight: 600; }
+.ap-alert.warning { border-color: var(--a-warning); }
+.ap-alert.warning .tile { background: var(--a-warning-subtle); color: var(--a-warning); }
+.ap-alert.danger { border-color: var(--a-danger); }
+.ap-alert.danger .tile { background: var(--a-danger-subtle); color: var(--a-danger); }
+.ap-alert.success { border-color: var(--a-success); }
+.ap-alert.success .tile { color: var(--a-success); }
+.ap-alert.neutral .tile { color: var(--a-ink); }
+.ap-alert .act { flex: none; align-self: center; }
+.ap-alert ul { list-style: none; padding: 0; margin: 0; }
+.ap-alert ul li { margin: 0; }
+.ap-badge { display: inline-flex; align-items: center; gap: 6px; height: 24px; padding: 0 8px; border-radius: 999px; font: 600 12px/16px var(--font-app); white-space: nowrap; }
+.ap-badge svg { width: 12px; height: 12px; flex: none; }
+.ap-badge.done, .ap-badge.success { background: var(--a-success-subtle); color: var(--a-success-text); }
+.ap-badge.notdone, .ap-badge.neutral { background: var(--a-header); color: var(--a-text-secondary); }
+.ap-badge.warning { background: var(--a-warning-subtle); color: var(--a-warning-text); }
+.ap-badge.danger { background: var(--a-danger-subtle); color: var(--a-danger-text); }
+.ap-badge.accent { background: var(--a-accent-subtle); color: var(--a-accent); }
+.ap-table { border-collapse: collapse; background: var(--a-panel); font: 400 14px/20px var(--font-app); color: var(--a-ink); border: 1px solid var(--a-border-subtle); }
+.ap-table th { background: var(--a-header); font-weight: 600; text-align: left; height: 40px; padding: 0 12px; border: 1px solid var(--a-border-subtle); white-space: nowrap; }
+.ap-table td { height: 40px; padding: 0 12px; border: 1px solid var(--a-border-subtle); white-space: nowrap; }
+.ap-table tr.sel td { background: var(--a-row-selected); }
+.ap-table td.n, .ap-table th.n { text-align: right; font-variant-numeric: tabular-nums; }
+.ap-table th .sort { color: var(--a-accent); margin-left: 4px; }
+.ap-table th.two { line-height: 18px; height: 48px; }
+.ap-card { background: var(--a-panel); border: 1px solid var(--a-border-subtle); border-radius: 4px; padding: 24px; display: grid; gap: 12px; align-content: start; }
+.ap-card h5 { margin: 0; font: 600 20px/28px var(--font-app); }
+.ap-dialog { background: var(--a-panel); border-radius: 4px; padding: 24px; min-width: 480px; max-width: 560px; box-shadow: 0 8px 24px rgba(0,0,0,.25); display: grid; gap: 16px; font: 400 14px/20px var(--font-app); color: var(--a-ink); }
+.ap-dialog h5 { margin: 0; font: 600 20px/28px var(--font-app); }
+.ap-dialog .btns { display: flex; justify-content: flex-end; gap: 8px; }
+.ap-dialog .list { background: var(--a-panel); border: 1px solid var(--a-border-strong); border-radius: 4px; }
+.ap-dialog .list div { padding: 8px 12px; height: 40px; }
+.ap-dialog .list div.sel { background: var(--a-row-selected); }
+.ap-runbar { display: flex; align-items: center; gap: 16px; height: 48px; padding: 0 16px; background: var(--a-page); font: 400 16px/24px var(--font-app); color: var(--a-ink); min-width: 720px; }
+.ap-runbar.practice { background: var(--a-warning-subtle); }
+.ap-runbar .chip { background: var(--a-warning-chip); color: var(--a-ink); font: 600 12px/16px var(--font-app); padding: 4px 8px; border-radius: 999px; letter-spacing: 0.04em; }
+.ap-runbar .state { display: inline-flex; align-items: center; gap: 6px; font-weight: 600; }
+.ap-runbar .state.ok { color: var(--a-success-text); }
+.ap-runbar .state.warn { color: var(--a-warning-text); }
+.ap-runbar .state.bad { color: var(--a-danger-text); }
+.ap-runbar .btns { margin-left: auto; display: flex; gap: 8px; }
+.ap-titlebar { background: var(--a-title-bar); color: #FFFFFF; height: 48px; display: flex; align-items: center; padding: 0 16px; font: 600 16px/24px var(--font-app); border-radius: 0; }
+.ap-footer { min-height: 64px; padding: 16px; display: flex; justify-content: flex-end; align-items: center; gap: 16px; border-top: 1px solid var(--a-border-subtle); background: var(--a-page); }
+.ap-caption { font: 400 12px/16px var(--font-app); color: var(--a-text-secondary); }
+
+/* today vs proposed */
+.vs { display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 16px; margin-top: 12px; }
+.vs .side { display: grid; gap: 8px; align-content: start; min-width: 0; }
+.vs .side .lbl { font-size: 12px; font-weight: 600; letter-spacing: 0.06em; text-transform: uppercase; color: var(--muted); }
+.today { background: #F5F9FB; color: #122B3A; font-family: var(--font-app); font-size: 12px; line-height: 16px; border: 1px solid var(--line); border-radius: 4px; padding: 16px; color-scheme: light; overflow-x: auto; }
+.td-btn { display: inline-flex; align-items: center; height: 32px; padding: 0 18px; border-radius: 6px; font: 600 12px var(--font-app); color: #FFFFFF; background: linear-gradient(90deg, #2FA8C4, #1A6F95); }
+.td-ghost { display: inline-flex; align-items: center; height: 32px; padding: 0 14px; border-radius: 6px; font: 400 12px var(--font-app); color: #122B3A; background: #FFFFFF; border: 1px solid #DBE6EC; }
+.td-banner { display: flex; align-items: center; gap: 12px; background: #FBF0DC; border-left: 4px solid #D9A441; padding: 10px 14px; border-radius: 4px; }
+.td-table { border-collapse: collapse; font-size: 12px; background: #FFFFFF; border: 1px solid #DBE6EC; }
+.td-table th { background: #DCF0F5; color: #0F5670; font-weight: 400; padding: 6px 12px; text-align: left; }
+.td-table td { padding: 6px 12px; border-top: 1px solid #DBE6EC; font-weight: 700; }
+.td-table tr.sel td { background: #DCF0F5; }
+.td-runbar { background: #FBF0DC; border-top: 1px solid #D9A441; height: 36px; display: flex; align-items: center; gap: 12px; padding: 0 12px; font-size: 12px; color: #122B3A; }
+
+/* radius and elevation */
+.rad { display: flex; flex-wrap: wrap; gap: 16px; align-items: flex-end; }
+.rad .s { display: grid; gap: 6px; justify-items: center; font: 11px var(--font-mono); color: var(--a-text-secondary); }
+.rad .sq { width: 72px; height: 44px; background: var(--a-panel); border: 1px solid var(--a-border-strong); }
+.levels { display: grid; gap: 8px; margin-top: 12px; }
+.lv { background: var(--a-page); border: 1px dashed var(--a-border-strong); padding: 12px; font: 12px var(--font-app); color: var(--a-text-secondary); display: grid; gap: 8px; }
+.lv .c { background: var(--a-panel); border: 1px solid var(--a-border-subtle); border-radius: 4px; padding: 10px 12px; }
+.lv .a { background: var(--a-panel); border: 1px solid var(--a-warning); border-radius: 4px; padding: 10px 12px; }
+.lv .bad { border-color: var(--a-danger); }
+
+/* canvas */
+.field { background: #e8f5e9; border-radius: 4px; border: 1px solid var(--line); overflow: hidden; }
+.field.space { background: #0d1b2a; }
+.field svg { display: block; width: 100%; height: auto; }
+.ladder { display: grid; grid-template-columns: repeat(auto-fit, minmax(170px, 1fr)); gap: 12px; margin-top: 12px; }
+.ladder .st { display: grid; gap: 6px; }
+.ladder .st .cap { font-size: 12.5px; color: var(--muted); line-height: 1.4; }
+.ladder .st .cap b { color: var(--fg); font-weight: 600; }
+.timeline { display: grid; gap: 6px; margin-top: 12px; font-family: var(--font-mono); font-size: 12px; }
+.timeline .tr { display: grid; grid-template-columns: 150px 1fr; gap: 10px; align-items: center; }
+@media (max-width: 480px) { .timeline .tr { grid-template-columns: 1fr; gap: 4px; } }
+.timeline .track { position: relative; height: 18px; background: var(--code-bg); border-radius: 2px; }
+.timeline .seg { position: absolute; top: 0; bottom: 0; border-radius: 2px; }
+.timeline .seg span { position: absolute; left: 6px; top: 0; line-height: 18px; white-space: nowrap; }
+
+/* copy rules */
+.dd { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-top: 12px; }
+@media (max-width: 640px) { .dd { grid-template-columns: 1fr; } }
+.dd .box { border: 1px solid var(--line); border-radius: 4px; padding: 12px 14px; background: var(--surface); display: grid; gap: 6px; align-content: start; }
+.dd .box .lbl { font-size: 11px; font-weight: 700; letter-spacing: 0.08em; text-transform: uppercase; }
+.dd .no .lbl { color: var(--bad); }
+.dd .yes .lbl { color: var(--ok); }
+.dd .box .where { font-size: 12px; color: var(--muted); }
+.dd .box q { quotes: none; font-family: var(--font-app); }
+.dd .box .ap-run { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+
+/* phases */
+.phases { display: grid; grid-template-columns: repeat(auto-fit, minmax(190px, 1fr)); gap: 12px; margin-top: 12px; }
+.ph { border: 1px solid var(--line); border-top: 3px solid var(--accent); border-radius: 4px; padding: 14px; background: var(--surface); display: grid; gap: 8px; align-content: start; font-size: 13px; }
+.ph.opt { border-top-style: dashed; }
+.ph .n { font-family: var(--font-mono); font-size: 12px; color: var(--muted); }
+.ph .t { font-weight: 600; font-size: 15px; }
+.ph .files { font-size: 12px; color: var(--muted); line-height: 1.45; }
+.ph .acc { font-size: 12.5px; line-height: 1.45; }
+.ph .acc b { font-weight: 600; }
+
+.open { display: inline-block; font-size: 11px; font-weight: 600; color: var(--warn); background: var(--warn-bg); border-radius: 3px; padding: 1px 6px; vertical-align: middle; }
+.foot { margin-top: 48px; padding-top: 16px; border-top: 1px solid var(--line); font-size: 13px; color: var(--muted); }
+
+@media (prefers-reduced-motion: no-preference) {
+  .copy { transition: border-color 120ms; }
+}
+</style>
+</head>
+<body>
+
+<div class="wrap">
+  <header class="hdr">
+    <div class="status-row">
+      <span class="eyebrow">Design system v1</span>
+      <span class="tag warn">Proposal (Task B), not implemented</span>
+    </div>
+    <h1>Gaze App Design System</h1>
+    <p>The visual system proposed for the Pediatric Eye-Gaze Assessment desktop app (PySide6/Qt): the operator pages a clinician uses and the task canvas a child looks at. Every value on this page is taken from the proposal; nothing in the app changes until a SPEC written from it is approved.</p>
+    <dl class="meta">
+      <dt>Source</dt><dd><code>docs/design/fable-proposal.md</code>, sections 1, 2, 4 and 5.2</dd>
+      <dt>Written</dt><dd>2026-10-08 against tree <code>e753282</code>, branch <code>feature/compass-task-flow</code></dd>
+      <dt>Direction</dt><dd>Clinical instrument: IBM Carbon tokens and NHS content rules, delivered as a QSS token port. No widget library.</dd>
+      <dt>Accent</dt><dd>WTMH lab blue (user decision 2026-10-08): #1F669E from the logo's blue end, focus #2D7EB3 from its middle, navy title bar #12374A. It replaces Fable's teal.</dd>
+      <dt>Contrast</dt><dd>WCAG 2.2 relative-luminance ratios, recomputed on this page from the hex values. AA is 4.5:1 for text, 3:1 for large text, borders and glyphs; AAA is 7:1 for text.</dd>
+    </dl>
+    <nav class="toc" aria-label="Sections">
+      <a href="#direction">Direction</a>
+      <a href="#type">Type scale</a>
+      <a href="#colour">Colour tokens</a>
+      <a href="#spacing">Spacing</a>
+      <a href="#radius">Radius and elevation</a>
+      <a href="#components">Components</a>
+      <a href="#canvas">Canvas</a>
+      <a href="#copy">Copy rules</a>
+      <a href="#phases">Phases</a>
+    </nav>
+  </header>
+
+  <!-- 1 Direction -->
+  <section class="sec" id="direction">
+    <h2>Direction</h2>
+    <p>Carbon's visual grammar (flat surfaces, 4 px corners, one border weight, a strict 4 px spacing grid, a type scale with few steps, tokens with roles, AA baked in) reads as a measuring instrument rather than a dashboard template. The NHS service manual adds what Carbon lacks: plain-language rules, field width by content length, and error and status wording for staff under time pressure. The child-facing canvas keeps its own rules, derived from contrast and timing measurements, because no design system covers a gaze canvas.</p>
+    <h4>What stays from today</h4>
+    <ul>
+      <li>The page flow, the WTMH blue family as the single accent, and Segoe UI (so the app reads as native Windows, not as a web template).</li>
+      <li>The amber practice bar, the run bar's word + colour tracking state, the run-end dialog logic.</li>
+      <li>Visual-angle target sizing, the dwell and switch logic, the shortcuts Alt-P, Alt-Q, Esc and H.</li>
+    </ul>
+    <h4>Runners-up and why not</h4>
+    <div class="tbl-wrap"><table class="doc">
+      <thead><tr><th>Option</th><th>Would give</th><th>Why not first</th></tr></thead>
+      <tbody>
+        <tr><td>Fluent 2 via PySide6-Fluent-Widgets</td><td>Native Windows 11 look; ready widgets with focus and disabled states</td><td>Replaces every widget: page builders, qt-mcp object names and about 2,480 tests are touched; nothing for the canvas or the PDF</td></tr>
+        <tr><td>Fluent-Qt</td><td>Lighter than the above</td><td>Young C++ project with bindings; the same rewrite risk with less community</td></tr>
+        <tr><td>NHS design system as the visual language</td><td>Highest contrast, calmest</td><td>Web-first and low density: a 13-column trial table does not fit its spacing; Frutiger is licensed</td></tr>
+        <tr><td>Plain OS widgets (the Compass look)</td><td>Zero styling work</td><td>Loses the state system and the dark-mode fixes in <code>dialog_theme.py</code>; no control over contrast</td></tr>
+        <tr><td>Material 3 / shadcn</td><td>Nothing new</td><td>The source of the "AI template" tells the research flagged</td></tr>
+      </tbody>
+    </table></div>
+  </section>
+
+  <!-- 2.1 Type -->
+  <section class="sec" id="type">
+    <h2>Type scale</h2>
+    <p>Six steps, body 14 px, replacing eight ad hoc sizes and the 12 px body a clinician reads standing beside a child. Font: Segoe UI, set once on the QApplication with <code>QFont.setPixelSize(14)</code>; only the larger roles get a QSS rule. Numbers in tables use tabular figures where Qt offers them.</p>
+    <p class="small muted">Specimen stack on this page: <span class="mono">"Segoe UI", "Open Sans", "Noto Sans", system-ui, sans-serif</span>. On Windows you see the real Segoe UI; elsewhere Open Sans (Google Fonts) stands in. Sizes are true px at 100 % scale.</p>
+    <div class="app panel">
+      <div class="type-row"><div class="t-display">Test List for P9REAL</div><div class="m">display<br>28 px / 700 / 36 px<br>page titles: "Setup", "Start Grid Click 1", "Summary Results"<br>replaces 22 px wtmhPageTitle</div></div>
+      <div class="type-row"><div class="t-heading">Calibration</div><div class="m">heading<br>20 px / 600 / 28 px<br>card and section titles, dialog headings<br>replaces 16 / 17 / 20 px</div></div>
+      <div class="type-row"><div class="t-body-lg">Look at the lit square and keep looking at it for about 0.8 seconds. A ring will fill up around it.</div><div class="m">body-large<br>16 px / 400 / 24 px<br>read-aloud text, the Blocked block, run bar status, banner text<br>replaces 15 / 13 / 12 px</div></div>
+      <div class="type-row"><div class="t-body">Subject ID<br>Dwell: keep looking at the target<br><span class="t-body-600">Continue to Tests</span> <span class="muted">(buttons at 600)</span></div><div class="m">body<br>14 px / 400 / 20 px<br>labels, fields, table cells, radio and check box text; buttons 600<br>replaces the 12 px body on every page</div></div>
+      <div class="type-row"><div class="t-caption">Changes are saved automatically.<br><span class="t-caption-600">NOT DONE</span> <span class="muted">(badge text at 600)</span></div><div class="m">caption<br>12 px / 400 / 16 px<br>footnotes, helper lines, badge text (600)<br>replaces 11 px badges, 12 px footnotes</div></div>
+      <div class="type-row"><div class="t-body muted">Paused</div><div class="m">canvas (not in the scale)<br>"Paused" at min(w, h) / 14, unchanged<br><code>canvas.py _draw_paused</code></div></div>
+    </div>
+    <p class="small" style="margin-top:12px"><b>Rule.</b> No size outside the scale; weight 600 only for headings, buttons and the status word; bold never carries a state on its own.</p>
+  </section>
+
+  <!-- 2.2 Colour -->
+  <section class="sec" id="colour">
+    <h2>Colour tokens</h2>
+    <p>Every token names its role, its intended background and the ratio it achieves there. "Exempt" marks disabled controls (WCAG 1.4.3 exception), still kept at or above 3.8:1 so a greyed control stays readable. Ratios below are computed by this page from the hex values; they agree with the proposal to two decimals.</p>
+    <h3>Operator UI, neutrals</h3>
+    <div class="sw-grid" data-group="neutral"></div>
+    <h3>Accent (WTMH blue, one family, no gradient)</h3>
+    <p class="small muted">Taken from the WTMH lab logo (<code>resources/styling/wtmh_logo.png</code>): the deep blue of its right-hand band for the accent, its middle blue for focus. Hover, tint and selected row share the hue.</p>
+    <div class="sw-grid" data-group="accent"></div>
+    <h3>State colours (Carbon support set)</h3>
+    <div class="sw-grid" data-group="state"></div>
+    <p class="small muted" style="margin-top:10px"><b>info</b>: neutral, border-strong + ink. Notes and help lines use no colour; colour is reserved for meaning.</p>
+    <h3>Report map and data-viz</h3>
+    <div class="sw-grid" data-group="map"></div>
+    <div class="spec-grid">
+      <div class="spec">
+        <div class="app panel" style="display:flex;gap:16px;align-items:center;padding:16px">
+          <svg width="40" height="40" viewBox="0 0 40 40" aria-label="map-select star"><polygon points="20,3 25,15 38,15.5 28,24 31,37 20,30 9,37 12,24 2,15.5 15,15" fill="#F2B705" stroke="#161616" stroke-width="1.5"/></svg>
+          <div class="ap-caption">map-select: #F2B705 star with ink outline, unchanged</div>
+        </div>
+        <div class="cap"><b>map-select</b>, the selected trial marker. No ratio in the proposal.</div>
+      </div>
+      <div class="spec">
+        <div class="app panel" style="padding:16px;display:grid;gap:8px">
+          <div style="height:20px;border-radius:2px;background:linear-gradient(90deg, rgba(0,0,255,.15), rgba(0,255,255,.4), rgba(0,255,0,.55), rgba(255,255,0,.7), rgba(255,0,0,.8))"></div>
+          <div class="ap-caption">heat: HSV blue-to-red ramp, alpha 0.15 to 0.80, unchanged</div>
+        </div>
+        <div class="cap"><b>heat</b>, the ramp Gazepoint Analysis prints, which the clinicians already read. Drawn here as an approximation of the HSV sweep.</div>
+      </div>
+    </div>
+  </section>
+
+  <!-- 2.3 Spacing -->
+  <section class="sec" id="spacing">
+    <h2>Spacing scale</h2>
+    <p>4 px base. Page gutter 32; card padding 24; gap between a label and its field 4; between fields 16; between cards 24; between a section title and its content 12; footer height 64 with 16 px padding.</p>
+    <div class="ruler" aria-label="Spacing steps at true size">
+      <div class="r"><span>4</span><div class="bar" style="width:4px"></div></div>
+      <div class="r"><span>8</span><div class="bar" style="width:8px"></div></div>
+      <div class="r"><span>12</span><div class="bar" style="width:12px"></div></div>
+      <div class="r"><span>16</span><div class="bar" style="width:16px"></div></div>
+      <div class="r"><span>24</span><div class="bar" style="width:24px"></div></div>
+      <div class="r"><span>32</span><div class="bar" style="width:32px"></div></div>
+      <div class="r"><span>48</span><div class="bar" style="width:48px"></div></div>
+    </div>
+    <h3>Content widths on a 1920 px window</h3>
+    <div class="widths">
+      <div class="w"><span>Report main column, capped at 1100 px (sidebar keeps 460)</span><div class="track"><div class="fill" style="width:57.3%"></div><span>1920</span></div></div>
+      <div class="w"><span>Form pages (Setup, Test List table, Start card, Blocked alert), 1200 px max, left-aligned</span><div class="track"><div class="fill" style="width:62.5%"></div><span>1920</span></div></div>
+      <div class="w"><span>Configuration page keeps its 1500 px three-column grid</span><div class="track"><div class="fill" style="width:78.1%"></div><span>1920</span></div></div>
+    </div>
+    <h3>Field width by content</h3>
+    <p class="small muted">True size. Labels sit above the field with a 4 px gap; fields are 36 px tall.</p>
+    <div class="app panel scroll">
+      <div class="fields">
+        <div class="f"><label>Subject ID</label><div class="ap-field" style="width:320px">P9REAL</div><span class="cap">320</span></div>
+        <div class="f"><label>Date of birth</label><div class="ap-field" style="width:200px">2019-03-14</div><span class="cap">200</span></div>
+        <div class="f"><label>Sex</label><div class="ap-field placeholder" style="width:240px">Select</div><span class="cap">240</span></div>
+        <div class="f"><label>Control Address</label><div class="ap-field" style="width:320px">127.0.0.1</div><span class="cap">320</span></div>
+        <div class="f"><label>Control Port</label><div class="ap-field" style="width:120px">4242</div><span class="cap">120</span></div>
+        <div class="f"><label>Point Count</label><div class="ap-field" style="width:100px">5</div><span class="cap">100</span></div>
+      </div>
+      <div class="fields" style="margin-top:16px">
+        <div class="f"><label>Test Name</label><div class="ap-field" style="width:480px">Grid Click 1</div><span class="cap">480</span></div>
+        <div class="f"><label>Evaluator</label><div class="ap-field" style="width:320px">Chen</div><span class="cap">320</span></div>
+        <div class="f"><label>Number of trials</label><div class="ap-field ap-spin"><span>18</span><span class="step"><i></i><i></i></span></div><span class="cap">spin box 88, stepper 24</span></div>
+        <div class="f"><label>Notes</label><div class="ap-field" style="width:480px;height:84px;align-items:flex-start;padding-top:8px">Child wore glasses. Calibration repeated once.</div><span class="cap">three lines, 84 px tall</span></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- 2.4 Radius -->
+  <section class="sec" id="radius">
+    <h2>Radius and elevation</h2>
+    <p>Radius 4 px on buttons, fields, cards and alerts; 0 px on tables and the title bar; a full pill only on status badges and chips. No shadows anywhere in the window; dialogs keep the OS shadow only.</p>
+    <div class="app">
+      <div class="rad">
+        <div class="s"><div class="sq" style="border-radius:4px"></div>button 4</div>
+        <div class="s"><div class="sq" style="border-radius:4px"></div>field 4</div>
+        <div class="s"><div class="sq" style="border-radius:4px;border-color:var(--a-border-subtle)"></div>card 4</div>
+        <div class="s"><div class="sq" style="border-radius:4px;border-color:var(--a-warning)"></div>alert 4</div>
+        <div class="s"><div class="sq" style="border-radius:0;border-color:var(--a-border-subtle)"></div>table 0</div>
+        <div class="s"><div class="sq" style="border-radius:0;background:var(--a-title-bar);border-color:var(--a-title-bar)"></div>title bar 0</div>
+        <div class="s"><div class="sq" style="border-radius:999px;height:24px;width:72px;background:var(--a-success-subtle);border-color:var(--a-success-subtle)"></div>badge pill</div>
+      </div>
+    </div>
+    <h3>One container level</h3>
+    <p>A card never holds a card or an alert; alerts sit between cards at the page level. Cards keep a 1 px border-subtle edge on the #F4F4F4 page and no fill tint.</p>
+    <div class="levels">
+      <div class="lv">page #F4F4F4
+        <div class="c">card: white, 1 px border-subtle, radius 4, padding 24</div>
+        <div class="a">alert between cards: white, 1 px border in the state colour</div>
+        <div class="c">card</div>
+      </div>
+      <div class="lv">not allowed
+        <div class="c bad">card<div class="c" style="margin-top:8px;border-color:var(--a-danger)">a card inside a card</div></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- 2.5 Components -->
+  <section class="sec" id="components">
+    <h2>Components</h2>
+    <p>Live samples built from the tokens above, with the app's real strings. Each sample sits on the proposed page or panel fill, whatever the page theme.</p>
+
+    <h3>Buttons</h3>
+    <p class="small muted">Height 40 px, min width 96, 14 px / 600, radius 4, padding 0 16. The primary never changes tier with state: disabled keeps its size and place.</p>
+    <div class="app">
+      <div class="row center">
+        <span class="ap-btn primary">Continue to Tests</span>
+        <span class="ap-btn primary hover">Run Test</span>
+        <span class="ap-btn primary disabled">Do Calibration</span>
+        <span class="ap-btn secondary">Practice</span>
+        <span class="ap-btn tertiary">Back to Setup</span>
+        <span class="ap-btn danger">Delete</span>
+        <span class="ap-btn primary focus">Connect</span>
+      </div>
+      <div class="app-label">primary (accent) / hover (accent-hover) / disabled (#E0E0E0, text-disabled) / secondary (white, 1 px accent border) / tertiary (text only) / danger (confirmations only) / focus: 2 px accent-focus with a 1 px white gap</div>
+    </div>
+    <div class="vs">
+      <div class="side"><div class="lbl">Today</div><div class="today"><span class="td-btn">Run Test</span> <span class="td-ghost">Add New Test</span><div style="margin-top:8px;color:#5C7684">gradient #2FA8C4 to #1A6F95, radius 6, 12 px text; disabled drops to a grey tier</div></div></div>
+      <div class="side"><div class="lbl">Proposed</div><div class="app" style="margin-top:0"><span class="ap-btn primary">Run Test</span> <span class="ap-btn secondary">Add New Test</span><div class="app-label">flat accent 6.08:1, radius 4, 14 px / 600; disabled stays primary-shaped</div></div></div>
+    </div>
+
+    <h3>Forms</h3>
+    <p class="small muted">Label above the field, 14 px / 400; fields 36 px, white, 1 px border-strong, radius 4. Focus becomes 2 px accent-focus with padding reduced by 1 px so the box does not move. Indicators 20 px (the drawn target meets 24 px with its 2 px margin).</p>
+    <div class="app panel scroll">
+      <div class="fields">
+        <div class="f"><label>Subject ID</label><div class="ap-field" style="width:320px">P9REAL</div><span class="cap">rest</span></div>
+        <div class="f"><label>Subject ID</label><div class="ap-field focus" style="width:320px">P9REAL</div><span class="cap">focus: 2 px accent-focus</span></div>
+        <div class="f"><label>Control Port</label><div class="ap-field error" style="width:120px">42420</div><span class="cap">error border: danger</span></div>
+        <div class="f" style="color:var(--a-text-disabled)"><label>Dwell threshold (s)</label><div class="ap-field ap-spin disabled"><span>0.8</span><span class="step"><i></i><i></i></span></div><span class="cap">disabled in place</span></div>
+      </div>
+      <div class="row" style="margin-top:20px">
+        <span class="ap-check"><span class="ind box"></span>Hit sound</span>
+        <span class="ap-check"><span class="ind box on"><svg width="12" height="12" viewBox="0 0 12 12" aria-hidden="true"><path d="M2 6.5 4.8 9.2 10 3.5" fill="none" stroke="#FFF" stroke-width="2"/></svg></span>Miss sound</span>
+        <span class="ap-check"><span class="ind box on focus"><svg width="12" height="12" viewBox="0 0 12 12" aria-hidden="true"><path d="M2 6.5 4.8 9.2 10 3.5" fill="none" stroke="#FFF" stroke-width="2"/></svg></span>Glow on target</span>
+        <span class="ap-check disabled"><span class="ind box on-dis"><svg width="12" height="12" viewBox="0 0 12 12" aria-hidden="true"><path d="M2 6.5 4.8 9.2 10 3.5" fill="none" stroke="#FFF" stroke-width="2"/></svg></span>Dwell ring (disabled, checked)</span>
+      </div>
+      <div class="app-label">a greyed-in-place box never keeps the accent blue: <code>QCheckBox::indicator:disabled</code> checked = grey fill, white mark (the grey shade is not fixed in the proposal; border-strong shown)</div>
+    </div>
+
+    <h3>Radio groups</h3>
+    <p class="small muted">Group label 14 px / 600, options 14 px / 400, 8 px apart, descriptions after a colon in the same line and colour. Never a combo box for a choice of 3 to 5.</p>
+    <div class="app panel">
+      <div class="ap-group-label">Selection</div>
+      <div class="ap-radios">
+        <span class="ap-check"><span class="ind radio on"></span>Dwell: keep looking at the target</span>
+        <span class="ap-check"><span class="ind radio"></span>Switch: look at the target, then press the switch</span>
+      </div>
+      <div class="ap-group-label" style="margin-top:20px">Target size</div>
+      <div class="ap-radios">
+        <span class="ap-check"><span class="ind radio"></span>Small (3°, about 124 px)</span>
+        <span class="ap-check"><span class="ind radio on"></span>Medium (5°, about 207 px)</span>
+        <span class="ap-check"><span class="ind radio"></span>Large (8°)</span>
+      </div>
+    </div>
+
+    <h3>SliderSpinRow</h3>
+    <p class="small muted">Slider 20 px handle, groove 4 px slider-groove, fill accent; length capped at 240 px when the range has 10 steps or fewer (ticks shown), 360 px otherwise; spin box 88 px. Disabled: handle and fill border-strong (3.32:1 on white), groove unchanged.</p>
+    <div class="app panel scroll">
+      <div class="stack" style="gap:20px">
+        <div class="f"><label>Rows</label><div class="ap-ssr"><div class="ap-slider"><div class="groove"></div><div class="fill" style="width:50%"></div><div class="handle" style="left:50%"></div><div class="ticks"><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i></div></div><div class="ap-field ap-spin"><span>3</span><span class="step"><i></i><i></i></span></div></div><span class="cap">240 px, 10 steps or fewer, ticks</span></div>
+        <div class="f"><label>Trial timeout (s)</label><div class="ap-ssr"><div class="ap-slider long"><div class="groove"></div><div class="fill" style="width:40%"></div><div class="handle" style="left:40%"></div></div><div class="ap-field ap-spin"><span>8</span><span class="step"><i></i><i></i></span></div></div><span class="cap">360 px otherwise</span></div>
+        <div class="f" style="color:var(--a-text-disabled)"><label>Dwell threshold (s)</label><div class="ap-ssr"><div class="ap-slider disabled long"><div class="groove"></div><div class="fill" style="width:30%"></div><div class="handle" style="left:30%"></div></div><div class="ap-field ap-spin disabled"><span>0.8</span><span class="step"><i></i><i></i></span></div></div><span class="cap">disabled: handle and fill border-strong</span></div>
+      </div>
+    </div>
+
+    <h3>Alerts and banners</h3>
+    <p class="small muted">White fill, 1 px border in the state colour, a 20 px glyph tile at the left, a bold state word then body text in ink at body-large. No left stripe, no tint fill. Warning and danger may use their subtle fill behind the glyph tile only.</p>
+    <div class="app">
+      <div class="stack" style="gap:16px">
+        <div class="ap-alert danger">
+          <span class="tile"><svg width="14" height="14" viewBox="0 0 14 14" aria-hidden="true"><rect x="1" y="1" width="12" height="12" fill="currentColor"/></svg></span>
+          <div class="body"><b>Blocked:</b>
+            <ul><li>The tracker is not connected (Setup page).</li><li>No calibration yet (Setup page).</li><li>Sex is not selected (Setup page).</li></ul>
+          </div>
+          <span class="act ap-btn secondary">Go to Setup</span>
+        </div>
+        <div class="ap-alert warning">
+          <span class="tile"><svg width="14" height="14" viewBox="0 0 14 14" aria-hidden="true"><polygon points="7,1 13,13 1,13" fill="currentColor"/></svg></span>
+          <div class="body"><b>Warning:</b> The test ended early after 4 of 6 trials. Results cover the trials presented.</div>
+        </div>
+        <div class="ap-alert neutral">
+          <span class="tile"><svg width="14" height="14" viewBox="0 0 14 14" aria-hidden="true"><circle cx="7" cy="7" r="6" fill="none" stroke="currentColor" stroke-width="1.5"/><rect x="6.25" y="6" width="1.5" height="5" fill="currentColor"/><circle cx="7" cy="4" r="1" fill="currentColor"/></svg></span>
+          <div class="body"><b>Note:</b> No tracker connected: only Mouse tests can run.</div>
+        </div>
+        <div class="ap-alert success">
+          <span class="tile"><svg width="14" height="14" viewBox="0 0 14 14" aria-hidden="true"><circle cx="7" cy="7" r="6" fill="currentColor"/></svg></span>
+          <div class="body">Display 1920x1080 at 100 %: the recommended standard.</div>
+        </div>
+      </div>
+    </div>
+    <div class="vs">
+      <div class="side"><div class="lbl">Today (Start page blocker)</div><div class="today"><div class="td-banner"><span>Still needed before you can start: The tracker is not connected. Connect it on the Setup page. · No calibration yet. Calibrate on the Setup page. · Sex is not selected.</span><span class="td-ghost" style="flex:none">Go to Setup</span></div><div style="margin-top:8px;color:#5C7684">amber tint, 4 px left stripe, 12 px text, interpunct chain</div></div></div>
+      <div class="side"><div class="lbl">Proposed</div><div class="app" style="margin-top:0"><div class="ap-alert danger" style="font-size:14px;line-height:20px"><span class="tile"><svg width="14" height="14" viewBox="0 0 14 14" aria-hidden="true"><rect x="1" y="1" width="12" height="12" fill="currentColor"/></svg></span><div class="body"><b>Blocked:</b><ul><li>The tracker is not connected (Setup page).</li><li>No calibration yet (Setup page).</li></ul></div></div><div class="app-label">white, danger border 5.00:1, one line per item at 16 px, Go to Setup inside at the right edge</div></div></div>
+    </div>
+
+    <h3>Status badges</h3>
+    <p class="small muted">Pill 24 px tall, 12 px / 600, glyph 12 px + word. Glyphs are painted 12 px pixmaps in a helper, not font characters, so they cannot fall back to a missing glyph.</p>
+    <div class="app panel">
+      <div class="row center">
+        <span class="ap-badge done"><svg viewBox="0 0 12 12" aria-hidden="true"><circle cx="6" cy="6" r="5" fill="currentColor"/></svg>Done</span>
+        <span class="ap-badge notdone"><svg viewBox="0 0 12 12" aria-hidden="true"><circle cx="6" cy="6" r="4.5" fill="none" stroke="currentColor" stroke-width="1.5"/></svg>Not done</span>
+        <span class="ap-badge warning"><svg viewBox="0 0 12 12" aria-hidden="true"><circle cx="6" cy="6" r="4.5" fill="none" stroke="currentColor" stroke-width="1.5"/><path d="M6 1.5 A4.5 4.5 0 0 1 6 10.5 Z" fill="currentColor"/></svg>Ended early 4/6</span>
+        <span class="ap-badge warning"><svg viewBox="0 0 12 12" aria-hidden="true"><polygon points="6,1 11.5,11 0.5,11" fill="currentColor"/></svg>Data missing</span>
+        <span class="ap-badge danger"><svg viewBox="0 0 12 12" aria-hidden="true"><rect x="1" y="1" width="10" height="10" fill="currentColor"/></svg>Disconnected</span>
+        <span class="ap-badge success"><svg viewBox="0 0 12 12" aria-hidden="true"><circle cx="6" cy="6" r="5" fill="currentColor"/></svg>Connected</span>
+        <span class="ap-badge success"><svg viewBox="0 0 12 12" aria-hidden="true"><circle cx="6" cy="6" r="5" fill="currentColor"/></svg>Calibrated, 5 points, 1.8°</span>
+        <span class="ap-badge warning"><svg viewBox="0 0 12 12" aria-hidden="true"><polygon points="6,1 11.5,11 0.5,11" fill="currentColor"/></svg>Not calibrated</span>
+      </div>
+      <div class="row center" style="margin-top:16px">
+        <span class="ap-badge success"><svg viewBox="0 0 12 12" aria-hidden="true"><circle cx="6" cy="6" r="5" fill="currentColor"/></svg>Hit</span>
+        <span class="ap-badge danger"><svg viewBox="0 0 12 12" aria-hidden="true"><rect x="1" y="1" width="10" height="10" fill="currentColor"/></svg>Not selected</span>
+        <span class="ap-badge neutral"><svg viewBox="0 0 12 12" aria-hidden="true"><circle cx="6" cy="6" r="4.5" fill="none" stroke="currentColor" stroke-width="1.5" stroke-dasharray="2.5 2"/></svg>Skipped</span>
+        <span class="ap-badge accent"><svg viewBox="0 0 12 12" aria-hidden="true"><circle cx="6" cy="6" r="5" fill="currentColor"/></svg>PREVIEW</span>
+      </div>
+      <div class="app-label">row 1: Test List and Setup states; row 2: the report's Outcome column (Hit, Not selected, Skipped) and the accent chip when not amber. The glyph for Not calibrated and the Skipped dashed ring are not fixed in the proposal; shown as nearest kin.</div>
+    </div>
+
+    <h3>Tables and the Test List</h3>
+    <p class="small muted">Header 14 px / 600 ink on header fill; rows 40 px; grid lines border-subtle; the selected row row-selected; sort indicator in accent. Status and Outcome cells hold a badge, never bare text. Numeric columns right-aligned with tabular figures. Table max 1200 px (Test Name 420, Task 180, Configuration 200, Status 180, Date 140); the button column sits 24 px right of the table, top-aligned.</p>
+    <div class="app scroll">
+      <div style="display:flex;gap:24px;align-items:flex-start;width:max-content">
+        <table class="ap-table">
+          <thead><tr><th style="width:420px">Test Name<span class="sort">&#9650;</span></th><th style="width:180px">Task</th><th style="width:200px">Configuration</th><th style="width:180px">Status</th><th style="width:140px">Date Complete</th></tr></thead>
+          <tbody>
+            <tr><td>Grid Click 1</td><td>Grid Click</td><td>Standard</td><td><span class="ap-badge done"><svg viewBox="0 0 12 12" aria-hidden="true"><circle cx="6" cy="6" r="5" fill="currentColor"/></svg>Done</span></td><td class="n">2026-10-07</td></tr>
+            <tr><td>Follow the Target 1</td><td>Follow the Target</td><td>Standard</td><td><span class="ap-badge warning"><svg viewBox="0 0 12 12" aria-hidden="true"><circle cx="6" cy="6" r="4.5" fill="none" stroke="currentColor" stroke-width="1.5"/><path d="M6 1.5 A4.5 4.5 0 0 1 6 10.5 Z" fill="currentColor"/></svg>Ended early 4/6</span></td><td class="n">2026-10-07</td></tr>
+            <tr class="sel"><td>Scanning Search 1</td><td>Scanning Search</td><td>Standard</td><td><span class="ap-badge notdone"><svg viewBox="0 0 12 12" aria-hidden="true"><circle cx="6" cy="6" r="4.5" fill="none" stroke="currentColor" stroke-width="1.5"/></svg>Not done</span></td><td class="n">&mdash;</td></tr>
+            <tr><td>Scanning Search 2</td><td>Scanning Search</td><td>Standard</td><td><span class="ap-badge warning"><svg viewBox="0 0 12 12" aria-hidden="true"><polygon points="6,1 11.5,11 0.5,11" fill="currentColor"/></svg>Data missing</span></td><td class="n">2026-10-06</td></tr>
+          </tbody>
+        </table>
+        <div class="stack" style="gap:8px;width:160px">
+          <span class="ap-btn secondary">Add New Test</span>
+          <span class="ap-btn secondary">Configure Test</span>
+          <span class="ap-btn primary">Run Test</span>
+          <span class="ap-btn secondary disabled">View Report</span>
+          <span class="ap-btn secondary">Copy Test</span>
+          <span class="ap-btn secondary"><svg width="12" height="12" viewBox="0 0 12 12" aria-hidden="true"><rect x="1" y="1" width="10" height="10" fill="#DA1E28"/></svg>Delete Test</span>
+        </div>
+      </div>
+      <div class="app-label">the em dash stays only inside numeric cells, where a word would misalign the column. Delete Test is secondary with the danger glyph; the dialog's Delete stays danger. Tiers of the other side buttons are as today (secondary), not restated in the proposal.</div>
+    </div>
+    <div class="vs">
+      <div class="side"><div class="lbl">Today</div><div class="today"><table class="td-table"><thead><tr><th>Test Name</th><th>Status</th><th>Date Complete</th></tr></thead><tbody><tr><td>Grid Click 1</td><td>Not Done</td><td>—</td></tr><tr class="sel"><td>Scanning Search 2</td><td>Not Done</td><td>—</td></tr></tbody></table><div style="margin-top:8px;color:#5C7684">header and selected row share #DCF0F5; bold marks Not Done</div></div></div>
+      <div class="side"><div class="lbl">Proposed</div><div class="app" style="margin-top:0;overflow-x:auto"><table class="ap-table"><thead><tr><th>Test Name</th><th>Status</th><th>Date Complete</th></tr></thead><tbody><tr><td>Grid Click 1</td><td><span class="ap-badge notdone"><svg viewBox="0 0 12 12" aria-hidden="true"><circle cx="6" cy="6" r="4.5" fill="none" stroke="currentColor" stroke-width="1.5"/></svg>Not done</span></td><td class="n">&mdash;</td></tr><tr class="sel"><td>Scanning Search 2</td><td><span class="ap-badge notdone"><svg viewBox="0 0 12 12" aria-hidden="true"><circle cx="6" cy="6" r="4.5" fill="none" stroke="currentColor" stroke-width="1.5"/></svg>Not done</span></td><td class="n">&mdash;</td></tr></tbody></table><div class="app-label">header #E0E0E0, selected row #CFE2F1; the badge carries the state, weight 400</div></div></div>
+    </div>
+
+    <h4>Two-line headers (Detailed report)</h4>
+    <div class="app scroll">
+      <table class="ap-table">
+        <thead><tr><th>Trial</th><th>Outcome</th><th class="two n">Reaction<br>Time (s)</th><th class="two n">Dwell<br>Time (s)</th><th class="two n">Scan path<br>(°)</th><th class="n">Fixations</th></tr></thead>
+        <tbody>
+          <tr><td class="n">1</td><td><span class="ap-badge success"><svg viewBox="0 0 12 12" aria-hidden="true"><circle cx="6" cy="6" r="5" fill="currentColor"/></svg>Hit</span></td><td class="n">0.62</td><td class="n">0.81</td><td class="n">12.4</td><td class="n">3</td></tr>
+          <tr class="sel"><td class="n">2</td><td><span class="ap-badge danger"><svg viewBox="0 0 12 12" aria-hidden="true"><rect x="1" y="1" width="10" height="10" fill="currentColor"/></svg>Not selected</span></td><td class="n">&mdash;</td><td class="n">&mdash;</td><td class="n">75.4</td><td class="n">8</td></tr>
+          <tr><td class="n">3</td><td><span class="ap-badge neutral"><svg viewBox="0 0 12 12" aria-hidden="true"><circle cx="6" cy="6" r="4.5" fill="none" stroke="currentColor" stroke-width="1.5" stroke-dasharray="2.5 2"/></svg>Skipped</span></td><td class="n">&mdash;</td><td class="n">&mdash;</td><td class="n">&mdash;</td><td class="n">&mdash;</td></tr>
+        </tbody>
+      </table>
+      <div class="app-label">13 columns at 14 px tabular numbers fit 1,370 px (about 105 px each) without a scrollbar; the Trial column stays frozen; the selected row by fill, not bold</div>
+    </div>
+
+    <h3>Setup cards</h3>
+    <p class="small muted">Card: white, 1 px border-subtle, radius 4, padding 24, heading 20 px / 600. Each status badge sits in its card beside its buttons. The disabled Continue gets a caption listing what is missing.</p>
+    <div class="app">
+      <div class="ap-titlebar">Pediatric Eye-Gaze Assessment</div>
+      <div class="app-label" style="margin-bottom:16px">title bar #12374A, white text 12.57:1, radius 0</div>
+      <div class="t-display" style="margin-bottom:24px">Setup</div>
+      <div class="row" style="gap:24px">
+        <div class="ap-card" style="flex:1 1 320px;min-width:0">
+          <h5>Tracker</h5>
+          <div class="fields" style="flex-wrap:wrap">
+            <div class="f"><label>Control Address</label><div class="ap-field" style="width:320px">127.0.0.1</div></div>
+            <div class="f"><label>Control Port</label><div class="ap-field" style="width:120px">4242</div></div>
+          </div>
+          <div class="row center"><span class="ap-btn secondary">Connect</span><span class="ap-badge success"><svg viewBox="0 0 12 12" aria-hidden="true"><circle cx="6" cy="6" r="5" fill="currentColor"/></svg>Connected</span></div>
+        </div>
+        <div class="ap-card" style="flex:1 1 320px;min-width:0">
+          <h5>Calibration</h5>
+          <div class="f"><label>Point Count</label><div class="ap-field" style="width:100px">5</div></div>
+          <div class="row center"><span class="ap-btn primary">Do Calibration</span><span class="ap-badge warning"><svg viewBox="0 0 12 12" aria-hidden="true"><polygon points="6,1 11.5,11 0.5,11" fill="currentColor"/></svg>Not calibrated</span></div>
+        </div>
+      </div>
+      <div class="ap-footer" style="margin-top:24px;flex-wrap:wrap">
+        <div style="display:grid;gap:4px;justify-items:end">
+          <span class="ap-btn primary disabled" style="width:240px">Continue to Tests</span>
+          <span class="ap-caption">Needs: tracker, calibration, Sex</span>
+        </div>
+      </div>
+      <div class="app-label">footer 64 px with 16 px padding, Continue to Tests 240 px right-aligned. Setup badges exist in the approved wireframe but not in code: building them is a wireframe item for the hub to confirm <span class="open">open in the proposal</span></div>
+    </div>
+
+    <h3>Dialogs</h3>
+    <p class="small muted">480 px min width, heading 20 px / 600, body 14 px, 24 px padding, buttons right-aligned in the order primary, secondary, danger; the safe answer stays the default and Esc. Lists inside dialogs: white, selected row row-selected.</p>
+    <div class="app scroll" style="background:#888">
+      <div class="row" style="gap:24px">
+        <div class="ap-dialog">
+          <h5>Delete Grid Click 1?</h5>
+          <div>The test and its recorded data are removed from this subject. This cannot be undone.</div>
+          <div class="btns"><span class="ap-btn secondary focus">Cancel</span><span class="ap-btn danger">Delete</span></div>
+        </div>
+        <div class="ap-dialog">
+          <h5>Add New Test</h5>
+          <div class="list">
+            <div class="sel">Grid Click: One cell of a visible board lights up. Selection among candidates.</div>
+            <div>Follow the Target: The target travels across the screen. Smooth pursuit.</div>
+            <div>Scanning Search: Find the cued shape among other shapes. Visual search.</div>
+          </div>
+          <div class="btns"><span class="ap-btn primary">Add</span><span class="ap-btn secondary">Cancel</span></div>
+        </div>
+      </div>
+      <div class="app-label" style="color:#FFF">drawn over a grey backdrop to show the OS shadow, the only shadow allowed</div>
+    </div>
+
+    <h3>Run bar</h3>
+    <p class="small muted">48 px tall; page fill for a recorded run, warning-subtle for Preview and Practice with a filled warning-chip; then "Trial 4 of 18"; then the tracking state as glyph + word in success-text / warning-text / danger-text (7.0 to 7.2:1 on both fills). Buttons 36 px, border-strong, NoFocus as today.</p>
+    <div class="app scroll" style="padding:0">
+      <div class="stack" style="gap:1px;background:var(--a-border-subtle)">
+        <div class="ap-runbar"><span>Trial 4 of 18</span><span class="state ok"><svg width="12" height="12" viewBox="0 0 12 12" aria-hidden="true"><circle cx="6" cy="6" r="5" fill="currentColor"/></svg>Tracking OK</span><span class="btns"><span class="ap-btn sm">Pause (Alt-P)</span><span class="ap-btn sm">Skip trial</span><span class="ap-btn sm">Quit (Alt-Q)</span></span></div>
+        <div class="ap-runbar"><span>Trial 9 of 18</span><span class="state warn"><svg width="12" height="12" viewBox="0 0 12 12" aria-hidden="true"><polygon points="6,1 11.5,11 0.5,11" fill="currentColor"/></svg>No gaze for 3 s</span><span class="btns"><span class="ap-btn sm">Pause (Alt-P)</span><span class="ap-btn sm">Skip trial</span><span class="ap-btn sm">Quit (Alt-Q)</span></span></div>
+        <div class="ap-runbar"><span>Trial 9 of 18</span><span class="state bad"><svg width="12" height="12" viewBox="0 0 12 12" aria-hidden="true"><rect x="1" y="1" width="10" height="10" fill="currentColor"/></svg>Tracker DISCONNECTED</span><span class="btns"><span class="ap-btn sm">Pause (Alt-P)</span><span class="ap-btn sm">Skip trial</span><span class="ap-btn sm">Quit (Alt-Q)</span></span></div>
+        <div class="ap-runbar practice"><span class="chip">PRACTICE</span><span>Trial 1 of 3</span><span>Mouse pointer</span><span class="btns"><span class="ap-btn sm">Pause (Alt-P)</span><span class="ap-btn sm">Skip trial</span><span class="ap-btn sm">Quit (Alt-Q)</span></span></div>
+        <div class="ap-runbar practice"><span class="chip">PREVIEW</span><span>Trial 3 of 3</span><span>Mouse pointer</span><span class="btns"><span class="ap-btn sm">Pause (Alt-P)</span><span class="ap-btn sm">Skip trial</span><span class="ap-btn sm">Quit (Alt-Q)</span></span></div>
+      </div>
+    </div>
+    <div class="vs">
+      <div class="side"><div class="lbl">Today</div><div class="today" style="padding:0"><div class="td-runbar"><span>PRACTICE (not recorded) · Trial 1/3 · mouse pointer</span></div><div style="padding:8px 16px;color:#5C7684">one 13 px string, facts joined by interpuncts</div></div></div>
+      <div class="side"><div class="lbl">Proposed</div><div class="app" style="margin-top:0;padding:0;overflow-x:auto"><div class="ap-runbar practice" style="min-width:0"><span class="chip">PRACTICE</span><span>Trial 1 of 3</span><span>Mouse pointer</span></div><div class="app-label" style="padding:8px 16px">the chip itself means not recorded; 16 px text; chip ink on #F1C21B 10.75:1</div></div></div>
+    </div>
+  </section>
+
+  <!-- 2.6 Canvas -->
+  <section class="sec" id="canvas">
+    <h2>Canvas (child-facing)</h2>
+    <p>The feedback ladder is <b>cue &lt; on-target &lt; success</b>, measured against the forest field #e8f5e9 (and the space field #0d1b2a). The theme YAML gains explicit keys for every colour the canvas draws, so no colour is derived from <code>cursor_color</code> with an alpha any more. The cue is strong in form (the only outlined, filled, saturated shape) and in luminance; red and green distractors differ by only 1.33:1 in luminance, so for a child with a colour-vision deficiency the outline, not the hue, is the cue.</p>
+
+    <h3>Target sizes at 1:2</h3>
+    <p class="small muted">Diameters from the proposal's copy table: Small 3° about 124 px, Medium 5° 207 px. Large is 8° in the app; its px value is not stated in the proposal (about 331 px at the same 41.4 px per degree, derived). Drawn at half size on a 1920x1080 field strip, with the two-tone outline: 3 px #102010 outside, 2 px white inside, following the shape.</p>
+    <div class="field">
+      <svg viewBox="0 0 960 240" role="img" aria-label="Small, medium and large targets drawn at half scale">
+        <g stroke-linejoin="round">
+          <circle cx="160" cy="120" r="31" fill="#D32F2F"/><circle cx="160" cy="120" r="30.25" fill="none" stroke="#102010" stroke-width="1.5"/><circle cx="160" cy="120" r="28.5" fill="none" stroke="#FFFFFF" stroke-width="1"/>
+          <circle cx="440" cy="120" r="51.75" fill="#D32F2F"/><circle cx="440" cy="120" r="51" fill="none" stroke="#102010" stroke-width="1.5"/><circle cx="440" cy="120" r="49.75" fill="none" stroke="#FFFFFF" stroke-width="1"/>
+          <circle cx="780" cy="120" r="82.75" fill="#D32F2F"/><circle cx="780" cy="120" r="82" fill="none" stroke="#102010" stroke-width="1.5"/><circle cx="780" cy="120" r="80.75" fill="none" stroke="#FFFFFF" stroke-width="1"/>
+        </g>
+        <g font-family="IBM Plex Mono, Consolas, monospace" font-size="13" fill="#1b5e20" text-anchor="middle">
+          <text x="160" y="222">Small 3°, 124 px</text><text x="440" y="222">Medium 5°, 207 px</text><text x="780" y="222">Large 8°, about 331 px (derived)</text>
+        </g>
+        <g stroke="#1b5e20" stroke-width="1"><line x1="20" y1="30" x2="70" y2="30"/><line x1="20" y1="26" x2="20" y2="34"/><line x1="70" y1="26" x2="70" y2="34"/></g>
+        <text x="78" y="34" font-family="IBM Plex Mono, Consolas, monospace" font-size="12" fill="#1b5e20">100 px</text>
+      </svg>
+    </div>
+
+    <h3>The ladder, Medium target at 1:2</h3>
+    <div class="ladder">
+      <div class="st">
+        <div class="field"><svg viewBox="0 0 200 200" role="img" aria-label="Cue: target with distractors">
+          <circle cx="70" cy="80" r="51.75" fill="#D32F2F"/><circle cx="70" cy="80" r="51" fill="none" stroke="#102010" stroke-width="1.5"/><circle cx="70" cy="80" r="49.75" fill="none" stroke="#FFFFFF" stroke-width="1"/>
+          <rect x="140" y="30" width="48" height="48" fill="#5F8F66"/>
+          <polygon points="164,120 188,166 140,166" fill="#5F8F66"/>
+          <path d="M48 180 l0 -20" stroke="none"/>
+        </svg></div>
+        <div class="cap"><b>Cue.</b> Flat fill #D32F2F (4.43:1 on the field), two-tone outline that follows the shape. Distractors #5F8F66, no outline (3.33:1).</div>
+      </div>
+      <div class="st">
+        <div class="field"><svg viewBox="0 0 200 200" role="img" aria-label="On-target: ring, dwell arc and gaze cursor">
+          <circle cx="100" cy="100" r="51.75" fill="#D32F2F"/><circle cx="100" cy="100" r="51" fill="none" stroke="#102010" stroke-width="1.5"/><circle cx="100" cy="100" r="49.75" fill="none" stroke="#FFFFFF" stroke-width="1"/>
+          <circle cx="100" cy="100" r="56.75" fill="none" stroke="#1b5e20" stroke-width="3"/>
+          <path d="M100 40.25 A59.75 59.75 0 1 1 48.25 130" fill="none" stroke="#102010" stroke-width="6" stroke-linecap="round"/>
+          <path d="M100 40.25 A59.75 59.75 0 1 1 48.25 130" fill="none" stroke="#FFFFFF" stroke-width="4" stroke-linecap="round"/>
+          <circle cx="104" cy="96" r="4" fill="#102010"/><circle cx="104" cy="96" r="2.5" fill="#FFFFFF"/>
+        </svg></div>
+        <div class="cap"><b>On-target.</b> One ring at r + 10, 6 px, #1b5e20 (7.00:1); the dwell arc at r + 16, 8 px, white core on a #102010 halo, fills over threshold_ms. Gaze cursor unchanged: #102010 halo, white core, r 5.</div>
+      </div>
+      <div class="st">
+        <div class="field"><svg viewBox="0 0 200 200" role="img" aria-label="Glow for Switch and Follow">
+          <defs><radialGradient id="glow"><stop offset="0.77" stop-color="#2E7D32" stop-opacity="0.63"/><stop offset="1" stop-color="#2E7D32" stop-opacity="0"/></radialGradient></defs>
+          <circle cx="100" cy="100" r="67.3" fill="url(#glow)"/>
+          <circle cx="100" cy="100" r="51.75" fill="#D32F2F"/><circle cx="100" cy="100" r="51" fill="none" stroke="#102010" stroke-width="1.5"/><circle cx="100" cy="100" r="49.75" fill="none" stroke="#FFFFFF" stroke-width="1"/>
+          <circle cx="100" cy="100" r="56.75" fill="none" stroke="#1b5e20" stroke-width="3"/>
+          <circle cx="96" cy="104" r="4" fill="#102010"/><circle cx="96" cy="104" r="2.5" fill="#FFFFFF"/>
+        </svg></div>
+        <div class="cap"><b>Glow</b> (Switch and Follow only). From the outline to r + 0.3 r, alpha 160 to 0, #2E7D32 (4.56:1 at its edge), capped at half the distance to the nearest slot.</div>
+      </div>
+      <div class="st">
+        <div class="field"><svg viewBox="0 0 200 200" role="img" aria-label="Success flash with particles">
+          <circle cx="100" cy="100" r="51.75" fill="#2E7D32"/><circle cx="100" cy="100" r="51" fill="none" stroke="#102010" stroke-width="1.5"/><circle cx="100" cy="100" r="49.75" fill="none" stroke="#FFFFFF" stroke-width="1"/>
+          <g fill="#2E7D32"><circle cx="100" cy="30" r="2"/><circle cx="135" cy="39" r="2"/><circle cx="160" cy="65" r="2"/><circle cx="170" cy="100" r="2"/><circle cx="160" cy="135" r="2"/><circle cx="135" cy="161" r="2"/><circle cx="100" cy="170" r="2"/><circle cx="65" cy="161" r="2"/><circle cx="40" cy="135" r="2"/><circle cx="30" cy="100" r="2"/><circle cx="40" cy="65" r="2"/><circle cx="65" cy="39" r="2"/></g>
+        </svg></div>
+        <div class="cap"><b>Success.</b> The fill turns #2E7D32 for 500 ms, outline stays; 12 particles, 8 px, 500 ms. Success is the only event that changes the target itself, so it is the loudest.</div>
+      </div>
+    </div>
+
+    <h3>Grid cells, square targets, the follow trail and Space</h3>
+    <div class="ladder">
+      <div class="st">
+        <div class="field"><svg viewBox="0 0 200 200" role="img" aria-label="Grid cells with a square cued target and a square ring">
+          <g fill="rgba(255,255,255,0.063)" stroke="#5F8F66" stroke-width="1"><rect x="12" y="12" width="52" height="52"/><rect x="74" y="12" width="52" height="52"/><rect x="136" y="12" width="52" height="52"/><rect x="12" y="74" width="52" height="52"/><rect x="136" y="74" width="52" height="52"/><rect x="12" y="136" width="52" height="52"/><rect x="74" y="136" width="52" height="52"/><rect x="136" y="136" width="52" height="52"/></g>
+          <rect x="80" y="80" width="40" height="40" fill="#D32F2F"/><rect x="80.75" y="80.75" width="38.5" height="38.5" fill="none" stroke="#102010" stroke-width="1.5"/><rect x="82" y="82" width="36" height="36" fill="none" stroke="#FFFFFF" stroke-width="1"/>
+          <rect x="75" y="75" width="50" height="50" fill="none" stroke="#1b5e20" stroke-width="3"/>
+        </svg></div>
+        <div class="cap"><b>Grid.</b> Cell outline 2 px #5F8F66, fill white alpha 16. The outline and the ring are built from <code>shape_path</code> at r + offset, so a square target gets a square ring.</div>
+      </div>
+      <div class="st">
+        <div class="field"><svg viewBox="0 0 200 200" role="img" aria-label="Follow trail behind a moving target">
+          <path d="M20 150 C 60 60, 110 60, 150 70" fill="none" stroke="#D32F2F" stroke-opacity="0.157" stroke-width="10" stroke-linecap="round"/>
+          <circle cx="150" cy="70" r="25.875" fill="#D32F2F"/><circle cx="150" cy="70" r="25.125" fill="none" stroke="#102010" stroke-width="1.5"/><circle cx="150" cy="70" r="23.875" fill="none" stroke="#FFFFFF" stroke-width="1"/>
+          <circle cx="40" cy="160" r="25.875" fill="#751A1A"/>
+        </svg></div>
+        <div class="cap"><b>Follow trail</b> at target colour alpha 40 max, width 0.2 r, 60 samples (1.26:1, deliberately faint). Unselectable target: fill darker(180), no outline, no glow. The proposal's 7.28:1 for it matches today's #ff5252 darkened; from the proposed #D32F2F it is 9.73:1 <span class="open">open in the proposal</span></div>
+      </div>
+      <div class="st">
+        <div class="field space"><svg viewBox="0 0 200 200" role="img" aria-label="Space theme: target, ring and distractor">
+          <circle cx="80" cy="100" r="51.75" fill="#03a9f4"/><circle cx="80" cy="100" r="51" fill="none" stroke="#FFFFFF" stroke-width="2.5"/>
+          <circle cx="80" cy="100" r="56.75" fill="none" stroke="#ffeb3b" stroke-width="3"/>
+          <rect x="150" y="30" width="36" height="36" fill="#4F6B85"/>
+        </svg></div>
+        <div class="cap"><b>Space</b> (#0d1b2a): target #03a9f4 (6.61:1), white outline (17.39:1), ring #ffeb3b (14.25:1), glow and success #ffd54f (12.33:1), distractors #4F6B85 (3.13:1).</div>
+      </div>
+    </div>
+
+    <h3>Ratios on the field</h3>
+    <div class="tbl-wrap"><table class="doc">
+      <thead><tr><th>Element</th><th>Forest</th><th class="num">On #e8f5e9</th><th>Space</th><th class="num">On #0d1b2a</th></tr></thead>
+      <tbody>
+        <tr><td>target fill, flat (no radial gradient)</td><td><code>#D32F2F</code></td><td class="num">4.43</td><td><code>#03a9f4</code></td><td class="num">6.61</td></tr>
+        <tr><td>target outline, two-tone: 3 px outside + 2 px white inside</td><td><code>#102010</code></td><td class="num">15.10 (3.41 on the target)</td><td>white</td><td class="num">17.39 (2.63 on the target)</td></tr>
+        <tr><td>distractor fill, no outline</td><td><code>#5F8F66</code></td><td class="num">3.33</td><td><code>#4F6B85</code></td><td class="num">3.13</td></tr>
+        <tr><td>grid cell outline 2 px, fill white alpha 16</td><td><code>#5F8F66</code></td><td class="num">3.33</td><td><code>#4F6B85</code></td><td class="num">3.13</td></tr>
+        <tr><td>on-target ring (r + 10, 6 px, follows the shape)</td><td><code>#1b5e20</code></td><td class="num">7.00</td><td><code>#ffeb3b</code></td><td class="num">14.25</td></tr>
+        <tr><td>dwell arc (r + 16, 8 px): white core on a #102010 halo</td><td>white / <code>#102010</code></td><td class="num">1.12 / 15.10 (the halo carries it)</td><td>white</td><td class="num">17.39</td></tr>
+        <tr><td>glow (Switch and Follow): outline to r + 0.3 r, alpha 160 to 0</td><td><code>#2E7D32</code></td><td class="num">4.56 at its edge</td><td><code>#ffd54f</code></td><td class="num">12.33</td></tr>
+        <tr><td>success: fill for 500 ms; 12 particles, 8 px, 500 ms</td><td><code>#2E7D32</code></td><td class="num">4.56</td><td><code>#ffd54f</code></td><td class="num">12.33</td></tr>
+        <tr><td>unselectable target (Follow outside its window)</td><td>darker(180), no outline, no glow</td><td class="num">7.28 in the proposal; 9.73 from #D32F2F</td><td></td><td class="num"></td></tr>
+        <tr><td>follow trail</td><td>target colour, alpha 40 max, width 0.2 r, 60 samples</td><td class="num">1.26 (deliberately faint)</td><td></td><td class="num"></td></tr>
+        <tr><td>gaze cursor</td><td colspan="4">unchanged: #102010 halo, white core, r 5 px</td></tr>
+        <tr><td>Paused</td><td>unchanged</td><td class="num">7.00</td><td></td><td class="num"></td></tr>
+      </tbody>
+    </table></div>
+
+    <h3>Timing</h3>
+    <p class="small muted">The on-target ring appears on the first on-target frame and disappears on the first off-target frame, no ramp. The dwell arc fills over threshold_ms as today (0.8 s default). Success lasts 500 ms, inside the 800 ms default inter-trial interval, so it never delays the next trial. Nothing else moves.</p>
+    <div class="timeline" aria-label="Timing bars, 800 ms = full width">
+      <div class="tr"><span>dwell arc fills</span><div class="track"><div class="seg" style="left:0;width:100%;background:var(--accent-soft)"><span>threshold_ms, 0.8 s default</span></div></div></div>
+      <div class="tr"><span>success flash</span><div class="track"><div class="seg" style="left:0;width:62.5%;background:var(--ok-bg)"><span>500 ms</span></div></div></div>
+      <div class="tr"><span>inter-trial interval</span><div class="track"><div class="seg" style="left:0;width:100%;background:var(--code-bg);border:1px solid var(--line-strong)"><span>800 ms default</span></div></div></div>
+    </div>
+    <div class="vs">
+      <div class="side"><div class="lbl">Today</div><div class="today" style="background:#e8f5e9;display:flex;align-items:center;gap:16px"><svg width="96" height="96" viewBox="0 0 96 96" aria-hidden="true"><defs><radialGradient id="tg"><stop offset="0" stop-color="#ffb3b3"/><stop offset="1" stop-color="#ff5252"/></radialGradient><radialGradient id="og"><stop offset="0.55" stop-color="#4caf50" stop-opacity="0.5"/><stop offset="1" stop-color="#4caf50" stop-opacity="0"/></radialGradient></defs><circle cx="48" cy="48" r="48" fill="url(#og)"/><circle cx="48" cy="48" r="28" fill="url(#tg)"/><circle cx="48" cy="48" r="30" fill="none" stroke="#FFFFFF" stroke-width="2"/><circle cx="48" cy="48" r="32" fill="none" stroke="#1b5e20" stroke-width="2"/></svg><span style="color:#2e4b2e">radial gradient #ff5252, white ring always a circle, glow to r + max(28, 0.6 r) that reaches the neighbour</span></div></div>
+      <div class="side"><div class="lbl">Proposed</div><div class="today" style="background:#e8f5e9;display:flex;align-items:center;gap:16px"><svg width="96" height="96" viewBox="0 0 96 96" aria-hidden="true"><defs><radialGradient id="pg"><stop offset="0.77" stop-color="#2E7D32" stop-opacity="0.63"/><stop offset="1" stop-color="#2E7D32" stop-opacity="0"/></radialGradient></defs><circle cx="48" cy="48" r="36.4" fill="url(#pg)"/><circle cx="48" cy="48" r="28" fill="#D32F2F"/><circle cx="48" cy="48" r="27.25" fill="none" stroke="#102010" stroke-width="1.5"/><circle cx="48" cy="48" r="26" fill="none" stroke="#FFFFFF" stroke-width="1"/><circle cx="48" cy="48" r="33" fill="none" stroke="#1b5e20" stroke-width="3"/></svg><span style="color:#2e4b2e">flat #D32F2F, two-tone shape outline, one ring, glow capped at r + 0.3 r</span></div></div>
+    </div>
+  </section>
+
+  <!-- 4 Copy -->
+  <section class="sec" id="copy">
+    <h2>Copy rules</h2>
+    <ul>
+      <li><b>No em dash</b> in any label, option or sentence. A colon for a definition, a comma or parentheses for a qualifier, a full stop between sentences.</li>
+      <li><b>One date format:</b> <code>yyyy-MM-dd</code>, and <code>yyyy-MM-dd HH:mm</code> (24-hour) when a time is shown.</li>
+      <li><b>One vocabulary:</b> the configuration page is the source of truth; the report and the PDF repeat its words. Units follow the value, not the label.</li>
+      <li><b>No interpunct chains.</b> Facts are separate elements (chip, text, badge) or separate sentences.</li>
+      <li><b>Status words are nouns or past participles</b>, never exclamations: "Test complete", "Blocked", "Not done".</li>
+      <li><b>A page title names the object and has no colon:</b> "Summary Results", "Detailed Results".</li>
+    </ul>
+    <h3>Exact replacements</h3>
+    <div class="dd" id="copy-pairs"></div>
+  </section>
+
+  <!-- 5.2 Phases -->
+  <section class="sec" id="phases">
+    <h2>Implementation phases</h2>
+    <p>Each phase is one SPEC step with its own acceptance checks. Order matters: later phases use earlier tokens. The path is a QSS token port, keeping the PySide6 widgets, the object names and the qt-mcp harness.</p>
+    <div class="phases">
+      <div class="ph"><div class="n">Phase 1</div><div class="t">Tokens, type, copy</div><div class="files">wtmh_theme.py, dialog_theme.py, run_dialogs.py, run_bar.py, dashboard_window.py, setup_page.py, report_format.py, report_config.py, label strings in config_form.py, add_test_dialog.py, start_test_page.py, test_list_page.py, task_info</div><div class="acc"><b>Accept:</b> every 2.2 pair recomputed from the code passes; no em dash outside <code>DASH</code>; app font 14 px, titles 28 px; Tab from Subject ID shows a visible focus everywhere; a disabled checked box is grey; dates read yyyy-MM-dd.</div></div>
+      <div class="ph"><div class="n">Phase 2</div><div class="t">Components and page layout</div><div class="files">Wireframe gate first (setup, test-list, task-config, start-test, run, run-end). setup_page.py, test_list_page.py, config_form.py, task_config_page.py, start_test_page.py, add_test_dialog.py, a status-badge helper, run_bar.py status parts</div><div class="acc"><b>Accept:</b> content and field widths measured on the maximized window; badges show glyph + word in Test List, Setup and run bar; Blocked block lists items one per line with Go to Setup inside; Start keeps its tier when disabled; "Changed from Standard" does not move the layout; no left stripes remain.</div></div>
+      <div class="ph"><div class="n">Phase 3</div><div class="t">Canvas and run</div><div class="files">canvas.py, canvas_shapes.py, configs/themes/forest.yaml and space.yaml (new keys target_outline, distractor, cell_outline, on_target, success, glow; character removed), dashboard_window.py (full screen while the run view shows)</div><div class="acc"><b>Accept:</b> 2.6 ratios recomputed from the YAML; outline follows the shape in each scene; glow on an 8-icon field stays clear of neighbours; success visible for 500 ms in a capture; no title bar or taskbar in a run; Alt-P, Alt-Q, Esc, H unchanged; the user as subject confirms the ladder on the device.</div></div>
+      <div class="ph"><div class="n">Phase 4</div><div class="t">Report and PDF</div><div class="files">target_map_paint.py, map_legend.py, report_views.py, report_page.py, report_tables.py, report_pdf.py</div><div class="acc"><b>Accept:</b> map digits 13.63:1; a Summary capture with Scanpath on reads the trial numbers; 13 Detailed columns without a horizontal scrollbar at 1920x1080; PDF page 1 holds header, configuration, summary and eye metrics; labels equal the configuration page's by a string test.</div></div>
+      <div class="ph opt"><div class="n">Phase 5, optional</div><div class="t">Standalone dialog parity</div><div class="files">task_settings_dialog.py radio groups and the hint line</div><div class="acc"><b>Accept:</b> the same object names and values as today; one grammar with the page.</div></div>
+    </div>
+  </section>
+
+  <footer class="foot">
+    <p style="max-width:none">Limits stated by the proposal: no ratio was measured on a rendered frame (anti-aliasing and the gradient removal change edge pixels slightly); the PDF was judged from code; the Setup status badges exist only in the approved wireframe. Items this page marks <span class="open">open in the proposal</span>: the Large target's px diameter, the disabled-checked indicator grey, the Not calibrated and Skipped glyphs, the unselectable-target ratio, and the tiers of the Test List side buttons other than Run Test and Delete Test.</p>
+  </footer>
+</div>
+
+<script>
+(function () {
+  // WCAG 2.2 relative luminance and contrast ratio, recomputed on the page from the hex values.
+  function lum(hex) {
+    var h = hex.replace('#', '');
+    var c = [0, 2, 4].map(function (i) {
+      var v = parseInt(h.substr(i, 2), 16) / 255;
+      return v <= 0.03928 ? v / 12.92 : Math.pow((v + 0.055) / 1.055, 2.4);
+    });
+    return 0.2126 * c[0] + 0.7152 * c[1] + 0.0722 * c[2];
+  }
+  function ratio(a, b) {
+    var la = lum(a), lb = lum(b);
+    var hi = Math.max(la, lb), lo = Math.min(la, lb);
+    return (hi + 0.05) / (lo + 0.05);
+  }
+  function level(r, kind) {
+    if (kind === 'exempt') return ['ex', 'exempt (1.4.3)'];
+    if (kind === 'deco') return ['deco', 'decorative'];
+    if (kind === 'ui') return r >= 3 ? ['aa', 'AA non-text'] : ['fail', 'fails 3:1'];
+    if (kind === 'large') return r >= 4.5 ? ['aaa', 'AAA large'] : r >= 3 ? ['aa', 'AA large'] : ['fail', 'fails'];
+    return r >= 7 ? ['aaa', 'AAA'] : r >= 4.5 ? ['aa', 'AA'] : ['fail', 'fails AA'];
+  }
+
+  var W = '#FFFFFF', P = '#F4F4F4', INK = '#161616', H = '#E0E0E0';
+  // kind: text (4.5 / 7), ui (3:1, borders and glyphs), exempt, deco. bg: the token is the fill.
+  var TOKENS = [
+    { g: 'neutral', n: 'ink', h: INK, role: 'all text', pairs: [[W, 'on white', 'text'], [P, 'on page', 'text']] },
+    { g: 'neutral', n: 'text-secondary', h: '#525252', role: 'helper text, captions, the "Not done" word', pairs: [[W, 'on white', 'text'], [P, 'on page', 'text'], [H, 'on table header', 'text']] },
+    { g: 'neutral', n: 'text-disabled', h: '#6F6F6F', role: 'disabled labels, buttons, spin boxes', pairs: [[H, 'on disabled fill #E0E0E0', 'exempt']] },
+    { g: 'neutral', n: 'page', h: P, role: 'window background (replaces the teal-tinted #F5F9FB)', pairs: [] },
+    { g: 'neutral', n: 'panel', h: W, role: 'cards, fields, tables, dialogs', pairs: [] },
+    { g: 'neutral', n: 'border-subtle', h: H, role: 'card edges, table grid lines (decorative only)', pairs: [[W, 'on white', 'deco']] },
+    { g: 'neutral', n: 'border-strong', h: '#8D8D8D', role: 'field and control outlines, run-bar buttons, slider handle when disabled', pairs: [[W, 'on white', 'ui'], [P, 'on page', 'ui']] },
+    { g: 'neutral', n: 'header', h: H, bg: true, role: 'table header fill (was SOFT_ACCENT, the same as the selected row)', pairs: [[INK, 'with ink text', 'text']] },
+    { g: 'neutral', n: 'row-selected', h: '#CFE2F1', bg: true, role: 'the chosen Test List row (now distinct from the header)', pairs: [[INK, 'with ink text', 'text']] },
+    { g: 'neutral', n: 'title-bar', h: '#12374A', bg: true, role: 'top bar, today’s WTMH navy kept (Fable proposed #0B3B3B)', pairs: [[W, 'white text', 'text']] },
+
+    { g: 'accent', n: 'accent', h: '#1F669E', role: 'primary button fill, secondary button text and border, links, slider fill, nav underline', pairs: [[W, 'white text on it', 'text', true], [W, 'as text on white', 'text'], [P, 'as text on page', 'text']] },
+    { g: 'accent', n: 'accent-hover', h: '#17507D', bg: true, role: 'primary hover and pressed', pairs: [[W, 'white text', 'text']] },
+    { g: 'accent', n: 'accent-focus', h: '#2D7EB3', role: '2 px focus border on every focusable control', pairs: [[W, 'on white', 'ui'], [P, 'on page', 'ui']] },
+    { g: 'accent', n: 'accent-subtle', h: '#E3EEF7', bg: true, role: 'accent badge, "PREVIEW" chip when not amber', pairs: [['#1F669E', 'with accent text', 'text']] },
+    { g: 'accent', n: 'slider-groove', h: '#C6C6C6', role: 'slider track (was 2.20)', pairs: [['#1F669E', 'under accent fill', 'ui']] },
+
+    { g: 'state', n: 'danger', h: '#DA1E28', role: 'danger button fill, map miss X, error border', pairs: [[W, 'white text on it', 'text', true], [W, 'as border on white', 'ui']] },
+    { g: 'state', n: 'danger-text', h: '#A2191F', role: 'danger badge text, run bar "Tracker DISCONNECTED"', pairs: [['#FFF1F1', 'on red-10 #FFF1F1', 'text'], [P, 'on page', 'text']] },
+    { g: 'state', n: 'danger-subtle', h: '#FFF1F1', bg: true, role: 'danger badge fill, error banner fill', pairs: [[INK, 'with ink', 'text']] },
+    { g: 'state', n: 'success', h: '#198038', role: 'success glyph, map hit outline', pairs: [[W, 'white text on it', 'text', true], [W, 'as border on white', 'ui']] },
+    { g: 'state', n: 'success-text', h: '#0E6027', role: 'success badge text, run bar "Tracking OK"', pairs: [['#DEFBE6', 'on green-10 #DEFBE6', 'text'], [P, 'on page', 'text'], ['#FCF4D6', 'on the amber bar', 'text']] },
+    { g: 'state', n: 'success-subtle', h: '#DEFBE6', bg: true, role: 'success badge fill', pairs: [[INK, 'with ink', 'text']] },
+    { g: 'state', n: 'warning', h: '#BA4E00', role: 'warning glyph and border', pairs: [[W, 'on white', 'ui'], ['#FCF4D6', 'on yellow-10', 'ui']] },
+    { g: 'state', n: 'warning-text', h: '#8A3800', role: 'warning badge text, run bar "No gaze for 3 s"', pairs: [['#FCF4D6', 'on yellow-10 / amber bar', 'text'], [P, 'on page', 'text']] },
+    { g: 'state', n: 'warning-subtle', h: '#FCF4D6', bg: true, role: 'warning banner fill, Practice and Preview run bar', pairs: [[INK, 'with ink', 'text']] },
+    { g: 'state', n: 'warning-chip', h: '#F1C21B', bg: true, role: 'the filled PRACTICE / PREVIEW chip on the run bar', pairs: [[INK, 'with ink', 'text']] },
+
+    { g: 'map', n: 'map-hit-fill', h: '#A7F0BA', bg: true, role: 'hit circle fill (was success at alpha 150 with white digits, about 2.0)', pairs: [[INK, 'ink digits', 'text']] },
+    { g: 'map', n: 'map-hit-outline', h: '#198038', role: 'hit circle edge, legend icon', pairs: [[W, 'on white', 'ui']] },
+    { g: 'map', n: 'map-miss', h: '#DA1E28', role: 'X and its ring; digits stay ink on a white pill', pairs: [[W, 'on white', 'ui']] },
+    { g: 'map', n: 'map-skipped', h: '#6F6F6F', role: 'dashed ring', pairs: [[W, 'on white', 'ui']] },
+    { g: 'map', n: 'map-slot', h: '#8D8D8D', role: 'faint layout circle (was MUTED at alpha 90, below 3:1)', pairs: [[W, 'on white', 'ui']] },
+    { g: 'map', n: 'map-path-dark', h: '#1F669E', role: 'the selected trial’s path, dark end (time start)', pairs: [[W, 'on white', 'ui']] },
+    { g: 'map', n: 'map-path-light', h: '#2D7EB3', role: 'the path’s light end with time (was #2B8CB0)', pairs: [[W, 'on white', 'ui']] },
+    { g: 'map', n: 'map-fixation', h: '#1F669E', role: 'fixation ring and number badge outline', pairs: [[W, 'on white', 'ui']] },
+    { g: 'map', n: 'map-overlay', h: '#1F669E', eff: '#4F87B3', role: 'the Summary’s Scanpath overlay, #1F669E at alpha 200, one colour for all trials', pairs: [[W, 'composited on white (#4F87B3)', 'ui']] }
+  ];
+
+  function esc(s) { return s.replace(/&/g, '&amp;').replace(/</g, '&lt;'); }
+
+  function swatch(t) {
+    var pairs = t.pairs.map(function (p) {
+      var on = p[0], label = p[1], kind = p[2], tokIsFill = p[3] || t.bg;
+      var sample = t.eff || t.h;
+      var r = ratio(sample, on);
+      var lv = level(r, kind);
+      var demo;
+      if (kind === 'ui' || kind === 'deco') {
+        demo = '<span class="pd" style="background:' + on + ';border:3px solid ' + sample + '"></span>';
+      } else if (tokIsFill) {
+        demo = '<span class="pd" style="background:' + sample + ';color:' + on + '">Aa</span>';
+      } else {
+        demo = '<span class="pd" style="background:' + on + ';color:' + sample + '">Aa</span>';
+      }
+      return '<li>' + demo + '<span>' + esc(label) + '</span><span class="cr">' + r.toFixed(2) + '</span><span class="lvl ' + lv[0] + '">' + lv[1] + '</span></li>';
+    }).join('');
+    return '<div class="sw"><div class="sw-chip" style="background:' + t.h + '"></div><div class="sw-body">' +
+      '<div class="sw-head"><b>' + esc(t.n) + '</b><code>' + t.h + '</code><button type="button" class="copy" data-hex="' + t.h + '">Copy</button></div>' +
+      '<div class="sw-role">' + esc(t.role) + '</div>' +
+      (pairs ? '<ul class="sw-pairs">' + pairs + '</ul>' : '<div class="sw-note">surface token, no text pair</div>') +
+      '</div></div>';
+  }
+
+  var groups = document.querySelectorAll('.sw-grid[data-group]');
+  Array.prototype.forEach.call(groups, function (el) {
+    var g = el.getAttribute('data-group');
+    el.innerHTML = TOKENS.filter(function (t) { return t.g === g; }).map(swatch).join('');
+  });
+
+  // Copy rules, 4: exact replacement strings (today quoted as on screen).
+  var COPY = [
+    ['Config, size radios', 'Small — 3° (≈124 px)', 'Small (3°, about 124 px)'],
+    ['Config, cell gap', 'Wide — 1° (≈41 px)', 'Wide (1°, about 41 px)'],
+    ['Config, Selection', 'Dwell — keep looking at the target', 'Dwell: keep looking at the target'],
+    ['Config, Selection', 'Switch — look at the target, then press the switch', 'Switch: look at the target, then press the switch'],
+    ['Config, motion', 'Diagonal ↘ (top-left ↔ bottom-right)', 'Diagonal, top-left to bottom-right'],
+    ['Config, modified line', 'Modified from "Standard"', 'Changed from Standard'],
+    ['Add dialog', 'One still target on an empty field — baseline look-and-select.', 'One still target on an empty field. Baseline look and select.'],
+    ['Add dialog', 'One cell of a visible 3x3 board lights up — selection among candidates.', 'One cell of a visible board lights up. Selection among candidates.'],
+    ['Add dialog', 'The target travels; select it while it moves — smooth pursuit.', 'The target travels across the screen. Smooth pursuit.'],
+    ['Add dialog', 'Find the cued shape in a 2D field of distractors — visual search.', 'Find the cued shape among other shapes. Visual search.'],
+    ['Setup', 'Display: 1920x1080 at 100% scale — recommended standard.', 'Display 1920x1080 at 100 %: the recommended standard.'],
+    ['Start, Mouse test', 'Mouse test — the tracker is not connected, so no eye data will be recorded.', 'Mouse test. The tracker is not connected, so no eye data will be recorded.'],
+    ['Start, blocker', 'Still needed before you can start: The tracker is not connected. Connect it on the Setup page. · No calibration yet. …', 'Blocked: then one line per item: "The tracker is not connected (Setup page)." / "No calibration yet (Setup page)." / "Sex is not selected (Setup page)."'],
+    ['Run bar, Preview', 'PREVIEW · Trial 3/3 · mouse pointer · nothing is recorded', 'chip "PREVIEW" + "Trial 3 of 3" + "Mouse pointer" (the chip itself means not recorded)'],
+    ['Run bar, Practice', 'PRACTICE (not recorded) · Trial 1/3 · mouse pointer', 'chip "PRACTICE" + "Trial 1 of 3" + "Mouse pointer"'],
+    ['Run bar, recorded', 'Trial 4/18 · tracking OK', '"Trial 4 of 18" + badge "Tracking OK"'],
+    ['Report title', 'Summary Results:', 'Summary Results'],
+    ['Report row', 'Maximum time per trial', 'Trial timeout'],
+    ['Report row', 'Pause between trials', 'Inter-trial interval'],
+    ['Report row', 'Trials (planned)', 'Number of trials'],
+    ['Report row', 'Feedback: Sound on, sparkle on', 'Feedback: Hit sound on, miss sound on, glow off'],
+    ['Report row', 'Gaze cursor shown: Yes', 'Gaze cursor: Shown / Hidden'],
+    ['Report row', 'Gaze smoothing: Smoothing α 0.22, jitter tolerance 40 px', 'Gaze smoothing: On, alpha 0.22, jitter tolerance 40 px'],
+    ['Report row', 'Target size: Medium (5°), 103 px radius', 'Target size: Medium (5°, 207 px)'],
+    ['Report row', 'Selection: Dwell 0.8 s, refractory 0.5 s', 'Selection: Dwell, threshold 0.8 s, refractory 0.5 s'],
+    ['Report, detailed line', 'Scan path 75.4 deg · 8 fixations · 32 saccades', 'Scan path 75.4°, 8 fixations, 32 saccades'],
+    ['Run end', 'Test Complete!', 'Test complete'],
+    ['Test List', '← Back to Setup / recalibrate', 'Back to Setup'],
+    ['Date, report', 'Oct 7, 2026 5:09 PM', '2026-10-07 17:09'],
+    ['Empty value, screen and PDF', 'a lone em dash', '"none" in text cells; the em dash stays only inside numeric table cells']
+  ];
+  var cp = document.getElementById('copy-pairs');
+  cp.innerHTML = COPY.map(function (c) {
+    return '<div class="box no"><div class="lbl">Don’t (today)</div><div class="where">' + esc(c[0]) + '</div><q>' + esc(c[1]) + '</q></div>' +
+      '<div class="box yes"><div class="lbl">Do (proposed)</div><div class="where">' + esc(c[0]) + '</div><q>' + esc(c[2]) + '</q></div>';
+  }).join('');
+
+  // Copy-hex buttons.
+  document.addEventListener('click', function (ev) {
+    var b = ev.target.closest('.copy');
+    if (!b) return;
+    var hex = b.getAttribute('data-hex');
+    var done = function () { b.textContent = 'Copied'; setTimeout(function () { b.textContent = 'Copy'; }, 1200); };
+    var fallback = function () {
+      var code = b.previousElementSibling;
+      try {
+        var range = document.createRange(); range.selectNodeContents(code);
+        var sel = window.getSelection(); sel.removeAllRanges(); sel.addRange(range);
+      } catch (e) {}
+    };
+    if (navigator.clipboard && navigator.clipboard.writeText) {
+      navigator.clipboard.writeText(hex).then(done, fallback);
+    } else {
+      fallback();
+    }
+  });
+})();
+</script>
+</body>
+</html>

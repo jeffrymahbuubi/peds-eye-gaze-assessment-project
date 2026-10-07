@@ -11,13 +11,13 @@ was run on the app.
 ## 0. Executive summary
 
 1. **Direction: a clinical instrument look, built from IBM Carbon's tokens and the NHS content rules,
-   delivered as a QSS token port.** No widget library. Segoe UI stays, the teal identity stays, but
+   delivered as a QSS token port.** No widget library. Segoe UI stays, the WTMH blue identity stays (user decision 2026-10-08, §2.2), but
    every size, colour and spacing becomes a named token that meets AA on its own background.
 2. **One type scale (six steps, body 14 px)** replaces eight ad hoc sizes and the 12 px body the
    clinician reads standing beside a child (Task A §2.2, §6).
 3. **State is never carried by tint or bold alone.** A status component (glyph + word) covers the
    Test List, Setup, the Start page, the run bar and the report's Outcome column (Task A §1.2, §4.2).
-4. **Every state token measured here passes AA:** primary button 7.71:1, danger 5.00:1, success
+4. **Every state token measured here passes AA:** primary button 6.08:1, danger 5.00:1, success
    5.02:1, warning text 7.20:1, slider fill 4.51:1, run-bar button border 3.02:1, map digits 13.63:1
    (Task A §2.1 fails: 2.79, 3.18, 3.37, 2.20, 1.73, about 2.0).
 5. **Each page gets one anchor and a content width** (Setup 1200 px, fields sized to content; Test
@@ -57,7 +57,7 @@ Why not the others, for these two audiences:
 | Plain OS widgets (the Compass look, walkthrough §2) | Zero styling work | Loses the state system, the themed scrollbars and controls already fixed for dark-mode leaks (`dialog_theme.py`), and gives no control over contrast |
 | Material 3 / shadcn | Nothing new | The source of tells T2, T3, T6, T7 (research §1) |
 
-What stays from today: the page flow, the teal family as the single accent, Segoe UI (the Windows UI
+What stays from today: the page flow, the WTMH blue family as the single accent, Segoe UI (the Windows UI
 font, so the app reads as native rather than as a web template), the amber practice bar, the run
 bar's word + colour tracking state, the run-end dialog logic, the visual-angle sizing, the dwell and
 switch logic, the shortcuts Alt-P, Alt-Q, Esc and H.
@@ -89,6 +89,13 @@ Every token names its role, its intended background and the ratio it achieves th
 text, 3:1 for large text, borders and glyphs. "exempt" marks disabled controls (WCAG 1.4.3 exception),
 still kept at or above 3.8:1 so a greyed control stays readable (Task A §6 "close to invisible").
 
+**User decision 2026-10-08: the accent family is the WTMH lab blue, not Fable's teal.** The accent is
+#1F669E, the blue end of the WTMH logo ring (`resources/styling/wtmh_logo.png`, measured as the
+20th-percentile luminance of its right-hand band); the focus colour is the logo's middle blue #2D7EB3.
+Hover, subtle tint and the selected row are derived from the same hue, and the title bar keeps today's
+navy #12374A. Every ratio below is recomputed for the new values; all still pass. The teal values they
+replace are given in brackets.
+
 Operator UI, neutrals:
 
 | Token | Hex | On | Ratio | Role |
@@ -101,17 +108,17 @@ Operator UI, neutrals:
 | border-subtle | #E0E0E0 | white | 1.32 | card edges, table grid lines (decorative only) |
 | border-strong | #8D8D8D | white / page | 3.32 / 3.02 | field and control outlines, run-bar buttons, slider handle when disabled |
 | header | #E0E0E0 | with ink | 13.71 | table header fill (was SOFT_ACCENT, the same as the selected row) |
-| row-selected | #CFE8E7 | with ink | 14.09 | the chosen Test List row (now distinct from the header) |
-| title-bar | #0B3B3B | white text | 12.33 | top bar (teal-90 family; today's #12374A is 12.57, either passes) |
+| row-selected | #CFE2F1 | with ink | 13.62 | the chosen Test List row (now distinct from the header by hue) [was #CFE8E7] |
+| title-bar | #12374A | white text | 12.57 | top bar, today's WTMH navy kept [was #0B3B3B] |
 
-Accent (teal, one family, no gradient):
+Accent (WTMH blue, one family, no gradient):
 
 | Token | Hex | On | Ratio | Role |
 |---|---|---|---|---|
-| accent | #005D5D | white text on it / as text on white / on page | 7.71 / 7.71 / 7.01 | primary button fill, secondary button text and border, links, slider fill, nav underline |
-| accent-hover | #004144 | white text | 11.42 | primary hover and pressed |
-| accent-focus | #007D79 | white / page | 4.99 / 4.54 | 2 px focus border on every focusable control |
-| accent-subtle | #D9FBFB | with accent text | 7.03 | accent badge, "PREVIEW" chip when not amber |
+| accent | #1F669E | white text on it / as text on white / on page | 6.08 / 6.08 / 5.53 | primary button fill, secondary button text and border, links, slider fill, nav underline |
+| accent-hover | #17507D | white text | 8.47 | primary hover and pressed [was #004144] |
+| accent-focus | #2D7EB3 | white / page | 4.42 / 4.02 | 2 px focus border on every focusable control (needs 3:1) [was #007D79] |
+| accent-subtle | #E3EEF7 | with accent text | 5.17 | accent badge, "PREVIEW" chip when not amber [was #D9FBFB] |
 | slider-groove | #C6C6C6 | under accent fill | 4.51 | slider track (was 2.20) |
 
 State colours (Carbon support set):
@@ -139,9 +146,9 @@ Report map and data-viz:
 | map-miss | #DA1E28 | 5.00 | X and its ring; digits stay ink on a white pill |
 | map-skipped | #6F6F6F | 5.02 | dashed ring |
 | map-slot | #8D8D8D | 3.32 | faint layout circle (was MUTED at alpha 90, below 3:1) |
-| map-path-dark / light | #005D5D / #007D79 | 7.71 / 4.99 | the selected trial's path, dark to light with time (the light end was #2B8CB0) |
-| map-fixation | #005D5D | 7.71 | fixation ring and number badge outline |
-| map-overlay | #005D5D at alpha 200 | 4.60 | the Summary's Scanpath overlay, one colour for all trials (§3.8) |
+| map-path-dark / light | #1F669E / #2D7EB3 | 6.08 / 4.42 | the selected trial's path, dark to light with time (the light end was #2B8CB0) |
+| map-fixation | #1F669E | 6.08 | fixation ring and number badge outline |
+| map-overlay | #1F669E at alpha 200 | 3.85 (composite #4F87B3; non-text, needs 3:1) | the Summary's Scanpath overlay, one colour for all trials (§3.8) |
 | map-select | #F2B705 star with ink outline | | unchanged |
 | heat | HSV blue-to-red ramp, alpha 0.15-0.80 | | unchanged: the ramp Gazepoint Analysis prints, which the clinicians already read |
 
@@ -179,7 +186,7 @@ Cards keep a 1 px border-subtle edge on the #F4F4F4 page and no fill tint.
   Check box and radio indicators 20 px (WCAG 2.5.8: the drawn target meets 24 px with its 2 px
   margin); spin-box stepper column 24 px wide. A disabled control: fill #E0E0E0, border-strong,
   text-disabled, and a `QCheckBox::indicator:disabled` / `QRadioButton::indicator:disabled` rule
-  (checked: grey fill, white mark) so a greyed-in-place box never keeps the teal (Task A §4.4, hub §8.7).
+  (checked: grey fill, white mark) so a greyed-in-place box never keeps the accent blue (Task A §4.4, hub §8.7).
 - **SliderSpinRow.** Slider 20 px handle, groove 4 px slider-groove, fill accent; length capped at
   240 px when the range has 10 steps or fewer (ticks shown), 360 px otherwise; spin box 88 px.
   Disabled: handle and fill border-strong (3.32:1 on white), groove unchanged.
@@ -264,7 +271,7 @@ Impact / effort are H, M, L. "Rule" names the §2 token or component; "Finding" 
 |---|---|---|---|---|---|
 | T1 | Status column shows a status badge: Done, Not done, Ended early 4/6, Data missing | H / M | §2.5 badges | §4.2 medical rule | test-list.md (bold rule dropped) |
 | T2 | Table max 1200 px; Test Name 420 px, Task 180, Configuration 200, Status 180, Date 140; the button column sits 24 px right of the table, top-aligned | H / M | §2.3 | §4.2 T11 | test-list.md layout |
-| T3 | Header fill #E0E0E0, selected row #CFE8E7 | M / L | §2.2 | §4.2 H4 | no |
+| T3 | Header fill #E0E0E0, selected row #CFE2F1 | M / L | §2.2 | §4.2 H4 | no |
 | T4 | Bold no longer marks Not done (the badge does) | M / L | §2.1 | §4.2 | yes (table rules) |
 | T5 | Delete Test as a secondary button with the danger glyph; the dialog's Delete stays danger | L / L | §2.5 buttons | §4.2 H5 | no |
 | T6 | "Back to Setup / recalibrate" as a tertiary button without the arrow character; empty state line sits inside the table frame with Add New Test beside it | L / L | §4 copy | §4.2 | test-list.md |
