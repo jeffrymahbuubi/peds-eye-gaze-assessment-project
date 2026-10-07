@@ -6,7 +6,8 @@ in QtGui): no printer dialog, no QtPrintSupport. One column, stacked: the header
 Test Configuration table, the Summary of Results, then the Target Map (Targets only, as
 one PNG, with its symbol legend) and the Eye Metrics on a page of their own, the
 Trial-by-Trial table with its header row repeated on every page, and the definitions of
-the measures. The text is the page's own (:mod:`report_format`), so the printout and the
+the measures. The text and the choice of tables (Switch's Clicks columns, Follow the Target's
+Metric / Value summary) are the page's own (:mod:`report_layout`), so the printout and the
 screen cannot disagree.
 
 Units: the document lays out in the writer's own pixels (300 dpi) and the layout
@@ -25,19 +26,20 @@ from typing import Any
 from PySide6.QtCore import QMarginsF, QSizeF
 from PySide6.QtGui import QImage, QPageLayout, QPageSize, QPdfWriter, QTextDocument
 
-from .map_legend import legend_html, png_data_uri
-from .report_format import (
-    DASH,
-    DEFINITIONS,
-    SUMMARY_COLUMNS,
-    TRIAL_COLUMNS,
-    banner_lines,
-    eye_rows,
-    started_text,
-    summary_footnote,
-    summary_table,
-    task_sentence,
-    trial_cells,
+from .map_legend import FOLLOW_LEGEND_ENTRIES, LEGEND_ENTRIES, legend_html, png_data_uri
+from .report_format import DASH, banner_lines, eye_rows, started_text, task_sentence
+from .report_layout import (
+    FOLLOW,
+    definition_lines,
+    layout_kind,
+    summary_aligns,
+    summary_bold_first,
+    summary_cells,
+    summary_header,
+    summary_note,
+    trial_aligns,
+    trial_columns,
+    trial_rows,
 )
 from .wtmh_theme import BORDER, INK, MUTED, SOFT_ACCENT, SOFT_ACCENT_TEXT, WARNING_BG
 
@@ -46,7 +48,10 @@ MARGIN_MM = 10.0
 MAP_WIDTH_MM = 186.0  # of the 190 mm between the margins of an A4 portrait page (190 spills over)
 BODY_PT = 8.5
 TRIAL_TABLE_PT = 7.5  # thirteen columns across 190 mm: a size down keeps each cell on few lines
+WIDE_TRIAL_TABLE_PT = 7.0  # fourteen or more (a Switch test, Follow the Target): one more size down
+WIDE_TRIAL_COLUMNS = 14
 CONFIG_LABEL_WIDTH = "30%"  # the Setting column of the configuration table
+FOLLOW_LABEL_WIDTH = "50%"  # the Metric column of Follow the Target's summary: its labels are long
 
 
 def mm_to_css_px(mm: float) -> int:
@@ -135,12 +140,19 @@ def build_report_html(
         f'<p style="margin-top:0">Configuration Name: <b>{_e(config_name)}</b></p>{config}{notes_block}'
     )
 
-    summary = _table(list(SUMMARY_COLUMNS), summary_table(report), ["left"] + ["right"] * 4, bold_first=True)
+    follow = layout_kind(report) == FOLLOW
+    summary = _table(
+        list(summary_header(report)),
+        summary_cells(report),
+        summary_aligns(report),
+        bold_first=summary_bold_first(report),
+        first_width=FOLLOW_LABEL_WIDTH if follow else None,
+    )
     eye = _table(["Metric", "Value"], [[a, b] for a, b in eye_rows(report)], ["left", "left"], first_width=CONFIG_LABEL_WIDTH)
     summary_block = (
         f'<p style="margin-bottom:2px">{_e(task_sentence(report))}</p>'
         f'<h3 style="margin-bottom:2px">Summary of Results</h3>{summary}'
-        f'<p style="font-size:{BODY_PT - 1}pt; color:{MUTED}">{_e(summary_footnote(report))}</p>'
+        f'<p style="font-size:{BODY_PT - 1}pt; color:{MUTED}">{_e(summary_note(report))}</p>'
     )
     eye_block = f'<h3 style="margin-bottom:2px">Eye Metrics</h3>{eye}'
 
@@ -151,20 +163,21 @@ def build_report_html(
         parts.append(
             f'<h3 style="page-break-before:always; margin-top:0; margin-bottom:2px">Target Map</h3>'
             f'<p style="margin-top:0; margin-bottom:4px"><img src="{png_data_uri(map_image)}" width="{width}"></p>'
-            f'{legend_html(width)}'
+            f'{legend_html(width, entries=FOLLOW_LEGEND_ENTRIES if follow else LEGEND_ENTRIES)}'
             + (f'<p style="font-size:{BODY_PT - 1}pt; color:{MUTED}">{_e(note)}</p>' if note else "")
         )
     parts.append(eye_block)
 
     trials = report.get("trials", [])
-    rows = [[cell.text for cell in trial_cells(trial)] for trial in trials]
+    rows = [[cell.text for cell in cells] for cells in trial_rows(report)]
     skipped = frozenset(n for n, trial in enumerate(trials) if trial.get("outcome") == "skipped")
-    aligns = ["left", "right", "right", "left"] + ["right"] * (len(TRIAL_COLUMNS) - 4)
+    columns = trial_columns(report)
+    font = WIDE_TRIAL_TABLE_PT if len(columns) >= WIDE_TRIAL_COLUMNS else TRIAL_TABLE_PT
     parts.append(
         '<h3 style="margin-bottom:2px">Trial-by-Trial Results</h3>'
-        + _table(list(TRIAL_COLUMNS), rows, aligns, grey_rows=skipped, font_pt=TRIAL_TABLE_PT)
+        + _table(list(columns), rows, ["left"] + trial_aligns(report)[1:], grey_rows=skipped, font_pt=font)
     )
-    definitions = "".join(f"<li>{_e(text)}</li>" for text in DEFINITIONS)
+    definitions = "".join(f"<li>{_e(text)}</li>" for text in definition_lines(report))
     parts.append(
         f'<h3 style="margin-bottom:2px">Definitions</h3>'
         f'<ul style="font-size:{BODY_PT - 1}pt; color:{INK}">{definitions}</ul>'

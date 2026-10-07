@@ -21,17 +21,16 @@ from .report_util import seconds_text
 
 DASH = "—"
 
-# Every value ``metadata.input_mode`` takes (SPEC-input-selection-and-follow.md H1, A9).
-_INPUT_LABELS = {
-    "eye": "Eye gaze (dwell)",
-    "gaze_switch": "Gaze pointer + switch",
-    "switch": "Switch (mouse pointer)",
-    "mouse_dwell": "Mouse pointer (dwell)",
-    "mouse_follow": "Mouse pointer",
+# What every value ``metadata.input_mode`` takes means as (pointer, selection)
+# (SPEC-input-selection-and-follow.md H1, A9). ``mouse_follow`` selects nothing. A folder that
+# also has ``input_pointer`` / ``input_selection`` is read from those instead.
+_MODE_CHOICE: dict[str, tuple[str, str | None]] = {
+    "eye": ("gaze", "dwell"),
+    "gaze_switch": ("gaze", "switch"),
+    "switch": ("mouse", "switch"),
+    "mouse_dwell": ("mouse", "dwell"),
+    "mouse_follow": ("mouse", None),
 }
-# The modes whose pointer is the mouse: no tracker is named for them unless gaze was
-# recorded alongside (``metadata.gaze_recorded``).
-_MOUSE_MODES = ("switch", "mouse_dwell", "mouse_follow")
 _MOTION_PATHS = {
     "circular": "Circular",
     "horizontal": "Horizontal",
@@ -81,26 +80,48 @@ def _first_task(meta: dict[str, Any], task_id: str | None) -> str | None:
     return str(tasks[0]) if isinstance(tasks, list) and tasks else None
 
 
-def _input_row(meta: dict[str, Any], follow_layout: bool = False) -> str:
+def _choice(meta: dict[str, Any], mode: str) -> tuple[str, str | None] | None:
+    """``(pointer, selection)`` of a run: its own fields when it has them, else what its
+    ``input_mode`` stands for; ``None`` for a mode this version does not know."""
+    pointer, selection = meta.get("input_pointer"), meta.get("input_selection")
+    if pointer in ("gaze", "mouse"):
+        return pointer, selection if selection in ("dwell", "switch") else None
+    return _MODE_CHOICE.get(mode)
+
+
+def _input_row(meta: dict[str, Any], snapshot: dict[str, Any], follow_layout: bool = False) -> str:
+    """``Gaze (GP3HD, 150 Hz) · Switch`` / ``Mouse · Dwell 0.8 s`` (SPEC-input-selection-and-
+    follow.md 4.5): the pointer, then how a target is selected. A mouse names the tracker only
+    when gaze was recorded alongside it; Follow the Target has nothing to select."""
     mode = meta.get("input_mode")
     if mode is None:
         return DASH
-    label = _INPUT_LABELS.get(str(mode), str(mode))
-    if follow_layout and mode == "eye":
-        label = "Eye gaze"  # Follow the Target has no dwell to name
-    if mode in _MOUSE_MODES and not meta.get("gaze_recorded"):
-        return label  # the mouse drives the pointer and no tracker recorded
+    choice = _choice(meta, str(mode))
+    if choice is None:
+        return str(mode)
+    pointer, selection = choice
     rate = _num(meta.get("gazepoint_rate_hz")) or _num(meta.get("measured_sample_rate_hz"))
     model = meta.get("gazepoint_model") or ""
     tracker = ", ".join(p for p in (str(model), f"{rate:g} Hz" if rate else "") if p)
-    return f"{label}, {tracker}" if tracker else label
+    if pointer == "gaze":
+        head = f"Gaze ({tracker})" if tracker else "Gaze"
+    elif meta.get("gaze_recorded"):
+        head = f"Mouse, gaze recorded ({tracker})" if tracker else "Mouse, gaze recorded"
+    else:
+        head = "Mouse"  # the mouse drives the pointer and no tracker recorded
+    if follow_layout or selection is None:
+        return head  # nothing to select
+    if selection == "switch":
+        return f"{head} · Switch"
+    threshold = _num(setting(snapshot, "dwell.threshold_ms", "dwell", "threshold_ms"))
+    return f"{head} · Dwell" + ("" if threshold is None else f" {_seconds(threshold)}")
 
 
 def _selection_row(snapshot: dict[str, Any], meta: dict[str, Any]) -> str:
     refractory = _num(setting(snapshot, "dwell.refractory_ms", "dwell", "refractory_ms"))
     tail = f", refractory {_seconds(refractory)}" if refractory is not None else ""
-    if meta.get("input_mode") in ("gaze_switch", "switch"):
-        return f"Switch press{tail}"
+    if meta.get("input_mode") in ("gaze_switch", "switch") or meta.get("input_selection") == "switch":
+        return f"Switch press (mouse/switch button){tail}"
     threshold = _num(setting(snapshot, "dwell.threshold_ms", "dwell", "threshold_ms"))
     return DASH if threshold is None else f"Dwell {_seconds(threshold)}{tail}"
 
@@ -261,7 +282,7 @@ def build_config_rows(
     rows = [
         ("Configuration name", str(config_name)),
         ("Task", TASK_INFO[task][0] if task in TASK_INFO else (task or DASH)),
-        ("Input", _input_row(meta, follow_layout)),
+        ("Input", _input_row(meta, snapshot, follow_layout)),
         ("Trials (planned)", f"{planned:.0f}" if planned else DASH),
         ("Selection", _selection_row(snapshot, meta)),
         (size_label, _size_row(snapshot, meta, task, shrunk)),

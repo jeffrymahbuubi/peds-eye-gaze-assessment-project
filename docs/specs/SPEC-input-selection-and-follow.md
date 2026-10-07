@@ -1,10 +1,10 @@
 ---
 name: SPEC-input-selection-and-follow
 title: Pointer (Gaze / Mouse) and Selection (Dwell / Switch) per test; Follow the Target without a click
-status: approved 2026-10-07 (I1-I12, H1-H10); step 1 wireframes APPROVED 2026-10-07 (W1-W2); step 2 (engine) DONE 2026-10-08; step 3 (Follow the Target) DONE 2026-10-08
+status: approved 2026-10-07 (I1-I12, H1-H10); step 1 wireframes APPROVED 2026-10-07 (W1-W2); step 2 (engine) DONE 2026-10-08; step 3 (Follow the Target) DONE 2026-10-08; step 4 (report UI) DONE 2026-10-08
 created: 2026-10-07
 last_updated: 2026-10-08
-next_step: step 4 (UI: config page Input card display, report tables / summary / map / legend + PDF for Switch and Follow, report_config labels) with spec-implementer in the worktree `.claude/worktrees/agent-abd63029551e9614d` (fast-forwarded to the step-3 commit), then step 5 (review + live check A10 with the user and the switch)
+next_step: step 5, the live check A10 with the user at the real device and the physical switch (a Grid Click test with Gaze + Switch, one with Mouse + Dwell, a Follow the Target test with Gaze; each recorded, saved and reported, PDF included); findings go to a step-5 entry in §8/§10, fixes by spec-implementer in the worktree `.claude/worktrees/agent-abd63029551e9614d` (at the step-4 commit)
 related:
   - SPEC-compass-task-flow.md (parent redesign; configuration page 4B, run 4C, report 4D; P9c V1-V5 still open there and done FIRST)
   - SPEC-follow-moving-selection.md (the selection window this SPEC removes)
@@ -581,8 +581,119 @@ click**. It has no pointer movement and no keys.
     summary rows on screen, the map legend entries and the Follow Target Map drawing, the
     "Clicks" columns on the report, the per-trial eye columns saying "not recorded"; no live run
     (A10 is step 5); nothing run on the device.
+- **2026-10-08 — step 4 (report UI for Switch and Follow, Input row, Mouse wording), `claude-sonnet-5-5`.**
+  Same worktree at `0461789`; nothing staged or committed. §4.5 and A8 and the "Not done" lists of
+  steps 2 and 3. `docs/design/` untouched, no new setting.
+  - **Data (4.5, 4.6).** `report_metrics.py`: every trial row of `report.json` carries `clicks` and
+    `click_errors` (`null` for a skipped trial and for a folder without the `trials.csv` columns), and
+    every Summary of Results row their means. `REPORT_VERSION` is now 4 (a cached version-3 report of
+    a Switch test lacks them and is rebuilt on open). `report_config.py`: the **Input** row is read
+    from the run's own `input_pointer` / `input_selection`, else from `input_mode` (all five values,
+    A9): `Gaze (GP3HD, 150 Hz) · Switch`, `Mouse · Dwell 0.8 s`, `Mouse, gaze recorded (GP3HD, 150 Hz)
+    · Dwell 0.8 s`; Follow the Target has nothing to select and reads `Gaze (GP3HD, 150 Hz)` or
+    `Mouse`; the **Selection** row for a switch reads `Switch press (mouse/switch button), refractory
+    0.5 s`.
+  - **Which tables (A8): `src/ui/report_layout.py` (new).** One place the page and the PDF both ask:
+    `layout_kind(report)` is `follow` (a `follow` block that is not `legacy`), `switch`
+    (`session.selection == "switch"`) or `selection`, and it gives each layout's summary header /
+    aligns / rows / note, trial columns / aligns / cells and PDF definitions. An old Follow & Click
+    folder is `selection`: its old layout, no exception (H10).
+  - **Switch.** `report_format.py`: `Clicks` and `Click errors` after Entries in the trial table (15
+    columns) and after Entries in the Summary of Results (7 columns, the row means), a footnote and
+    two PDF definitions that give the 0.15 s blink window in seconds (V5). Not shown for Dwell.
+  - **Follow the Target.** `report_format_follow.py` (new): the W2 Metric / Value table (Followed n of
+    N, Time on target mean and range, Mean distance, Time to find, Pursuit gain median, Catch-up per
+    s, Valid pointer %), the footnote with the H8 caption, the 14 trial columns (Path, Outcome,
+    Duration, Time on target, Mean distance, Time to find, Pursuit gain, Catch-up, Valid, then
+    Fixations, Saccades, Pupil, Pupil change), and the PDF definitions. `target_map_follow.py` (new)
+    and `target_map_paint.py`: the Detailed map of a Follow trial draws the smoothed pointer path from
+    `follow.trials[*].pointer_path`, **dark and thick on the target, lighter and thinner off it** (a
+    difference of lightness and width, not hue alone), plus the target's track and the S mark; the
+    Summary map keeps the track, the marks (followed as the green circle, not followed as the red X)
+    and the Scanpath overlay. `map_legend.py`: the legend takes its entries (`set_entries`,
+    `legend_html(entries=)`): Follow's are followed, not followed, skipped, path of the target; the
+    Detailed view of a Follow test also shows a legend box with **Pointer on target / Pointer off
+    target / Path of the target**.
+  - **Page widgets.** `FitTable.set_header` and `FrozenColumnTable.set_columns` let the two tables
+    change columns; `report_views.py` fills them from the layout and shows the Follow legend and
+    sentence only for Follow; `report_pdf.py` prints the same tables, legend and definitions (a size
+    down, 7 pt, from 14 columns up; checked by rendering a Switch and a Follow PDF page: all columns
+    fit the A4 portrait width, the header row repeats).
+  - **"not recorded" (A5).** `session.gaze_recorded == false` (a Mouse test with no tracker): the
+    six eye cells of every presented trial (Follow: also Pursuit gain and Catch-up) say `not
+    recorded` on the page and in the PDF, the Follow summary's gain and catch-up rows too, the line
+    under the selected trial's map says `Eye data not recorded.`, and the Scanpath and Heat map
+    switches are off, disabled and read `Scanpath (not recorded)` / `Heat map (not recorded)`. A
+    skipped trial keeps its dashes; an older folder that says nothing keeps its dashes.
+  - **Start page.** The clinician's last line for a Mouse test is `Start records N trials. Check that
+    the mouse moves the pointer on the screen before you begin.` (a Mouse run's bar says `mouse
+    pointer`, not `tracking OK`); a Gaze test keeps its line.
+  - **Config page.** Nothing left: the Input card, the Dwell card, Glow and the Follow page were
+    built in steps 2 and 3 and match `task-config.md`; no change.
+  - **Docs.** `docs/DATA_SCHEMA.md` (report version 4, the two row fields, which table each layout
+    prints, the `not recorded` rule), `README.md` (a feature bullet).
+  - **Tests added (60 new).** `test_report_switch_layout.py` (13: rows, columns, footnote,
+    sorting, page, a Switch-then-Dwell page, PDF), `test_report_follow_layout.py` (28: layout choice,
+    the seven summary rows and their dashes, the 14 columns, a skipped trial, a Mouse run, page,
+    map pixels on / off target, legend, PDF, an old Follow & Click folder in A8's terms),
+    `test_report_not_recorded.py` (10), two real-run tests in `test_mouse_run.py` (Mouse dwell and
+    Mouse switch through the app, page and PDF), and one each for `set_header`, `set_columns`,
+    `set_entries` / `legend_html`, a Follow summary table fitting its page, and the Mouse clinician
+    line (`test_report_tables.py`, `test_frozen_table.py`, `test_map_legend.py`,
+    `test_mouse_run_gate.py`). The folder builders of `test_follow_report.py` moved to
+    `tests/follow_fixtures.py` (no assertion changed) so the new files share them;
+    `report_ui_fixtures.folder_report` takes `presses=`; the legacy fixture drops `clicks` /
+    `click_errors` too. Existing tests changed only for a label or a version: the Input and
+    Selection row texts (`test_report_config.py`, `test_mouse_run.py`, `test_report_cache.py`,
+    `test_follow_report.py`) and `REPORT_VERSION` 4 (`test_report_scanpath.py`,
+    `test_follow_report.py`).
+  - **pytest (whole repo, worktree, offscreen):** `5 failed, 2540 passed, 2 skipped` in 6 min 7 s
+    (2547 collected; step 3's `5 failed, 2480 passed, 2 skipped`, so +60 passed). The 5 failures are
+    the same lab-local `dwell.smoothing.alpha` 0.22 checks against the worktree's committed
+    `configs/default.yaml` (0.35): `test_config_flow::test_a_new_test_opens_at_standard_with_the_task_defaults`
+    and the four `test_task_config_page::test_a_new_test_opens_with_standard_and_the_defaults[*]`.
+  - **Deviations from the SPEC text:** none that change a decision; the readings are in §9.
+    `ruff check src tests` reports the same 10 findings as before (none in files I touched for those
+    lines); my files are clean. Every file I touched or added is under 500 lines (`report_format.py`
+    358, `target_map_paint.py` 446).
+  - **Not done:** the live check A10 (step 5); nothing run on the device or with the real switch;
+    `app.py` and `base_task.py` are still over 500 lines (their own refactor); the wireframes
+    `report-summary.md` / `report-detailed.md` were not edited (see §9: the legend and the
+    "not recorded" cells).
 
 ## 9. Implementer open questions
+
+- **2026-10-08 (step 4) — decided, non-blocking; for the hub's review.** No question blocked the
+  work. Calls the SPEC, the lead's brief and the wireframes do not spell out the same way, each the
+  least surprising reading:
+  - *The "on target / off target" legend entries sit under the Detailed map, not the Summary map or
+    the PDF.* The brief says the legend gains them. The pointer path is only drawn in the selected
+    trial's map (4.5: Summary = target path and fixation scanpath), so listing the two lines under
+    the Summary map and in the PDF would name something not drawn there. The Detailed view of a
+    Follow test therefore has its own legend box (Pointer on target / Pointer off target / Path of
+    the target) and its text legend says the same; the Summary legend and the PDF's list followed,
+    not followed, skipped and the path of the target. If you want the two entries under the Summary
+    too, the Summary map would have to draw the pointer paths, which is a drawing change.
+  - *"not recorded" instead of "—" in the per-trial eye cells.* The brief and A5 say "not recorded";
+    the note under `report-detailed.md`'s Follow table says a Mouse run without the tracker shows
+    "—" there. I followed the brief (also for Pursuit gain and Catch-up, which need the tracker). A
+    skipped trial keeps its dashes. The wireframe note is now out of date.
+  - *The Input row.* 4.5's examples give `Mouse · Dwell 0.8 s` (the dwell time) while the Summary
+    wireframe's row says `· Dwell`; I used 4.5. The model is printed as recorded (`GP3HD`, not
+    `GP3 HD`; nothing is guessed). Follow reads `Gaze (GP3HD, 150 Hz)` or `Mouse`: step 3's `Eye gaze`
+    is replaced because the row now always starts with the pointer. A Mouse test that also recorded
+    gaze reads `Mouse, gaze recorded (GP3HD, 150 Hz) · Dwell 0.8 s`.
+  - *The Follow Path column* says the test's setting in short form (`Circular`, `Horizontal`,
+    `Vertical`, `Diagonal TL-BR`, `Diagonal TR-BL`); the configuration table keeps the long form.
+  - *Ranges and the caption.* `Time on target` prints `60 % (range 30–80 %)` as the wireframe does (an
+    en dash in a number range, no em dash); a range of one value prints just the value. The gain
+    caption says "about 0.6 to 0.85" in words.
+  - *`REPORT_VERSION` 4* (the new fields in every trial and summary row), so a cached version-3
+    report of a Switch test is rebuilt on open; existing Follow reports are rebuilt the same way.
+  - *The Mouse clinician line* is my wording (it is read by the clinician, not the child): "Check that
+    the mouse moves the pointer on the screen before you begin."
+  - *The PDF trial table* uses 7 pt from 14 columns up (a Switch test, Follow the Target) and 7.5 pt
+    otherwise; the first column is left-aligned in the PDF and centred on the page, as before.
 
 - **2026-10-08 (step 3) — CONFIRMED by the user 2026-10-08 as built; the hitbox margin stays
   fixed at 40 px (not a page control), recorded per run as `metadata.hitbox_margin_px`; if the
@@ -681,3 +792,4 @@ click**. It has no pointer movement and no keys.
 - **2026-10-07** — Step 1 done: the hub updated the wireframes `task-config` (Input card, Dwell card, Glow on target, Follow timing), `start-test` (Mouse note, proposed read-aloud text), `report-summary` (Switch columns, Follow summary table, Mouse "not recorded") and `report-detailed` (Switch columns, Follow per-trial table, on/off-target path); rendered with wiremd. **The user approved them as is**, plus W1 (read-aloud wording) and W2 (Follow Metric/Value table) in §3.2a. P9c of the parent SPEC was committed first (`6bad506`) so these wireframes get their own commit. Next: steps 2-4 by spec-implementer.
 - **2026-10-08** — Step 2 done by spec-implementer in an isolated worktree (§8, incl. the addendum), merged into the main tree by the hub. §9 resolved with the user: refractory = switch debounce (`SWITCH_IGNORED reason=refractory`), Setup may continue without a tracker (Mouse-only note), the six small calls confirmed. Hub review: in scope, A1 (data), A2, A3, A4, A5, A9 met by tests; pre-existing key-release bug fixed (only the first Space press used to count); `app.py` (1231) and `base_task.py` (786) remain over 500 lines (pre-existing, later cleanup). Hub full pytest in the main tree: **2397 passed, 2 skipped, 0 failed**. Committed on the user's OK with offscreen review only; live check A10 is step 5. Next: step 3 (Follow the Target).
 - **2026-10-08** — Step 3 done by spec-implementer in the same worktree (§8), patched into the main tree by the hub (`git add -A` + `diff --cached --binary` + `git apply`). §9 step-3 readings taken to the user: **all confirmed as built; the 40 px hitbox margin stays fixed** (user decision, recorded per run as `metadata.hitbox_margin_px`). Hub review of every source diff and `report_follow.py`: `has_selection` + four BaseTask hooks leave the three selection tasks on their old path; per-frame accounting (invalid frames count for nothing, 250 ms frame cap, followed = 50 % of valid time, never a timeout); pursuit gain (saccades padded by one sample, whole 100 ms window clean, bounce exclusion, 3 deg limit, median, None under 0.5 s); legacy Follow & Click folders keep their old report (`on_target_ms` absent); `REPORT_VERSION` 3; `initial_live_values` still carries `dwell.jitter_tolerance_px` for every task, so the metadata field is always written. Hub full pytest in the main tree: **2487 collected, exit 0 (2485 passed, 2 skipped, 0 failed)**; the README's count stands. Committed on the user's OK; worktree fast-forwarded to the commit. The Fable design work (docs/design, `00a28bb`..`e81bdb6`) was done the same evening and has no code effect yet. Next: step 4.
+- **2026-10-08** — Step 4 done by spec-implementer in the same worktree (§8), patched into the main tree by the hub. §9 step-4 readings taken to the user with the review (none blocking): the on/off-target legend under the Detailed map only, "not recorded" in the per-trial eye cells (the `report-detailed.md` wireframe note updated by the hub to match), the Input row starting with the pointer, short Path labels, the 7 pt PDF table from 14 columns, `REPORT_VERSION` 4. Hub review: `report_layout.py` is the one place the page and the PDF ask which tables to show; the on/off drawing differs by lightness and width, not hue alone; nothing out of scope, no new setting, every file under 500 lines. Hub full pytest in the main tree: **2545 passed, 2 skipped, 0 failed** (2547 collected; README count set to it). Five empty stray files the implementer's shell left in the repo root were deleted. Committed on the user's OK; worktree fast-forwarded to the commit. Next: step 5 (live check A10).

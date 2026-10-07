@@ -29,17 +29,34 @@ from PySide6.QtWidgets import (
 )
 
 from .frozen_table import FrozenColumnTable
-from .map_legend import MapLegend
+from .map_legend import (
+    FOLLOW_LEGEND_ENTRIES,
+    LEGEND_ENTRIES,
+    NUMBERS_NOTE,
+    POINTER_LEGEND_ENTRIES,
+    POINTER_NUMBERS_NOTE,
+    MapLegend,
+)
 from .report_format import (
     EYE_NOTE,
     SUMMARY_COLUMNS,
     TRIAL_COLUMNS,
     eye_rows,
-    summary_footnote,
-    summary_table,
+    gaze_was_recorded,
     task_sentence,
-    trial_cells,
     trial_line,
+)
+from .report_layout import (
+    FOLLOW,
+    layout_kind,
+    summary_aligns,
+    summary_bold_first,
+    summary_cells,
+    summary_header,
+    summary_note,
+    trial_aligns,
+    trial_columns,
+    trial_rows,
 )
 from .report_tables import FitTable
 from .target_map import TargetMapWidget
@@ -57,12 +74,19 @@ TRIAL_LEGEND = (
     "fixations (bigger = longer) · the path (smoothed like the on-screen gaze cursor) runs dark "
     "to light with time · dashed ring = target area."
 )
+# Follow the Target: nothing is selected, and the pointer path is split by the target's area.
+FOLLOW_TRIAL_LEGEND = (
+    "S = pointer when the target appeared · numbered circles = fixations (bigger = longer) · the "
+    "pointer path (smoothed like the on-screen cursor) is dark where the pointer was on the target "
+    "and light where it was off it · faint line = the path of the target · dashed ring = target area."
+)
+NOT_RECORDED_SUFFIX = "not recorded"  # on the Scanpath and Heat map switches of a test with no gaze
 
-_RIGHT = Qt.AlignmentFlag.AlignRight
-_LEFT = Qt.AlignmentFlag.AlignLeft
-_CENTER = Qt.AlignmentFlag.AlignHCenter
-_SUMMARY_ALIGNS = [_LEFT] + [_RIGHT] * 4
-_TRIAL_ALIGNS = [_CENTER, _RIGHT, _RIGHT, _LEFT] + [_RIGHT] * (len(TRIAL_COLUMNS) - 4)
+_ALIGN = {
+    "left": Qt.AlignmentFlag.AlignLeft,
+    "right": Qt.AlignmentFlag.AlignRight,
+    "center": Qt.AlignmentFlag.AlignHCenter,
+}
 
 # The scroll areas are transparent over the page's tint (the theme's rules cover its own
 # scroll-area names only).
@@ -105,7 +129,14 @@ def scroll_area(content: QWidget) -> QScrollArea:
 
 
 class SummaryView(QScrollArea):
-    """Summary of Results, Target Map and Eye Metrics of one report."""
+    """Summary of Results, Target Map and Eye Metrics of one report.
+
+    The table is the report's layout (:mod:`report_layout`): the four selection rows (with the
+    Clicks columns for a Switch test) or Follow the Target's Metric / Value rows; the legend
+    names the marks of that task. A test with no gaze recorded cannot draw the Scanpath or the
+    Heat map: their switches are off and say so."""
+
+    SCANPATH, HEAT = "Scanpath", "Heat map"
 
     def __init__(self, parent: QWidget | None = None) -> None:
         super().__init__(parent)
@@ -126,8 +157,8 @@ class SummaryView(QScrollArea):
         switches = QHBoxLayout()
         self.targets_check = QCheckBox("Targets")
         self.targets_check.setChecked(True)
-        self.path_check = QCheckBox("Scanpath")  # a dot per fixation, joined in time order (V2)
-        self.heat_check = QCheckBox("Heat map")
+        self.path_check = QCheckBox(self.SCANPATH)  # a dot per fixation, joined in time order (V2)
+        self.heat_check = QCheckBox(self.HEAT)
         for check in (self.targets_check, self.path_check, self.heat_check):
             check.toggled.connect(self._on_overlays)
             switches.addWidget(check)
@@ -152,8 +183,16 @@ class SummaryView(QScrollArea):
 
     def set_report(self, report: dict[str, Any]) -> None:
         self.task_label.setText(task_sentence(report))
-        self.table.set_rows(summary_table(report), aligns=_SUMMARY_ALIGNS, bold_first=True)
-        self.note.setText(summary_footnote(report))
+        follow = layout_kind(report) == FOLLOW
+        self.table.set_header(summary_header(report), stretch_column=1 if follow else 0)
+        self.table.set_rows(
+            summary_cells(report),
+            aligns=[_ALIGN[a] for a in summary_aligns(report)],
+            bold_first=summary_bold_first(report),
+        )
+        self.note.setText(summary_note(report))
+        self.legend.set_entries(FOLLOW_LEGEND_ENTRIES if follow else LEGEND_ENTRIES, NUMBERS_NOTE)
+        self._set_gaze_switches(gaze_was_recorded(report))
         self.eye_table.set_rows([list(row) for row in eye_rows(report)])
         self.map.set_report(report)
         notes = [self.map.note] if self.map.note else []
@@ -162,6 +201,14 @@ class SummaryView(QScrollArea):
         self.map_note.setText(" ".join(notes))
         self.map_note.setVisible(bool(notes))
         self._on_overlays()
+
+    def _set_gaze_switches(self, recorded: bool) -> None:
+        """Scanpath and Heat map need gaze: without it they are off, disabled and say "not recorded"."""
+        for check, label in ((self.path_check, self.SCANPATH), (self.heat_check, self.HEAT)):
+            check.setEnabled(recorded)
+            check.setText(label if recorded else f"{label} ({NOT_RECORDED_SUFFIX})")
+            if not recorded:
+                check.setChecked(False)
 
     def _on_overlays(self, *_args: object) -> None:
         self.map.set_overlays(
@@ -189,6 +236,8 @@ class DetailedView(QScrollArea):
         layout.setContentsMargins(0, 0, 8, 0)
         layout.setSpacing(8)
         layout.addWidget(section_title("Trial-by-Trial Results"))
+        self._cells: list[list[Any]] = []  # the cells of each report trial, in the report's order
+        self._aligns: list[str] = []
         self.table = FrozenColumnTable(TRIAL_COLUMNS)
         self.table.setMinimumHeight(200)
         layout.addWidget(self.table, stretch=11)
@@ -199,7 +248,14 @@ class DetailedView(QScrollArea):
         layout.addWidget(self.map, stretch=9)
         self.line_label = QLabel("")
         layout.addWidget(self.line_label)
-        layout.addWidget(muted_label(TRIAL_LEGEND))
+        # Follow the Target only: what the dark and the light stretches of the pointer path mean.
+        self.legend = MapLegend()
+        self.legend.set_entries(POINTER_LEGEND_ENTRIES, POINTER_NUMBERS_NOTE)
+        self.legend.setMaximumWidth(MAP_MAX_WIDTH)
+        self.legend.setVisible(False)
+        layout.addWidget(self.legend)
+        self.trial_legend = muted_label(TRIAL_LEGEND)
+        layout.addWidget(self.trial_legend)
         setup_scroll(self, content)
         self.table.sortRequested.connect(self._on_sort)
         self.table.currentCellChanged.connect(self._on_current_changed)
@@ -209,6 +265,12 @@ class DetailedView(QScrollArea):
         self._report = report
         self._sort = (-1, Qt.SortOrder.AscendingOrder)
         self.table.set_sort_indicator(-1, Qt.SortOrder.AscendingOrder)
+        self.table.set_columns(trial_columns(report))
+        self._aligns = trial_aligns(report)
+        self._cells = trial_rows(report)
+        follow = layout_kind(report) == FOLLOW
+        self.legend.setVisible(follow)
+        self.trial_legend.setText(FOLLOW_TRIAL_LEGEND if follow else TRIAL_LEGEND)
         self.map.set_report(report)
         self._fill(select=0)
 
@@ -221,7 +283,7 @@ class DetailedView(QScrollArea):
         """Rebuild the rows in the current sort order and select the one for report trial
         ``select`` (an index into ``trials``), if any."""
         trials = self._report.get("trials", [])
-        rows = [(i, trial_cells(t), t) for i, t in enumerate(trials)]
+        rows = [(i, self._cells[i], t) for i, t in enumerate(trials)]
         column, order = self._sort
         if column >= 0:
             have = [r for r in rows if r[1][column].key is not None]
@@ -238,7 +300,7 @@ class DetailedView(QScrollArea):
                 for c, cell in enumerate(cells):
                     item = QTableWidgetItem(cell.text)
                     item.setFlags(Qt.ItemFlag.ItemIsEnabled | Qt.ItemFlag.ItemIsSelectable)
-                    item.setTextAlignment(_TRIAL_ALIGNS[c] | Qt.AlignmentFlag.AlignVCenter)
+                    item.setTextAlignment(_ALIGN[self._aligns[c]] | Qt.AlignmentFlag.AlignVCenter)
                     if skipped:
                         item.setForeground(QColor(MUTED))
                     table.setItem(r, c, item)
@@ -263,7 +325,7 @@ class DetailedView(QScrollArea):
         trial = trials[index]
         self.map.set_trial(index)
         self.selected_title.setText(f"Selected trial — Trial {trial.get('trial', '')}")
-        self.line_label.setText(trial_line(trial))
+        self.line_label.setText(trial_line(trial, gaze_was_recorded(self._report)))
 
     def _on_sort(self, column: int) -> None:
         current, order = self._sort

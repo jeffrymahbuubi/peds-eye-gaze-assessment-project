@@ -63,8 +63,9 @@ RIG_META: dict[str, Any] = {
     },
 }
 
-# The columns P2/P3 added to trials.csv; a legacy folder lacks all of them.
-NEW_TRIAL_COLUMNS = ("is_skipped", "entries", "end_x", "end_y", "slot_index")
+# The columns P2/P3 added to trials.csv (and the switch presses after them); a legacy folder lacks
+# all of them.
+NEW_TRIAL_COLUMNS = ("is_skipped", "entries", "end_x", "end_y", "slot_index", "clicks", "click_errors")
 
 
 def record(

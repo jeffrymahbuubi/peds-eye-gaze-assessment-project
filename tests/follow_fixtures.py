@@ -5,15 +5,24 @@ Not a test module."""
 
 from __future__ import annotations
 
+import copy
+import csv
+import json
 import math
 import random
 from pathlib import Path
 from typing import Any
 
-from src.data.recorder import TARGET_TRACK_COLUMNS, TARGET_TRACK_FILENAME
-from src.data.report_eye import RawSample
+from src.data.recorder import (
+    POINTER_STREAM_COLUMNS,
+    POINTER_STREAM_FILENAME,
+    TARGET_TRACK_COLUMNS,
+    TARGET_TRACK_FILENAME,
+)
+from src.data.report_eye import GazeFrame, RawSample
 from src.data.report_geometry import Geometry
 from src.data.schema import TrialRecord
+from tests.report_fixtures import write_session
 
 SEC = 1_000_000_000
 T0 = 1_791_000_000 * SEC  # a host-clock origin; everything is relative to it
@@ -223,9 +232,120 @@ def follow_record(
 
 
 def write_track(folder: Path, rows) -> None:
-    import csv
-
     with (folder / TARGET_TRACK_FILENAME).open("w", newline="", encoding="utf-8") as fh:
         writer = csv.writer(fh)
         writer.writerow(TARGET_TRACK_COLUMNS)
         writer.writerows(rows)
+
+
+# -- whole run folders (a Gaze run, a Mouse run with no tracker, an old Follow & Click one) -----------
+
+TRIAL_S = 10.0
+PERIOD_S = 12.0  # a trial and its pause
+MM_PER_PX = 0.2745
+FORTY_PX_DEG = 0.969  # 40 px * 0.2745 mm/px at 650 mm, as a visual angle
+
+
+def onset(k: int) -> int:
+    return OFFSET_NS + round(k * PERIOD_S * SEC)
+
+
+def records():
+    return [
+        follow_record(0, onset(0), on_target_ms=7000.0, first_gaze_s=0.4),
+        follow_record(1, onset(1), on_target_ms=8000.0, first_gaze_s=0.2),
+        follow_record(2, onset(2), on_target_ms=3000.0, first_gaze_s=1.2, mean_dist_px=80.0),
+    ]
+
+
+def run_samples(gain=0.8):
+    """One continuous gaze over three trials, the target restarting each time."""
+    base = horizontal()
+
+    def position(t):
+        k = int(t // PERIOD_S)
+        return base(min(t - k * PERIOD_S, TRIAL_S))
+
+    samples, jumps = simulate_gaze(position, 2 * PERIOD_S + TRIAL_S, gain=gain, noise_deg=0.1)
+    return samples, jumps
+
+
+def path_frames(off_after_s=None, off_trial=2):
+    """60 Hz gaze-stream frames on the target; in trial ``off_trial`` far from it after
+    ``off_after_s``."""
+    base = horizontal()
+    frames = []
+    for k in range(3):
+        # A blink in the pause before each trial: the cursor's smoothing starts afresh.
+        frames.append(GazeFrame(onset(k) - SEC, 0.5, 0.5, False, None, None))
+        for i in range(int(TRIAL_S * 60) + 1):
+            t = i / 60.0
+            x, y = base(t)
+            if off_after_s is not None and k == off_trial and t >= off_after_s:
+                x += 0.3
+            frames.append(GazeFrame(onset(k) + round(t * SEC), x, y, True, None, None))
+    return frames
+
+
+def folder(tmp_path, *, meta=None, recs=None, samples=True, frames=True, name="run"):
+    base = horizontal()
+    track = []
+    for k in range(3):
+        track.extend(target_track_rows(base, TRIAL_S, trial=k, origin_ns=onset(k)))
+    meta = copy.deepcopy(FULL_CANVAS_META) if meta is None else meta
+    out = write_session(
+        tmp_path / name,
+        recs or records(),
+        meta=meta,
+        frames=path_frames(off_after_s=5.0) if frames else None,
+        samples=run_samples()[0] if samples else None,
+        track=track,
+    )
+    return out
+
+
+def mouse_folder(tmp_path):
+    meta = copy.deepcopy(FULL_CANVAS_META)
+    meta.update(
+        input_mode="mouse_follow", input_pointer="mouse", gaze_recorded=False,
+        calibration_source="not run", calibration_points=0, calibration_error_px=None,
+    )
+    meta["settings"]["structural"]["input"] = {"pointer": "mouse"}
+    meta.pop("raw_clock_offset_ns")
+    out = folder(tmp_path, meta=meta, samples=False, frames=False, name="mouse")
+    base = horizontal()
+    with (out / POINTER_STREAM_FILENAME).open("w", newline="", encoding="utf-8") as fh:
+        writer = csv.writer(fh)
+        writer.writerow(POINTER_STREAM_COLUMNS)
+        for k in range(3):
+            writer.writerow([onset(k) - SEC, 1.4, 0.5, 0])  # the mouse is off the canvas in the pause
+            for i in range(int(TRIAL_S * 60) + 1):
+                t = i / 60.0
+                x, y = base(t)
+                writer.writerow([onset(k) + round(t * SEC), round(x, 5), round(y, 5), 1])
+    return out
+
+
+def legacy_folder(tmp_path):
+    recs = [
+        follow_record(0, onset(0), followed=True),
+        follow_record(1, onset(1), followed=False),
+        follow_record(2, onset(2), followed=True),
+    ]
+    recs[0].t_click_ns = recs[0].t_end_ns - 3 * SEC
+    recs[1].is_timeout = True
+    out = folder(tmp_path, recs=recs, name="old")
+    old = ("valid_ms", "on_target_ms", "time_on_target_pct", "mean_dist_px", "clicks", "click_errors")
+    with (out / "trials.csv").open(encoding="utf-8", newline="") as fh:
+        rows = list(csv.DictReader(fh))
+    keep = [c for c in rows[0] if c not in old]
+    with (out / "trials.csv").open("w", encoding="utf-8", newline="") as fh:
+        writer = csv.DictWriter(fh, fieldnames=keep)
+        writer.writeheader()
+        writer.writerows([{k: r[k] for k in keep} for r in rows])
+    meta = json.loads((out / "metadata.json").read_text(encoding="utf-8"))
+    meta["settings"]["structural"]["motion"]["select_window_ms"] = 2500
+    for key in ("input_pointer", "input_selection", "gaze_recorded", "hitbox_margin_px"):
+        meta.pop(key)
+    (out / "metadata.json").write_text(json.dumps(meta), encoding="utf-8")
+    return out

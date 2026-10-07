@@ -125,7 +125,7 @@ def test_the_json_is_compact_and_keeps_unicode(tmp_path):
     text = report_json(build_report(full_folder(tmp_path)))
     assert text == json.dumps(json.loads(text), ensure_ascii=False, separators=(",", ":"))
     assert len(text.splitlines()) == 1
-    assert "Eye gaze (dwell)" in text and "5°" in text  # not \u escaped
+    assert "Gaze (GP3HD, 150 Hz) · Dwell 0.8 s" in text and "5°" in text  # not \u escaped
 
 
 # -- the cache -------------------------------------------------------------------------------

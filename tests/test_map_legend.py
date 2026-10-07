@@ -217,3 +217,25 @@ def test_the_pdf_legend_is_laid_out_by_qt_with_every_entry(qapp):
     for _kind, label in LEGEND_ENTRIES:
         assert label in text
     assert NUMBERS_NOTE in text
+
+
+# -- the entries can be replaced (Follow the Target has its own, SPEC-input-selection-and-follow.md 4.5) ----
+
+
+def test_set_entries_replaces_the_icons_the_labels_and_the_note(qapp):
+    legend = MapLegend()
+    legend.set_entries((("hit", "Trial followed"), ("on", "Pointer on target"), ("track", "Path")), "Numbers = x")
+    assert legend.entries() == [("hit", "Trial followed"), ("on", "Pointer on target"), ("track", "Path")]
+    assert legend.numbers_label.text() == "Numbers = x"
+    # no leftover widget of the first set is still a child: the box shows three entries, not seven
+    assert len(legend.findChildren(LegendIcon)) == 3
+    assert len([w for w in legend.findChildren(QLabel) if w.objectName().startswith("legendLabel_")]) == 3
+    legend.set_entries(LEGEND_ENTRIES)
+    assert [kind for kind, _ in legend.entries()] == ["hit", "timeout", "skipped", "slot"]
+    assert legend.numbers_label.text() == NUMBERS_NOTE and len(legend.findChildren(LegendIcon)) == 4
+
+
+def test_the_pdf_legend_uses_the_entries_it_is_given(qapp):
+    html = legend_html(600, entries=(("hit", "Trial followed"), ("track", "Path of the target")))
+    assert "Trial followed" in html and "Path of the target" in html and "Target selected (hit)" not in html
+    assert html.count("data:image/png;base64,") == 2 and NUMBERS_NOTE in html

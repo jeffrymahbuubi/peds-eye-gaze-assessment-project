@@ -44,11 +44,24 @@ def trial_records(task: str = "click_grid"):
     ]
 
 
+# A Switch test's presses per trial of :func:`trial_records` (clicks, click errors); the fourth
+# trial is skipped, and a skipped trial's presses are not reported.
+SWITCH_PRESSES = [(1, 0), (4, 3), (3, 2), (2, 0), (1, 0), (1, 0)]
+SWITCH_META = {"input_mode": "gaze_switch", "input_pointer": "gaze", "input_selection": "switch"}
+
+
 def folder_report(
-    tmp_path: Path, *, legacy: bool = False, planned: int | None = 6, events=None, **meta_extra: Any
+    tmp_path: Path,
+    *,
+    legacy: bool = False,
+    planned: int | None = 6,
+    events=None,
+    presses: list[tuple[int, int]] | None = None,
+    **meta_extra: Any,
 ) -> dict[str, Any]:
     """``build_report`` of a synthetic run folder (``legacy``: no new columns, no
-    ``all_gaze.csv``, no geometry, as an old folder)."""
+    ``all_gaze.csv``, no geometry, as an old folder). ``presses`` are the switch presses of each
+    trial, ``(clicks, click_errors)`` (a Switch test: pass ``**SWITCH_META`` too)."""
     if legacy:
         meta: dict[str, Any] = {
             "subject_id": "OLD", "session_id": "2026-09-11_OLD_click_grid_run1", "started_ns": T0,
@@ -68,9 +81,12 @@ def folder_report(
             if f.t_ns not in seen:
                 seen.add(f.t_ns)
                 frames.append(f)
+    records = trial_records()
+    for rec, (clicks, errors) in zip(records, presses or [], strict=False):
+        rec.clicks, rec.click_errors = clicks, errors
     folder = write_session(
         tmp_path / "run",
-        trial_records(),
+        records,
         meta=meta,
         frames=sorted(frames, key=lambda f: f.t_ns),
         samples=None if legacy else raw_samples(20.0),

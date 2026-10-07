@@ -136,6 +136,15 @@ class FrozenColumnTable(QTableWidget):
         """The overlay showing only the first column."""
         return self._frozen
 
+    def set_columns(self, columns: Sequence[str]) -> None:
+        """Replace the columns (the report's layouts differ by task and by selection). The first
+        stays the frozen one; the rows are the caller's next fill."""
+        self.setColumnCount(len(columns))
+        self.setHorizontalHeaderLabels(list(columns))
+        for column in range(1, self.columnCount()):
+            self._frozen.setColumnHidden(column, True)
+        self._update_frozen_geometry()
+
     def set_sort_indicator(self, column: int, order: Qt.SortOrder) -> None:
         for header in (self.horizontalHeader(), self._frozen.horizontalHeader()):
             header.setSortIndicator(column, order)

@@ -65,7 +65,7 @@ Configuration Name: **Large targets**
 | 2 | Circular | Followed | 10.0 | 81 | 1.5 | 0.35 | 0.81 | 1.0 | 97 | 9 | 11 | 3.6 | +0.01 |
 | 3 | Circular | Not followed | 10.0 | 41 | 3.9 | 1.20 | 0.55 | 2.3 | 84 | 21 | 24 | 3.7 | +0.09 |
 
-> Follow table: the follow metrics of the summary per trial, then the usual eye columns. Outcome = Followed / Not followed (on target ≥ 50 %). A Mouse run without the tracker shows "—" in the gain, catch-up and eye columns. Old Follow & Click sessions keep their old layout (H10).
+> Follow table: the follow metrics of the summary per trial, then the usual eye columns. Outcome = Followed / Not followed (on target ≥ 50 %). A Mouse run without the tracker shows "not recorded" in the gain, catch-up and eye columns (A5; step 4 decision 2026-10-08, a skipped trial keeps its dashes). Old Follow & Click sessions keep their old layout (H10).
 
 #### Selected trial — Trial 1
 

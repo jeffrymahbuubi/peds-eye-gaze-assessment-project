@@ -137,3 +137,17 @@ def test_the_table_does_not_sort_by_itself(qapp):
 def test_the_two_views_have_the_same_row_height_so_rows_line_up(qapp):
     table = make_table()
     assert table.frozen_view.verticalHeader().defaultSectionSize() == table.verticalHeader().defaultSectionSize()
+
+
+def test_the_columns_can_be_replaced_and_only_the_first_stays_frozen(qapp):
+    table = make_table(rows=3)
+    wider = [*COLUMNS, "Clicks", "Click errors", "Fixations"]
+    table.set_columns(wider)
+    assert table.columnCount() == len(wider)
+    assert [table.horizontalHeaderItem(c).text() for c in range(len(wider))] == wider
+    frozen = table.frozen_view
+    assert not frozen.isColumnHidden(0) and all(frozen.isColumnHidden(c) for c in range(1, len(wider)))
+    table.set_columns(COLUMNS[:4])
+    assert table.columnCount() == 4 and not table.frozen_view.isColumnHidden(0)
+    assert all(table.frozen_view.isColumnHidden(c) for c in range(1, 4))
+    assert table.frozen_view.columnWidth(0) == table.columnWidth(0)  # the overlay still covers column 0

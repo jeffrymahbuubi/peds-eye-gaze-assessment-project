@@ -292,17 +292,19 @@ pages and in the PDF, shows seconds.
 
 | top-level key | contents |
 |---------------|----------|
-| `report_version` | `REPORT_VERSION` (currently `3`); a cache with another value is rebuilt |
+| `report_version` | `REPORT_VERSION` (currently `4`); a cache with another value is rebuilt |
 | `params` | the analysis parameters used (`ivt` saccade detector, `entries` exit hold, `pupil`, `heat`, `path`), so the numbers are reproducible. `path` holds the gaze path's thinning (`min_step_deg`, `min_step_ms`, `split_gap_ms`, `max_points`, applied to the raw stream) and `smoothing` (`{enabled, alpha}`), the on-screen cursor's own filter the path is drawn through (`alpha` is the run's `dwell.smoothing.alpha`, 0.22 when none was recorded; `enabled: false` leaves the raw stream) |
 | `session` | `session_id`, `task_id`, `subject`, `test_name`, `config_name`, `started_ns`, `planned_trials`, `completed_trials`, `outcome`, `n_rows`, `n_scored`, `n_skipped`, `n_not_presented`, `pointer`, `selection`, `gaze_recorded` (the three input facts of `metadata.json`; null on an older folder; `gaze_recorded: false` makes the Eye Metrics table say "not recorded" instead of a dash), and `sources` (which input files the folder had, so the UI can say why a value is shown as a dash; includes `pointer_stream`) |
 | `geometry` | the monitor / canvas geometry the degree and pixel figures use, and `assumed_for_visuals` (true when the folder lacks the monitor size) |
 | `config` | `rows`: the Test Configuration table, `[label, value]` pairs |
-| `trials` | one object per `trials.csv` row: `trial` (1-based), `outcome` (`hit` / `timeout` / `skipped`), `size_deg`, `distance_deg`, `target` (`x`, `y`, `end_x`, `end_y`, radii, `slot`), `onset_ns`, `end_ns`, `attempts`, `error_free`, `trial_time_s`, `reaction_time_s`, `entries`, and the per-trial `fixations`, `saccades`, `pupil`, `scanpath` (the fixation centroids `[[x, y], ...]` in time order, canvas-normalized: the Summary map's path) and `path` (the whole gaze as polylines, thinned and smoothed with the cursor's filter: the Detailed view's path) |
-| `summary` | `rows`: the Summary of Results table (error-free, all selected, not selected, all trials); `eye`: the Eye Metrics table |
+| `trials` | one object per `trials.csv` row: `trial` (1-based), `outcome` (`hit` / `timeout` / `skipped`), `size_deg`, `distance_deg`, `target` (`x`, `y`, `end_x`, `end_y`, radii, `slot`), `onset_ns`, `end_ns`, `attempts`, `error_free`, `trial_time_s`, `reaction_time_s`, `entries`, `clicks` and `click_errors` (the switch presses of `trials.csv`; null for a skipped trial and for a folder without the columns), and the per-trial `fixations`, `saccades`, `pupil`, `scanpath` (the fixation centroids `[[x, y], ...]` in time order, canvas-normalized: the Summary map's path) and `path` (the whole gaze as polylines, thinned and smoothed with the cursor's filter: the Detailed view's path) |
+| `summary` | `rows`: the Summary of Results table (error-free, all selected, not selected, all trials; each row also has the means `clicks` and `click_errors` of its trials, which only a Switch test shows); `eye`: the Eye Metrics table |
 | `map` | the Target Map: `aspect`, `slots`, `hit_tolerance_px`, `marks` and `note` |
 | `heat` | the gaze heat map: `w`, `h`, `data` (empty when there was no gaze on the canvas, with `empty: true`) and `off_canvas_share` |
 | `quality` | `valid_share`, `off_canvas_share` and `warnings` (`{code, text}` for the report's banner: `ended_early`, `low_valid_gaze`, `canvas_resized`) |
 | `follow` | Follow the Target only (absent for the other tasks); see below |
+
+Which tables the page and the PDF print follows the report: `session.selection` `switch` adds the **Clicks** and **Click errors** columns (after Entries in the trial table, after Entries in the Summary of Results); a `follow` block that is not `legacy` replaces the Summary of Results by a Metric / Value table and the trial table by Follow's own columns; `session.gaze_recorded` `false` prints "not recorded" in every eye cell, on the Scanpath and Heat map switches and under the selected trial's map (an older folder that says nothing keeps its dashes).
 
 A Follow the Target trial's `outcome` in `trials` is `followed` / `not_followed` (or `skipped`), read from `is_hit` when the `trials.csv` header has `on_target_ms`; the eye figures, the quality share and `n_scored` count those outcomes like `hit` / `timeout` for the other tasks. `map.hit_tolerance_px` is the run's `hitbox_margin_px`.
 

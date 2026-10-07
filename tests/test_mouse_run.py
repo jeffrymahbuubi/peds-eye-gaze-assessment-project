@@ -22,7 +22,10 @@ from src.data.recorder import POINTER_STREAM_COLUMNS
 from src.data.report_cache import build_report
 from src.data.report_config import build_config_rows
 from src.inputs.no_tracker import NoTracker
-from src.ui.report_format import NOT_RECORDED, eye_rows
+from src.ui.report_format import DASH, NOT_RECORDED, eye_rows
+from src.ui.report_layout import trial_columns, trial_rows
+from src.ui.report_page import ReportPage
+from src.ui.report_pdf import build_report_html
 from tests.input_run_fixtures import (  # noqa: F401  (fixtures)
     FIXTURE,
     events_of,
@@ -33,6 +36,7 @@ from tests.input_run_fixtures import (  # noqa: F401  (fixtures)
     parked,
     qapp,
     tick,
+    tick_until,
 )
 
 MOUSE_DWELL = {"pointer": "mouse", "selection": "dwell"}
@@ -125,7 +129,49 @@ def test_the_report_eye_sections_say_not_recorded(make_app):
     assert session["sources"]["pointer_stream"] is True and session["sources"]["gaze_stream"] is False
     rows = eye_rows(report)
     assert rows and all(value == NOT_RECORDED == "not recorded" for _label, value in rows)
-    assert dict(report["config"]["rows"])["Input"] == "Mouse pointer (dwell)"  # no tracker named
+    assert dict(report["config"]["rows"])["Input"] == "Mouse · Dwell 0.3 s"  # no tracker named
+
+
+def test_a_mouse_run_with_no_tracker_says_not_recorded_in_every_eye_cell_of_the_trial_table(make_app):
+    app = make_app(choice=MOUSE_DWELL, client=None, trials=1)
+    finish_run(app)
+    report = build_report(app.recorder.session_dir)
+    columns = trial_columns(report)
+    eye = [i for i, name in enumerate(columns) if name in ("Fixations", "Mean fix. dur. (s)", "Saccades",
+           "Mean peak vel. (deg/s)", "Pupil (mm)", "Pupil change (mm)")]
+    assert len(eye) == 6
+    cells = trial_rows(report)[0]
+    assert [cells[i].text for i in eye] == [NOT_RECORDED] * 6 and all(cells[i].key is None for i in eye)
+    assert cells[0].text == "1" and cells[3].text == "Hit" and cells[4].text != DASH  # the rest is there
+    page = ReportPage()
+    page.set_report(report, test_name="Mouse 1")
+    assert page.detailed.table.item(0, eye[0]).text() == NOT_RECORDED
+    assert page.detailed.line_label.text() == "Eye data not recorded."
+    assert not page.summary.path_check.isEnabled() and not page.summary.heat_check.isEnabled()
+    assert build_report_html(report, test_name="T", evaluator="", notes="", map_image=None).count(
+        f">{NOT_RECORDED}<"
+    ) >= 6 + len(eye_rows(report))
+
+
+def test_a_mouse_switch_run_reports_its_clicks_and_still_says_not_recorded(make_app):
+    from PySide6.QtCore import Qt
+    from PySide6.QtTest import QTest
+
+    app = make_app(choice=MOUSE_SWITCH, client=None, trials=1)
+    tick(app)
+    look_at_target(app)
+    tick(app)
+    QTest.mouseClick(app.canvas, Qt.MouseButton.LeftButton)
+    tick_until(app, lambda: app._shutdown_done)
+    report = build_report(app.recorder.session_dir)
+    assert (report["session"]["pointer"], report["session"]["selection"]) == ("mouse", "switch")
+    assert report["trials"][0]["clicks"] == 1 and report["trials"][0]["click_errors"] == 0
+    columns = trial_columns(report)
+    assert columns[7:9] == ("Clicks", "Click errors") and len(columns) == 15
+    cells = trial_rows(report)[0]
+    assert [c.text for c in cells[7:9]] == ["1", "0"]
+    assert [c.text for c in cells[9:]] == [NOT_RECORDED] * 6
+    assert dict(report["config"]["rows"])["Input"] == "Mouse · Switch"
 
 
 def test_a_mouse_switch_run_uses_the_mouses_left_button(make_app):
@@ -169,7 +215,8 @@ def test_a_mouse_run_with_a_tracker_records_the_gaze_alongside(make_app):
     report = build_report(app.recorder.session_dir)
     assert report["session"]["gaze_recorded"] is True and report["session"]["sources"]["gaze_stream"]
     assert all(value != NOT_RECORDED for _label, value in eye_rows(report))
-    assert dict(report["config"]["rows"])["Input"].startswith("Mouse pointer (dwell), ")
+    assert dict(report["config"]["rows"])["Input"].startswith("Mouse, gaze recorded (")
+    assert dict(report["config"]["rows"])["Input"].endswith(") · Dwell 0.3 s")
 
 
 def test_the_run_uses_the_trackers_calibration_not_a_new_one(make_app, monkeypatch):
@@ -242,16 +289,16 @@ def test_follow_the_target_derives_eye_or_mouse_follow_and_has_no_selection(make
 @pytest.mark.parametrize(
     "mode, label",
     [
-        ("eye", "Eye gaze (dwell)"),
-        ("gaze_switch", "Gaze pointer + switch"),
-        ("switch", "Switch (mouse pointer)"),
-        ("mouse_dwell", "Mouse pointer (dwell)"),
-        ("mouse_follow", "Mouse pointer"),
+        ("eye", "Gaze · Dwell"),
+        ("gaze_switch", "Gaze · Switch"),
+        ("switch", "Mouse · Switch"),
+        ("mouse_dwell", "Mouse · Dwell"),
+        ("mouse_follow", "Mouse"),
     ],
 )
 def test_report_config_labels_every_input_mode(mode, label):
     rows = dict(build_config_rows({}, {"input_mode": mode, "tasks": ["click_grid"]}))
-    assert rows["Input"] == label  # no tracker named: nothing says gaze was recorded
+    assert rows["Input"] == label  # no tracker named: nothing says gaze was recorded (nor the dwell time)
 
 
 @pytest.mark.parametrize("mode", ["switch", "mouse_dwell", "mouse_follow"])
@@ -260,13 +307,14 @@ def test_a_mouse_mode_names_the_tracker_only_when_it_recorded(mode):
     assert dict(build_config_rows({}, meta))["Input"] == dict(
         build_config_rows({}, {**meta, "gaze_recorded": False})
     )["Input"]
-    assert dict(build_config_rows({}, {**meta, "gaze_recorded": True}))["Input"].endswith(", GP3HD, 150 Hz")
+    assert "Mouse, gaze recorded (GP3HD, 150 Hz)" in dict(build_config_rows({}, {**meta, "gaze_recorded": True}))["Input"]
 
 
 @pytest.mark.parametrize(
     "mode, selection",
     [("eye", "Dwell 0.8 s, refractory 0.5 s"), ("mouse_dwell", "Dwell 0.8 s, refractory 0.5 s"),
-     ("gaze_switch", "Switch press, refractory 0.5 s"), ("switch", "Switch press, refractory 0.5 s")],
+     ("gaze_switch", "Switch press (mouse/switch button), refractory 0.5 s"),
+     ("switch", "Switch press (mouse/switch button), refractory 0.5 s")],
 )
 def test_the_selection_row_follows_the_mode(mode, selection):
     snapshot = {"live": {"dwell.threshold_ms": 800, "dwell.refractory_ms": 500}}

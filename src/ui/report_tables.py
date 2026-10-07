@@ -68,7 +68,6 @@ class FitTable(QTableWidget):
         if compact:  # a long table that should not push what is under it off the screen
             style += " QTableWidget::item { padding: 2px 8px; }"
         self.setStyleSheet(style)
-        self.setHorizontalHeaderLabels(list(header))
         self.setEditTriggers(QAbstractItemView.EditTrigger.NoEditTriggers)
         self.setSelectionMode(QAbstractItemView.SelectionMode.NoSelection)
         self.setFocusPolicy(Qt.FocusPolicy.NoFocus)
@@ -79,6 +78,16 @@ class FitTable(QTableWidget):
         head = self.horizontalHeader()
         head.setSectionsClickable(False)
         head.setHighlightSections(False)
+        self._apply_header(header, stretch_column)
+        self.setHorizontalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAlwaysOff)
+        self.setVerticalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAlwaysOff)
+        self.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Fixed)
+        self._ready = True
+
+    def _apply_header(self, header: Sequence[str], stretch_column: int) -> None:
+        self.setColumnCount(len(header))
+        self.setHorizontalHeaderLabels(list(header))
+        head = self.horizontalHeader()
         for column in range(len(header)):
             head.setSectionResizeMode(
                 column,
@@ -86,10 +95,11 @@ class FitTable(QTableWidget):
                 if column == stretch_column
                 else QHeaderView.ResizeMode.ResizeToContents,
             )
-        self.setHorizontalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAlwaysOff)
-        self.setVerticalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAlwaysOff)
-        self.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Fixed)
-        self._ready = True
+
+    def set_header(self, header: Sequence[str], *, stretch_column: int = 0) -> None:
+        """Change the columns (their labels, and which one takes the spare width). The rows
+        are the caller's next :meth:`set_rows`; it is what refits the height."""
+        self._apply_header(header, stretch_column)
 
     def set_rows(
         self,

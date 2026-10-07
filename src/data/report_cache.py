@@ -62,7 +62,9 @@ from .saccades import DEFAULT_IVT
 # 3: the ``follow`` block (Follow the Target, SPEC-input-selection-and-follow.md: ``None`` for
 # every other task, ``{"legacy": true}`` for an old Follow & Click folder), the trial outcomes
 # ``followed`` / ``not_followed``, a Mouse run's ``path`` from ``pointer_stream.csv``.
-REPORT_VERSION = 3
+# 4: ``clicks`` / ``click_errors`` in every trial and Summary of Results row (a Switch test's
+# Clicks columns, SPEC-input-selection-and-follow.md 4.5).
+REPORT_VERSION = 4
 REPORT_FILENAME = "report.json"
 
 _log = logging.getLogger(__name__)

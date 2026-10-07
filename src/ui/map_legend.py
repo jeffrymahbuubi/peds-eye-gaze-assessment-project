@@ -26,6 +26,22 @@ LEGEND_ENTRIES: tuple[tuple[str, str], ...] = (
     ("slot", "Layout position (cell or icon)"),
 )
 NUMBERS_NOTE = "Numbers = trials shown at that place"
+# Follow the Target (SPEC-input-selection-and-follow.md 4.5): its marks say followed or not, it
+# has no layout positions, and its map draws the target's path. The selected trial's pointer path
+# is drawn dark where the pointer was on the target and light where it was off it, so the
+# Detailed view's own legend names those two lines (the Summary map and the PDF do not draw them).
+FOLLOW_LEGEND_ENTRIES: tuple[tuple[str, str], ...] = (
+    ("hit", "Trial followed"),
+    ("timeout", "Trial not followed"),
+    ("skipped", "Trial skipped"),
+    ("track", "Path of the target"),
+)
+POINTER_LEGEND_ENTRIES: tuple[tuple[str, str], ...] = (
+    ("on", "Pointer on target"),
+    ("off", "Pointer off target"),
+    ("track", "Path of the target"),
+)
+POINTER_NUMBERS_NOTE = "Numbers = fixations, in the order they happened"
 
 ICON_PX = 28  # the on-screen icon's side, logical px
 COLUMNS = 2  # entries per row
@@ -56,20 +72,39 @@ class LegendIcon(QWidget):
 
 
 class MapLegend(QFrame):
-    """The legend box: four icon + label entries in a grid, then the numbers note."""
+    """The legend box: icon + label entries in a grid, then the numbers note. It shows the
+    selection tasks' four marks until :meth:`set_entries` gives it another set."""
 
     def __init__(self, parent: QWidget | None = None) -> None:
         super().__init__(parent)
         self.setObjectName("mapLegend")
         self.setAttribute(Qt.WidgetAttribute.WA_StyledBackground, True)
         self.setStyleSheet(LEGEND_STYLE)
-        grid = QGridLayout(self)
-        grid.setContentsMargins(14, 10, 14, 10)
-        grid.setHorizontalSpacing(8)
-        grid.setVerticalSpacing(6)
+        self._grid = QGridLayout(self)
+        self._grid.setContentsMargins(14, 10, 14, 10)
+        self._grid.setHorizontalSpacing(8)
+        self._grid.setVerticalSpacing(6)
         self.icons: list[LegendIcon] = []
         self.labels: list[QLabel] = []
-        for n, (kind, text) in enumerate(LEGEND_ENTRIES):
+        self.numbers_label = QLabel(NUMBERS_NOTE)
+        self.set_entries(LEGEND_ENTRIES)
+
+    def set_entries(
+        self, entries: tuple[tuple[str, str], ...], numbers_note: str = NUMBERS_NOTE
+    ) -> None:
+        """Show ``entries`` (``(kind, label)``, kinds as :func:`paint_symbol` draws them) and
+        ``numbers_note`` under them."""
+        grid = self._grid
+        for widget in (*self.icons, *self.labels, self.numbers_label):
+            grid.removeWidget(widget)
+            widget.hide()  # deleteLater() waits for the event loop; it must not show meanwhile
+            widget.setParent(None)
+            widget.deleteLater()
+        for column in range(COLUMNS * 3):
+            grid.setColumnMinimumWidth(column, 0)
+            grid.setColumnStretch(column, 0)
+        self.icons, self.labels = [], []
+        for n, (kind, text) in enumerate(entries):
             row, column = divmod(n, COLUMNS)
             icon = LegendIcon(kind)
             label = QLabel(text)
@@ -80,8 +115,8 @@ class MapLegend(QFrame):
             grid.addWidget(label, row, column * 3 + 1)
             if column < COLUMNS - 1:
                 grid.setColumnMinimumWidth(column * 3 + 2, 18)  # a gap between the two columns
-        rows = -(-len(LEGEND_ENTRIES) // COLUMNS)
-        self.numbers_label = QLabel(NUMBERS_NOTE)
+        rows = -(-len(entries) // COLUMNS)
+        self.numbers_label = QLabel(numbers_note)
         self.numbers_label.setObjectName("legendNumbers")
         grid.addWidget(self.numbers_label, rows, 0, 1, COLUMNS * 3 - 1)
         grid.setColumnStretch(COLUMNS * 3 - 1, 1)
@@ -115,16 +150,21 @@ def png_data_uri(image: QImage) -> str:
     return "data:image/png;base64," + base64.b64encode(bytes(data)).decode("ascii")
 
 
-def legend_html(width_css_px: int | None = None, icon_css_px: int = 20) -> str:
-    """The legend as HTML for the PDF: the same tinted, outlined box, the same four icons and
-    labels, the same numbers note. ``width_css_px`` is the box's width in CSS px (1/96 inch;
+def legend_html(
+    width_css_px: int | None = None,
+    icon_css_px: int = 20,
+    entries: tuple[tuple[str, str], ...] = LEGEND_ENTRIES,
+) -> str:
+    """The legend as HTML for the PDF: the same tinted, outlined box, the same icons and
+    labels (``entries``: the four marks unless a Follow the Target report gives its own), the
+    same numbers note. ``width_css_px`` is the box's width in CSS px (1/96 inch;
     the map's width, so the two line up), the full text width when ``None``; ``icon_css_px``
     is the icon's side.
 
     One outlined cell holds an unbordered table: Qt draws a border around every cell of a
     bordered table, which would make a grid of the entries."""
     cells = []
-    for kind, text in LEGEND_ENTRIES:
+    for kind, text in entries:
         src = png_data_uri(symbol_image(kind))
         cells.append(
             f'<td width="{icon_css_px + 8}" bgcolor="{SOFT_ACCENT}">'

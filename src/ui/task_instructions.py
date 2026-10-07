@@ -113,12 +113,17 @@ _TEMPLATES: dict[str, tuple[tuple[str, ...], str]] = {
     ),
 }
 
-# The same for every task; ``{n}`` is the planned trial count.
+# The same for every task; ``{n}`` is the planned trial count. The last line is about what to
+# check before Start: a Gaze test depends on the tracker (the bottom bar says "tracking OK"),
+# a Mouse test has no tracker to wait for (the bar says "mouse pointer"), so it asks for the mouse.
 _CLINICIAN: tuple[str, ...] = (
     'To pause the test: click the "Pause" button, or press ALT-P. '
     'To quit the test: click the "Quit" button, or press ALT-Q.',
     "Practice runs 3 targets with these settings. Nothing is recorded. Repeat it as often as needed.",
-    'Start records {n} trials. Check that the bottom bar says "tracking OK" before you begin.',
+)
+_CLINICIAN_START_GAZE = 'Start records {n} trials. Check that the bottom bar says "tracking OK" before you begin.'
+_CLINICIAN_START_MOUSE = (
+    "Start records {n} trials. Check that the mouse moves the pointer on the screen before you begin."
 )
 
 
@@ -174,5 +179,8 @@ def build_instructions(
         heading=f"Instructions for the {TASK_INFO[task_id][0]} test:",
         steps=out,
         note=note.format(**fill),
-        clinician=tuple(c.format(n=count) for c in _CLINICIAN),
+        clinician=tuple(
+            c.format(n=count)
+            for c in (*_CLINICIAN, _CLINICIAN_START_MOUSE if choice.is_mouse else _CLINICIAN_START_GAZE)
+        ),
     )

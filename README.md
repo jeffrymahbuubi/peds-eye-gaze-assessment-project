@@ -44,6 +44,12 @@ See `../303bfbea-eye_gaze_assessment_v1_plan.md` for the full design plan.
   report's `follow` block (`src/data/report_follow.py`) adds the smooth-pursuit gain and the
   catch-up saccades per second from the device-rate gaze; a Mouse run with no tracker has
   the first set only. An older Follow & Click folder still opens, with its old report layout.
+- **The per-test report follows the test's input** (page and PDF): a Switch test adds **Clicks**
+  and **Click errors** columns to the Summary of Results and the trial table; Follow the Target
+  has a Metric / Value summary and its own trial columns, and its selected-trial map draws the
+  pointer path dark on the target and light off it; a test with no gaze recorded says "not
+  recorded" in its eye cells. The Configuration table's Input row reads like "Gaze (GP3HD,
+  150 Hz) · Switch" or "Mouse · Dwell 0.8 s".
 
 ## Architecture
 
@@ -329,8 +335,8 @@ re-run the task to feel the new pacing. Full diagnosis behind these settings:
 ## Tests & lint
 
 ```bash
-pytest        # 2485 passed, 2 skipped, all headless (offscreen Qt, no device) on the lab machine
-              # (2480 passed in a clean checkout); the few tests that read the lab's own
+pytest        # 2545 passed, 2 skipped, all headless (offscreen Qt, no device) on the lab machine
+              # (2540 passed in a clean checkout); the few tests that read the lab's own
               # skip-worktree configs/default.yaml (e.g.
               # test_config_merges_task_over_default, the smoothing-alpha 0.22 checks in
               # test_task_config_page / test_config_flow) only agree on the machine whose file

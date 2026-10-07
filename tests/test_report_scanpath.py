@@ -294,10 +294,11 @@ def test_the_report_is_still_deterministic(tmp_path):
 # -- the cache version ---------------------------------------------------------------------------------
 
 
-def test_the_version_is_three_and_a_version_one_cache_is_rebuilt(tmp_path):
+def test_the_version_is_four_and_a_version_one_cache_is_rebuilt(tmp_path):
     # 2: the path is smoothed, trials carry a scanpath, texts are in seconds; 3: the ``follow``
-    # block and a Mouse run's pointer path (SPEC-input-selection-and-follow.md).
-    assert REPORT_VERSION == 3
+    # block and a Mouse run's pointer path; 4: ``clicks`` / ``click_errors`` in the trial and
+    # Summary of Results rows (SPEC-input-selection-and-follow.md).
+    assert REPORT_VERSION == 4
     folder = noisy_folder(tmp_path, settings=settings_with())
     stale = build_report(folder)
     stale["report_version"] = 1
@@ -305,6 +306,6 @@ def test_the_version_is_three_and_a_version_one_cache_is_rebuilt(tmp_path):
         del trial["scanpath"]
     (folder / REPORT_FILENAME).write_text(json.dumps(stale), encoding="utf-8")
     fresh = load_or_build_report(folder)
-    assert fresh["report_version"] == 3
+    assert fresh["report_version"] == 4
     assert all("scanpath" in t for t in fresh["trials"])
-    assert json.loads((folder / REPORT_FILENAME).read_text(encoding="utf-8"))["report_version"] == 3
+    assert json.loads((folder / REPORT_FILENAME).read_text(encoding="utf-8"))["report_version"] == 4

@@ -346,3 +346,25 @@ def test_the_start_page_shows_the_switch_and_mouse_wording(qapp):
     shown = [label.text() for label in page.card.findChildren(QLabel)]
     assert any("Move the mouse to point at the screen." in t for t in shown)
     assert any("then press the button" in t for t in shown)
+
+
+def test_the_clinician_line_before_start_fits_the_input_of_the_test():
+    gaze = instructions("click_grid", pointer="gaze").clinician
+    mouse = instructions("click_grid", pointer="mouse").clinician
+    assert gaze[2] == 'Start records 18 trials. Check that the bottom bar says "tracking OK" before you begin.'
+    assert mouse[2] == "Start records 18 trials. Check that the mouse moves the pointer on the screen before you begin."
+    assert "tracking" not in mouse[2] and "bottom bar" not in mouse[2]
+    assert gaze[:2] == mouse[:2] and len(gaze) == len(mouse) == 3  # the pause and practice lines are the same
+    for task_id in ("click_static", "scanning", "follow_moving"):
+        assert instructions(task_id, pointer="mouse").clinician[2].endswith("before you begin.")
+        assert "bottom bar" not in instructions(task_id, pointer="mouse").clinician[2]
+        assert "tracking OK" in instructions(task_id, pointer="gaze").clinician[2]
+
+
+def test_the_start_page_shows_the_mouse_clinician_line(qapp):
+    cfg = merged_config(load_task_config("click_grid"), None, {"input": {"pointer": "mouse", "selection": "dwell"}})
+    page = StartTestPage()
+    page.set_test(test_name="Grid Click 1", task_id="click_grid", cfg=cfg)
+    shown = [label.text() for label in page.card.findChildren(QLabel)]
+    assert any("Check that the mouse moves the pointer on the screen" in t for t in shown)
+    assert not any("Check that the bottom bar says" in t for t in shown)

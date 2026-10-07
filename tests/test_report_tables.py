@@ -185,3 +185,43 @@ def test_the_report_tables_fit_after_the_detailed_view_and_back(qapp, tmp_path):
     QCoreApplication.processEvents()
     for table in report_tables(page).values():
         assert_fits(table)
+
+
+# -- the columns may change (the report's layouts differ, SPEC-input-selection-and-follow.md 4.5) ----------
+
+
+def test_set_header_swaps_the_columns_and_the_table_still_fits(qapp):
+    root = themed_root()
+    table = FitTable(["", "% (N)", "Time"], stretch_column=0)
+    root.layout().addWidget(table)
+    table.set_rows(ROWS)
+    show(root)
+    table.set_header(["Metric", "Value"], stretch_column=1)
+    table.set_rows([["Time on target", "60 %"], ["Followed", "2 of 3"], ["Valid pointer", "100 %"]])
+    show(root)
+    assert table.columnCount() == 2
+    assert [table.horizontalHeaderItem(c).text() for c in range(2)] == ["Metric", "Value"]
+    head = table.horizontalHeader()
+    assert head.sectionResizeMode(1) == head.ResizeMode.Stretch and head.sectionResizeMode(0) != head.ResizeMode.Stretch
+    assert table.texts()[0] == ["Time on target", "60 %"] and table.rowCount() == 3
+    assert_fits(table)
+    table.set_header(["", "a", "b", "c", "d"], stretch_column=0)  # and back to more columns
+    table.set_rows([["x", "1", "2", "3", "4"]])
+    show(root)
+    assert table.columnCount() == 5 and head.sectionResizeMode(0) == head.ResizeMode.Stretch
+    assert_fits(table)
+
+
+def test_a_follow_reports_summary_table_fits_on_the_page(qapp, tmp_path):
+    from src.data.report_cache import build_report
+    from tests.follow_fixtures import folder
+
+    page = ReportPage()
+    root = themed_root()
+    root.layout().addWidget(page)
+    page.set_report(build_report(folder(tmp_path)), test_name="Follow 1")
+    show(root)
+    assert page.summary.table.rowCount() == 7
+    assert_fits(page.summary.table)
+    for table in report_tables(page).values():
+        assert_fits(table)

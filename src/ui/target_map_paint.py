@@ -22,6 +22,13 @@ from PySide6.QtCore import QPointF, QRectF, Qt
 from PySide6.QtGui import QColor, QFont, QFontMetricsF, QImage, QPainter, QPen, QPolygonF
 
 from .report_format import hit_tolerance_px
+from .target_map_follow import (
+    LINE_KINDS,
+    paint_line_symbol,
+    paint_pointer_runs,
+    pointer_runs,
+    run_points,
+)
 from .wtmh_theme import ACCENT, BORDER, DANGER, INK, MUTED, PANEL_BG, SUCCESS
 
 DEFAULT_ASPECT = 16 / 9
@@ -48,6 +55,9 @@ class MapModel:
     note: str | None = None
     tolerance_norm: float | None = None  # hitbox margin in canvas-x units, None if unknown
     moving: bool = False
+    # Follow the Target: each trial's pointer path split on / off target (the report's
+    # ``follow.trials[*].pointer_path``), one list per entry of ``trials``; empty for any other task.
+    pointer_runs: list[list[dict[str, Any]]] = field(default_factory=list)
 
 
 def canvas_logical_width(geometry: dict[str, Any]) -> float | None:
@@ -123,6 +133,7 @@ def build_model(report: dict[str, Any] | None) -> MapModel:
         note=mapping.get("note"),
         tolerance_norm=None if not logical_w else tolerance / logical_w,
         moving=report.get("session", {}).get("task_id") == "follow_moving",
+        pointer_runs=pointer_runs(report, len(trials)),
     )
 
 
@@ -210,6 +221,7 @@ def _paint_mark(p: QPainter, rect: QRectF, mark: dict[str, Any], unit: float) ->
     centre = _point(rect, mark["x"], mark["y"])
     radius = max(mark.get("r") or 0.0, MIN_RADIUS) * rect.width()
     outcome = mark.get("outcome")
+    outcome = {"followed": "hit", "not_followed": "timeout"}.get(outcome, outcome)  # Follow the Target
     badge = None
     p.setBrush(Qt.BrushStyle.NoBrush)
     if outcome == "hit":
@@ -288,12 +300,22 @@ def _star(centre: QPointF, radius: float) -> QPolygonF:
     return QPolygonF(points)
 
 
-def _paint_trial(p: QPainter, rect: QRectF, model: MapModel, trial: dict[str, Any], unit: float) -> None:
+def _paint_trial(
+    p: QPainter,
+    rect: QRectF,
+    model: MapModel,
+    trial: dict[str, Any],
+    unit: float,
+    runs: list[dict[str, Any]] | None = None,
+) -> None:
     """One trial: the target with its dashed hitbox ring, the gaze path dark to light by
     time, fixation circles (radius grows with duration) numbered in order, the onset
-    (S) and, for a hit, the selection (star) at the path's two ends."""
+    (S) and, for a hit, the selection (star) at the path's two ends. With ``runs`` (Follow
+    the Target) the pointer path is drawn as they say instead: dark on the target, lighter
+    and thinner off it."""
     target = trial.get("target", {})
     outcome = trial.get("outcome")
+    outcome_hit = outcome in ("hit", "followed")
     if model.moving:
         _paint_track(p, rect, trial.get("track") or [], unit)
     x, y = target.get("x"), target.get("y")
@@ -302,8 +324,8 @@ def _paint_trial(p: QPainter, rect: QRectF, model: MapModel, trial: dict[str, An
     if x is not None and y is not None:
         centre = _point(rect, x, y)
         radius = max(target.get("radius_norm_x") or 0.0, MIN_RADIUS) * rect.width()
-        colour = SUCCESS if outcome == "hit" else DANGER if outcome == "timeout" else MUTED
-        p.setBrush(_alpha(colour, 60) if outcome == "hit" else Qt.BrushStyle.NoBrush)
+        colour = SUCCESS if outcome_hit else DANGER if outcome in ("timeout", "not_followed") else MUTED
+        p.setBrush(_alpha(colour, 60) if outcome_hit else Qt.BrushStyle.NoBrush)
         p.setPen(_pen(colour, 2.5 * unit))
         _circle(p, centre, radius)
         if model.tolerance_norm is not None:
@@ -311,15 +333,19 @@ def _paint_trial(p: QPainter, rect: QRectF, model: MapModel, trial: dict[str, An
             p.setPen(_pen(MUTED, 1.5 * unit, Qt.PenStyle.DashLine))
             _circle(p, centre, radius + model.tolerance_norm * rect.width())
 
-    points = [pt for segment in trial.get("path", []) for pt in segment]
-    total = max(1, len(points) - 1)
-    index = 0
-    for segment in trial.get("path", []):
-        for a, b in zip(segment, segment[1:], strict=False):
-            p.setPen(_pen(_blend(index / total), 2.5 * unit))
-            p.drawLine(_point(rect, *a), _point(rect, *b))
-            index += 1
-        index += 1  # the jump to the next polyline is not drawn
+    if runs:
+        points = run_points(runs)
+        paint_pointer_runs(p, rect, runs, unit, _pen)
+    else:
+        points = [pt for segment in trial.get("path", []) for pt in segment]
+        total = max(1, len(points) - 1)
+        index = 0
+        for segment in trial.get("path", []):
+            for a, b in zip(segment, segment[1:], strict=False):
+                p.setPen(_pen(_blend(index / total), 2.5 * unit))
+                p.drawLine(_point(rect, *a), _point(rect, *b))
+                index += 1
+            index += 1  # the jump to the next polyline is not drawn
 
     for number, (fx, fy, dur_ms) in enumerate(trial.get("fixations", {}).get("items", []), start=1):
         radius = rect.width() * min(0.03, max(0.006, float(dur_ms) * 0.00004))
@@ -342,7 +368,7 @@ def _paint_trial(p: QPainter, rect: QRectF, model: MapModel, trial: dict[str, An
         p.setBrush(QColor(PANEL_BG))
         _circle(p, start, s_radius)
         _label(p, start, "S", INK, 1.7 * s_radius, max(17 * unit, 13.0))
-        if outcome == "hit" and len(points) > 1:
+        if outcome == "hit" and len(points) > 1:  # a selection: Follow the Target has none
             p.setPen(_pen(INK, unit))
             p.setBrush(QColor("#F2B705"))
             p.drawPolygon(_star(_point(rect, *points[-1]), 11 * unit))
@@ -363,7 +389,9 @@ def paint_symbol(p: QPainter, rect: QRectF, kind: str) -> None:
     square = QRectF(centre.x() - side / 2, centre.y() - side / 2, side, side)
     p.save()
     p.setRenderHint(QPainter.RenderHint.Antialiasing)
-    if kind == "slot":
+    if kind in LINE_KINDS:
+        paint_line_symbol(p, square, kind, _pen)
+    elif kind == "slot":
         p.setBrush(Qt.BrushStyle.NoBrush)
         p.setPen(_pen(_alpha(MUTED, 150), 1.4 * unit, Qt.PenStyle.DashLine))
         _circle(p, centre, 0.42 * side)
@@ -397,7 +425,8 @@ def paint_map(
     one = model.trials[trial] if trial is not None and 0 <= trial < len(model.trials) else None
     if one is not None:
         _paint_slots(p, rect, model, unit)
-        _paint_trial(p, rect, model, one, unit)
+        runs = model.pointer_runs[trial] if trial is not None and trial < len(model.pointer_runs) else None
+        _paint_trial(p, rect, model, one, unit, runs)
     else:
         if heat and model.heat_image is not None:
             p.drawImage(rect, model.heat_image)

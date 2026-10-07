@@ -190,6 +190,10 @@ def build_trials(
 
         entries = to_int(row.get("entries")) if outcome != OUTCOME_SKIPPED else None
         attempts = to_int(row.get("attempts"))
+        # Switch presses (SPEC-input-selection-and-follow.md 4.5): None for a skipped trial and
+        # for a folder without the columns; a Dwell test writes 0 and its report never shows them.
+        clicks = to_int(row.get("clicks")) if outcome != OUTCOME_SKIPPED else None
+        click_errors = to_int(row.get("click_errors")) if outcome != OUTCOME_SKIPPED else None
         t_click = to_int(row.get("t_click_ns"))
         t_first = to_int(row.get("t_first_gaze_on_target_ns"))
         scored = outcome in SCORED_OUTCOMES and onset is not None
@@ -223,6 +227,8 @@ def build_trials(
             "trial_time_s": trial_time,
             "reaction_time_s": reaction,
             "entries": entries,
+            "clicks": clicks,
+            "click_errors": click_errors,
             "fixations": _empty_fixations(),
             "scanpath": [],
             "saccades": _empty_saccades(),
@@ -276,7 +282,7 @@ def summary_rows(trials: Sequence[dict[str, Any]]) -> list[dict[str, Any]]:
     or to the end for a timeout), Reaction Time (onset to the first gaze entry, over the
     trials where gaze ever entered) and Entries. Error-free = a hit with ``entries == 1``
     and ``attempts == 1``; when the folder has no ``entries`` the row is ``None`` / "—"
-    (not guessed).
+    (not guessed). ``clicks`` / ``click_errors`` are the means of a Switch test's presses.
     """
     scored = [t for t in trials if t["outcome"] in (OUTCOME_HIT, OUTCOME_TIMEOUT)]
     hits = [t for t in scored if t["outcome"] == OUTCOME_HIT]
@@ -305,6 +311,11 @@ def summary_rows(trials: Sequence[dict[str, Any]]) -> list[dict[str, Any]]:
                     None if not group else mean_or_none([t["reaction_time_s"] for t in group], 3)
                 ),
                 "entries": None if not group else mean_or_none([t["entries"] for t in group], 2),
+                # Means of the switch presses of the row's trials (shown for a Switch test only).
+                "clicks": None if not group else mean_or_none([t["clicks"] for t in group], 2),
+                "click_errors": (
+                    None if not group else mean_or_none([t["click_errors"] for t in group], 2)
+                ),
             }
         )
     return rows

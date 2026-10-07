@@ -58,6 +58,13 @@ TRIAL_COLUMNS = (
     "Entries", "Fixations", "Mean fix. dur. (s)", "Saccades", "Mean peak vel. (deg/s)",
     "Pupil (mm)", "Pupil change (mm)",
 )
+# A Switch test (SPEC-input-selection-and-follow.md 4.5) adds the presses after Entries; with Dwell
+# these columns are not shown.
+CLICK_COLUMNS = ("Clicks", "Click errors")
+ENTRIES_AT = TRIAL_COLUMNS.index("Entries")  # the Trial-by-Trial columns after it are the eye ones
+SWITCH_SUMMARY_COLUMNS = SUMMARY_COLUMNS + CLICK_COLUMNS
+SWITCH_TRIAL_COLUMNS = TRIAL_COLUMNS[: ENTRIES_AT + 1] + CLICK_COLUMNS + TRIAL_COLUMNS[ENTRIES_AT + 1 :]
+SWITCH_WINDOW_MS = 150  # a press with no valid pointer looks this far back (I5c)
 
 EYE_NOTE = (
     "Peak saccade velocity is a smoothed value. Compare it only between children measured on "
@@ -79,6 +86,28 @@ DEFINITIONS = (
     f"the target appeared; blinks ({seconds_text(100)} either side of any invalid sample) are excluded.",
     "Skipped trials are excluded from every percentage.",
 )
+# What a Switch test's two extra columns mean (printed after the definitions above).
+SWITCH_DEFINITIONS = (
+    "Clicks: the switch presses counted while the target was up; presses between trials are ignored.",
+    "Click errors: presses with the gaze off the target, or with no valid gaze in the last "
+    f"{seconds_text(SWITCH_WINDOW_MS)}.",
+)
+
+
+def is_switch(report: dict[str, Any]) -> bool:
+    """Was this test's Selection the switch (so the Clicks columns are shown)?"""
+    return (report.get("session") or {}).get("selection") == "switch"
+
+
+def gaze_was_recorded(report: dict[str, Any]) -> bool:
+    """False only for a test that says no gaze was recorded (a Mouse test with no tracker):
+    its eye cells say "not recorded"; an older folder that says nothing keeps its dashes."""
+    return (report.get("session") or {}).get("gaze_recorded") is not False
+
+
+def definitions(report: dict[str, Any]) -> tuple[str, ...]:
+    """The PDF's footnotes for this report's layout."""
+    return DEFINITIONS + SWITCH_DEFINITIONS if is_switch(report) else DEFINITIONS
 
 
 def num(value: Any, digits: int = 1, *, signed: bool = False) -> str:
@@ -114,9 +143,15 @@ def percent_text(row: dict[str, Any]) -> str:
     return f"{share}% ({n}/{total})"
 
 
+def summary_columns(report: dict[str, Any]) -> tuple[str, ...]:
+    return SWITCH_SUMMARY_COLUMNS if is_switch(report) else SUMMARY_COLUMNS
+
+
 def summary_table(report: dict[str, Any]) -> list[list[str]]:
     """The four Summary of Results rows as display text (the columns are
-    :data:`SUMMARY_COLUMNS`)."""
+    :func:`summary_columns`: :data:`SUMMARY_COLUMNS`, plus the means of the presses for a
+    Switch test)."""
+    switch = is_switch(report)
     return [
         [
             str(row.get("label", "")),
@@ -124,6 +159,7 @@ def summary_table(report: dict[str, Any]) -> list[list[str]]:
             num(row.get("trial_time_s"), 2),
             num(row.get("reaction_time_s"), 2),
             num(row.get("entries"), 1),
+            *([num(row.get("clicks"), 1), num(row.get("click_errors"), 1)] if switch else []),
         ]
         for row in report.get("summary", {}).get("rows", [])
     ]
@@ -201,14 +237,30 @@ class Cell(NamedTuple):
     key: float | str | None
 
 
-def trial_cells(trial: dict[str, Any]) -> list[Cell]:
-    """The 13 cells of one Trial-by-Trial row (the columns are :data:`TRIAL_COLUMNS`)."""
+def trial_cells(
+    trial: dict[str, Any], *, switch: bool = False, gaze_recorded: bool = True
+) -> list[Cell]:
+    """The cells of one Trial-by-Trial row: the 13 of :data:`TRIAL_COLUMNS`, plus the two of
+    :data:`CLICK_COLUMNS` after Entries for a Switch test. A test with no gaze recorded says
+    "not recorded" in the six eye cells of a trial that was presented (a skipped one has
+    nothing, and says so with a dash)."""
     fix, sac, pup = trial.get("fixations", {}), trial.get("saccades", {}), trial.get("pupil", {})
     outcome = OUTCOME_LABELS.get(str(trial.get("outcome")), DASH)
 
     def number(value: Any, digits: int, *, signed: bool = False) -> Cell:
         return Cell(num(value, digits, signed=signed), None if value is None else float(value))
 
+    eye = [
+        number(fix.get("count"), 0),
+        Cell(seconds_figure(fix.get("mean_dur_ms")), ms_to_seconds(fix.get("mean_dur_ms"))),
+        number(sac.get("count"), 0),
+        number(sac.get("mean_peak"), 0),
+        number(pup.get("mean_mm"), 2),
+        number(pup.get("change_mm"), 2, signed=True),
+    ]
+    if not gaze_recorded and trial.get("outcome") != "skipped":
+        eye = [Cell(NOT_RECORDED, None) for _ in eye]
+    clicks = [number(trial.get("clicks"), 0), number(trial.get("click_errors"), 0)] if switch else []
     return [
         Cell(str(trial.get("trial", "")), float(trial.get("trial") or 0)),
         number(trial.get("size_deg"), 1),
@@ -217,12 +269,8 @@ def trial_cells(trial: dict[str, Any]) -> list[Cell]:
         number(trial.get("trial_time_s"), 2),
         number(trial.get("reaction_time_s"), 2),
         number(trial.get("entries"), 0),
-        number(fix.get("count"), 0),
-        Cell(seconds_figure(fix.get("mean_dur_ms")), ms_to_seconds(fix.get("mean_dur_ms"))),
-        number(sac.get("count"), 0),
-        number(sac.get("mean_peak"), 0),
-        number(pup.get("mean_mm"), 2),
-        number(pup.get("change_mm"), 2, signed=True),
+        *clicks,
+        *eye,
     ]
 
 
@@ -232,8 +280,11 @@ def _count(value: Any, noun: str) -> str:
     return f"{value} {noun}" if value == 1 else f"{value} {noun}s"
 
 
-def trial_line(trial: dict[str, Any]) -> str:
-    """The line under the selected-trial map: scan path, fixations, saccades."""
+def trial_line(trial: dict[str, Any], gaze_recorded: bool = True) -> str:
+    """The line under the selected-trial map: scan path, fixations, saccades ("Eye data not
+    recorded." for a test with no gaze recorded)."""
+    if not gaze_recorded:
+        return "Eye data not recorded."
     sac, fix = trial.get("saccades", {}), trial.get("fixations", {})
     path = sac.get("scanpath_deg")
     path_text = f"Scan path {num(path, 1)} deg" if path is not None else f"Scan path {DASH}"
@@ -277,6 +328,12 @@ def summary_footnote(report: dict[str, Any]) -> str:
         "Reaction Time = onset to the first gaze entry; about 0 if the gaze already rested on the "
         "new target's place."
     )
+    if is_switch(report):
+        parts.append(
+            "Clicks = switch presses counted in the trial (presses between trials are ignored). "
+            "Click errors = presses with the gaze off the target, or with no valid gaze in the last "
+            f"{seconds_text(SWITCH_WINDOW_MS)}."
+        )
     return " ".join(parts)
 
 
