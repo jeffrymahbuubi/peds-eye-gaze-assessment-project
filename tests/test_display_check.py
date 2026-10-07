@@ -160,6 +160,8 @@ def _fake_app(width: int, height: int, dpr: float, ack: bool | None):
         ),
         recorder=_FakeRecorder(),
         _geometry_recorded=False,
+        _pointer_is_mouse=False,  # a gaze run (a Mouse run with no tracker: test_mouse_run.py)
+        _gaze_recorded=True,
     )
     app._record_display = lambda: AssessmentApp._record_display(app)
     return app

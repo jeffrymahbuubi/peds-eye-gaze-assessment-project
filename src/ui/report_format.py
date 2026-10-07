@@ -17,6 +17,7 @@ from ..data.report_util import ms_to_seconds, seconds_text
 from ..engine.session_naming import safe_subject_dirname
 
 DASH = "—"
+NOT_RECORDED = "not recorded"  # what the eye sections say of a Mouse test with no tracker
 DEFAULT_HIT_TOLERANCE_PX = 40.0  # dwell.jitter_tolerance_px's default: the hitbox margin
 
 OUTCOME_LABELS = {"hit": "Hit", "timeout": "Not selected", "skipped": "Skipped"}
@@ -148,7 +149,7 @@ def eye_rows(report: dict[str, Any]) -> list[tuple[str, str]]:
     if calibration_parts and cal.get("source"):
         calibration += f", {cal['source']}"
 
-    return [
+    rows = [
         ("Fixations", fixations),
         ("Mean fixation duration", duration),
         ("Saccades", DASH if sac.get("count") is None else str(sac["count"])),
@@ -163,6 +164,11 @@ def eye_rows(report: dict[str, Any]) -> list[tuple[str, str]]:
         ("Valid gaze during trials", _part(f"{whole(eye.get('valid_gaze_pct'))} %", eye.get("valid_gaze_pct"))),
         ("Calibration error", calibration),
     ]
+    if report.get("session", {}).get("gaze_recorded") is False:
+        # A Mouse test with no tracker (SPEC-input-selection-and-follow.md A5): there was
+        # no eye data to give, which is not the same as a figure that could not be built.
+        return [(label, NOT_RECORDED) for label, _value in rows]
+    return rows
 
 
 class Cell(NamedTuple):

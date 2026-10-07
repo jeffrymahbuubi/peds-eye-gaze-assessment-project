@@ -66,6 +66,8 @@ def _fake_app(dpr: float, device_info=None):
         metadata=SessionMetadata(subject_id="P001", session_id="s", started_ns=0),
         recorder=_FakeRecorder(),
         _geometry_recorded=False,
+        _pointer_is_mouse=False,  # a gaze run (a Mouse run with no tracker is in test_mouse_run.py)
+        _gaze_recorded=True,
     )
     app._record_display = lambda: AssessmentApp._record_display(app)
     return app

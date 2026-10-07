@@ -35,6 +35,7 @@ from typing import TYPE_CHECKING, Any
 
 from ..app import AssessmentApp
 from ..engine.config import load_task_config
+from ..engine.input_choice import resolve_input
 from ..engine.run_mode import PRACTICE, RECORD
 from ..engine.run_result import DISCARD, SAVE_AND_VIEW, RunResult, finish_run
 from ..engine.session_files import SessionDiscardError
@@ -193,7 +194,14 @@ class RunFlow:
         """A new run of ``test``'s own configuration (never reuse one, 4C.1). On a failure
         the reason is shown on the Start page and this returns ``None``."""
         window, setup = self._window, self._window.setup_page
-        if setup.client is None:  # the Setup tab owns the device; a run must never dial it
+        tracker, calibration = setup.client, setup.calibration_result
+        if resolve_input(self._config).is_mouse:
+            # A Mouse test needs no tracker (H5): the Setup tab's one records alongside
+            # when it is connected and calibrated, otherwise there is none (not even a
+            # calibration is started for it).
+            if tracker is not None and not (tracker.is_connected() and calibration is not None):
+                tracker, calibration = None, None
+        elif tracker is None:  # the Setup tab owns the device; a run must never dial it
             self._cannot_start(f"Could not start {test.name}: the tracker is not connected.")
             return None
         try:
@@ -204,10 +212,10 @@ class RunFlow:
                 structural_overrides=structural or None,
                 live_overrides=copy.deepcopy(test.configuration["live"]) or None,
                 config_name=test.configuration["name"],
-                client=setup.client,
-                preset_calibration_result=setup.calibration_result,
-                preset_calibration_source=setup.calibration_source,
-                preset_calibration_file=setup.calibration_file,
+                client=tracker,
+                preset_calibration_result=calibration,
+                preset_calibration_source=setup.calibration_source if tracker is not None else None,
+                preset_calibration_file=setup.calibration_file if tracker is not None else None,
                 embedded=True,
                 assessment_date=setup.assessment_date(),
                 sex=setup.sex(),

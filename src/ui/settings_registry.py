@@ -19,33 +19,16 @@ from __future__ import annotations
 from dataclasses import dataclass
 from typing import Any
 
-from ..engine.target_size import (
-    DEFAULT_GAP,
-    DEFAULT_SIZE,
-    GAP_CHOICES,
-    SIZE_NAMES,
-    SIZE_PRESETS_DEG,
+from ..engine.input_choice import POINTER_GAZE, SELECTION_DWELL, SELECTION_SWITCH
+from ..engine.target_size import DEFAULT_GAP, DEFAULT_SIZE, GAP_CHOICES
+from .choice_lists import (  # re-exported: the dialog and the tests import them from here
+    INPUT_POINTER_CHOICES,
+    INPUT_SELECTION_CHOICES,
+    MOTION_PATH_CHOICES,
+    TARGET_SIZE_CHOICES,
 )
 
 MS_PER_S = 1000.0  # a stored millisecond figure is shown in seconds (``display_divisor``)
-
-# Target size presets (SPEC-target-size-and-motion-paths.md S4.1/S4.5): (value
-# stored in target.size, label). The dialog appends the diameter in px on the
-# operator's own monitor, which only it can know.
-TARGET_SIZE_CHOICES: tuple[tuple[str, str], ...] = tuple(
-    (name, f"{SIZE_NAMES[name]} — {degrees:g}°")
-    for name, degrees in SIZE_PRESETS_DEG.items()
-)
-
-# follow_moving's movement paths (SPEC-target-size-and-motion-paths.md S4.4):
-# (value stored in motion.path, label shown in the dialog).
-MOTION_PATH_CHOICES: tuple[tuple[str, str], ...] = (
-    ("circular", "Circular"),
-    ("horizontal", "Horizontal ↔"),
-    ("vertical", "Vertical ↕"),
-    ("diagonal_tlbr", "Diagonal ↘ (top-left ↔ bottom-right)"),
-    ("diagonal_trbl", "Diagonal ↙ (top-right ↔ bottom-left)"),
-)
 
 
 @dataclass(frozen=True, slots=True)
@@ -274,6 +257,26 @@ STRUCTURAL_SETTINGS: list[StructuralSetting] = [
     # GuiFeedback construction, so structural. `feedback.particles` stays unexposed.
     StructuralSetting("feedback.hit_sound", "Play hit sound", "bool", default=True),
     StructuralSetting("feedback.miss_sound", "Play miss sound", "bool", default=True),
+    # The input choices (SPEC-input-selection-and-follow.md H1): Pointer on every task,
+    # Selection on the three tasks that select a target (Follow the Target has none, I9).
+    StructuralSetting(
+        "input.pointer",
+        "Pointer (what moves the pointer)",
+        "choice",
+        choices=INPUT_POINTER_CHOICES,
+        default=POINTER_GAZE,
+    ),
+    StructuralSetting(
+        "input.selection",
+        "Selection (how a target is selected)",
+        "choice",
+        applies_to=("click_static", "click_grid", "scanning"),
+        choices=INPUT_SELECTION_CHOICES,
+        default=SELECTION_DWELL,
+    ),
+    # The glow round the target while the pointer is on it (H3): drawn for a Switch
+    # selection and for Follow the Target, where there is no dwell ring.
+    StructuralSetting("feedback.target_glow", "Glow on target", "bool", default=True),
 ]
 
 
@@ -407,6 +410,10 @@ class ConfigControl:
     label: str
     depends_on: str | None = None  # key of a check box that greys this one while it is off
     setting: LiveSetting | StructuralSetting | None = None  # None for a "page" control
+    # ``(key of a radio group, value)``: greyed while that group holds that value
+    # (SPEC-input-selection-and-follow.md 4.1). A page without the group (Follow has
+    # no Selection) never greys it.
+    greyed_by: tuple[str, str] | None = None
 
 
 @dataclass(frozen=True, slots=True)
@@ -428,6 +435,14 @@ _PAGE_CONTROLS = {
 _WIDGET_BY_KIND = {"bool": "check", "int": "slider_int", "float": "slider_float", "choice": "radio"}
 # 4B.3: greyed in place, never hidden, while the control it names is off.
 _DEPENDS_ON = {"dwell.smoothing.alpha": "dwell.smoothing.enabled"}
+# 4.1, greyed in place the same way, but by what Selection says: Switch has no dwell
+# threshold and no dwell ring; Dwell has no glow. The refractory period and the jitter
+# tolerance stay active under Switch -- the debounce and the hitbox apply to it too.
+_GREYED_BY = {
+    "dwell.threshold_ms": ("input.selection", SELECTION_SWITCH),
+    "dwell.progress_ring": ("input.selection", SELECTION_SWITCH),
+    "feedback.target_glow": ("input.selection", SELECTION_DWELL),
+}
 # The cards in 4B.1 order: (id, title, column, hint, control keys in order). A key the task
 # has no setting for is skipped and a card left empty is dropped, so one table lays out all
 # four pages (scanning has Icons where the others have Target; only click_grid has a grid).
@@ -435,14 +450,15 @@ _CARDS = (
     ("test", "Test", 0, None, ("test.name", "test.config_name", "trials", "test.notes")),
     ("feedback", "Feedback", 0, None, (
         "dwell.visual_cursor", "dwell.progress_ring", "dwell.instant_feedback",
-        "feedback.hit_sound", "feedback.miss_sound")),
+        "feedback.target_glow", "feedback.hit_sound", "feedback.miss_sound")),
     ("target", "Target", 1, None, ("target.size",)),
     ("icons", "Icons", 1, HINT_ICON_FIT, ("layout.size", "layout.n_icons")),
     ("grid", "Grid Layout", 1, HINT_GRID_FIT, ("grid.rows", "grid.cols", "grid.gap")),
     ("motion", "Motion", 1, None, ("motion.path", "motion.speed_frac_per_s")),
     ("timing", "Timing", 1, None, (
         "task.timeout_ms", "task.inter_trial_interval_ms", "motion.select_window_ms")),
-    ("selection", "Selection (Dwell)", 2, None, (
+    ("input", "Input", 2, None, ("input.pointer", "input.selection")),
+    ("selection", "Dwell", 2, None, (
         "dwell.threshold_ms", "dwell.refractory_ms", "dwell.jitter_tolerance_px")),
     ("smoothing", "Gaze Smoothing", 2, None, ("dwell.smoothing.enabled", "dwell.smoothing.alpha")),
 )
@@ -464,7 +480,8 @@ def config_groups_for_task(task_id: str) -> list[ConfigGroup]:
     ):
         for s in settings:
             known[s.key] = ConfigControl(
-                s.key, layer, _WIDGET_BY_KIND[s.kind], s.label, _DEPENDS_ON.get(s.key), s
+                s.key, layer, _WIDGET_BY_KIND[s.kind], s.label, _DEPENDS_ON.get(s.key), s,
+                _GREYED_BY.get(s.key),
             )
     for key, (label, widget) in _PAGE_CONTROLS.items():
         known[key] = ConfigControl(key, "page", widget, label)

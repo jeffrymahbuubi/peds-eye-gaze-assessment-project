@@ -32,10 +32,19 @@ from PySide6.QtWidgets import (
     QWidget,
 )
 
+from ..engine.input_choice import drop_gaze_only_blockers, resolve_input
 from ..engine.run_result import RunResult, practice_result_text
 from .task_instructions import Instructions, build_instructions
 
 BLOCKER_REFRESH_MS = 1000
+
+# The line of a test with Pointer = Mouse (SPEC-input-selection-and-follow.md H5, I7): it
+# needs no tracker and no calibration, but says what happens to the eye data.
+MOUSE_NOTE_ALONGSIDE = "Mouse test — eye data will be recorded alongside."
+MOUSE_NOTE_NO_TRACKER = "Mouse test — the tracker is not connected, so no eye data will be recorded."
+MOUSE_NOTE_NOT_CALIBRATED = (
+    "Mouse test — the tracker is not calibrated, so no eye data will be recorded."
+)
 
 HELP_TEXT = (
     "Help: From this screen you can begin the test. You may also practice 3 targets "
@@ -58,6 +67,7 @@ class StartTestPage(QWidget):
         super().__init__(parent)
         self._blockers_provider: Callable[[], list[str]] | None = None
         self._blockers: list[str] = []
+        self._mouse_test = False  # Pointer = Mouse: no tracker or calibration needed (H5)
         self._practice_count = 0
         self.instructions: Instructions | None = None
         self._build_ui()
@@ -92,6 +102,7 @@ class StartTestPage(QWidget):
         starts its practice count and its practice line afresh."""
         self.title_label.setText(f"Start {test_name}")
         self._practice_count = 0
+        self._mouse_test = resolve_input(cfg).is_mouse
         self.set_practice_result(None)
         self.show_note("")
         self.instructions = build_instructions(task_id, cfg, values)
@@ -121,9 +132,21 @@ class StartTestPage(QWidget):
 
     def refresh_blockers(self) -> list[str]:
         """Read the blockers now; show or hide the banner and enable or disable Start
-        and Practice. Returns them."""
+        and Practice. Returns them.
+
+        A Mouse test (H5) drops the tracker and calibration blockers: it is not blocked
+        by them, and a one-line note says whether eye data will be recorded alongside."""
         provider = self._blockers_provider
-        self._blockers = list(provider()) if provider is not None else []
+        blockers = list(provider()) if provider is not None else []
+        if self._mouse_test:
+            blockers, tracker_ok, calibrated = drop_gaze_only_blockers(blockers)
+            self.mouse_note_label.setText(
+                MOUSE_NOTE_ALONGSIDE
+                if tracker_ok and calibrated
+                else MOUSE_NOTE_NO_TRACKER if not tracker_ok else MOUSE_NOTE_NOT_CALIBRATED
+            )
+        self.mouse_note.setVisible(self._mouse_test)
+        self._blockers = blockers
         blocked = bool(self._blockers)
         self.banner.setVisible(blocked)
         if blocked:
@@ -163,6 +186,16 @@ class StartTestPage(QWidget):
         banner_row.addWidget(self.go_to_setup_button)
         self.banner.hide()
         outer.addWidget(self.banner)
+
+        # Only for a test with Pointer = Mouse (H5), in place of the tracker blockers.
+        self.mouse_note = QFrame()
+        self.mouse_note.setObjectName("wtmhAlertInfo")
+        mouse_row = QVBoxLayout(self.mouse_note)
+        self.mouse_note_label = QLabel("")
+        self.mouse_note_label.setWordWrap(True)
+        mouse_row.addWidget(self.mouse_note_label)
+        self.mouse_note.hide()
+        outer.addWidget(self.mouse_note)
 
         # The card scrolls above the buttons, so a small or scaled window never clips
         # Start (the same rule as the Setup and configuration pages).

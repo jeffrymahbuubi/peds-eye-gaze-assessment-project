@@ -82,6 +82,9 @@ class ConfigForm:
         self.layers: dict[str, str] = {}  # registry key -> "live" | "structural"
         self.kinds: dict[str, str] = {}  # registry key -> bool | int | float | choice
         self.dependents: list[tuple[str, list[QWidget]]] = []  # (master key, widgets greyed)
+        # (radio key, value, widgets): greyed while that radio group holds that value
+        # (SPEC-input-selection-and-follow.md 4.1). Disjoint from ``dependents``.
+        self.greyed_when: list[tuple[str, str, list[QWidget]]] = []
         self.cards: dict[str, QFrame] = {}
         self.fit_hint: QFrame | None = None
         self.fit_hint_label: QLabel | None = None
@@ -151,6 +154,9 @@ class ConfigForm:
             self.kinds[control.key] = setting.kind
         if control.depends_on:
             self.dependents.append((control.depends_on, [w for w in (label, widget) if w]))
+        if control.greyed_by:
+            master, value = control.greyed_by
+            self.greyed_when.append((master, value, [w for w in (label, widget) if w]))
 
     def _widget(self, control: ConfigControl) -> QWidget:
         kind, key = control.widget, control.key

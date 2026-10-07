@@ -47,6 +47,12 @@ from ..engine.calibration import (
 )
 from ..engine.config import load_default
 from ..engine.display_check import DisplayCheck, check_display
+from ..engine.input_choice import (
+    CALIBRATION_BLOCKER,
+    TRACKER_BLOCKER,
+    drop_gaze_only_blockers,
+    gaze_only_note,
+)
 from ..engine.local_state import load_local_state, save_local_state
 from ..engine.session_naming import safe_subject_dirname
 from ..engine.settings_profile import known_subject_ids
@@ -349,15 +355,16 @@ class SetupPage(QWidget):
         """Why a test cannot be started right now, as sentences for the Start
         page's banner (SPEC-compass-task-flow.md 4C.2); empty when it can.
 
-        The same conditions as :meth:`can_continue` (which is exactly "no
-        blockers"), in the order the banner lists them. Pure: reads state, changes
-        nothing, so the page can re-evaluate it on a timer.
+        The conditions of :meth:`can_continue` plus the tracker and the calibration
+        (which only a gaze test needs: :meth:`continue_blockers` leaves them out), in
+        the order the banner lists them. Pure: reads state, changes nothing, so the
+        page can re-evaluate it on a timer.
         """
         blockers: list[str] = []
         if self._client is None or not self._client.is_connected():
-            blockers.append("The tracker is not connected. Connect it on the Setup page.")
+            blockers.append(TRACKER_BLOCKER)
         if self._calibration_result is None:
-            blockers.append("No calibration yet. Calibrate on the Setup page.")
+            blockers.append(CALIBRATION_BLOCKER)
         if not self.subject_id():
             blockers.append("Subject ID is empty.")
         if not self.assessment_date():
@@ -370,8 +377,20 @@ class SetupPage(QWidget):
             )
         return blockers
 
+    def continue_blockers(self) -> list[str]:
+        """What stops "Continue to Tests": every :meth:`run_blockers` reason **except** the
+        tracker and the calibration. Continuing without them is allowed (user decision of
+        2026-10-07, SPEC-input-selection-and-follow.md): a Mouse test needs neither, and a
+        gaze test is still held back on its own Start page by :meth:`run_blockers`."""
+        return drop_gaze_only_blockers(self.run_blockers())[0]
+
     def can_continue(self) -> bool:
-        return not self.run_blockers()
+        return not self.continue_blockers()
+
+    def tracker_ready(self) -> tuple[bool, bool]:
+        """``(tracker connected, calibrated)``: what a gaze test needs."""
+        connected = self._client is not None and bool(self._client.is_connected())
+        return connected, self._calibration_result is not None
 
     # -- UI -----------------------------------------------------------------
 
@@ -416,6 +435,17 @@ class SetupPage(QWidget):
         scroll.viewport().setAutoFillBackground(False)
         scroll_content.setAutoFillBackground(False)
         outer.addWidget(scroll, stretch=1)
+
+        # What Continue leaves undone when there is no tracker or no calibration: only Mouse
+        # tests can run (the gaze ones are held back on their own Start page).
+        self.gaze_note = QFrame()
+        self.gaze_note.setObjectName("wtmhAlertInfo")
+        gaze_note_row = QVBoxLayout(self.gaze_note)
+        self.gaze_note_label = QLabel("")
+        self.gaze_note_label.setWordWrap(True)
+        gaze_note_row.addWidget(self.gaze_note_label)
+        self.gaze_note.hide()
+        outer.addWidget(self.gaze_note)
 
         self.continue_button = QPushButton("Continue to Tests →")
         self.continue_button.setObjectName("wtmhPrimary")
@@ -1053,12 +1083,14 @@ class SetupPage(QWidget):
         (verified: `can_continue()` correctly flips True once the tracker
         is also connected), just a missing explanation -- surfaced as a
         tooltip on the disabled button instead of silence.
+
+        Since 2026-10-07 (SPEC-input-selection-and-follow.md) the tracker and the
+        calibration are no longer on this list: Continue is allowed without them and
+        ``gaze_note`` says only Mouse tests can run.
         """
         missing = []
-        if self._client is None or not self._client.is_connected():
-            missing.append("connect to the tracker")
-        if self._calibration_result is None:
-            missing.append("run or load a calibration")
+        # No tracker and no calibration are not missing requirements any more: a Mouse test
+        # needs neither (the gaze_note under the page says what is left).
         if not self.subject_id():
             missing.append("enter a Subject ID")
         if not self.sex():
@@ -1132,6 +1164,9 @@ class SetupPage(QWidget):
         self.continue_button.setToolTip(
             "Still needed: " + "; ".join(missing) + "." if missing else ""
         )
+        note = gaze_only_note(*self.tracker_ready())
+        self.gaze_note.setVisible(note is not None)
+        self.gaze_note_label.setText(note or "")
         self.view_details_button.setEnabled(self._calibration_result is not None)
         self.save_calibration_button.setEnabled(
             self._calibration_result is not None and bool(self.subject_id())

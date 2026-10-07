@@ -174,7 +174,8 @@ def test_scanning_dialog_shows_an_icon_size_combo_and_no_px_radius_row(qapp):
 def test_click_grid_dialog_is_unchanged(qapp):
     d = _dialog("click_grid")
     # Plus the Cell gap choice (SPEC-grid-cell-gap.md S4.5) and the two sound
-    # check boxes (SPEC-compass-task-flow.md HB3/HB11); nothing else moved.
+    # check boxes (SPEC-compass-task-flow.md HB3/HB11), the glow and the two input choices
+    # (SPEC-input-selection-and-follow.md H1/H3); nothing else moved.
     assert set(d._controls) == {
         "trials",
         "target.size",
@@ -183,6 +184,9 @@ def test_click_grid_dialog_is_unchanged(qapp):
         "grid.gap",
         "feedback.hit_sound",
         "feedback.miss_sound",
+        "feedback.target_glow",
+        "input.pointer",
+        "input.selection",
     }
 
 

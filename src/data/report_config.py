@@ -21,11 +21,17 @@ from .report_util import seconds_text
 
 DASH = "—"
 
+# Every value ``metadata.input_mode`` takes (SPEC-input-selection-and-follow.md H1, A9).
 _INPUT_LABELS = {
     "eye": "Eye gaze (dwell)",
     "gaze_switch": "Gaze pointer + switch",
     "switch": "Switch (mouse pointer)",
+    "mouse_dwell": "Mouse pointer (dwell)",
+    "mouse_follow": "Mouse pointer",
 }
+# The modes whose pointer is the mouse: no tracker is named for them unless gaze was
+# recorded alongside (``metadata.gaze_recorded``).
+_MOUSE_MODES = ("switch", "mouse_dwell", "mouse_follow")
 _MOTION_PATHS = {
     "circular": "Circular",
     "horizontal": "Horizontal",
@@ -80,8 +86,8 @@ def _input_row(meta: dict[str, Any]) -> str:
     if mode is None:
         return DASH
     label = _INPUT_LABELS.get(str(mode), str(mode))
-    if mode == "switch":  # the mouse drives the pointer: no tracker involved
-        return label
+    if mode in _MOUSE_MODES and not meta.get("gaze_recorded"):
+        return label  # the mouse drives the pointer and no tracker recorded
     rate = _num(meta.get("gazepoint_rate_hz")) or _num(meta.get("measured_sample_rate_hz"))
     model = meta.get("gazepoint_model") or ""
     tracker = ", ".join(p for p in (str(model), f"{rate:g} Hz" if rate else "") if p)

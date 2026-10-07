@@ -11,6 +11,7 @@ Writes one directory per session::
         eye_geometry.csv   # 3D eye position + per-eye POG per raw <REC> (optional)
         trials.csv         # one row per trial
         target_track.csv   # moving target's position at ~20 Hz (follow_moving only)
+        pointer_stream.csv # the mouse pointer per frame (a Mouse run only)
         events.jsonl       # discrete events (DWELL_START, TARGET_SHOWN, ...)
 
 The recorder is deliberately GUI-free and streams to disk incrementally so a
@@ -53,6 +54,12 @@ _GAZE_HEADER = [
 TARGET_TRACK_FILENAME = "target_track.csv"
 TARGET_TRACK_COLUMNS = ["t_ns", "trial", "x", "y"]
 
+# The mouse pointer of a Mouse run, one row per frame (SPEC-input-selection-and-follow.md
+# H4): host clock and canvas-normalized x/y like ``gaze_stream.csv``, ``valid`` 1 while the
+# pointer is inside the canvas. Lets the report draw the mouse path.
+POINTER_STREAM_FILENAME = "pointer_stream.csv"
+POINTER_STREAM_COLUMNS = ["t_ns", "x", "y", "valid"]
+
 
 class SessionRecorder:
     """Streams gaze samples, trials and events to a session directory."""
@@ -93,6 +100,11 @@ class SessionRecorder:
         self._track_writer: Any = None
         self._track_since_flush = 0
 
+        # pointer_stream.csv exists only for a Mouse run: opened by open_pointer_stream().
+        self._pointer_file: TextIO | None = None
+        self._pointer_writer: Any = None
+        self._pointer_since_flush = 0
+
         # Smallest (host receive time - device TIME) seen in record_raw, in ns:
         # the host-clock time of all_gaze.csv's TIME=0 (SPEC 4D.4-5).
         self._raw_clock_offset_ns: int | None = None
@@ -106,12 +118,16 @@ class SessionRecorder:
     def __exit__(self, *exc: object) -> None:
         self.close()
 
-    def open(self) -> None:
-        self._gaze_file = (self.session_dir / "gaze_stream.csv").open(
-            "w", newline="", encoding="utf-8"
-        )
-        self._gaze_writer = csv.DictWriter(self._gaze_file, fieldnames=_GAZE_HEADER)
-        self._gaze_writer.writeheader()
+    def open(self, *, gaze_stream: bool = True) -> None:
+        """Open the session files. ``gaze_stream=False`` is a Mouse run with no
+        tracker (SPEC-input-selection-and-follow.md H4): there is no gaze, so no
+        ``gaze_stream.csv`` is created and :meth:`record_gaze` must not be called."""
+        if gaze_stream:
+            self._gaze_file = (self.session_dir / "gaze_stream.csv").open(
+                "w", newline="", encoding="utf-8"
+            )
+            self._gaze_writer = csv.DictWriter(self._gaze_file, fieldnames=_GAZE_HEADER)
+            self._gaze_writer.writeheader()
 
         self._events_file = (self.session_dir / "events.jsonl").open(
             "w", encoding="utf-8"
@@ -143,6 +159,17 @@ class SessionRecorder:
         )
         self._eye_writer = csv.writer(self._eye_file)
         self._eye_writer.writerow(EYE_GEOMETRY_COLUMNS)
+
+    def open_pointer_stream(self) -> None:
+        """Start ``pointer_stream.csv`` (a Mouse run): the header is written at once,
+        so the file exists even if no frame is ever recorded. Call after :meth:`open`."""
+        if self._pointer_file is not None:
+            return
+        self._pointer_file = (self.session_dir / POINTER_STREAM_FILENAME).open(
+            "w", newline="", encoding="utf-8"
+        )
+        self._pointer_writer = csv.writer(self._pointer_file)
+        self._pointer_writer.writerow(POINTER_STREAM_COLUMNS)
 
     def flush_eye_geometry(self) -> None:
         """Push buffered ``eye_geometry.csv`` rows to disk (so it can be read
@@ -221,6 +248,19 @@ class SessionRecorder:
             self._track_file.flush()
             self._track_since_flush = 0
 
+    def record_pointer(self, sample: GazeSample) -> None:
+        """Append one mouse-pointer sample to ``pointer_stream.csv``; a no-op unless
+        :meth:`open_pointer_stream` was called."""
+        if self._pointer_writer is None:
+            return
+        self._pointer_writer.writerow(
+            [sample.t_ns, round(sample.x, 5), round(sample.y, 5), int(sample.valid)]
+        )
+        self._pointer_since_flush += 1
+        if self._pointer_since_flush >= self._gaze_flush_every:
+            self._pointer_file.flush()
+            self._pointer_since_flush = 0
+
     def record_gaze(self, sample: GazeSample) -> None:
         if self._gaze_writer is None:
             raise RuntimeError("Recorder is not open; call open() or use as context manager.")
@@ -275,6 +315,7 @@ class SessionRecorder:
             self._all_gaze_file,
             self._eye_file,
             self._track_file,
+            self._pointer_file,
             self._events_file,
             self._log_file,
         ):
@@ -303,13 +344,19 @@ class NullRecorder:
     def __exit__(self, *exc: object) -> None:
         return None
 
-    def open(self) -> None:
+    def open(self, *, gaze_stream: bool = True) -> None:
         return None
 
     def open_all_gaze(self, media_name: str, tick_frequency: int | None) -> None:
         return None
 
     def open_eye_geometry(self) -> None:
+        return None
+
+    def open_pointer_stream(self) -> None:
+        return None
+
+    def record_pointer(self, sample: GazeSample) -> None:
         return None
 
     def flush_eye_geometry(self) -> None:

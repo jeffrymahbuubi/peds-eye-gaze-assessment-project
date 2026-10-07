@@ -95,6 +95,11 @@ class TrialRecord:
     # Which grid cell / scanning icon the target was (4D.4-3); -1 for a task
     # with no fixed multi-item layout (``TargetSpec.slot_index``).
     slot_index: int = -1
+    # Switch presses of this trial (SPEC-input-selection-and-follow.md I5, 4.6): every
+    # press counted while the target was up, and how many of them were off the target
+    # or had no gaze (a Click error). Both 0 for a Dwell test, which has no presses.
+    clicks: int = 0
+    click_errors: int = 0
 
     @property
     def reaction_time_ms(self) -> float | None:
@@ -155,6 +160,8 @@ class TrialRecord:
             "end_x": _blank(self.end_x),
             "end_y": _blank(self.end_y),
             "slot_index": self.slot_index,
+            "clicks": self.clicks,
+            "click_errors": self.click_errors,
         }
         return row
 
@@ -182,6 +189,8 @@ class TrialRecord:
             "end_x",
             "end_y",
             "slot_index",
+            "clicks",
+            "click_errors",
         ]
 
 
@@ -320,6 +329,15 @@ class SessionMetadata:
     # ``t_ns = raw_clock_offset_ns + TIME * 1e9``. None when no raw file was
     # written and on older sessions. Additive; ``schema_version`` not bumped.
     raw_clock_offset_ns: int | None = None
+    # The test's Pointer (``gaze`` | ``mouse``) and Selection (``dwell`` | ``switch``;
+    # None for Follow the Target, which has none), and whether gaze was recorded: False
+    # for a Mouse run with no tracker, which writes ``pointer_stream.csv`` and no gaze
+    # files (SPEC-input-selection-and-follow.md H1, H4, 4.6). ``input_mode`` above is
+    # derived from the first two. All None on older sessions. Additive;
+    # ``schema_version`` deliberately not bumped, same reasoning as the fields above.
+    input_pointer: str | None = None
+    input_selection: str | None = None
+    gaze_recorded: bool | None = None
 
     def to_dict(self) -> dict[str, Any]:
         return {f.name: getattr(self, f.name) for f in fields(self)}

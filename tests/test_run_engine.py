@@ -82,7 +82,9 @@ def test_is_skipped_defaults_false_and_is_followed_by_the_p3_columns():
     assert trial.is_skipped is False
     header = TrialRecord.csv_header()
     # R6: is_skipped, then the 4D.4 columns, in one go (P3 adds the last four).
-    assert header[header.index("is_skipped"):] == ["is_skipped", "entries", "end_x", "end_y", "slot_index"]
+    assert header[header.index("is_skipped"):] == [
+        "is_skipped", "entries", "end_x", "end_y", "slot_index", "clicks", "click_errors",
+    ]
     assert "outcome" not in header  # R6: no outcome column, the report derives it
     assert list(trial.as_row()) == header
     assert trial.as_row()["is_skipped"] == 0

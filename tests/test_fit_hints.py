@@ -245,10 +245,11 @@ def test_the_sound_toggles_are_check_boxes_not_sliders(qapp, task_id):
 
 def test_unticking_a_sound_is_returned_in_the_overrides(qapp):
     d = _dialog("click_grid")
-    assert d.overrides()["feedback"] == {"hit_sound": True, "miss_sound": True}
+    # (plus the glow of SPEC-input-selection-and-follow.md H3, a third check box)
+    assert d.overrides()["feedback"] == {"hit_sound": True, "miss_sound": True, "target_glow": True}
     d._controls["feedback.hit_sound"].setChecked(False)
     out = d.overrides()["feedback"]
-    assert out == {"hit_sound": False, "miss_sound": True}
+    assert out == {"hit_sound": False, "miss_sound": True, "target_glow": True}
     assert all(isinstance(v, bool) for v in out.values())
 
 
@@ -258,7 +259,7 @@ def test_the_dialog_starts_from_the_configs_sound_values(qapp):
     d = TaskSettingsDialog("click_grid", config)
     assert d._controls["feedback.hit_sound"].isChecked()
     assert not d._controls["feedback.miss_sound"].isChecked()
-    assert d.overrides()["feedback"] == {"hit_sound": True, "miss_sound": False}
+    assert d.overrides()["feedback"] == {"hit_sound": True, "miss_sound": False, "target_glow": True}
 
 
 def test_the_dialogs_overrides_are_the_snapshots_structural_block(qapp):

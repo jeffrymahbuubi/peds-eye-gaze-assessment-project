@@ -27,6 +27,7 @@ from typing import Any
 
 from ..tasks.entry_tracker import DEFAULT_EXIT_HOLD_MS
 from .exporter import load_metadata, load_trials_rows
+from .recorder import POINTER_STREAM_FILENAME
 from .report_config import build_config_rows, setting
 from .report_eye import DEFAULT_PUPIL, FrameIndex, load_gaze_frames, load_raw_samples
 from .report_geometry import Geometry
@@ -157,8 +158,17 @@ def build_report(session_dir: str | Path) -> dict[str, Any]:
             "n_scored": sum(1 for t in trials if t["outcome"] in (OUTCOME_HIT, OUTCOME_TIMEOUT)),
             "n_skipped": n_skipped,
             "n_not_presented": max(0, planned - n_rows) if planned is not None else None,
+            # The test's input (SPEC-input-selection-and-follow.md H1, 4.6): None on an
+            # older folder. ``gaze_recorded`` False (a Mouse run with no tracker) is what
+            # makes the eye sections say "not recorded" instead of "—".
+            "pointer": meta.get("input_pointer"),
+            "selection": meta.get("input_selection"),
+            "gaze_recorded": meta.get("gaze_recorded")
+            if isinstance(meta.get("gaze_recorded"), bool)
+            else None,
             # Which inputs the folder had, so the UI can say why a column is "—".
             "sources": {
+                "pointer_stream": (session_dir / POINTER_STREAM_FILENAME).exists(),
                 "gaze_stream": bool(index.frames),
                 "raw_gaze": raw is not None,
                 "saccades": raw is not None and raw.saccades is not None,

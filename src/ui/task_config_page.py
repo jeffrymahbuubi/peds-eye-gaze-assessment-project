@@ -370,6 +370,11 @@ class TaskConfigPage(QWidget):
             enabled = bool(form.controls[master].isChecked())
             for widget in widgets:
                 widget.setEnabled(enabled)
+        for master, value, widgets in form.greyed_when:
+            group = form.controls.get(master)  # absent on a page with no such choice
+            grey = group is not None and group.value() == value
+            for widget in widgets:
+                widget.setEnabled(not grey)
         form.update_hint(self._values())
         modified = self.is_modified()
         form.modified_label.setText(f'Modified from "{self._loaded_name}"' if modified else "")

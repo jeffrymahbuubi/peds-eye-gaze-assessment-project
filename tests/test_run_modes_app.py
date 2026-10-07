@@ -193,8 +193,9 @@ def test_an_ended_run_writes_how_it_ended(make_app):
     log = (app.recorder.session_dir / "session.log").read_text(encoding="utf-8")
     assert "Run ended early by operator at trial 1 of 6 (1 recorded)." in log
     lines = (app.recorder.session_dir / "trials.csv").read_text(encoding="utf-8").splitlines()
-    assert lines[0].split(",")[-5] == "is_skipped"  # then entries, end_x, end_y, slot_index (R6)
-    assert lines[1].split(",")[-5] == "1"
+    # then entries, end_x, end_y, slot_index (R6), clicks, click_errors (switch, 4.6)
+    assert lines[0].split(",")[-7] == "is_skipped"
+    assert lines[1].split(",")[-7] == "1"
     # The HUD is gone (4C.7): its two metadata fields are no longer written.
     assert "hud_hidden_at_start" not in meta and "hud_toggle_count" not in meta
 

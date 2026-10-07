@@ -190,6 +190,9 @@ def test_hit_testing_uses_live_screen_size_not_config_default():
     whenever the real window isn't exactly 1920x1080."""
     cfg = load_task_config("click_static")
     cfg["input"] = {"mode": "switch"}  # clicked=True hits immediately, no dwell
+    # The two presses below are a millisecond apart: no switch debounce between them (the
+    # refractory period of SPEC-input-selection-and-follow.md would ignore the second).
+    cfg["dwell"]["refractory_ms"] = 0
     task = build_task("click_static", cfg)
 
     target = task.targets[0]

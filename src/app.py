@@ -41,6 +41,7 @@ from .engine.display_check import check_display
 from .engine.config import CONFIG_ROOT, deep_merge, load_task_config, load_theme
 from .engine.gaze_diagnostics import GazeDropoutLog, gaze_dropout_log_path
 from .engine.feedback import FeedbackBus
+from .engine.input_choice import glow_active, resolve_input
 from .engine.latency import LatencyTracker
 from .engine.loop_rate import config_target_fps, resolve_target_fps, target_fps_is_invalid
 from .engine.run_mode import (
@@ -70,6 +71,8 @@ from .engine.tracking_status import run_status_line, tracking_status
 from .inputs.base import Pointer
 from .inputs.eye_input import DwellConfig, EyeInput, SmoothingConfig
 from .inputs.gazepoint_client import GazepointClient
+from .inputs.mouse_gaze import MouseGazeSource
+from .inputs.no_tracker import NoTracker
 from .inputs.switch_input import SwitchInput
 from .tasks.base_task import (
     Phase,
@@ -78,8 +81,9 @@ from .tasks.base_task import (
     screen_size_mismatch,
 )
 from .ui.main_window import MainWindow, TaskRunView
+from .ui.run_cursor import RunCursor
 from .ui.run_dialogs import confirm_quit
-from .ui.settings_registry import apply_live_values_to_config, initial_live_values
+from .ui.settings_registry import apply_live_values_to_config, get_nested, initial_live_values
 from .ui.settings_snapshot import run_settings
 from .ui.task_settings_dialog import TaskSettingsDialog
 
@@ -220,6 +224,7 @@ class AssessmentApp:
         run_mode: str = "record",
         practice_index: int = 0,
         config_name: str | None = None,
+        pointer_source: MouseGazeSource | None = None,
     ) -> None:
         """Build one task run.
 
@@ -265,6 +270,18 @@ class AssessmentApp:
         replaceable by a test), then ``_shutdown`` hands ``on_finished`` a
         :class:`~src.engine.run_result.RunResult`; a practice or preview quits
         at once.
+
+        The test's **Pointer** (``input.pointer``: gaze or mouse) and **Selection**
+        (``input.selection``: dwell or switch) come from the merged config
+        (:func:`~src.engine.input_choice.resolve_input`; SPEC-input-selection-and-
+        follow.md). A Mouse run takes its pointer from a
+        :class:`~src.inputs.mouse_gaze.MouseGazeSource` bound to the canvas
+        (``pointer_source`` replaces it, for a test) and writes ``pointer_stream.csv``;
+        ``client`` is then only the tracker that records *alongside* (the Setup tab's,
+        when connected and calibrated). With no ``client`` there is no tracker: a
+        :class:`~src.inputs.no_tracker.NoTracker` stands in, nothing is calibrated and
+        no gaze file is written. A Preview is always a mouse run, whatever the test
+        says.
         """
         self.run_mode = validate_run_mode(run_mode)
         recorded = is_recorded(self.run_mode)
@@ -286,7 +303,13 @@ class AssessmentApp:
             apply_live_values_to_config(self.config, live_overrides)
         theme_name = self.config.get("task", {}).get("theme") or self.config.get("theme", {}).get("name", "forest")
         self.theme = load_theme(theme_name)
-        self.input_mode = self.config.get("input", {}).get("mode", "eye")
+        # What moves the pointer and how a target is selected (SPEC-input-selection-and-
+        # follow.md H1); ``input_mode`` is derived from the two. A Preview's pointer is
+        # always the mouse (that is its purpose, 4B.6), whatever the test says.
+        self.input_choice = resolve_input(self.config)
+        self.input_mode = self.input_choice.mode
+        self._is_switch = self.input_choice.is_switch
+        self._pointer_is_mouse = self.input_choice.is_mouse or self.run_mode == PREVIEW
 
         # A run-index suffix (SPEC-ui-setup-task-selection.md S3.1.8) so a
         # same-day re-run of the same task for the same subject -- which the
@@ -325,9 +348,13 @@ class AssessmentApp:
         # every ENABLE_SEND_* command, which would be wasteful at best and
         # disruptive to an in-progress stream at worst. This class never
         # owns (and must never .stop()) a client it didn't create itself.
-        self._owns_client = client is None
+        mouse_only = client is None and self._pointer_is_mouse and replay_path is None
+        self._owns_client = client is None and not mouse_only
         if client is not None:
             self.client = client
+        elif mouse_only:
+            # A Mouse run with no tracker (H5): nothing to connect to or calibrate.
+            self.client = NoTracker()
         else:
             # `enable` here is the gazepoint.enable.* block (default.yaml keys:
             # time/pog_fix/pog_best/pupil_left/pupil_right/cursor) -- wiring it
@@ -345,7 +372,15 @@ class AssessmentApp:
         # this device interaction entirely -- there's nothing to poll for.
         cal_cfg = self.config.get("calibration", {})
         fresh_is_stub = False
-        if preset_calibration is not None:
+        # Whether a tracker records into this run (H4): any gaze run, and a Mouse run
+        # that was given one. A Preview records nothing at all.
+        self._gaze_recorded = self.run_mode != PREVIEW and not isinstance(self.client, NoTracker)
+        if preset_calibration is None and self._pointer_is_mouse:
+            # A Mouse run needs no calibration (H5): without the tracker's there is
+            # nothing to measure, and a fresh one is never started for it.
+            cal = CalibrationResult(n_points=0, mean_error_px=None, valid=False)
+            fresh_is_stub = True
+        elif preset_calibration is not None:
             cal = preset_calibration
             # Recorded into THIS run's own session dir too, even though it
             # wasn't measured this run -- every session directory carries its
@@ -385,8 +420,14 @@ class AssessmentApp:
         self._live_values = initial_live_values(self.config)
         lv = self._live_values
 
+        # What moves the pointer: the tracker's gaze, or the mouse over the canvas (a
+        # Preview's ``client`` already is one, bound by its caller).
+        if self._pointer_is_mouse and self.run_mode != PREVIEW:
+            self.pointer_source = pointer_source or MouseGazeSource()
+        else:
+            self.pointer_source = self.client
         self.eye = EyeInput(
-            self.client,
+            self.pointer_source,
             DwellConfig(
                 threshold_ms=float(lv["dwell.threshold_ms"]),
                 refractory_ms=float(lv["dwell.refractory_ms"]),
@@ -413,15 +454,34 @@ class AssessmentApp:
             )
             self.view = self.window.view
         self.canvas = self.view.canvas
+        if self.pointer_source is not self.client and hasattr(self.pointer_source, "bind_canvas"):
+            self.pointer_source.bind_canvas(self.canvas)
         self.canvas.show_cursor = bool(lv["dwell.visual_cursor"])
-        self.canvas.show_progress_ring = bool(lv["dwell.progress_ring"])
+        # A switch run has no dwell ring (A4): its place is taken by the glow.
+        self.canvas.show_progress_ring = bool(lv["dwell.progress_ring"]) and not self._is_switch
         self.canvas.show_instant_feedback = bool(lv["dwell.instant_feedback"])
+        glow_on = get_nested(self.config.get("task", {}), "feedback.target_glow", True)
+        self.canvas.show_glow = glow_active(
+            task_id, self.input_choice.selection, glow_on if isinstance(glow_on, bool) else True
+        )
+        # The switch: a left press on the canvas, and Space / Enter (H2); only when the
+        # test's Selection is Switch (4.2). A dwell run ignores both.
+        self.canvas.switch_press_enabled = self._is_switch
+        self.canvas.switchPressed.connect(self.switch.press)
+        self.canvas.switchReleased.connect(self.switch.release)
+        # Pointer = Gaze + Switch: the OS cursor is parked on the canvas and hidden (I6).
+        self.run_cursor = RunCursor(self.canvas)
+        self._hide_cursor = self._is_switch and not self._pointer_is_mouse
+        self._cursor_pending = self._hide_cursor
 
         self.metadata = SessionMetadata(
             subject_id=subject_id,
             session_id=session_id,
             started_ns=time.time_ns(),
             input_mode=self.input_mode,
+            input_pointer=self.input_choice.pointer,
+            input_selection=self.input_choice.selection,
+            gaze_recorded=self._gaze_recorded,
             tasks=[task_id],
             assessment_date=assessment_date,
             sex=sex,
@@ -447,10 +507,15 @@ class AssessmentApp:
             if recorded
             else NullRecorder(self.metadata)
         )
-        self.recorder.open()
+        # No tracker, no gaze files (H4): a Mouse run without one has only the pointer.
+        self.recorder.open(gaze_stream=self._gaze_recorded)
+        if self._pointer_is_mouse:
+            self.recorder.open_pointer_stream()
         recording_cfg = self.config.get("recording", {})
-        self._save_all_gaze = bool(recording_cfg.get("save_all_gaze", True))
-        self._save_eye_geometry = bool(recording_cfg.get("save_eye_geometry", True))
+        self._save_all_gaze = self._gaze_recorded and bool(recording_cfg.get("save_all_gaze", True))
+        self._save_eye_geometry = self._gaze_recorded and bool(
+            recording_cfg.get("save_eye_geometry", True)
+        )
         if self._save_all_gaze or self._save_eye_geometry:
             # Raw records queued since Connect / Setup / calibration are not
             # part of this run: start both raw files, and their TIME origin,
@@ -495,6 +560,7 @@ class AssessmentApp:
             is_stub=fresh_is_stub,
         )
         self.recorder.log(calibration_log_line(cal, cal_source, cal_file))
+        self.recorder.log(self._input_log_line())
 
         self.metadata.calibration_source = cal_source
         self.metadata.calibration_points = cal.n_points
@@ -571,7 +637,7 @@ class AssessmentApp:
 
         # Gaze-to-feedback latency (plan risk table / gap F): only meaningful
         # against a live tracker, never a replay fixture (see
-        # GazepointClient.is_live).
+        # GazepointClient.is_live) -- and never for a mouse pointer.
         self._latency = LatencyTracker(window_size=self._loop_fps)
 
         # Dropout / off-canvas diagnostic (SPEC-gaze-cursor-redesign.md S6).
@@ -584,7 +650,7 @@ class AssessmentApp:
                 raw_probe=getattr(self.client, "last_raw_pog", None),
                 task_id=task_id,
             )
-            if recorded and self.client.is_live
+            if recorded and self.client.is_live and not self._pointer_is_mouse
             else None
         )
 
@@ -593,6 +659,20 @@ class AssessmentApp:
         self.timer.start(int(1000 / self._loop_fps))
 
     # -- wiring ------------------------------------------------------------
+
+    def _input_log_line(self) -> str:
+        """The Session Log's line for the test's input (SPEC-input-selection-and-
+        follow.md): pointer, selection, and whether gaze is recorded."""
+        choice = self.input_choice
+        text = (
+            f"Input: pointer {'mouse' if self._pointer_is_mouse else 'gaze'}, "
+            f"selection {choice.selection or 'none'}."
+        )
+        if not self._pointer_is_mouse or self.run_mode == PREVIEW:
+            return text
+        if self._gaze_recorded:
+            return text + " Gaze is recorded alongside the mouse."
+        return text + " No tracker: no gaze is recorded."
 
     def _wire_bar(self) -> None:
         bar = self.view.run_bar
@@ -640,10 +720,16 @@ class AssessmentApp:
 
     def _install_key_handler(self) -> None:
         original = self.canvas.keyPressEvent
+        original_release = self.canvas.keyReleaseEvent
+        switch_keys = (Qt.Key.Key_Space, Qt.Key.Key_Return, Qt.Key.Key_Enter)
 
         def handler(event):
-            if event.key() in (Qt.Key.Key_Space, Qt.Key.Key_Return, Qt.Key.Key_Enter):
-                self.switch.press()
+            if event.key() in switch_keys:
+                # Space / Enter are the switch too (H2) -- for a keyboard-type switch
+                # interface -- on button down, once per press (a held key repeats, and
+                # its auto-repeat is not a press). Under Dwell they do nothing.
+                if self._is_switch and not event.isAutoRepeat():
+                    self.switch.press()
             elif event.key() == Qt.Key.Key_Escape:
                 # Esc is Quit, with the same question as the button (HC10): a
                 # child at the keyboard must not end a recorded run.
@@ -651,7 +737,15 @@ class AssessmentApp:
             else:
                 original(event)
 
+        def release_handler(event):
+            if event.key() in switch_keys:
+                if not event.isAutoRepeat():
+                    self.switch.release()
+            else:
+                original_release(event)
+
         self.canvas.keyPressEvent = handler
+        self.canvas.keyReleaseEvent = release_handler
         self.canvas.setFocusPolicy(Qt.FocusPolicy.StrongFocus)
         self.canvas.setFocus()
 
@@ -666,11 +760,19 @@ class AssessmentApp:
             return
         t_ns = time.time_ns()
         self._paused = paused
+        # A press made across a pause is never a selection (I5d): drop a waiting one,
+        # and a held one, either way round.
+        self.switch.reset()
         if paused:
             self._pause_interrupted = self.task.pause(t_ns)
+            # The operator needs the cursor for the bar (I6).
+            self.run_cursor.show()
         else:
             self.task.resume(t_ns)
             self._pause_interrupted = False
+            # The operator's last click left it on the bar, where the child's next press
+            # would land: hidden and parked on the canvas again (the next tick parks it).
+            self._cursor_pending = self._hide_cursor
         self.canvas.set_paused(paused)
         self.view.run_bar.set_paused(paused)
         self._update_run_bar(t_ns)
@@ -710,6 +812,9 @@ class AssessmentApp:
         since = None if self._last_valid_ns is None else max(0.0, (t_ns - self._last_valid_ns) / 1e9)
         text, level = tracking_status(bool(self.client.is_connected()), since)
         preview = self.run_mode == PREVIEW
+        mouse = self._pointer_is_mouse and not preview
+        if mouse and not self._gaze_recorded:
+            text = ""  # a Mouse run with no tracker has nothing to report on it
         line = run_status_line(
             self._display_trial_number(),
             len(self.task.targets),
@@ -717,9 +822,10 @@ class AssessmentApp:
             practice=self.run_mode == PRACTICE,
             paused=self._paused,
             preview=preview,
+            mouse=mouse,
         )
         bar = self.view.run_bar
-        bar.set_status(line, None if (self._paused or preview) else text, level)
+        bar.set_status(line, text if text and not (self._paused or preview) else None, level)
         bar.set_skip_enabled(not self._paused and self.task.phase is Phase.WAIT_INPUT)
 
     def _check_canvas_resized(self, t_ns: int) -> None:
@@ -740,6 +846,14 @@ class AssessmentApp:
             self.recorder.record_event("CANVAS_RESIZED", t_ns, canvas_w=size[0], canvas_h=size[1])
             self.recorder.log(f"Canvas resized to {size[0]}x{size[1]}.")
 
+    def _park_cursor(self) -> None:
+        """Hide the OS cursor and park it on the canvas, once the canvas is on screen
+        (a Gaze + Switch run, I6): at the start, and again after a resume. Retried each
+        tick until the canvas is visible, since it is not yet when the run is built."""
+        if self._cursor_pending and self.canvas.isVisible():
+            self.run_cursor.hide_and_park()
+            self._cursor_pending = False
+
     # -- main loop ---------------------------------------------------------
 
     def _sync_gaze_geometry(self) -> None:
@@ -759,6 +873,10 @@ class AssessmentApp:
         fallback) whenever ``SCREEN_SIZE`` wasn't reported -- replay mode,
         an unanswered query, or before any connect has happened.
         """
+        if self._pointer_is_mouse:
+            # The mouse is normalized to the canvas itself, so there is no monitor
+            # geometry to convert it by (a tracker recording alongside has its own).
+            return
         info = self.client.device_info
         if info is None or not info.screen_width or not info.screen_height:
             return
@@ -806,6 +924,12 @@ class AssessmentApp:
         if info is not None and info.screen_width and info.screen_height:
             meta.screen_width_px = info.screen_width
             meta.screen_height_px = info.screen_height
+        elif self._pointer_is_mouse and not self._gaze_recorded and dpr is not None:
+            # No tracker to report SCREEN_SIZE: the monitor is the one the canvas is on,
+            # in the same physical px, so the report can still give degrees.
+            geo = self.canvas.screen().geometry()
+            meta.screen_width_px = round(geo.width() * dpr)
+            meta.screen_height_px = round(geo.height() * dpr)
         if info is not None:
             # Already placeholder-filtered by the client (S24.1).
             meta.gazepoint_rate_hz = info.rate_hz
@@ -873,6 +997,9 @@ class AssessmentApp:
             # overflows it nor replays as a burst on resume, and pause time (a child
             # looking away) never lowers the run's valid-gaze share.
             self.client.drain_raw()
+            if self._is_switch and self.switch.consume_click():
+                # A press while paused counts for nothing (I5d); it is logged.
+                self.task.ignore_press(t_ns, "paused")
             self._update_run_bar(t_ns)
             return
         # Keep hit-testing in sync with whatever the canvas actually renders
@@ -882,6 +1009,7 @@ class AssessmentApp:
         self._sync_gaze_geometry()
         if not self._geometry_recorded:
             self._record_geometry()
+        self._park_cursor()
         self._check_canvas_resized(t_ns)
         if self._save_all_gaze or self._save_eye_geometry:
             # Every raw <REC> since the last frame, at device rate -- the
@@ -890,17 +1018,27 @@ class AssessmentApp:
             for raw_t_ns, attrs in self.client.drain_raw():
                 self.recorder.record_raw(raw_t_ns, attrs)
         pointer = self.eye.poll(t_ns)
-        if self.input_mode != "eye":
+        if self._is_switch:
+            # The switch's press, once (a one-frame rising edge); judged by the task.
             pointer = Pointer(
                 x=pointer.x, y=pointer.y, valid=pointer.valid, clicked=self.switch.consume_click()
             )
 
         sample = self.eye.latest_sample()
+        if self._pointer_is_mouse:
+            # The pointer is the mouse: its samples go to pointer_stream.csv, and what the
+            # tracker saw alongside (if one is recording) to the gaze files (H4).
+            if sample is not None:
+                self.recorder.record_pointer(sample)
+            sample = self.client.latest() if self._gaze_recorded else None
         if sample is not None and self.config.get("recording", {}).get("save_gaze_stream", True):
             self.recorder.record_gaze(sample)
-        if sample is not None and self.client.is_live:
+        if sample is not None and self.client.is_live and not self._pointer_is_mouse:
             self._record_latency(sample.t_ns, t_ns)
-        if pointer.valid:
+        # Whether the *tracker* has gaze (the bar's "tracking" text): the pointer's own
+        # validity for a gaze run, the alongside sample's for a Mouse run.
+        gaze_valid = (sample is not None and sample.valid) if self._pointer_is_mouse else pointer.valid
+        if gaze_valid:
             self._last_valid_ns = t_ns
 
         result = self.task.update(t_ns, pointer)
@@ -984,6 +1122,8 @@ class AssessmentApp:
             return
         self._shutdown_done = True
         self.timer.stop()
+        self._cursor_pending = False
+        self.run_cursor.show()  # the cursor comes back with the run's end or quit (I6)
         if self._dropout_log is not None:
             # Flush a dropout still open at the end, so one that never
             # recovered is recorded rather than silently lost.

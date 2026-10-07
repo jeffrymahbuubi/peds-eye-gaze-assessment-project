@@ -88,6 +88,7 @@ def _fake_app(info, screen):
         ),
         task=SimpleNamespace(set_gaze_geometry=lambda *a: None),
         recorder=SimpleNamespace(log=logs.append),
+        _pointer_is_mouse=False,  # a gaze run: the monitor geometry applies
     )
     return app, logs
 

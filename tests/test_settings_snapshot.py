@@ -70,7 +70,8 @@ def test_the_live_block_is_task_filtered():
 
 def test_the_structural_block_is_nested_like_the_dialog_overrides_and_includes_the_sounds():
     snap = settings_snapshot("click_grid", load_task_config("click_grid"))["structural"]
-    assert snap["feedback"] == {"hit_sound": True, "miss_sound": True}
+    assert snap["feedback"] == {"hit_sound": True, "miss_sound": True, "target_glow": True}
+    assert snap["input"] == {"pointer": "gaze", "selection": "dwell"}
     assert set(snap["grid"]) == {"rows", "cols", "gap"}
     assert snap["target"] == {"size": "medium"}
     assert isinstance(snap["trials"], int)
@@ -133,7 +134,9 @@ def test_the_sounds_can_be_switched_off_and_stay_switched_off():
     out = complete_settings(
         "follow_moving", config, structural={"feedback": {"hit_sound": False}}
     )
-    assert out["structural"]["feedback"] == {"hit_sound": False, "miss_sound": True}
+    assert out["structural"]["feedback"] == {
+        "hit_sound": False, "miss_sound": True, "target_glow": True,
+    }
 
 
 @pytest.mark.parametrize("task_id", TASKS)
@@ -181,7 +184,8 @@ def test_the_run_block_carries_what_the_report_reads_for_theme_feedback_and_curs
     block = run_settings("click_grid", config)
     assert block["structural"]["theme"] == config["task"]["theme"] == "forest"
     assert block["structural"]["feedback"] == {
-        "hit_sound": True, "miss_sound": True, "particles": config["task"]["feedback"]["particles"],
+        "hit_sound": True, "miss_sound": True, "target_glow": True,
+        "particles": config["task"]["feedback"]["particles"],
     }
     assert block["live"]["dwell.visual_cursor"] is True
 

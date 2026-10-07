@@ -15,8 +15,9 @@ from __future__ import annotations
 from dataclasses import dataclass
 from typing import Any
 
+from ..engine.input_choice import resolve_input
 from ..engine.task_info import TASK_INFO
-from .settings_registry import initial_live_values
+from .settings_registry import get_nested, initial_live_values
 
 
 @dataclass(frozen=True, slots=True)
@@ -36,6 +37,30 @@ class Instructions:
 
 _DOT = "The small dot on the screen shows where you are looking. "
 _RING = " A ring will fill up around it."
+
+# The wording of the two input choices (SPEC-input-selection-and-follow.md W1; read aloud,
+# so it needs the same clinician review as the rest).
+# Pointer = Mouse: the "small dot" sentence becomes this one (always: the child must be
+# told to move the mouse), and "look at" becomes "point at" in every step.
+_MOUSE_DOT = "Move the mouse to point at the screen. "
+# Selection = Switch: the step that asks for a dwell ("keep looking at it for about 0.8
+# seconds") becomes this one -- the task's own sentence and noun -- and, with the glow on,
+# says the target glows while it is looked at.
+_SWITCH_STEPS: dict[str, tuple[str, str]] = {
+    "click_static": ("Look at the circle, then press the button.", "circle"),
+    "click_grid": ("Look at the lit square, then press the button.", "square"),
+    "scanning": ("Find the bright shape, look at it, then press the button.", "shape"),
+}
+_GLOW = " The {noun} glows while you are looking at it."
+
+
+def _point_wording(text: str) -> str:
+    """The Mouse version of a sentence: "look at" is "point at", "looking at" "pointing at"."""
+    return (
+        text.replace("Look at", "Point at")
+        .replace("look at", "point at")
+        .replace("looking at", "pointing at")
+    )
 
 # Per task: four step templates and the timeout NOTE. ``{dwell}`` / ``{timeout}``
 # are seconds ("0.8 seconds"); ``{ring}`` is the optional ring sentence (with its
@@ -110,18 +135,33 @@ def build_instructions(
     if task_id not in _TEMPLATES:
         raise KeyError(f"Unknown task '{task_id}'. Known: {sorted(_TEMPLATES)}")
     live = {**initial_live_values(cfg), **(values or {})}
+    choice = resolve_input(cfg)
+    if choice.is_mouse:
+        dot = _MOUSE_DOT
+    else:
+        dot = _DOT if live["dwell.visual_cursor"] else ""
     fill = {
-        "dot": _DOT if live["dwell.visual_cursor"] else "",
+        "dot": dot,
         "ring": _RING if live["dwell.progress_ring"] else "",
         "dwell": format_seconds(live["dwell.threshold_ms"]),
         "timeout": format_seconds(live["task.timeout_ms"]),
     }
     steps, note = _TEMPLATES[task_id]
+    if choice.is_switch and task_id in _SWITCH_STEPS:
+        # The dwell step becomes a press (W1); the glow sentence only with the glow on.
+        sentence, noun = _SWITCH_STEPS[task_id]
+        glow = get_nested(cfg.get("task", {}), "feedback.target_glow", True)
+        if glow is not False:
+            sentence += _GLOW.format(noun=noun)
+        steps = tuple(sentence if "{dwell}" in s else s for s in steps)
     trials = cfg.get("task", {}).get("trials")
     count = str(int(trials)) if trials is not None else "all"
+    out = tuple(s.format(**fill) for s in steps)
+    if choice.is_mouse:
+        out = tuple(_point_wording(s) for s in out)
     return Instructions(
         heading=f"Instructions for the {TASK_INFO[task_id][0]} test:",
-        steps=tuple(s.format(**fill) for s in steps),
+        steps=out,
         note=note.format(**fill),
         clinician=tuple(c.format(n=count) for c in _CLINICIAN),
     )

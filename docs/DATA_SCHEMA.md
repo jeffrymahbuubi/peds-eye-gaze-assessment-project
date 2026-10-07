@@ -9,7 +9,8 @@ only `run_mode: "record"` reaches disk.
 sessions/2026-07-15_P001_click_static_run1/
   metadata.json      # subject + session + calibration + settings + outcome + schema_version
   session.log        # human-readable timeline
-  gaze_stream.csv    # per-frame gaze samples
+  gaze_stream.csv    # per-frame gaze samples (not written by a Mouse run with no tracker)
+  pointer_stream.csv # per-frame mouse pointer (a Mouse run only)
   all_gaze.csv       # every raw <REC>, Gazepoint Analysis 62-column export layout
   fixations.csv      # one row per fixation, same layout (written at session close)
   eye_geometry.csv   # per raw <REC>: 3D eye position + per-eye POG (device rate)
@@ -46,7 +47,10 @@ top-left) unless the field name ends in `_px`.
 | `started_ns` | int | session start |
 | `schema_version` | int | currently `1`; loaders should tolerate change |
 | `gazepoint_model` | str | e.g. `GP3HD` |
-| `input_mode` | str | `eye` / `gaze_switch` / `switch` |
+| `input_mode` | str | derived from the test's Pointer and Selection (`specs/SPEC-input-selection-and-follow.md` H1): `eye` (gaze + dwell), `gaze_switch` (gaze + switch), `switch` (mouse + switch), `mouse_dwell` (mouse + dwell), `mouse_follow` (mouse, Follow the Target) |
+| `input_pointer` | str\|null | what moved the pointer: `gaze` or `mouse`; null on older sessions |
+| `input_selection` | str\|null | how a target was selected: `dwell` or `switch`; null for Follow the Target (it has none) and on older sessions |
+| `gaze_recorded` | bool\|null | whether a tracker recorded gaze into the run. False only for a Mouse run with no tracker (or an uncalibrated one): no `gaze_stream.csv`, `all_gaze.csv` or `eye_geometry.csv`, and the report's eye sections say "not recorded". Null on older sessions |
 | `calibration_error_px` | float\|null | mean calibration error (data QC) |
 | `calibration_points` | int\|null | 5 or 9 |
 | `tasks` | list[str] | tasks run this session |
@@ -115,6 +119,8 @@ dropped by a pause is not written (its re-presentation is).
 | `entries` | int | debounced entries of the gaze into the target's hit area (an exit counts only after the gaze stays off for the dwell `hold_grace_ms`, 120 ms by default); 0 when it never reached it. `time_to_first_fixation_ms` is the time of the first entry |
 | `end_x`, `end_y` | float\|"" | where the target was at `t_end_ns`, canvas-normalized: equal to `target_x`/`target_y` for a static task, the live position for `follow_moving` (whose `target_x`/`target_y` is the start) |
 | `slot_index` | int | which grid cell / scanning icon the target was, `-1` for a task with no fixed layout |
+| `clicks` | int | switch presses counted while this trial's target was up (a press on button down, left mouse press on the canvas or Space / Enter); 0 for a Dwell test. Presses between trials, and presses within the refractory period of the previous counted one, are not counted (they are `SWITCH_IGNORED` events) |
+| `click_errors` | int | how many of those presses were Click errors: off the target, or with no gaze (none valid within 150 ms, a blink); 0 for a Dwell test |
 
 Directly loadable with `pandas.read_csv` or R.
 
@@ -130,6 +136,16 @@ One row per rendered frame.
 | `fixation_id` | int\|"" | FPOGID (blank if not fixating) |
 | `fix_duration_s` | float\|"" | fixation duration so far |
 | `pupil_left`, `pupil_right` | float\|"" | pupil diameter (mm), v2 analysis |
+
+## pointer_stream.csv
+
+A Mouse run only (`input_pointer: "mouse"`; `specs/SPEC-input-selection-and-follow.md`
+H4): the mouse pointer once per rendered frame, so the report can draw its path.
+Columns `t_ns` (host clock, like `gaze_stream.csv`), `x`, `y` (canvas-normalized; a
+value outside 0-1 is a mouse that left the canvas) and `valid` (1 while the pointer is
+inside the canvas). The raw mouse, not the smoothed pointer the cursor dot shows. A
+run with a tracker connected and calibrated also writes the gaze files; one without
+writes only this (`gaze_recorded: false`).
 
 ## target_track.csv
 
@@ -228,7 +244,9 @@ One JSON object per line: `{"t_ns": ..., "kind": "...", ...payload}`.
 |------|---------|---------|
 | `TARGET_SHOWN` | `trial`, `x`, `y` | a trial's target appeared |
 | `HIT`, `TIMEOUT`, `SKIPPED` | `trial` | how the trial ended |
-| `MISS_CLICK` | `x`, `y`, `selectable` | an off-target selection |
+| `MISS_CLICK` | `x`, `y`, `selectable`; a switch press adds `reason` (`"no_gaze"`) or `used_fallback` (true) when they apply | an off-target selection |
+| `SWITCH_PRESS` | `trial`, `x`, `y`, `on_target`, `used_fallback`, and `reason` (`"no_gaze"`) when no valid pointer lay within 150 ms | one switch press counted while a target was up. `x`, `y` are the pointer the press was judged at; `used_fallback` is true when the pointer was invalid at the press (a blink) and the last valid one within 150 ms was used |
+| `SWITCH_IGNORED` | `phase` (`iti`, `ready`, `done`, `paused` or `target`), `x`, `y`, and `reason` (`"refractory"`) for `phase` `target` | a switch press that counted for nothing: made while no target was up (between trials, before the first, after the last, or while paused), or, with a target up, within `dwell.refractory_ms` of the previous counted press of the same trial (the switch's debounce; the window restarts with each trial and an ignored press does not extend it). Not a click and not a Click error |
 | `PAUSED` | `trial`, `interrupted` | the operator paused; `interrupted` is true if a trial was running |
 | `TRIAL_INTERRUPTED` | `trial`, `reason`, `elapsed_ms` | the running trial was dropped by a pause |
 | `RESUMED` | none | the pause ended |
@@ -260,7 +278,7 @@ pages and in the PDF, shows seconds.
 |---------------|----------|
 | `report_version` | `REPORT_VERSION` (currently `2`); a cache with another value is rebuilt |
 | `params` | the analysis parameters used (`ivt` saccade detector, `entries` exit hold, `pupil`, `heat`, `path`), so the numbers are reproducible. `path` holds the gaze path's thinning (`min_step_deg`, `min_step_ms`, `split_gap_ms`, `max_points`, applied to the raw stream) and `smoothing` (`{enabled, alpha}`), the on-screen cursor's own filter the path is drawn through (`alpha` is the run's `dwell.smoothing.alpha`, 0.22 when none was recorded; `enabled: false` leaves the raw stream) |
-| `session` | `session_id`, `task_id`, `subject`, `test_name`, `config_name`, `started_ns`, `planned_trials`, `completed_trials`, `outcome`, `n_rows`, `n_scored`, `n_skipped`, `n_not_presented`, and `sources` (which input files the folder had, so the UI can say why a value is shown as a dash) |
+| `session` | `session_id`, `task_id`, `subject`, `test_name`, `config_name`, `started_ns`, `planned_trials`, `completed_trials`, `outcome`, `n_rows`, `n_scored`, `n_skipped`, `n_not_presented`, `pointer`, `selection`, `gaze_recorded` (the three input facts of `metadata.json`; null on an older folder; `gaze_recorded: false` makes the Eye Metrics table say "not recorded" instead of a dash), and `sources` (which input files the folder had, so the UI can say why a value is shown as a dash; includes `pointer_stream`) |
 | `geometry` | the monitor / canvas geometry the degree and pixel figures use, and `assumed_for_visuals` (true when the folder lacks the monitor size) |
 | `config` | `rows`: the Test Configuration table, `[label, value]` pairs |
 | `trials` | one object per `trials.csv` row: `trial` (1-based), `outcome` (`hit` / `timeout` / `skipped`), `size_deg`, `distance_deg`, `target` (`x`, `y`, `end_x`, `end_y`, radii, `slot`), `onset_ns`, `end_ns`, `attempts`, `error_free`, `trial_time_s`, `reaction_time_s`, `entries`, and the per-trial `fixations`, `saccades`, `pupil`, `scanpath` (the fixation centroids `[[x, y], ...]` in time order, canvas-normalized: the Summary map's path) and `path` (the whole gaze as polylines, thinned and smoothed with the cursor's filter: the Detailed view's path) |

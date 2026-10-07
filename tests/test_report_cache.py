@@ -203,8 +203,10 @@ def test_g10_a_legacy_folder_degrades_to_none_without_an_exception(tmp_path):
     assert s["sources"] == {
         "gaze_stream": False, "raw_gaze": False, "saccades": False, "geometry": False,
         "entries": False, "end_positions": False, "slot_index": False, "target_track": False,
-        "layout_slots": False,
+        "layout_slots": False, "pointer_stream": False,
     }
+    # An old folder has no input facts: nothing says gaze was not recorded.
+    assert (s["pointer"], s["selection"], s["gaze_recorded"]) == (None, None, None)
     assert s["planned_trials"] is None and s["n_not_presented"] is None and s["outcome"] is None
     for t in report["trials"]:
         assert t["entries"] is None and t["error_free"] is None and t["size_deg"] is None

@@ -95,8 +95,10 @@ def test_the_order_is_tracker_calibration_subject_date_sex_display(qapp):
     assert page.run_blockers() == [TRACKER, CALIBRATION, SUBJECT, DATE, SEX, DISPLAY]
 
 
-def test_no_blockers_exactly_when_can_continue_across_every_combination(qapp):
-    """AC2: ``run_blockers() == []`` iff ``can_continue()``."""
+def test_no_continue_blockers_exactly_when_can_continue_across_every_combination(qapp):
+    """AC2, as amended 2026-10-07 (SPEC-input-selection-and-follow.md): ``can_continue()`` is
+    "no blockers but the tracker and the calibration" -- a Mouse test needs neither -- while
+    ``run_blockers() == []`` (a gaze test may start) implies it."""
     page = SetupPage()
     for connected, calibrated, subject, sex, standard, acked in itertools.product(
         (True, False), repeat=6
@@ -109,7 +111,15 @@ def test_no_blockers_exactly_when_can_continue_across_every_combination(qapp):
             check_display(1920, 1080, 1.0) if standard else check_display(1280, 720, 1.5)
         )
         page.display_ack_checkbox.setChecked(acked)
-        assert (page.run_blockers() == []) is page.can_continue()
+        assert (page.continue_blockers() == []) is page.can_continue()
+        assert page.can_continue() is bool(subject and sex and (standard or acked))
+        assert page.continue_button.isEnabled() is page.can_continue()
+        if page.run_blockers() == []:
+            assert page.can_continue() is True
+        # The tracker and the calibration are the only difference between the two.
+        assert [b for b in page.run_blockers() if b not in (TRACKER, CALIBRATION)] == (
+            page.continue_blockers()
+        )
 
 
 def test_reading_the_blockers_changes_nothing(qapp):

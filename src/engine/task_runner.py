@@ -23,6 +23,7 @@ from ..tasks.click_static import ClickStaticTask
 from ..tasks.follow_moving import FollowMovingTask
 from ..tasks.scanning import ScanningTask
 from .config import load_task_config
+from .input_choice import resolve_input
 from .loop_rate import config_target_fps, resolve_target_fps
 from .target_size import (
     apply_grid_gap,
@@ -67,7 +68,7 @@ def build_task(
         recorder=recorder,
         feedback=feedback,
         dwell=dwell,
-        input_mode=config.get("input", {}).get("mode", "eye"),
+        input_mode=resolve_input(config).mode,
         seed=seed,
         preroll_ms=preroll_ms,
     )
@@ -112,7 +113,7 @@ def run_headless_replay(
         subject_id=subject_id,
         session_id=session_id,
         started_ns=0,
-        input_mode=config.get("input", {}).get("mode", "eye"),
+        input_mode=resolve_input(config).mode,
         tasks=[task_id],
         notes="headless replay",
         target_size=size_info,

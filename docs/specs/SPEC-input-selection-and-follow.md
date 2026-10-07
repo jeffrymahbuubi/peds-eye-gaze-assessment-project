@@ -1,10 +1,10 @@
 ---
 name: SPEC-input-selection-and-follow
 title: Pointer (Gaze / Mouse) and Selection (Dwell / Switch) per test; Follow the Target without a click
-status: approved 2026-10-07 (I1-I12, H1-H10); step 1 wireframes APPROVED 2026-10-07 (W1-W2)
+status: approved 2026-10-07 (I1-I12, H1-H10); step 1 wireframes APPROVED 2026-10-07 (W1-W2); step 2 (engine) DONE 2026-10-08
 created: 2026-10-07
 last_updated: 2026-10-07
-next_step: steps 2-4 (spec-implementer) on feature/compass-task-flow, then step 5 (review + live check A10 with the user and the switch)
+next_step: steps 3-4 (spec-implementer) on feature/compass-task-flow, then step 5 (review + live check A10 with the user and the switch)
 related:
   - SPEC-compass-task-flow.md (parent redesign; configuration page 4B, run 4C, report 4D; P9c V1-V5 still open there and done FIRST)
   - SPEC-follow-moving-selection.md (the selection window this SPEC removes)
@@ -339,18 +339,215 @@ click**. It has no pointer movement and no keys.
 |---|---|---|
 | 0 | Parent SPEC P9c (V1-V5) implemented and checked first, so the report work below builds on it. **P9c committed `6bad506` 2026-10-07; its live re-check is still open** (the user chose to go ahead) | — |
 | 1 **DONE 2026-10-07** (approved) | Wireframes: `task-config` (Input card, renamed Dwell card, Glow, Follow timing), `report-summary` / `report-detailed` (Switch columns, Follow block), `start-test` (Mouse note) | **WF gate** |
-| 2 | Engine: settings keys + registry/page data (H1, H3), `SwitchInput` canvas press, cursor park/hide, BaseTask switch rules + events + `clicks` / `click_errors`, pointer/recording split + `pointer_stream.csv` + run gate (H4, H5) | — |
+| 2 **DONE 2026-10-08** | Engine: settings keys + registry/page data (H1, H3), `SwitchInput` canvas press, cursor park/hide, BaseTask switch rules + events + `clicks` / `click_errors`, pointer/recording split + `pointer_stream.csv` + run gate (H4, H5) | — |
 | 3 | Follow: task rewrite (4.4), live metrics + columns, glow + end sound; analysis (`report_follow.py`: gain, catch-up saccades) + `report.json` block | — |
 | 4 | UI: config page Input card, report tables/summary/map/legend + PDF for Switch and Follow, report_config labels | — |
 | 5 | Review + live check A10 with the user and the switch; commit on the user's OK | user |
 
 ## 8. Impl log
 
-(empty)
+- **2026-10-07 — step 2 (Engine), `claude-sonnet-5-5`.** Worktree note: the worktree branch was
+  created at `main` (`c7e61cf`), not at `feature/compass-task-flow`; I fast-forwarded it to
+  `d95e7f5` (`git merge --ff-only`, no commit, no branch change) before starting. Nothing is
+  staged or committed.
+  - **New modules.**
+    `src/engine/input_choice.py` (Qt-free: `resolve_input`, `derive_input_mode`, `glow_active`,
+    the mode helpers, and the two Setup blocker sentences a Mouse test drops);
+    `src/tasks/switch_select.py` (`PointerTrace`, the 150 ms blink fallback, I5c);
+    `src/inputs/no_tracker.py` (`NoTracker`, the recording client of a Mouse run with no tracker);
+    `src/ui/run_cursor.py` (`RunCursor`: hide with `Qt.BlankCursor` and park with
+    `QCursor.setPos(screen, point)`, both checked against the Qt docs);
+    `src/ui/choice_lists.py` and `src/ui/canvas_cursor.py` (split out of `settings_registry.py`
+    and `canvas.py` to keep them under 500 lines; names re-exported / imported back).
+  - **Settings (H1, H3, A1 data).** `settings_registry.py`: structural `input.pointer` (every
+    task), `input.selection` (static, grid, scanning), `feedback.target_glow` (bool, default on);
+    the **Input** card is first in column index 2 (Follow: Pointer only), the card "Selection
+    (Dwell)" is now **Dwell** (id stays `selection`); "Glow on target" sits in Feedback after the
+    instant ring; `ConfigControl.greyed_by` carries 4.1's rules (threshold and ring greyed under
+    Switch, glow greyed under Dwell; refractory and jitter stay active) and `config_form` /
+    `task_config_page` apply it, greyed in place. Tooltips added. The values persist in a test's
+    configuration and in named configurations like any structural setting.
+  - **Derived mode (H1, A9).** `metadata.input_mode` is `eye` / `gaze_switch` / `switch` /
+    `mouse_dwell` / `mouse_follow` from the pair; new `metadata.input_pointer`, `input_selection`
+    (null for Follow), `gaze_recorded`. With no per-test `input` block (a standalone launch, a
+    headless replay, a test stored before this) the old global `input.mode` still decides, so
+    nothing that ran before changes; `build_task` and the replay pipeline use the same resolver.
+    `report_config.py` labels all five values (a mouse mode names the tracker only when
+    `gaze_recorded`).
+  - **Switch rules (I5, A2, A3).** `TaskCanvas` has `mousePressEvent` (left button, only while
+    `switch_press_enabled`) and signals `switchPressed` / `switchReleased` (release also on focus
+    loss); Space / Enter feed the same `SwitchInput` on key down, auto-repeat ignored, only when
+    Selection = Switch; `SwitchInput` got `reset()`; **the key release is now wired** (before,
+    `SwitchInput` was never released, so only the first Space press of a run could count).
+    `BaseTask`: `input_selection` derived from the mode; under Switch (or with no dwell selector)
+    a press in the target phase is judged at this frame's pointer, else the last valid one within
+    150 ms, else `no_gaze`; on target and selectable is a hit, anything else a Click error and
+    the trial goes on (`clicks`, `click_errors`, `attempts`, `SWITCH_PRESS` with `x, y, on_target,
+    used_fallback[, reason]`, and the existing `MISS_CLICK`); a press in the pre-roll, the pause
+    between trials (judged in the phase the frame started in) or after the last trial, and a press
+    while the run is paused, is `SWITCH_IGNORED` (`phase`) and not counted. `trials.csv` gains
+    `clicks` and `click_errors` (after `slot_index`; 0 under Dwell).
+  - **Cursor and glow (I6, A2, A4).** Gaze + Switch: at the first tick with the canvas on screen
+    the OS cursor is parked at the canvas centre and hidden; shown on pause, quit and the end of
+    the run; hidden and parked again on resume. Never for Dwell or a Mouse pointer. The glow is a
+    soft radial halo in the theme's particle colour behind the target, drawn while the pointer is
+    on a selectable target and `show_glow` (setting on and Switch or Follow); the dwell ring is
+    forced off in a switch run.
+  - **Mouse pointer and recording (H4, H5, A5).** `AssessmentApp(pointer_source=...)`: a Mouse
+    run (and any Preview) reads a `MouseGazeSource` bound to the canvas; `client` is then only the
+    tracker recording alongside, or a `NoTracker`. No calibration is started for a Mouse run
+    without a preset (`calibration_source` "not run"). `SessionRecorder.open(gaze_stream=...)`,
+    `open_pointer_stream()`, `record_pointer()` and the `NullRecorder` twins; `pointer_stream.csv`
+    (`t_ns,x,y,valid`, raw mouse); no `gaze_stream.csv`, `all_gaze.csv`, `eye_geometry.csv` when
+    there is no tracker. The monitor geometry is not applied to a mouse pointer; the run bar says
+    "mouse pointer" and reports no tracker for a Mouse run with none. The report: `session.pointer`
+    / `selection` / `gaze_recorded` / `sources.pointer_stream`, and the Eye Metrics table (page and
+    PDF) says "not recorded" when `gaze_recorded` is false.
+  - **Run gate and Start page (H5).** `StartTestPage` drops the tracker and calibration blockers
+    for a Mouse test and shows the one-line note (three texts, see §9); `RunFlow._build` passes the
+    Setup tracker only when it is connected and calibrated, and never refuses a Mouse test for a
+    missing tracker; Gaze tests are gated exactly as before. `SetupPage.run_blockers` is
+    unchanged apart from sharing its two sentences with `input_choice`.
+  - **Read-aloud wording (W1).** Switch replaces the dwell step with "Look at the circle, then
+    press the button." (square / "Find the bright shape, look at it, ..." per task) plus "The
+    {noun} glows while you are looking at it." when the glow is on; Mouse replaces the dot
+    sentence with "Move the mouse to point at the screen." and turns "look at" into "point at".
+    Follow's own wording is step 3's.
+  - **Docs.** `docs/DATA_SCHEMA.md` (pointer_stream.csv, metadata fields, trials columns, the two
+    events, report session fields), `README.md` (feature bullet, test count).
+  - **Tests added (231 net).** `test_input_choice.py` (H1 table, resolver, glow rule, blockers),
+    `test_switch_rules.py` (A2/A3 on `BaseTask`, `PointerTrace`, `SwitchInput`),
+    `test_input_settings.py` (A1 data: registry, Input / Dwell cards, greying, persistence,
+    named configurations, the real page), `test_switch_run.py` (A2/A3/A4 through the app and the
+    canvas: left press, off target, ITI, blink, Space/Enter, right button, run bar, pause, cursor
+    park/hide/show, glow pixels, no dwell ring), `test_mouse_run.py` (A5/A9: no tracker, with a
+    tracker, files, report text, derived modes, labels), `test_mouse_run_gate.py` (H5 on the page
+    and the run flow, W1 wording), `test_pointer_stream.py` (recorder, schema, status line,
+    `NoTracker`); shared rig `tests/input_run_fixtures.py`. Existing tests updated for the new
+    columns / settings / cards (header order, `EXPECTED` card table, feedback dicts, the dialog's
+    control set, report `sources`) and two fake-app namespaces given the new attributes.
+  - **pytest (whole repo, worktree, offscreen):** `5 failed, 2364 passed, 2 skipped`. Baseline
+    before my changes in the same worktree: `5 failed, 2133 passed, 2 skipped`. The same 5
+    fail in both and none is mine: they assert the lab's local `dwell.smoothing.alpha` 0.22, and
+    the worktree's committed `configs/default.yaml` says 0.35
+    (`test_config_flow::test_a_new_test_opens_at_standard_with_the_task_defaults` and the four
+    `test_task_config_page::test_a_new_test_opens_with_standard_and_the_defaults[*]`);
+    `test_config_merges_task_over_default` did not fail here. `ruff` is clean on the new files
+    (the fixture-import `F811` is waived file-wide in the two app-level test modules).
+  - **Deviations from the SPEC text:** none that change a decision; the readings in §9 ("decided,
+    non-blocking") and the two OPEN questions there are the only places I went beyond or short of
+    the wording.
+  - **Not done (belongs to later steps or out of scope):** Follow's rewrite (4.4), `report_follow.py`
+    and the `follow` block; `clicks` / `click_errors` in `report.json` trial and summary rows and
+    the Switch columns on the page and PDF; the Input row's "Gaze · Switch" display format; the
+    Follow page's removal of the Dwell card and the selection window (the old follow still selects
+    by dwell, so its `dwell.*` controls stay); per-trial eye columns saying "not recorded";
+    the clinician line "Check that the bottom bar says tracking OK" is unchanged for a Mouse test;
+    nothing run on the real device or with the real switch (A10 is step 5). `app.py` (1231 lines)
+    and `base_task.py` (751) were over 500 before and are larger now; a split is a refactor of its
+    own.
+- **2026-10-07 — step 2 addendum (the user's answers to the two OPEN §9 questions), `claude-sonnet-5-5`.**
+  Same worktree, still step 2; nothing staged or committed. Both §9 items are marked RESOLVED
+  and the six "decided" calls CONFIRMED by the user as built. This addendum **supersedes** the
+  first entry where it says the refractory period does not gate presses and where it lists the
+  Setup gate as unchanged.
+  - **Refractory is the switch's debounce.** `BaseTask`: while a target is up, a press within
+    `dwell.refractory_ms` of the previous **counted** press is ignored: no click, no Click error,
+    no attempt, no `SWITCH_PRESS` or `MISS_CLICK`; it is logged `SWITCH_IGNORED` with
+    `phase="target"`, `reason="refractory"` (and `x`, `y`). A press exactly `refractory_ms` after
+    the last counts. Two readings the user's answer did not spell out, both the dwell's own
+    behaviour: the window **restarts with each trial** (the dwell resets its refractory in
+    `_start_trial`, and a quick first press on a new target must not be lost), and an **ignored
+    press does not extend** the window. The value is the dwell selector's `refractory_ms` when the
+    task has one (the app always builds one from the run's config, so the live setting applies),
+    else `config["dwell"]["refractory_ms"]`, else 0 (a bare test task is not debounced). The control
+    stays active under Switch and the report's "Switch press, refractory 0.5 s" row is unchanged.
+    `ignore_press` gained `reason`. Docs: `DATA_SCHEMA.md` (`SWITCH_IGNORED` row, `clicks`),
+    `README.md`. Tests (`test_switch_rules.py`, `test_switch_run.py`): a press at +0.3 s ignored
+    and one at +0.6 s counted; a correct press 0.3 s after a Click error ignored; exactly +500 ms
+    counts; an ignored press does not extend the window; the window restarts with each trial;
+    the selector's value wins over the config; 0 debounces nothing; a bare task and a dwell run
+    are untouched; the live setting through the app.
+  - **Setup: Continue to Tests without a tracker.** `SetupPage.continue_blockers()` is
+    `run_blockers()` minus the tracker and calibration sentences; `can_continue()` is "no
+    continue blockers"; the Continue button no longer waits for either (its tooltip no longer asks
+    for them). A new note above the button (`gaze_note`, the Start page's info style) reads
+    "No tracker connected: only Mouse tests can run." (no client or a dropped link, named first
+    whatever the calibration) or "Not calibrated: only Mouse tests can run." (connected, no
+    calibration); hidden when both are fine. Texts and `gaze_only_note()` live in
+    `input_choice.py`. `run_blockers()` itself is unchanged, so a gaze test stays blocked on its
+    Start page by the same two sentences; Subject ID, Sex and the display-standard acknowledgement
+    still gate Continue. `test_run_blockers.py`'s "run_blockers is empty iff can_continue" check
+    became "continue_blockers is empty iff can_continue, which is subject and sex and display ok,
+    and the two lists differ only by the tracker and calibration sentences". New
+    `tests/test_setup_continue_without_tracker.py` (both notes, the enabled button, the other
+    requirements, the dashboard going to the Test List with no tracker).
+  - **Existing test adjusted:** `test_task_pipeline::test_hit_testing_uses_live_screen_size_not_config_default`
+    presses twice a millisecond apart; it now sets `dwell.refractory_ms` to 0 (the new debounce
+    would otherwise ignore the second press, as intended).
+  - **pytest (whole repo, worktree, offscreen):** `5 failed, 2392 passed, 2 skipped` (the first
+    entry's run was 2364 passed; +28 tests here). The 5 failures are exactly the same as the
+    baseline and as before: the lab-local `dwell.smoothing.alpha` 0.22 checks against the
+    worktree's committed `configs/default.yaml` (0.35), namely
+    `test_config_flow::test_a_new_test_opens_at_standard_with_the_task_defaults` and the four
+    `test_task_config_page::test_a_new_test_opens_with_standard_and_the_defaults[*]`. ruff is clean on
+    the files touched in this addendum.
 
 ## 9. Implementer open questions
 
-(empty)
+- **2026-10-07 (step 2) — RESOLVED 2026-10-07, user: "Yes, debounce". Built in the step-2
+  addendum (§8): during a target, a press within `dwell.refractory_ms` of the previous counted
+  press is ignored (not a click, not a Click error), logged `SWITCH_IGNORED` with
+  `reason=refractory`; the control stays active under Switch and the report row is unchanged.**
+  *Question as asked:* refractory as a switch debounce. 4.1 and the
+  `task-config` wireframe say the Dwell card's **refractory** stays active under Switch "because
+  the hitbox and the debounce apply to the switch too", and 4.5 shows "Switch press (mouse/switch
+  button), refractory 0.5 s" in the report. But I5 and 4.2, which define the switch rules, say
+  nothing about ignoring a press that comes within `refractory_ms` of the last one, and such a
+  rule would also drop a correct press made right after a Click error (default 0.5 s). **What I
+  built:** the jitter tolerance applies (it is the hitbox, `hit_test`); the refractory period does
+  **not** gate presses, so every press made while the target is up counts. The control is still
+  active on the page and still printed in the report row, as the SPEC says. **Needed:** either
+  "refractory ignores presses (and logs `SWITCH_IGNORED reason=refractory`)" or "refractory is
+  not applied to presses; grey it under Switch too" (that changes 4.1 and the wireframe).
+- **2026-10-07 (step 2) — RESOLVED 2026-10-07, user: "Allow Continue without tracker". Built in
+  the step-2 addendum (§8): "Continue to Tests" is enabled with no tracker and/or no
+  calibration; the Setup page says "No tracker connected: only Mouse tests can run." or, for a
+  connected but uncalibrated tracker, "Not calibrated: only Mouse tests can run."; gaze tests
+  stay blocked on their Start page by the existing blockers; Subject ID, Sex and the
+  display-standard acknowledgement still gate Continue.** *Question as asked:* the Setup gate
+  still needs a tracker. H5 only
+  relaxes **Start and Practice** for a Mouse test. The Setup page's own "Continue to Tests" gate
+  (`SetupPage.can_continue`, the same blockers) still demands a connected, calibrated tracker, so a
+  Mouse test with the tracker unplugged can only be reached if the tracker drops *after* Setup
+  (the unit tests drive exactly that). A10 ("Grid Click with Mouse + Dwell, tracker unplugged or
+  not") cannot be done on a PC with no tracker from a cold start. **Not changed** (outside H5's
+  wording). **Needed:** whether Setup may continue without a tracker (e.g. a "Continue without a
+  tracker (Mouse tests only)" choice) and, if so, what the Setup card says.
+- **2026-10-07 (step 2) — decided, non-blocking; CONFIRMED by the user 2026-10-07 as built.**
+  Small calls the SPEC does not spell out, each the least surprising reading:
+  - *Resume re-parks the cursor.* 4.2 says the cursor is restored on pause/end/quit. After the
+    operator clicks Resume on the bar the OS cursor sits on the bar, so the child's next switch
+    press would land on Pause/Skip/Quit. I therefore hide and park it again on resume (the same
+    as at run start).
+  - *Left press enables the switch only when Selection = Switch.* 4.2 words it "with Selection =
+    Switch, **or with Pointer = Mouse**". Under Mouse + Dwell a press would do nothing anyway (the
+    dwell path ignores clicks), so I enable the canvas press for Selection = Switch only; the
+    result is identical and no `SWITCH_*` event appears in a dwell run.
+  - *Mouse sentence is always read.* W1: the "small dot" sentence becomes "Move the mouse to point
+    at the screen." It is shown for every Mouse test, whether or not "Show gaze cursor" is on
+    (the dot sentence is conditional on that setting; the child must be told to move the mouse
+    either way). Follow's own wording is left for step 3, so a Mouse Follow only gets the first
+    sentence and the "look at" to "point at" swap.
+  - *Third Start-page note.* H5 gives two note texts. A tracker that is connected but **not
+    calibrated** records no gaze (I7: "connected (and calibrated)"), so the note says "Mouse test
+    — the tracker is not calibrated, so no eye data will be recorded." for that case.
+  - *A Mouse run on a PC with no tracker takes the monitor size from the canvas's own screen*
+    (`metadata.screen_width_px/height_px`, physical px), so the report can still give degrees;
+    with a tracker the tracker's `SCREEN_SIZE` is used as before.
+  - *The report's "not recorded"* is in the **Eye Metrics table** (`eye_rows`, so the PDF too).
+    The per-trial eye columns (Fixations, Saccades, Pupil) still show "—" until step 4 reworks
+    those tables; `report.json` carries `session.gaze_recorded` for that.
 
 ## 10. Log
 
@@ -361,3 +558,4 @@ click**. It has no pointer movement and no keys.
   H1-H10 proposed, awaiting approval.
 - **2026-10-07** — The user approved H1-H10 as written. SPEC committed on `feature/compass-task-flow`. Next: the compass SPEC's P9c pass (step 0), then step 1 here.
 - **2026-10-07** — Step 1 done: the hub updated the wireframes `task-config` (Input card, Dwell card, Glow on target, Follow timing), `start-test` (Mouse note, proposed read-aloud text), `report-summary` (Switch columns, Follow summary table, Mouse "not recorded") and `report-detailed` (Switch columns, Follow per-trial table, on/off-target path); rendered with wiremd. **The user approved them as is**, plus W1 (read-aloud wording) and W2 (Follow Metric/Value table) in §3.2a. P9c of the parent SPEC was committed first (`6bad506`) so these wireframes get their own commit. Next: steps 2-4 by spec-implementer.
+- **2026-10-08** — Step 2 done by spec-implementer in an isolated worktree (§8, incl. the addendum), merged into the main tree by the hub. §9 resolved with the user: refractory = switch debounce (`SWITCH_IGNORED reason=refractory`), Setup may continue without a tracker (Mouse-only note), the six small calls confirmed. Hub review: in scope, A1 (data), A2, A3, A4, A5, A9 met by tests; pre-existing key-release bug fixed (only the first Space press used to count); `app.py` (1231) and `base_task.py` (786) remain over 500 lines (pre-existing, later cleanup). Hub full pytest in the main tree: **2397 passed, 2 skipped, 0 failed**. Committed on the user's OK with offscreen review only; live check A10 is step 5. Next: step 3 (Follow the Target).

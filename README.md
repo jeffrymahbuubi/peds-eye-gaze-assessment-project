@@ -23,6 +23,17 @@ See `../303bfbea-eye_gaze_assessment_v1_plan.md` for the full design plan.
   dwell threshold, theme (plan US-02).
 - **Structured output** per session: `metadata.json`, `trials.csv`,
   `gaze_stream.csv`, `events.jsonl` (plan §5.7).
+- **Pointer and Selection per test** (`docs/specs/SPEC-input-selection-and-follow.md`):
+  the pointer is the child's **Gaze** or the **Mouse**; a target is selected by **Dwell** or
+  by a **Switch**. The switch is a left mouse press on the canvas (the USB switch the lab uses
+  sends exactly that) or Space / Enter, counted on button down and judged where the gaze is
+  (a Click error off the target; a blink uses the last valid gaze within 150 ms; presses
+  between trials are ignored; a press within the refractory period of the last counted one is
+  debounced). With gaze and a switch the OS cursor is parked on the canvas and
+  hidden. A Mouse test needs no tracker or calibration (Setup's Continue to Tests is allowed
+  without them; gaze tests are held back on their own Start page). It writes `pointer_stream.csv`, and
+  records gaze alongside when the tracker is connected and calibrated (`gaze_recorded` in
+  `metadata.json` says which). `trials.csv` gains `clicks` and `click_errors`.
 
 ## Architecture
 
@@ -303,9 +314,11 @@ re-run the task to feel the new pacing. Full diagnosis behind these settings:
 ## Tests & lint
 
 ```bash
-pytest        # 2029 passed, 2 skipped, all headless (offscreen Qt, no device); the one long-known
-              # local-config failure, test_config_merges_task_over_default, only shows on a machine
-              # whose skip-worktree configs/default.yaml differs, see docs/specs
+pytest        # 2392 passed, 2 skipped, all headless (offscreen Qt, no device) in a clean checkout;
+              # the few tests that read the lab's own skip-worktree configs/default.yaml (e.g.
+              # test_config_merges_task_over_default, the smoothing-alpha 0.22 checks in
+              # test_task_config_page / test_config_flow) only agree on the machine whose file
+              # matches, see docs/specs
 ruff check .
 ```
 

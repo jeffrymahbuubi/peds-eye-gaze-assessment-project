@@ -322,7 +322,9 @@ def test_edits_show_up_in_collect_values_with_the_right_types(qapp):
     values = page.collect_values()
     assert values["structural"]["target"] == {"size": "large"}
     assert values["structural"]["grid"] == {"rows": 4, "cols": 3, "gap": "wide"}
-    assert values["structural"]["feedback"] == {"hit_sound": True, "miss_sound": False}
+    assert values["structural"]["feedback"] == {
+        "hit_sound": True, "miss_sound": False, "target_glow": True,
+    }
     assert values["live"]["dwell.smoothing.alpha"] == 0.5
     assert values["live"]["dwell.visual_cursor"] is False
     assert isinstance(values["structural"]["grid"]["rows"], int)

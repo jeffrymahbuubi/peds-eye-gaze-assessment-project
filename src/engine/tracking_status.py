@@ -40,6 +40,7 @@ def run_status_line(
     practice: bool = False,
     paused: bool = False,
     preview: bool = False,
+    mouse: bool = False,
 ) -> str:
     """The bar's status text: ``[PRACTICE (not recorded) · ]Trial i/N · tracking``.
 
@@ -48,7 +49,10 @@ def run_status_line(
     dropped: ``Paused · Trial i/N``. A ``preview`` (the mouse-driven look at a
     configuration, 4B.6) says so instead of naming the tracker:
     ``PREVIEW · Trial i/N · mouse pointer · nothing is recorded``, and
-    ``PREVIEW · Paused`` while paused.
+    ``PREVIEW · Paused`` while paused. A ``mouse`` run (Pointer = Mouse,
+    SPEC-input-selection-and-follow.md) names its pointer after the trial, and
+    ``tracking_text`` may be empty (no tracker: nothing to report):
+    ``Trial i/N · mouse pointer[ · tracking]``.
     """
     trial = f"Trial {max(trial_number, 1)}/{planned}"
     if preview:
@@ -56,5 +60,12 @@ def run_status_line(
             return "PREVIEW · Paused"
         return f"PREVIEW · {trial} · mouse pointer · nothing is recorded"
     parts = ["PRACTICE (not recorded)"] if practice else []
-    parts += ["Paused", trial] if paused else [trial, tracking_text]
+    if paused:
+        parts += ["Paused", trial]
+    else:
+        parts.append(trial)
+        if mouse:
+            parts.append("mouse pointer")
+        if tracking_text:
+            parts.append(tracking_text)
     return " · ".join(parts)

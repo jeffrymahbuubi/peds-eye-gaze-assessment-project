@@ -30,8 +30,9 @@ PAGE_KEYS = {"test.name", "test.config_name", "test.notes"}
 
 FEEDBACK = [
     "dwell.visual_cursor", "dwell.progress_ring", "dwell.instant_feedback",
-    "feedback.hit_sound", "feedback.miss_sound",
+    "feedback.target_glow", "feedback.hit_sound", "feedback.miss_sound",
 ]
+INPUT = ["input.pointer", "input.selection"]  # Follow the Target has no Selection (I9)
 SELECTION = ["dwell.threshold_ms", "dwell.refractory_ms", "dwell.jitter_tolerance_px"]
 SMOOTHING = ["dwell.smoothing.enabled", "dwell.smoothing.alpha"]
 TEST_CARD = ["test.name", "test.config_name", "trials", "test.notes"]
@@ -44,6 +45,7 @@ EXPECTED = {
         ("feedback", 0, None, FEEDBACK),
         ("target", 1, None, ["target.size"]),
         ("timing", 1, None, TIMING),
+        ("input", 2, None, INPUT),
         ("selection", 2, None, SELECTION),
         ("smoothing", 2, None, SMOOTHING),
     ],
@@ -53,6 +55,7 @@ EXPECTED = {
         ("target", 1, None, ["target.size"]),
         ("grid", 1, HINT_GRID_FIT, ["grid.rows", "grid.cols", "grid.gap"]),
         ("timing", 1, None, TIMING),
+        ("input", 2, None, INPUT),
         ("selection", 2, None, SELECTION),
         ("smoothing", 2, None, SMOOTHING),
     ],
@@ -62,6 +65,7 @@ EXPECTED = {
         ("target", 1, None, ["target.size"]),
         ("motion", 1, None, ["motion.path", "motion.speed_frac_per_s"]),
         ("timing", 1, None, [*TIMING, "motion.select_window_ms"]),
+        ("input", 2, None, ["input.pointer"]),
         ("selection", 2, None, SELECTION),
         ("smoothing", 2, None, SMOOTHING),
     ],
@@ -70,6 +74,7 @@ EXPECTED = {
         ("feedback", 0, None, FEEDBACK),
         ("icons", 1, HINT_ICON_FIT, ["layout.size", "layout.n_icons"]),
         ("timing", 1, None, TIMING),
+        ("input", 2, None, INPUT),
         ("selection", 2, None, SELECTION),
         ("smoothing", 2, None, SMOOTHING),
     ],
@@ -122,7 +127,8 @@ def test_task_specific_controls_appear_only_on_their_task():
 
 def test_an_unknown_task_still_gets_the_common_cards():
     ids = [g.id for g in config_groups_for_task("not_a_task")]
-    assert ids == ["test", "feedback", "timing", "selection", "smoothing"]
+    # Pointer is on every task, so the Input card is too (Selection is only on three).
+    assert ids == ["test", "feedback", "timing", "input", "selection", "smoothing"]
 
 
 # -- widget kinds and dependencies ------------------------------------------------------

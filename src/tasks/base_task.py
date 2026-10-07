@@ -20,10 +20,12 @@ from enum import Enum, auto
 from typing import Any
 
 from ..data.schema import TrialRecord
+from ..engine.input_choice import SELECTION_DWELL, selection_of_mode
 from ..engine.target_size import EDGE_RING_PX
 from ..inputs.base import Pointer, circle_contains, norm_to_px
 from ..inputs.eye_input import DwellSelector
 from .entry_tracker import DEFAULT_EXIT_HOLD_MS, EntryTracker
+from .switch_select import PointerTrace
 from .target_track import TrackThrottle
 
 
@@ -161,6 +163,21 @@ class BaseTask:
         self.feedback = feedback
         self.dwell = dwell
         self.input_mode = input_mode
+        # How a target is selected in this mode (SPEC-input-selection-and-follow.md H1):
+        # by dwell, or by a switch press -- which is also the path a task built with no
+        # dwell selector takes. The switch rules (I5) live in ``_switch_press``.
+        self.input_selection = selection_of_mode(input_mode)
+        self._switch_rules = not (self.input_selection == SELECTION_DWELL and dwell is not None)
+        # The switch's debounce (user decision of 2026-10-07): while a target is up, a press
+        # within ``dwell.refractory_ms`` of the last counted one is ignored. The value is the
+        # dwell selector's own when there is one, else the config's, else none (a bare task).
+        refractory_ms = (
+            dwell.config.refractory_ms
+            if dwell is not None
+            else config.get("dwell", {}).get("refractory_ms", 0)
+        )
+        self.refractory_ns = int(float(refractory_ms) * 1e6)
+        self._last_press_ns: int | None = None
         self.rng = random.Random(seed)
 
         self.timeout_ns = int(self.task_cfg.get("timeout_ms", 8000) * 1e6)
@@ -191,6 +208,8 @@ class BaseTask:
             dwell.config.hold_grace_ms if dwell is not None else DEFAULT_EXIT_HOLD_MS
         )
         self._track = TrackThrottle()
+        # The last valid pointer, for a press made in a blink (I5c).
+        self._trace = PointerTrace()
 
         self._phase = Phase.READY
         self._trial_index = -1
@@ -414,12 +433,18 @@ class BaseTask:
         selectable = True
         on_target = False
 
+        px, py = self.pointer_to_canvas_px(pointer)
+        self._trace.observe(t_ns, pointer.valid, px, py, pointer.x, pointer.y)
+        # The phase this frame's press (if any) is judged in: a press in the frame a
+        # trial's ITI ends belongs to the ITI, whatever the phase is at the end of it.
+        phase_in = self._phase
+        press_judged = False
+
         if self._phase is Phase.WAIT_INPUT and target is not None and self._current is not None:
             elapsed = t_ns - self._trial_start_ns
             tx_norm, ty_norm = self.target_position(target, elapsed)
             selectable = self.is_selectable(target, elapsed)
             cx_px, cy_px = norm_to_px(tx_norm, ty_norm, self.screen_w, self.screen_h)
-            px, py = self.pointer_to_canvas_px(pointer)
 
             # The effective hitbox includes the jitter tolerance; this is the
             # region the tool treats as "on target" for both dwell and the
@@ -441,7 +466,7 @@ class BaseTask:
                 # random offset (SPEC-follow-moving-selection.md S4.2).
                 self._current.t_selectable_start_ns = t_ns
 
-            if self.input_mode == "eye" and self.dwell is not None:
+            if not self._switch_rules:
                 # `selectable` gates *completion*, not accumulation: an early
                 # dwell holds at full and fires the moment the window opens,
                 # rather than completing and being rejected
@@ -451,18 +476,33 @@ class BaseTask:
                 if self.feedback is not None and state.progress > 0:
                     self.feedback.on_progress(tx_norm, ty_norm, state.progress)
                 clicked = state.triggered  # dwell only triggers while on target
-                on_target_at_click = clicked
+                hit = clicked and selectable
+                miss_extra: dict[str, Any] = {}
+            elif pointer.clicked:
+                press_judged = True
+                if self._debounced(t_ns):
+                    # Too soon after the last counted press: contact bounce, or a hasty
+                    # second press. Neither a click nor a Click error.
+                    self.ignore_press(t_ns, "target", pointer, reason="refractory")
+                    clicked = hit = False
+                    miss_extra = {}
+                else:
+                    # A switch press (I5): judged where the child was looking at the press.
+                    self._last_press_ns = t_ns
+                    clicked = True
+                    hit, miss_extra = self._switch_press(
+                        t_ns, pointer, px, py, target, cx_px, cy_px, selectable
+                    )
             else:
-                clicked = pointer.clicked
-                on_target_at_click = clicked and on_target
-
-            hit = on_target_at_click and selectable
+                clicked = hit = False
+                miss_extra = {}
 
             if clicked and not hit:
                 # off-target and/or out-of-window selection: a failed attempt
                 self._current.attempts += 1
                 self._record_event(
-                    "MISS_CLICK", t_ns, x=pointer.x, y=pointer.y, selectable=selectable
+                    "MISS_CLICK", t_ns, x=pointer.x, y=pointer.y, selectable=selectable,
+                    **miss_extra,
                 )
             elif hit:
                 self._current.attempts += 1
@@ -481,6 +521,11 @@ class BaseTask:
                     self._phase = Phase.DONE
                 else:
                     self._start_trial(t_ns)
+
+        if pointer.clicked and self._switch_rules and not press_judged:
+            # A press with no target up (pre-roll, the pause between trials, the end):
+            # consumed and logged, never counted (I5d).
+            self.ignore_press(t_ns, phase_in.name.lower(), pointer)
 
         # Recompute the reported target after any phase transition above so the
         # FrameResult's target and trial_index always refer to the same trial.
@@ -502,6 +547,74 @@ class BaseTask:
             on_target=on_target,
             target_radius_px=self.effective_radius_px(target) if target is not None else 0.0,
         )
+
+    # -- the switch (SPEC-input-selection-and-follow.md I5) ----------------
+
+    def _switch_press(
+        self,
+        t_ns: int,
+        pointer: Pointer,
+        px: float,
+        py: float,
+        target: TargetSpec,
+        cx_px: float,
+        cy_px: float,
+        selectable: bool,
+    ) -> tuple[bool, dict[str, Any]]:
+        """Count one press made while the target is up and judge it: ``(hit,
+        extra)``, ``extra`` being what a miss adds to its ``MISS_CLICK`` event.
+
+        The press counts on button down and is judged at where the pointer was:
+        this frame's when valid, else the last valid one within 150 ms (a blink,
+        I5c), else nowhere -- ``no_gaze``. On the target (and selectable) it is a
+        hit; anything else is a Click error and the trial goes on (I5b). Every press
+        is a ``SWITCH_PRESS`` event."""
+        assert self._current is not None
+        point = self._trace.at_press(t_ns, pointer.valid, px, py, pointer.x, pointer.y)
+        self._current.clicks += 1
+        if point is None:
+            on_press_target, extra = False, {"reason": "no_gaze"}
+            event = {"x": pointer.x, "y": pointer.y, "on_target": False, "used_fallback": False}
+            event.update(extra)
+        else:
+            on_press_target = self.hit_test(target, cx_px, cy_px, point.px, point.py)
+            extra = {"used_fallback": point.used_fallback} if point.used_fallback else {}
+            event = {
+                "x": point.x_norm,
+                "y": point.y_norm,
+                "on_target": on_press_target,
+                "used_fallback": point.used_fallback,
+            }
+        self._record_event("SWITCH_PRESS", t_ns, trial=self._trial_index, **event)
+        hit = on_press_target and selectable
+        if not hit:
+            self._current.click_errors += 1
+        return hit, extra
+
+    def _debounced(self, t_ns: int) -> bool:
+        """Whether a press at ``t_ns`` falls within the refractory period of the last
+        counted press **of this trial** (the window restarts with each trial, as the dwell's
+        does, so a quick first press on a new target is never lost). A press exactly
+        ``refractory_ms`` after the last one counts; an ignored press does not extend the
+        window."""
+        return (
+            self._last_press_ns is not None
+            and t_ns - self._last_press_ns < self.refractory_ns
+        )
+
+    def ignore_press(
+        self, t_ns: int, phase: str, pointer: Pointer | None = None, reason: str | None = None
+    ) -> None:
+        """Log a press that counts for nothing (``SWITCH_IGNORED``): one made while no
+        target was up -- between trials (I5d), before the first one, or while the
+        run was paused -- or one made too soon after the last (``reason="refractory"``,
+        ``phase="target"``). ``phase`` names where it happened."""
+        payload: dict[str, Any] = {"phase": phase}
+        if reason is not None:
+            payload["reason"] = reason
+        if pointer is not None:
+            payload.update(x=pointer.x, y=pointer.y)
+        self._record_event("SWITCH_IGNORED", t_ns, **payload)
 
     # -- operator actions (SPEC-compass-task-flow.md 4C.6) -----------------
 
@@ -613,6 +726,7 @@ class BaseTask:
         )
         self._entries.reset()
         self._track.reset()
+        self._last_press_ns = None
         inset = self.inset_details(target)
         if inset is not None and not self._inset_reported:
             self._inset_reported = True
