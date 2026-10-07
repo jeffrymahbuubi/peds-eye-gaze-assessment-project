@@ -340,9 +340,9 @@ click**. It has no pointer movement and no keys.
 | 0 | Parent SPEC P9c (V1-V5) implemented and checked first, so the report work below builds on it. **P9c committed `6bad506` 2026-10-07; its live re-check is still open** (the user chose to go ahead) | — |
 | 1 **DONE 2026-10-07** (approved) | Wireframes: `task-config` (Input card, renamed Dwell card, Glow, Follow timing), `report-summary` / `report-detailed` (Switch columns, Follow block), `start-test` (Mouse note) | **WF gate** |
 | 2 **DONE 2026-10-08** | Engine: settings keys + registry/page data (H1, H3), `SwitchInput` canvas press, cursor park/hide, BaseTask switch rules + events + `clicks` / `click_errors`, pointer/recording split + `pointer_stream.csv` + run gate (H4, H5) | — |
-| 3 | Follow: task rewrite (4.4), live metrics + columns, glow + end sound; analysis (`report_follow.py`: gain, catch-up saccades) + `report.json` block | — |
-| 4 | UI: config page Input card, report tables/summary/map/legend + PDF for Switch and Follow, report_config labels | — |
-| 5 | Review + live check A10 with the user and the switch; commit on the user's OK | user |
+| 3 **DONE 2026-10-08** (`0461789`) | Follow: task rewrite (4.4), live metrics + columns, glow + end sound; analysis (`report_follow.py`: gain, catch-up saccades) + `report.json` block | — |
+| 4 **DONE 2026-10-08** (`4cbbce0`) | UI: config page Input card, report tables/summary/map/legend + PDF for Switch and Follow, report_config labels | — |
+| 5 (waits for the device: not possible yet, user 2026-10-08) | Live check A10 with the user and the switch; findings and fixes committed on the user's OK | user |
 
 ## 8. Impl log
 

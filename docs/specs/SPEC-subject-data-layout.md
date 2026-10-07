@@ -3,8 +3,8 @@ name: SPEC-subject-data-layout
 title: Per-subject data folders — one folder per child holding calibrations, settings, tests, runs and reports
 status: approved 2026-10-07 (D1-D6, H1-H13)
 created: 2026-10-07
-last_updated: 2026-10-07
-next_step: AFTER SPEC-input-selection-and-follow.md is done, /spec-run this SPEC from step 1 (wireframes: Setup folder-name choice, Test List "Open Subject Folder")
+last_updated: 2026-10-08
+next_step: READY (SPEC-input-selection-and-follow.md steps 1-4 landed `4cbbce0` 2026-10-08; only its device-bound live check A10 is open and does not touch these files): /spec-run this SPEC from step 1 (wireframes: Setup folder-name choice, Test List "Open Subject Folder", Start path blocker)
 related:
   - SPEC-compass-task-flow.md (Test List store 4A, run end / Discard 4C.6, report + PDF 4D; branch feature/compass-task-flow, U17)
   - SPEC-input-selection-and-follow.md (adds pointer_stream.csv inside a run folder; built first)
@@ -40,11 +40,11 @@ Four read-only agents worked on it in parallel: a code impact map, a refinement 
 (BIDS / BEP020 eye tracking, clinical tools, Windows path rules, privacy). Their findings are
 condensed in §2 and §3.2.
 
-## 2. Current code (impact map, 2026-10-07, feature branch after `1308891`)
+## 2. Current code (impact map, 2026-10-07, feature branch after `1308891`; line numbers re-checked 2026-10-08 at `4cbbce0`)
 
 - **Run folder** `sessions/<date>_<subject>_<task>_run<N>/`, flat under the root. The path is
-  composed twice, independently: `src/app.py:299-304` (needed for `calibration.json` before the
-  recorder exists) and `src/data/recorder.py:62`. `next_run_number` (`session_naming.py:63-79`)
+  composed twice, independently: `src/app.py:322-327` (needed for `calibration.json` before the
+  recorder exists) and `src/data/recorder.py:69`. `next_run_number` (`session_naming.py:63-79`)
   probes the root for the composite name; N resets daily.
 - **Test record → run link:** `session_dir` (`subject_test_record.py:59`) stores the folder NAME
   only. `record_result` requires `folder.parent == output_root` (`subject_tests.py:390-392`).
@@ -56,15 +56,15 @@ condensed in §2 and §3.2.
 - **Settings** `_settings/<subj>/<task>/<ts>.json` (+ legacy flat `<task>.json`):
   `subject_settings_dir` (`settings_profile.py:64`).
 - **Calibrations** `_calibrations/<subj>/calibration_<n>pt.json`: `_subject_calibration_dir`
-  (`setup_page.py:140`, a UI module, literal `"_calibrations"`).
+  (`setup_page.py:146-156`, a UI module, literal `"_calibrations"`).
 - **Diagnostics** `_diagnostics/calibration_timing.jsonl`, `gaze_dropouts.jsonl`
   (`calibration.py:267`, `gaze_diagnostics.py:26`): machine-wide, **no subject field** in any line.
 - **Subject list** for the Setup completer: `known_subject_ids` (`settings_profile.py:141-170`)
   unions the three `_` dirs; folder names, not the typed ids.
 - **Output root** `recording.output_root: "sessions"` (`configs/default.yaml:77`), relative to the
-  cwd (frozen exe: next to the exe). Read in three independent places: `app.py:299`,
+  cwd (frozen exe: next to the exe). Read in three independent places: `app.py:322`,
   `dashboard_flow.py:71-74`, `setup_page.py` (4 call sites).
-- **PDF** default `<run folder>/<Subject>_<Test name>_<date>.pdf` (`report_format.py:268-273`).
+- **PDF** default `<run folder>/<Subject>_<Test name>_<date>.pdf` (`report_format.py:352-358`, `pdf_default_name`).
 - **Subject → folder name:** `safe_subject_dirname` (`session_naming.py:30-60`): NFC, illegal
   characters to `_`, trailing dots/spaces stripped, cut at 80, device names prefixed, `~` + 6 hex
   of the SHA-1 when anything changed. Applied with and without `.strip()` in different callers.
