@@ -6,7 +6,8 @@
 | `current-design-inventory.md` | Today's informal design system: tokens, components, canvas theme, screenshot index |
 | `fable-brief.md` | Task brief for the Fable UI/UX evaluation (Task A) and proposal (Task B) |
 | `screenshots/` | Real-app captures of every page, 1920x1080 @ 100 % (2026-10-08; 01-20, see the inventory's §5 for which set each comes from) |
-| `fable-evaluation.md`, `fable-proposal.md` | Written later by Fable |
+| `fable-evaluation.md`, `fable-proposal.md` | Fable's Task A evaluation and Task B proposal (accent changed to the WTMH logo blue by user decision, 2026-10-08, §2.2) |
+| `design-system.html` | Visual reference page for the proposal's design system v1: token swatches with contrast ratios, type, spacing, live components, canvas, copy rules, phases. Opens from disk; also published as a private claude.ai artifact |
 
 Wireframes (layout and wording) stay in `docs/wireframes/`.
 
