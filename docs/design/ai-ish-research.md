@@ -47,7 +47,7 @@ instead of accepting defaults
 | T3 | **Yes** | Setup = 4 stacked cards; configuration page = 3 columns of uniform rounded cards; report sections in boxes |
 | T5 | **Yes** | Info/warning/success banners have a colored left border (`BANNER_BORDER`, `WARNING_BORDER`) |
 | T6 | **Yes** | `SOFT_ACCENT` tinted table headers, pastel green/amber/blue banners, tinted legend box, amber run bar |
-| T7 | Mild | Card shadows; radial gradient targets with white ring |
+| T7 | Mild | Card shadows; radial gradient targets with white ring; since step 2 of SPEC-input-selection (2026-10-08) a soft green glow halo behind the target under Switch selection (screenshot 20; functional feedback, but a glow) |
 | T11 | Partly | Config page gives every setting equal weight; Test List is a full-width table with a detached button column |
 Not present: T4, T8, T9, T10 (no emoji, no animation-heavy UI).
 

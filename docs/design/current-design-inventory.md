@@ -1,4 +1,4 @@
-# Current design inventory (2026-10-07, branch feature/compass-task-flow)
+# Current design inventory (2026-10-07, refreshed 2026-10-08 at `c300411`, branch feature/compass-task-flow)
 
 There is no **documented** design system. There is an informal one, built page by page while the
 SPECs were implemented: a colour token list plus one stylesheet. This file lists what exists, so an
@@ -47,7 +47,16 @@ Font: the Qt default on Windows (Segoe UI); no font is set.
 - Feedback: `wtmhAlertInfo / Success / Warning / Error` (tinted, left border), badges
   `wtmhBadgeAccent / Success / Danger / Neutral` (pill, 9 px radius, 11 px text).
 - Data: `wtmhTestTable` (Test List), report tables (`FitTable`), `SliderSpinRow` (slider + spin box).
+- Forms (configuration page): radio groups with a plain label above (`Pointer (what moves the
+  pointer)`, `Selection (how a target is selected)`, icon size, cell gap, movement path); a
+  control that does not apply to the chosen Selection is **greyed in place** (label, slider and
+  spin box at the disabled colours, still laid out) rather than hidden (SPEC-input-selection
+  4.1; screenshot 17).
+- Notes (one-line, info style): the Setup page's "No tracker connected: only Mouse tests can run."
+  above the Continue button (01), the Start page's "Mouse test — ..." line under the title (19).
 - Run: run bar (amber strip: status text + Pause / Skip trial / Quit) under the canvas.
+- Small dialogs (`dialog_theme.py`): Add New Test (03), "Save as a new configuration" name prompt
+  (18): one sentence, one field, primary + ghost button, no icon.
 
 ## 4. Child-facing canvas (forest theme)
 
@@ -56,23 +65,43 @@ inactive scanning shapes in pale green; grid cells as rounded outlined boxes; fo
 fading trail; gaze cursor = small dark halo + white core; hit character = butterfly; hit/miss
 sounds. Sizes are visual-angle based (3 / 5 / 8 deg).
 
+Added by SPEC-input-selection-and-follow.md step 2 (`7b5ece6`, in the tree since the first
+captures): **Glow on target**, a soft radial halo in the theme's particle colour (forest: green)
+behind the target while the pointer is on it, drawn only under Switch selection (and, once step 3
+lands, in Follow the Target); the instant on-target ring (dark green) draws on top of it
+(screenshot 20). In a Gaze + Switch run the OS cursor is parked and hidden; in a Mouse run the OS
+arrow is the pointer and the gaze cursor is drawn at it. The scanning target's white ring is
+always a circle, also on the square, triangle and diamond shapes.
+
 ## 5. Screenshots (`screenshots/`, real app, 1920x1080 @ 100 %, 2026-10-08)
 
-| File | Page |
-|---|---|
-| 01-setup-empty | Setup (no subject, not connected) |
-| 02-test-list-empty, 04-test-list, 12-test-list-with-done | Test List (empty, Not Done, Done rows) |
-| 03-add-test-dialog | Add New Test dialog |
-| 05-config-scanning, 07-config-follow, 09-config-grid | Configuration page per task |
-| 06-run-scanning-preview, 08-run-follow-preview, 10-run-grid-preview | Task canvas (Preview, mouse) with run bar |
-| 11-start-page-blocked | Start page with the blocker banner |
-| 13-report-summary, 14-report-summary-lower, 15-report-detailed | Report (real run P9REAL: scanpath, legend, eye metrics, trial table) |
-| 16-report-pdf-grid.pdf | PDF report (A4 portrait) |
+| File | Page | Captured |
+|---|---|---|
+| 01-setup-empty | Setup (no subject, not connected; the "only Mouse tests" note) | 2026-10-08 refresh |
+| 02-test-list-empty, 04-test-list, 12-test-list-with-done | Test List (empty, Not Done, Done rows) | 2026-10-08 first set |
+| 03-add-test-dialog | Add New Test dialog | first set |
+| 05-config-scanning, 07-config-follow, 09-config-grid | Configuration page per task, default Gaze + Dwell (Input card, Dwell card, Glow) | refresh |
+| 06-run-scanning-preview, 08-run-follow-preview, 10-run-grid-preview | Task canvas (Preview, mouse, Dwell) with run bar | first set |
+| 11-start-page-blocked | Start page of a Gaze test with the blocker banner | first set |
+| 13-report-summary, 14-report-summary-lower, 15-report-detailed | Report (real run P9REAL: scanpath, legend, eye metrics, trial table) | first set |
+| 16-report-pdf-grid.pdf | PDF report (A4 portrait) | first set |
+| 17-config-scanning-mouse-switch | Configuration page with Pointer = Mouse, Selection = Switch: dwell threshold and dwell ring greyed in place, "Modified from Standard" | refresh |
+| 18-config-name-dialog | "Save as a new configuration" prompt (Save & Continue after changing Standard) | refresh |
+| 19-start-page-mouse | Start page of a Mouse test: no blocker, the "Mouse test — the tracker is not connected..." note, switch wording in the read-aloud text | refresh |
+| 20-run-scanning-switch-glow | Scanning practice under Mouse + Switch with the pointer on the target: green glow halo + dark instant ring, run bar "mouse pointer" | refresh |
+
+Capture method: the first set is a screen grab of the maximized window (1920x1080, Windows
+taskbar visible at the bottom); the refresh is an OS PrintWindow of the window
+(`tools/qa/capture_window.ps1`, 1936x1048, the 8 px window frame included, no taskbar). Same
+window size and scale in both.
 
 Not captured (need a recorded run or an open dialog flow): Test Complete / quit / discard
-dialogs, rename and configuration-save dialogs, calibration details. Their layout is in
-`docs/wireframes/run-end.md` and `task-config.md`.
+dialogs, rename dialog, calibration details. Their layout is in `docs/wireframes/run-end.md` and
+`task-config.md`.
 
-Note: these screenshots predate SPEC-input-selection-and-follow.md (Input card, Switch, Follow
-the Target) and SPEC-subject-data-layout.md (Setup folder choice). Re-capture after those land if
-the evaluation should include them.
+State of the tree: the screenshots show `c300411`, which has SPEC-input-selection-and-follow.md
+steps 1-2 (Input card, Switch, Mouse, Glow). **Step 3 (Follow the Target: Pointer-only Follow page
+without the Dwell card, "Trial duration", no Selection window) is built but not merged**, so 07
+and 08 still show Follow & Click with a Dwell card and a Selection window. Step 4 (report tables
+for Switch and Follow) and SPEC-subject-data-layout.md (Setup folder choice) are not built. The
+wireframes in `docs/wireframes/task-config.md` and `report-*.md` show the intended end state.
