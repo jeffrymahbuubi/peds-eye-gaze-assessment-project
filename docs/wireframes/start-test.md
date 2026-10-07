@@ -12,6 +12,12 @@ Still needed before you can start: The tracker is not connected. Connect it on t
 
 > **Blocker banner:** shown only when something is missing (the list comes from `SetupPage.run_blockers()`). Start and Practice are disabled while it shows. It is checked again every second, because the tracker can drop. It is hidden when there is nothing to fix.
 
+::: alert error
+The data folder path is too long — move the program folder closer to the drive root.
+:::
+
+> **Path blocker** (SPEC-subject-data-layout.md H9): before a recorded run, the app works out the longest path the run will write (run files and the PDF). Over 240 characters, this line shows and **Start** is disabled. **Practice stays enabled**, because practice writes nothing. Checked when the page opens; a path cannot change while it is open. With today's layout it appears only when the program folder itself is about 130+ characters deep.
+
 ::: alert info
 Mouse test — the tracker is not connected, so no eye data will be recorded.
 :::

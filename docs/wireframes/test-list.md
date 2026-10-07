@@ -30,6 +30,8 @@
 
 [Delete Test]{.outline}
 
+[Open Subject Folder]{.outline}
+
 :::
 
 > **Selected row:** "Grid Click 1" (Not Done). The buttons on the right follow the matrix below. Disabled buttons stay visible and grey, never hidden.
@@ -40,6 +42,8 @@
 | Not Done | on | on | on | off | on | on |
 | Done | on | off | off | on | on | on |
 | Ended early | on | off | off | on | on | on |
+
+> **Open Subject Folder** (SPEC-subject-data-layout.md H6): opens this subject's folder (`sessions/P9REAL` or `sessions/S-0003`) in Explorer. On whenever a subject folder exists, whatever row is selected; off for a subject with nothing saved yet. Not part of the row matrix below.
 
 > **Run Test is never disabled by Setup (R2).** It always opens the Start page, which lists anything still missing (tracker, calibration, ...) and disables Start/Practice there. View Report is off when the data folder is missing ("· data missing").
 
@@ -85,7 +89,7 @@ No tests yet. Choose Add New Test.
 
 **Unreadable test file** (muted line under the table)
 
-1 test file(s) could not be read and are hidden: sessions/_tests/TESTING
+1 test file(s) could not be read and are hidden: sessions/TESTING/tests
 
 :::
 
@@ -126,13 +130,13 @@ How many
 
 ## Delete Test
 
-Delete 'Static Click 1' from this list? Its recorded data in the sessions folder is kept.
+Delete 'Static Click 1' from this list? Its recorded data in the subject folder is kept.
 
 [Delete]{variant:danger} [Keep]*
 
 :::
 
-> Cancel ("Keep") is the default button. The record moves to `_tests/SUBJECT/_deleted/`; session folders are never touched.
+> Cancel ("Keep") is the default button. The record moves to `tests/_deleted/` inside the subject folder; run folders are never touched.
 
 ::: modal
 

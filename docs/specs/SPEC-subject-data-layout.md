@@ -4,7 +4,7 @@ title: Per-subject data folders — one folder per child holding calibrations, s
 status: approved 2026-10-07 (D1-D6, H1-H13)
 created: 2026-10-07
 last_updated: 2026-10-08
-next_step: READY (SPEC-input-selection-and-follow.md steps 1-4 landed `4cbbce0` 2026-10-08; only its device-bound live check A10 is open and does not touch these files): /spec-run this SPEC from step 1 (wireframes: Setup folder-name choice, Test List "Open Subject Folder", Start path blocker)
+next_step: step 2+3 (engine + UI) with the spec-implementer; wireframes approved 2026-10-08
 related:
   - SPEC-compass-task-flow.md (Test List store 4A, run end / Discard 4C.6, report + PDF 4D; branch feature/compass-task-flow, U17)
   - SPEC-input-selection-and-follow.md (adds pointer_stream.csv inside a run folder; built first)
@@ -181,6 +181,20 @@ condensed in §2 and §3.2.
 - Test List: "Open Subject Folder" button (H6).
 - Start page: the H9 path-too-long blocker line.
 
+Wireframe-gate details (user OK 2026-10-08, `docs/wireframes/setup.md`, `test-list.md`, `start-test.md`):
+- **W1 Setup:** the "Folder name: (•) Subject ID ( ) Anonymous code (S-000N)" radio pair sits
+  directly under Subject ID, shown only while the typed id matches no `subject.json`; the code
+  label shows the code that would be assigned. Tooltip on "Anonymous code": "The folder is named
+  S-000N instead of the Subject ID, so Explorer and zip file names do not show it. The files inside
+  still contain the Subject ID." Existing subject: one read-only muted line "Folder: S-0003
+  (Anonymous code)" / "Folder: P9REAL (Subject ID)" in its place.
+- **W2 Test List:** "Open Subject Folder" (outline) is the last button of the right-hand column;
+  enabled whenever the subject folder exists, independent of the row selection; disabled for a
+  subject with nothing saved yet. Delete dialog text: "Its recorded data in the subject folder is
+  kept." Unreadable-file line names `sessions/<subject folder>/tests`.
+- **W3 Start:** the H9 line is an error alert, separate from the blocker banner. It disables
+  **Start only; Practice stays enabled** (practice writes nothing). Evaluated when the page opens.
+
 ## 5. Scope
 
 **In:** H1-H13; tests re-anchored to the new layout; the one-time migration of today's data.
@@ -211,7 +225,7 @@ data; renaming run files; changing what a run folder contains; network/OneDrive 
 | Step | Content | Gate |
 |---|---|---|
 | 0 | SPEC-input-selection-and-follow.md done (D6) | — |
-| 1 | Wireframes: `setup` (folder-name choice), `test-list` (Open Subject Folder), `start-test` (path blocker) | **WF gate** |
+| 1 | Wireframes: `setup` (folder-name choice), `test-list` (Open Subject Folder), `start-test` (path blocker) — **DONE 2026-10-08** | **WF gate** |
 | 2 | Engine: `output_root()`, subject resolver + `subject.json`, `new_run_dir`, `run_dir` link, stores re-anchored, discard guard, diagnostics/replay paths, path budget | — |
 | 3 | UI: Setup choice, Test List button, PDF default, Start blocker, texts | — |
 | 4 | Migration script (dry run on a copy, then `--apply` on the real `sessions/` only on the user's OK) | user |
@@ -233,3 +247,4 @@ data; renaming run files; changing what a run folder contains; network/OneDrive 
   migration of v1.0.0 exe data, and building after the input-selection SPEC (D1-D6). Hub decisions
   H1-H13 proposed, awaiting approval.
 - **2026-10-07** — The user approved H1-H13 as written. SPEC committed on `feature/compass-task-flow`. Next: after the input-selection SPEC, /spec-run this SPEC from step 1 (wireframes).
+- **2026-10-08** — Step 1: wireframes `setup`, `test-list`, `start-test` updated (folder-name choice, Open Subject Folder, path blocker). The user approved them as drawn, incl. two hub choices: Practice stays enabled under the path blocker, and Open Subject Folder sits in the button column outside the row matrix (§4 W1-W3). Next: steps 2-3 with the spec-implementer.

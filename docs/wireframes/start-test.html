@@ -542,6 +542,13 @@ body.wmd-root {
   <p class="wmd-paragraph"><strong>Blocker banner:</strong> shown only when something is missing (the list comes from <code>SetupPage.run_blockers()</code>). Start and Practice are disabled while it shows. It is checked again every second, because the tracker can drop. It is hidden when there is nothing to fix.</p>
 </blockquote>
 <div class="wmd-container-alert">
+  <p class="wmd-paragraph">error</p>
+  <p class="wmd-paragraph">The data folder path is too long — move the program folder closer to the drive root.</p>
+</div>
+<blockquote class="wmd-blockquote">
+  <p class="wmd-paragraph"><strong>Path blocker</strong> (SPEC-subject-data-layout.md H9): before a recorded run, the app works out the longest path the run will write (run files and the PDF). Over 240 characters, this line shows and <strong>Start</strong> is disabled. <strong>Practice stays enabled</strong>, because practice writes nothing. Checked when the page opens; a path cannot change while it is open. With today's layout it appears only when the program folder itself is about 130+ characters deep.</p>
+</blockquote>
+<div class="wmd-container-alert">
   <p class="wmd-paragraph">info</p>
   <p class="wmd-paragraph">Mouse test — the tracker is not connected, so no eye data will be recorded.</p>
 </div>

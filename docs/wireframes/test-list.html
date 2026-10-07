@@ -593,6 +593,7 @@ body.wmd-root {
     <button class="wmd-button wmd-state-disabled" disabled>View Report</button>
     <button class="wmd-button wmd-outline">Copy Test</button>
     <button class="wmd-button wmd-outline">Delete Test</button>
+    <button class="wmd-button wmd-outline">Open Subject Folder</button>
   </div>
 </div>
 <blockquote class="wmd-blockquote">
@@ -650,6 +651,9 @@ body.wmd-root {
   </tbody>
 </table>
 <blockquote class="wmd-blockquote">
+  <p class="wmd-paragraph"><strong>Open Subject Folder</strong> (SPEC-subject-data-layout.md H6): opens this subject's folder (<code>sessions/P9REAL</code> or <code>sessions/S-0003</code>) in Explorer. On whenever a subject folder exists, whatever row is selected; off for a subject with nothing saved yet. Not part of the row matrix below.</p>
+</blockquote>
+<blockquote class="wmd-blockquote">
   <p class="wmd-paragraph"><strong>Run Test is never disabled by Setup (R2).</strong> It always opens the Start page, which lists anything still missing (tracker, calibration, ...) and disables Start/Practice there. View Report is off when the data folder is missing ("· data missing").</p>
 </blockquote>
 <blockquote class="wmd-blockquote">
@@ -686,7 +690,7 @@ body.wmd-root {
 </div>
 <div class="wmd-container-card">
   <p class="wmd-paragraph"><strong>Unreadable test file</strong> (muted line under the table)</p>
-  <p class="wmd-paragraph">1 test file(s) could not be read and are hidden: sessions/_tests/TESTING</p>
+  <p class="wmd-paragraph">1 test file(s) could not be read and are hidden: sessions/TESTING/tests</p>
 </div>
 <hr class="wmd-separator" />
 <h2 class="wmd-h2">Modals &amp; Dialogs</h2>
@@ -720,14 +724,14 @@ Find the cued shape in a field of distractors — visual search.</p>
 </blockquote>
 <div class="wmd-container-modal">
   <h2 class="wmd-h2">Delete Test</h2>
-  <p class="wmd-paragraph">Delete &#039;Static Click 1&#039; from this list? Its recorded data in the sessions folder is kept.</p>
+  <p class="wmd-paragraph">Delete &#039;Static Click 1&#039; from this list? Its recorded data in the subject folder is kept.</p>
   <div class="wmd-container-button-group">
   <button class="wmd-button wmd-button-danger">Delete</button>
   <button class="wmd-button wmd-button-primary">Keep</button>
 </div>
 </div>
 <blockquote class="wmd-blockquote">
-  <p class="wmd-paragraph">Cancel ("Keep") is the default button. The record moves to <code>_tests/SUBJECT/_deleted/</code>; session folders are never touched.</p>
+  <p class="wmd-paragraph">Cancel ("Keep") is the default button. The record moves to <code>tests/_deleted/</code> inside the subject folder; run folders are never touched.</p>
 </blockquote>
 <div class="wmd-container-modal">
   <h2 class="wmd-h2">Rename (in place, F2)</h2>
