@@ -301,7 +301,7 @@ re-run the task to feel the new pacing. Full diagnosis behind these settings:
 ## Tests & lint
 
 ```bash
-pytest        # 1997 passed, 2 skipped, all headless (offscreen Qt, no device); the one long-known
+pytest        # 2029 passed, 2 skipped, all headless (offscreen Qt, no device); the one long-known
               # local-config failure, test_config_merges_task_over_default, only shows on a machine
               # whose skip-worktree configs/default.yaml differs, see docs/specs
 ruff check .

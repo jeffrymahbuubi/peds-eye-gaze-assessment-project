@@ -12,19 +12,27 @@ import pytest
 
 os.environ.setdefault("QT_QPA_PLATFORM", "offscreen")
 
-from PySide6.QtCore import QRectF, QSize
-from PySide6.QtGui import QColor, QImage
+from PySide6.QtCore import QPointF, QRectF, QSize
+from PySide6.QtGui import QColor, QFont, QImage, QPainter
 from PySide6.QtWidgets import QApplication
 
 from src.ui.target_map import TargetMapWidget
 from src.ui.target_map_paint import (
+    BADGE_PAD,
     DEFAULT_ASPECT,
     HEAT_FLOOR,
+    TRIAL_PATH_DARK,
+    TRIAL_PATH_LIGHT,
+    _label,
+    badge_pill,
     build_model,
     canvas_logical_width,
+    digits_height,
+    fit_font,
     heat_colour,
     heat_image,
 )
+from tests.colour_helpers import contrast, luminance
 from tests.report_ui_fixtures import folder_report, synthetic_map_report
 
 ASPECT = round(1640 / 957, 5)
@@ -391,14 +399,11 @@ def test_fixation_circles_grow_with_duration_and_the_path_runs_dark_to_light(qap
     image, rect = render(report, trial=0)
 
     def extent(x: float, y: float) -> int:
-        """Pixels of non-white to the right of the centre along the row."""
+        """Width of the non-white span along the row through the centre (the number badge
+        in the middle is white, so the ring and the tint are what is measured)."""
         cx, cy = round(rect.left() + x * rect.width()), round(rect.top() + y * rect.height())
-        count = 0
-        for dx in range(1, 80):
-            if is_white(image.pixelColor(cx + dx, cy - 3)):
-                break
-            count += 1
-        return count
+        inked = [dx for dx in range(-80, 81) if not is_white(image.pixelColor(cx + dx, cy))]
+        return inked[-1] - inked[0] if inked else 0
 
     assert extent(0.5, 0.2) > extent(0.2, 0.2)  # the 700 ms fixation is the bigger circle
     early, late = at(image, rect, 0.1, 0.8), at(image, rect, 0.9, 0.8)
@@ -450,3 +455,114 @@ def test_the_widget_does_not_modify_the_report_it_is_given(qapp):
     render(report, targets=True, path=True, heat=True)
     render(report, trial=1)
     assert report == before
+
+
+# -- P9b: readable numbers, a legible start marker, a ramp that stays visible (P3, P4) ---------------------
+
+
+def pill_of(text: str, size: float, max_width: float):
+    """What the map draws behind ``text``: its pill and glyph box, centred on the origin."""
+    font, metrics, width = fit_font(QFont(), text, size, max_width)
+    return badge_pill(QPointF(0, 0), font, metrics, width), width, digits_height(font, metrics), font.pixelSize()
+
+
+def one_fixation_report(duration_ms: float, outcome: str = "timeout") -> dict:
+    """Trial 1 with one fixation at the middle of a straight path (y = 0.3), no target at
+    the start, so only the path, the fixation and the markers are in the way."""
+    report = synthetic_map_report()
+    trial = report["trials"][0]
+    trial["outcome"] = outcome
+    trial["path"] = [[[0.1, 0.3], [0.9, 0.3]]]
+    trial["fixations"]["items"] = [[0.5, 0.3, duration_ms]]
+    return report
+
+
+def test_the_number_of_a_missed_target_sits_on_a_white_badge_drawn_after_the_x(qapp):
+    """P3: the red X used to run through the digits. The pill is drawn over the X, so no
+    X-red pixel is left inside the digits' box, while the arms still show beyond the pill."""
+    image, rect = render(synthetic_map_report())
+    r_px = 0.05 * rect.width()
+    unit = max(0.5, rect.width() / 900.0)
+    pill, width, digits, _ = pill_of("2", min(26 * unit, max(9.0, r_px * 0.75)), 1.7 * r_px)
+    cx, cy = rect.left() + 0.3 * rect.width(), rect.top() + 0.7 * rect.height()
+    red_in_box = [
+        (x, y)
+        for x in range(round(cx - width / 2), round(cx + width / 2) + 1)
+        for y in range(round(cy - digits / 2), round(cy + digits / 2) + 1)
+        if reddish(image.pixelColor(x, y))
+    ]
+    assert red_in_box == []  # the X's arms cross exactly here (they met at the digits before)
+    assert reddish(at(image, rect, 0.3, 0.7, 0.6 * r_px, 0.6 * r_px))  # the arms continue past the pill
+    assert reddish(at(image, rect, 0.3, 0.7, -0.6 * r_px, 0.6 * r_px))
+    assert pill.width() / 2 < 0.6 * r_px and pill.height() / 2 < 0.6 * r_px  # the badge is small
+
+
+def test_a_hit_label_keeps_its_green_disc_with_no_badge(qapp):
+    image, rect = render(synthetic_map_report())
+    r_px = 0.05 * rect.width()
+    assert greenish(at(image, rect, 0.65, 0.5, 0.25 * r_px, 0.25 * r_px))  # the number is white on green
+
+
+def test_label_draws_its_badge_behind_the_text_and_only_when_asked(qapp):
+    image = QImage(200, 100, QImage.Format.Format_ARGB32)
+    image.fill(QColor("#000000"))
+    painter = QPainter(image)
+    centre = QPointF(100, 50)
+    _label(painter, centre, "12", "#FF0000", 400.0, 24, ("#FFFFFF", "#00FF00"))
+    painter.end()
+    pill, width, digits, pixel_size = pill_of("12", 24, 400.0)
+    inside = round(100 + width / 2 + 0.5 * BADGE_PAD * pixel_size)
+    outside = round(100 + pill.width() / 2 + 4)
+    assert image.pixelColor(inside, 50) == QColor("#FFFFFF")  # on the badge, past the digits
+    assert image.pixelColor(outside, 50) == QColor("#000000")  # the badge ends where it should
+    bare = QImage(200, 100, QImage.Format.Format_ARGB32)
+    bare.fill(QColor("#000000"))
+    painter = QPainter(bare)
+    _label(painter, centre, "12", "#FF0000", 400.0, 24)
+    painter.end()
+    assert bare.pixelColor(inside, 50) == QColor("#000000")  # no badge unless asked
+
+
+def test_a_fixation_covers_the_path_and_its_number_sits_on_a_white_badge(qapp):
+    """P4: a path line used to show through the translucent fixation circle and run under
+    its number. The circle is opaque (tint over white) and the number has its own badge."""
+    image, rect = render(one_fixation_report(500), trial=0)
+    unit = rect.width() / 900.0
+    radius = rect.width() * min(0.03, max(0.006, 500 * 0.00004))
+    cx, cy = rect.left() + 0.5 * rect.width(), rect.top() + 0.3 * rect.height()
+    path_on_row = image.pixelColor(round(cx + 1.6 * radius), round(cy))
+    assert luminance(path_on_row) < 0.3  # the path is drawn, outside the circle
+    inside = image.pixelColor(round(cx + 0.9 * radius), round(cy))  # on the path's row, inside the ring
+    assert luminance(inside) > 0.6 and inside != path_on_row
+    pill, width, digits, pixel_size = pill_of("1", max(9.0, radius), 1.8 * radius)
+    badge = image.pixelColor(round(cx + width / 2 + 0.5 * BADGE_PAD * pixel_size), round(cy))
+    assert badge == QColor("#FFFFFF")  # the badge is pure white, the circle's tint is not
+    assert unit > 0
+
+
+def test_the_start_marker_is_a_bigger_disc_than_the_old_eight_design_pixels(qapp):
+    report = synthetic_map_report()
+    trial = report["trials"][0]
+    trial["fixations"]["items"] = []
+    trial["path"] = [[[0.2, 0.2], [0.8, 0.2]]]
+    trial["outcome"] = "timeout"
+    image, rect = render(report, trial=0)
+    unit = rect.width() / 900.0
+    radius = max(13 * unit, 10.0)
+    sx, sy = rect.left() + 0.2 * rect.width(), rect.top() + 0.2 * rect.height()
+    ring = image.pixelColor(round(sx), round(sy - radius))
+    assert luminance(ring) < 0.2  # the INK ring of the new, larger disc
+    assert is_white(image.pixelColor(round(sx), round(sy - radius - 4 * unit)))  # nothing larger around it
+    assert radius > 8 * unit  # it was 8 design px
+
+
+def test_the_light_end_of_the_path_ramp_stays_visible_on_white(qapp):
+    white = QColor("#FFFFFF")
+    assert contrast(TRIAL_PATH_LIGHT, white) >= 3.0  # was a pale cyan, about 1.7
+    assert luminance(TRIAL_PATH_DARK) < luminance(TRIAL_PATH_LIGHT)  # still dark to light
+    report = synthetic_map_report()
+    report["trials"][0]["fixations"]["items"] = []
+    report["trials"][0]["path"] = [[[0.05 + 0.9 * i / 29, 0.8] for i in range(30)]]
+    image, rect = render(report, trial=0)
+    newest = at(image, rect, 0.93, 0.8)
+    assert contrast(newest, white) >= 2.8  # the newest end of the drawn path, not just the constant

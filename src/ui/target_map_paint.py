@@ -28,7 +28,10 @@ DEFAULT_ASPECT = 16 / 9
 MIN_RADIUS = 0.02  # canvas-x units, for a mark whose radius the folder lacks
 HEAT_FLOOR = 0.05  # heat values below this are transparent (4D.5)
 PATH_COLOURS = ("#1F77B4", "#E08A00", "#7B52AB", "#8C564B", "#D6479A", "#17A2B8")
-TRIAL_PATH_DARK, TRIAL_PATH_LIGHT = QColor("#0F3D52"), QColor("#8FD3E8")
+# The path of one trial runs from the first colour to the second with time. The second is still a
+# strong teal (3:1 against white), so the newest end of the path does not wash out on the canvas.
+TRIAL_PATH_DARK, TRIAL_PATH_LIGHT = QColor("#0F3D52"), QColor("#2B8CB0")
+BADGE_PAD = 0.25  # a number badge reaches this fraction of the font's pixel size past its digits
 
 
 @dataclass
@@ -144,11 +147,10 @@ def _alpha(colour: str, alpha: int) -> QColor:
     return out
 
 
-def _label(p: QPainter, centre: QPointF, text: str, colour: str, max_width: float, size: float) -> None:
-    """``text`` centred on ``centre``, shrunk to fit ``max_width`` (no smaller than 7 px)."""
-    if not text:
-        return
-    font = QFont(p.font())
+def fit_font(base: QFont, text: str, size: float, max_width: float) -> tuple[QFont, QFontMetricsF, float]:
+    """The bold font a label of ``text`` is drawn in: ``size`` px, shrunk to fit ``max_width``
+    (no smaller than 7 px). Returns ``(font, its metrics, the text's width)``."""
+    font = QFont(base)
     font.setBold(True)
     font.setPixelSize(max(7, round(size)))
     metrics = QFontMetricsF(font)
@@ -157,9 +159,47 @@ def _label(p: QPainter, centre: QPointF, text: str, colour: str, max_width: floa
         font.setPixelSize(max(7, round(font.pixelSize() * max_width / width)))
         metrics = QFontMetricsF(font)
         width = metrics.horizontalAdvance(text)
+    return font, metrics, width
+
+
+def digits_height(font: QFont, metrics: QFontMetricsF) -> float:
+    """The height the digits of ``font`` occupy (the label is centred on it)."""
+    return max(metrics.ascent() - metrics.descent(), 0.6 * font.pixelSize())
+
+
+def badge_pill(centre: QPointF, font: QFont, metrics: QFontMetricsF, width: float) -> QRectF:
+    """The pill behind a label's digits: the text's width and the digits' height plus
+    :data:`BADGE_PAD` of the font's pixel size on every side."""
+    pad = BADGE_PAD * font.pixelSize()
+    height = digits_height(font, metrics)
+    return QRectF(centre.x() - width / 2 - pad, centre.y() - height / 2 - pad, width + 2 * pad, height + 2 * pad)
+
+
+def _label(
+    p: QPainter,
+    centre: QPointF,
+    text: str,
+    colour: str,
+    max_width: float,
+    size: float,
+    badge: tuple[QColor | str, QColor | str] | None = None,
+) -> None:
+    """``text`` centred on ``centre``, shrunk to fit ``max_width`` (no smaller than 7 px).
+
+    ``badge`` is ``(fill, outline)`` of a small pill drawn behind the digits, so the number
+    stays readable over whatever is under it (the X of a missed target, the gaze path)."""
+    if not text:
+        return
+    font, metrics, width = fit_font(p.font(), text, size, max_width)
     p.setFont(font)
+    if badge is not None:
+        pill = badge_pill(centre, font, metrics, width)
+        p.setPen(_pen(badge[1], 1))
+        p.setBrush(QColor(badge[0]))
+        p.drawRoundedRect(pill, pill.height() / 2, pill.height() / 2)
+        p.setBrush(Qt.BrushStyle.NoBrush)
     p.setPen(_pen(colour, 1))
-    p.drawText(QPointF(centre.x() - width / 2, centre.y() + (metrics.ascent() - metrics.descent()) / 2), text)
+    p.drawText(QPointF(centre.x() - width / 2, centre.y() + digits_height(font, metrics) / 2), text)
 
 
 def _circle(p: QPainter, centre: QPointF, radius: float) -> None:
@@ -170,6 +210,7 @@ def _paint_mark(p: QPainter, rect: QRectF, mark: dict[str, Any], unit: float) ->
     centre = _point(rect, mark["x"], mark["y"])
     radius = max(mark.get("r") or 0.0, MIN_RADIUS) * rect.width()
     outcome = mark.get("outcome")
+    badge = None
     p.setBrush(Qt.BrushStyle.NoBrush)
     if outcome == "hit":
         p.setPen(_pen(SUCCESS, 2 * unit))
@@ -184,13 +225,14 @@ def _paint_mark(p: QPainter, rect: QRectF, mark: dict[str, Any], unit: float) ->
         p.drawLine(QPointF(centre.x() - d, centre.y() - d), QPointF(centre.x() + d, centre.y() + d))
         p.drawLine(QPointF(centre.x() - d, centre.y() + d), QPointF(centre.x() + d, centre.y() - d))
         text_colour = INK
+        badge = (PANEL_BG, _alpha(DANGER, 170))  # drawn after the X: the number stays readable
     else:  # skipped (or an outcome the report could not tell): a dashed grey ring
         p.setPen(_pen(MUTED, 2 * unit, Qt.PenStyle.DashLine))
         _circle(p, centre, radius)
         text_colour = INK
     p.setBrush(Qt.BrushStyle.NoBrush)
     size = min(26 * unit, max(9.0, radius * 0.75))
-    _label(p, centre, str(mark.get("label", "")), text_colour, 1.7 * radius, size)
+    _label(p, centre, str(mark.get("label", "")), text_colour, 1.7 * radius, size, badge)
 
 
 def _paint_slots(p: QPainter, rect: QRectF, model: MapModel, unit: float) -> None:
@@ -270,17 +312,24 @@ def _paint_trial(p: QPainter, rect: QRectF, model: MapModel, trial: dict[str, An
     for number, (fx, fy, dur_ms) in enumerate(trial.get("fixations", {}).get("items", []), start=1):
         radius = rect.width() * min(0.03, max(0.006, float(dur_ms) * 0.00004))
         centre = _point(rect, fx, fy)
+        # Opaque white under the tint, so the gaze path (drawn before) never shows through
+        # a fixation, and a badge behind the number, so the number never sits on the path.
+        p.setPen(Qt.PenStyle.NoPen)
+        p.setBrush(QColor(PANEL_BG))
+        _circle(p, centre, radius)
         p.setPen(_pen(ACCENT, 1.5 * unit))
         p.setBrush(_alpha(ACCENT, 70))
         _circle(p, centre, radius)
-        _label(p, centre, str(number), INK, 1.8 * radius, max(9.0, radius))
+        # The badge may be wider than a short fixation's circle, so its number is not shrunk to it.
+        _label(p, centre, str(number), INK, max(1.8 * radius, 12.0), max(9.0, radius), (PANEL_BG, ACCENT))
 
     if points:
         start = _point(rect, *points[0])
+        s_radius = max(13 * unit, 10.0)  # big enough for a legible letter (it was 8 design px)
         p.setPen(_pen(INK, 2 * unit))
         p.setBrush(QColor(PANEL_BG))
-        _circle(p, start, 8 * unit)
-        _label(p, start, "S", INK, 14 * unit, 11 * unit)
+        _circle(p, start, s_radius)
+        _label(p, start, "S", INK, 1.7 * s_radius, max(17 * unit, 13.0))
         if outcome == "hit" and len(points) > 1:
             p.setPen(_pen(INK, unit))
             p.setBrush(QColor("#F2B705"))

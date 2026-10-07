@@ -44,6 +44,10 @@ MUTED = "#5C7684"
 DANGER = "#E15353"
 SUCCESS = "#2F9E6E"
 NEUTRAL_BADGE_BG = "#E6EDF1"
+# A disabled button reads "off" (grey fill and border, muted text, 3:1 on the fill), and an
+# unchecked radio / check box has an outline that shows on white (3:1) -- BORDER is for cards.
+DISABLED_BG, DISABLED_BORDER, DISABLED_TEXT = "#E9EDF0", "#CDD6DC", "#6F808A"
+CONTROL_BORDER = "#7B93A1"
 # Muted left-border for static info/warning banners -- deliberately NOT the
 # same vivid ACCENT used for primary-button gradients/focus rings, so a
 # banner never reads as a clickable CTA (SPEC-ui-setup-task-selection.md
@@ -186,8 +190,8 @@ QPushButton#wtmhPrimary, QPushButton#cfgSave {{
 }}
 QPushButton#wtmhPrimary:hover, QPushButton#cfgSave:hover {{ background: {ACCENT_GRADIENT_END}; }}
 QPushButton#wtmhPrimary:disabled, QPushButton#cfgSave:disabled {{
-    background: {SOFT_ACCENT};
-    color: {SOFT_ACCENT_TEXT};
+    background: {DISABLED_BG};
+    color: {DISABLED_TEXT};
 }}
 
 QPushButton#wtmhSecondary {{
@@ -215,7 +219,7 @@ QPushButton#wtmhGhost, QPushButton#cfgPreview, QPushButton#cfgCancel, QPushButto
 QPushButton#wtmhGhost:hover, QPushButton#cfgPreview:hover, QPushButton#cfgCancel:hover,
 QPushButton#cfgReset:hover {{ background: {SOFT_ACCENT}; border-color: {ACCENT}; }}
 QPushButton#wtmhGhost:disabled, QPushButton#cfgPreview:disabled, QPushButton#cfgCancel:disabled,
-QPushButton#cfgReset:disabled {{ color: {MUTED}; border-color: {BORDER}; }}
+QPushButton#cfgReset:disabled {{ color: {DISABLED_TEXT}; background: {DISABLED_BG}; border-color: {DISABLED_BORDER}; }}
 
 QFrame#wtmhCard {{
     background: {PANEL_BG};
@@ -416,7 +420,7 @@ QWidget#wtmhDashboard QSpinBox::down-arrow, QWidget#wtmhDashboard QDoubleSpinBox
 QWidget#wtmhDashboard QCheckBox::indicator {{
     width: 15px;
     height: 15px;
-    border: 1px solid {BORDER};
+    border: 1px solid {CONTROL_BORDER};
     border-radius: 4px;
     background: {PANEL_BG};
 }}
@@ -435,7 +439,7 @@ QWidget#wtmhDashboard QRadioButton {{ color: {INK}; }}
 QWidget#wtmhDashboard QRadioButton::indicator {{
     width: 14px;
     height: 14px;
-    border: 1px solid {BORDER};
+    border: 1px solid {CONTROL_BORDER};
     border-radius: 8px;
     background: {PANEL_BG};
 }}

@@ -8,7 +8,8 @@ import pytest
 
 os.environ.setdefault("QT_QPA_PLATFORM", "offscreen")
 
-from PySide6.QtCore import Qt
+from PySide6.QtCore import QCoreApplication, QEvent, Qt
+from PySide6.QtGui import QFont
 from PySide6.QtWidgets import QApplication, QDialog, QLabel
 
 from src.engine.task_info import TASK_INFO
@@ -92,3 +93,72 @@ def test_ask_returns_the_choice_or_none(qapp, monkeypatch):
 def test_enter_does_not_add_by_accident(qapp):
     dialog = AddTestDialog()
     assert not dialog.add_button.autoDefault() and not dialog.cancel_button.autoDefault()
+
+
+# -- F6: every row is as tall as its label needs ----------------------------------------------------------------
+
+
+def rows_of(dialog):
+    return [(dialog.task_list.item(r), dialog.task_list.itemWidget(dialog.task_list.item(r)))
+            for r in range(dialog.task_list.count())]
+
+
+def shown_dialog(font_points: int | None = None) -> AddTestDialog:
+    dialog = AddTestDialog()
+    if font_points is not None:  # a non-default font on the dialog and on every row
+        font = QFont(dialog.font())
+        font.setPointSize(font_points)
+        dialog.setFont(font)
+        for _, label in rows_of(dialog):
+            label.setFont(font)
+    dialog.show()
+    QCoreApplication.processEvents()
+    QCoreApplication.processEvents()
+    return dialog
+
+
+@pytest.mark.parametrize("font_points", [None, 14, 22])
+def test_every_row_is_as_tall_as_its_label_needs_and_nothing_squeezes_the_label(qapp, font_points):
+    """The descenders of the grey line were cut because the row's padding made the label
+    shorter than its own size hint. A row's height, its on-screen rectangle and the label's
+    real height must all be at least what the label asks for."""
+    dialog = shown_dialog(font_points)
+    for item, label in rows_of(dialog):
+        needs = label.sizeHint().height()
+        assert item.sizeHint().height() >= needs
+        assert dialog.task_list.visualItemRect(item).height() >= needs
+        assert label.height() >= needs  # the label is laid out at its full height: both lines show
+
+
+@pytest.mark.parametrize(
+    "kind",
+    [QEvent.Type.FontChange, QEvent.Type.StyleChange, QEvent.Type.DevicePixelRatioChange, QEvent.Type.Polish],
+    ids=lambda kind: kind.name,
+)
+def test_a_change_of_font_style_or_scale_measures_the_rows_again(qapp, kind):
+    dialog = shown_dialog()
+    item, label = rows_of(dialog)[0]
+    before = item.sizeHint().height()
+    label.setText(label.text() + "<br>a third line<br>and a fourth line")  # the label now needs more
+    assert label.sizeHint().height() > before
+    QCoreApplication.sendEvent(label, QEvent(kind))
+    assert item.sizeHint().height() == label.sizeHint().height() > before
+    QCoreApplication.processEvents()
+    assert label.height() >= label.sizeHint().height()
+
+
+def test_a_dialog_that_is_shown_again_measures_the_rows_once_more(qapp):
+    dialog = shown_dialog()
+    item, label = rows_of(dialog)[1]
+    dialog.hide()
+    label.setText(label.text() + "<br>one more line")
+    dialog.show()
+    QCoreApplication.processEvents()
+    assert item.sizeHint().height() == label.sizeHint().height()
+
+
+def test_the_list_gives_its_items_no_padding_of_their_own(qapp):
+    """The root cause of F6: an item widget is laid out inside the item's padding box."""
+    from src.ui.dialog_theme import ITEM_VIEW_STYLESHEET
+
+    assert "padding" not in ITEM_VIEW_STYLESHEET
