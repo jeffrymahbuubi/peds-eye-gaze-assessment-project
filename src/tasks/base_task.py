@@ -318,7 +318,7 @@ class BaseTask:
         Default: the configured radius. A task whose layout can be too small
         for it (click_grid's cells) overrides this to cap it. Computed from the
         live canvas size, not baked in at ``build_targets`` time, because the
-        canvas resizes mid-run (HUD hide/show, window resize) -- SPEC-target-
+        canvas resizes mid-run (window resize) -- SPEC-target-
         size-and-motion-paths.md S4.3.
         """
         return target.radius_px
@@ -597,7 +597,7 @@ class BaseTask:
         target = self.targets[self._trial_index]
         self._trial_start_ns = t_ns
         # The radius in effect at trial start is what trials.csv records; a
-        # mid-trial HUD toggle is already visible as a CANVAS_RESIZED event.
+        # mid-trial window resize is already visible as a CANVAS_RESIZED event.
         radius = self.effective_radius_px(target)
         # Likewise the position: the one actually used (possibly pulled inward
         # from the configured one to stay on the canvas).

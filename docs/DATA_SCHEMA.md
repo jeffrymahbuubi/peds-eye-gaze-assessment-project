@@ -1,18 +1,36 @@
 # Data Schema
 
-Each session writes one folder under the output root (default `sessions/`):
+Each recorded run writes one folder under the output root (default
+`sessions/`), named `<date>_<subject>_<task>_run<N>` (`N` counts that subject's
+runs of that task on that day). Practice and preview runs write nothing:
+only `run_mode: "record"` reaches disk.
 
 ```
-sessions/2026-07-15_P001_click_static/
-  metadata.json      # subject + session + calibration + schema_version
+sessions/2026-07-15_P001_click_static_run1/
+  metadata.json      # subject + session + calibration + settings + outcome + schema_version
   session.log        # human-readable timeline
   gaze_stream.csv    # per-frame gaze samples
   all_gaze.csv       # every raw <REC>, Gazepoint Analysis 62-column export layout
   fixations.csv      # one row per fixation, same layout (written at session close)
   eye_geometry.csv   # per raw <REC>: 3D eye position + per-eye POG (device rate)
-  trials.csv         # one row per trial (analysis-ready)
-  events.jsonl       # discrete events (TARGET_SHOWN, HIT, TIMEOUT, MISS_CLICK)
+  trials.csv         # one row per presented trial (analysis-ready)
+  target_track.csv   # the moving target's path (follow_moving only)
+  events.jsonl       # discrete events (TARGET_SHOWN, HIT, TIMEOUT, SKIPPED, PAUSED, ...)
   session_metrics.json  # rolled-up result (summary / fixation_saccade / saccades)
+  report.json        # cache of the per-test report, written when the run is saved
+```
+
+Beside the run folders the output root holds the per-subject stores below.
+`<subject>` is the Subject ID made safe as a folder name (characters illegal
+on Windows replaced; an ordinary ID such as `P001` is unchanged); the verbatim
+ID stays in `metadata.json` and in every test record.
+
+```
+sessions/
+  _tests/<subject>/t_<10 hex>.json            # one file per planned test (the Test List)
+  _tests/<subject>/_deleted/t_<10 hex>.json   # a deleted test's record is moved here
+  _settings/<subject>/<task>/<date>_<time>.json   # saved named configurations
+  _calibrations/<subject>/                    # saved calibrations (Setup)
 ```
 
 All timestamps are **nanoseconds** (`time.time_ns()` domain, UTC-based). Divide
@@ -33,10 +51,48 @@ top-left) unless the field name ends in `_px`.
 | `calibration_points` | int\|null | 5 or 9 |
 | `tasks` | list[str] | tasks run this session |
 | `notes` | str | free text |
+| `test_id` | str\|null | the Test List entry this run belongs to (`t_` + 10 hex); null for a standalone `--task X --gui` run and on older sessions |
+| `test_name` | str\|null | that test's name when the run started |
+| `seed` | int\|null | the random seed that drew the target order: the test's own seed (0-999999) for a dashboard run, `0` for a standalone run, null on older sessions. Same seed and same configuration give the same order |
+| `run_mode` | str\|null | `"record"` (the only mode that reaches disk); null on older sessions |
+| `config_name` | str\|null | the named configuration the run used (`"Standard"` or a saved name; also in `settings`); null for a standalone run |
+| `planned_trials` | int\|null | trials the task would have presented (`len(targets)`) |
+| `completed_trials` | int\|null | rows written to `trials.csv`, skipped ones included |
+| `skipped_trials` | int\|null | trials the operator skipped |
+| `interrupted_trials` | int\|null | trials that were running when the operator paused; each is dropped (never written) and re-presented fresh with the same `trial_id` |
+| `pause_count` | int\|null | times the run was paused (the Quit question pauses the run too) |
+| `outcome` | str\|null | `"completed"` (the task ran out of trials) or `"ended_early"`. There is no `"discarded"`: a discard deletes the whole folder |
+| `ended_by` | str\|null | `"finished"` or `"operator_quit"` |
+| `ended_ns` | int\|null | when the run ended |
+| `layout_slots` | list[[x, y]]\|null | canvas-normalized centres of the task's fixed layout (grid cells, scanning icons), so a report can outline the empty slots; null for `click_static` and `follow_moving` |
+| `raw_clock_offset_ns` | int\|null | host-clock time of `all_gaze.csv` `TIME=0`, so `t_ns = raw_clock_offset_ns + TIME * 1e9` puts a device-rate row on the trial clock; null when no raw file was written |
+| `settings` | object\|null | everything the run was configured with; see below |
+
+All of the rows from `test_id` on are additive and null on older sessions;
+`schema_version` is deliberately not bumped for them.
+
+### settings
+
+The complete configuration the run used, written from the final merged config
+(nothing can change during a run, so this is the whole story):
+
+| key | type | notes |
+|-----|------|-------|
+| `config_name` | str\|null | `"Standard"` or the saved configuration's name; null for a standalone run |
+| `live` | object | flat, keyed by dotted setting key: `dwell.threshold_ms`, `dwell.refractory_ms`, `dwell.jitter_tolerance_px`, `dwell.visual_cursor`, `dwell.progress_ring`, `dwell.instant_feedback`, `dwell.smoothing.enabled`, `dwell.smoothing.alpha`, `task.timeout_ms`, `task.inter_trial_interval_ms`, and `motion.speed_frac_per_s` for `follow_moving` only |
+| `structural` | object | nested like the task's YAML block: one entry per control of the task (trial count, target size, grid rows / columns / gap, motion path, icon count and layout, ...), `feedback.hit_sound` / `feedback.miss_sound` where the task has them, plus `theme` and `feedback.particles` (recorded, not offered as controls) |
+
+Sessions recorded before the Compass-style redesign may carry a partial or no
+`settings` block, and may also hold `source`, `profile_saved_at` and
+`profile_file` (where the settings came from); nothing reads those three. They
+may also carry `hud_hidden_at_start` and `hud_toggle_count`, the metadata of
+the operator HUD that no longer exists (see "Removed with the HUD" below).
 
 ## trials.csv
 
-One row per completed trial.
+One row per trial that was presented: hit, timed out, or skipped. Trials the
+run never reached are absent (`planned_trials` minus the row count), and a trial
+dropped by a pause is not written (its re-presentation is).
 
 | column | type | meaning |
 |--------|------|---------|
@@ -51,8 +107,14 @@ One row per completed trial.
 | `is_hit` | 0/1 | target selected |
 | `is_timeout` | 0/1 | timed out |
 | `attempts` | int | selections attempted (off-target switch presses count) |
+| `t_selectable_start_ns` | int\|"" | first moment the target could be selected (equals `t_target_shown_ns` except in `follow_moving`) |
 | `reaction_time_ms` | float\|"" | `t_click - t_target_shown` |
+| `reaction_time_from_selectable_ms` | float\|"" | `t_click - t_selectable_start` (the meaningful one for `follow_moving`) |
 | `time_to_first_fixation_ms` | float\|"" | `t_first_gaze_on_target - t_target_shown` |
+| `is_skipped` | 0/1 | the operator skipped the trial: neither a hit nor a timeout (`is_hit` and `is_timeout` are 0, `t_click_ns` blank); `t_end_ns` is when the skip happened |
+| `entries` | int | debounced entries of the gaze into the target's hit area (an exit counts only after the gaze stays off for the dwell `hold_grace_ms`, 120 ms by default); 0 when it never reached it. `time_to_first_fixation_ms` is the time of the first entry |
+| `end_x`, `end_y` | float\|"" | where the target was at `t_end_ns`, canvas-normalized: equal to `target_x`/`target_y` for a static task, the live position for `follow_moving` (whose `target_x`/`target_y` is the start) |
+| `slot_index` | int | which grid cell / scanning icon the target was, `-1` for a task with no fixed layout |
 
 Directly loadable with `pandas.read_csv` or R.
 
@@ -68,6 +130,14 @@ One row per rendered frame.
 | `fixation_id` | int\|"" | FPOGID (blank if not fixating) |
 | `fix_duration_s` | float\|"" | fixation duration so far |
 | `pupil_left`, `pupil_right` | float\|"" | pupil diameter (mm), v2 analysis |
+
+## target_track.csv
+
+`follow_moving` only: the moving target's position at about 20 Hz, so a report
+can draw its path. Columns `t_ns` (host clock, like `trials.csv`), `trial`
+(the 0-based `trial_id`) and `x`, `y` (canvas-normalized). A trial re-presented
+after a pause repeats its `trial` id, so read a trial's rows within its own
+`[t_target_shown_ns, t_end_ns]`. Other tasks write no such file.
 
 ## all_gaze.csv and fixations.csv
 
@@ -153,9 +223,87 @@ All additive and `null` when unknown (older sessions lack them):
 ## events.jsonl
 
 One JSON object per line: `{"t_ns": ..., "kind": "...", ...payload}`.
-Kinds: `TARGET_SHOWN`, `HIT`, `TIMEOUT`, `MISS_CLICK`.
+
+| kind | payload | meaning |
+|------|---------|---------|
+| `TARGET_SHOWN` | `trial`, `x`, `y` | a trial's target appeared |
+| `HIT`, `TIMEOUT`, `SKIPPED` | `trial` | how the trial ended |
+| `MISS_CLICK` | `x`, `y`, `selectable` | an off-target selection |
+| `PAUSED` | `trial`, `interrupted` | the operator paused; `interrupted` is true if a trial was running |
+| `TRIAL_INTERRUPTED` | `trial`, `reason`, `elapsed_ms` | the running trial was dropped by a pause |
+| `RESUMED` | none | the pause ended |
+| `CANVAS_RESIZED` | `canvas_w`, `canvas_h` | the canvas changed size mid-run (physical px) |
+| `TARGET_INSET`, `TARGET_SHRUNK` | sizes and canvas | targets were moved inward or shrunk to fit the canvas |
+| `LATENCY_SAMPLE` | `latency_ms_mean`, `_min`, `_max`, `n_samples` | gaze sample arrival to this app's frame, summarised over a window of frames |
+
+### Removed with the HUD
+
+The operator HUD was removed (SPEC-compass-task-flow.md 4C.7), and with it the
+metadata fields `hud_hidden_at_start` and `hud_toggle_count` and the events
+`HUD_TOGGLED`, `SETTING_CHANGED` and `SETTINGS_PROFILE_SAVED`. Nothing changes
+during a run any more. Older sessions may still contain them; loaders should
+ignore them.
+
+## report.json
+
+A cache of the per-test report (SPEC-compass-task-flow.md 4D): the numbers on
+the Summary / Detailed pages and in the PDF. It is written when a run is saved
+and rebuilt from the raw files when it is missing, unreadable or from another
+`report_version`; the raw files stay the source of truth. The same folder always
+gives byte-identical JSON. A figure a folder's files cannot give is `null`,
+never 0, so an old folder degrades instead of failing.
+
+| top-level key | contents |
+|---------------|----------|
+| `report_version` | `REPORT_VERSION` (currently `1`); a cache with another value is rebuilt |
+| `params` | the analysis parameters used (`ivt` saccade detector, `entries` exit hold, `pupil`, `heat`, `path`), so the numbers are reproducible |
+| `session` | `session_id`, `task_id`, `subject`, `test_name`, `config_name`, `started_ns`, `planned_trials`, `completed_trials`, `outcome`, `n_rows`, `n_scored`, `n_skipped`, `n_not_presented`, and `sources` (which input files the folder had, so the UI can say why a value is shown as a dash) |
+| `geometry` | the monitor / canvas geometry the degree and pixel figures use, and `assumed_for_visuals` (true when the folder lacks the monitor size) |
+| `config` | `rows`: the Test Configuration table, `[label, value]` pairs |
+| `trials` | one object per `trials.csv` row: `trial` (1-based), `outcome` (`hit` / `timeout` / `skipped`), `size_deg`, `distance_deg`, `target` (`x`, `y`, `end_x`, `end_y`, radii, `slot`), `onset_ns`, `end_ns`, `attempts`, `error_free`, `trial_time_s`, `reaction_time_s`, `entries`, and the per-trial `fixations`, `saccades`, `pupil` and `path` |
+| `summary` | `rows`: the Summary of Results table (error-free, all selected, not selected, all trials); `eye`: the Eye Metrics table |
+| `map` | the Target Map: `aspect`, `slots`, `hit_tolerance_px`, `marks` and `note` |
+| `heat` | the gaze heat map: `w`, `h`, `data` (empty when there was no gaze on the canvas, with `empty: true`) and `off_canvas_share` |
+| `quality` | `valid_share`, `off_canvas_share` and `warnings` (`{code, text}` for the report's banner: `ended_early`, `low_valid_gaze`, `canvas_resized`) |
+
+## Test store
+
+The Tests tab keeps one JSON file per planned test, in
+`sessions/_tests/<subject>/t_<10 hex>.json` (SPEC-compass-task-flow.md 4A.2).
+One file per test means one bad file loses one test; the reader skips a file it
+cannot parse. Delete is soft: the record is moved to `_deleted/`, and the run
+folders are never touched. A record holds:
+
+| field | type | notes |
+|-------|------|-------|
+| `schema_version` | int | currently `1` |
+| `test_id` | str | `t_` + 10 hex, equal to the file name |
+| `subject_id` | str | the verbatim Subject ID (the folder name is only a locator) |
+| `name` | str | Test Name, 1-60 characters, unique per subject (case-insensitive) |
+| `task_id` | str | `click_static` / `click_grid` / `follow_moving` / `scanning` |
+| `created_at` | str | local time with its UTC offset |
+| `origin` | str | `"created"` or `"copied"` |
+| `configuration` | object | `{name, structural, live}`: a snapshot of the configuration, never a reference, so editing a saved configuration later cannot change an existing test |
+| `notes`, `evaluator` | str | free text, edited on the report page |
+| `seed` | int | 0-999999; a copy gets a new one |
+| `status` | str | `"not_done"`, `"done"` or `"ended_early"`; a test that has run is locked |
+| `completed_at` | str\|null | when the saved run finished |
+| `planned_trials`, `completed_trials` | int\|null | copied from the saved run |
+| `outcome` | str\|null | `"completed"` or `"ended_early"`; null while not done |
+| `session_dir` | str\|null | the run folder's **name** under the output root, never an absolute path |
+
+Saved named configurations live in `sessions/_settings/<subject>/<task>/`, one
+file per save (`<date>_<time>.json`, never overwritten): `schema_version` (`2`),
+`subject_id`, `task_id`, `name` (empty for an unnamed save), `saved_at`, `live`,
+`structural` and `calibration` (the calibration the values were tuned under,
+descriptive only). A name resolves to its newest file; older ones stay as
+history. `"Standard"` is the task's own defaults: reserved, never stored.
 
 ## Versioning
 
 `schema_version` is written into every `metadata.json`. Downstream loaders
 should branch on it and tolerate older layouts (plan §8 risk mitigation).
+Every field added since version 1 is additive and null on older sessions, so
+`schema_version` has not been bumped; a loader should read named keys and
+treat a missing one as unknown. `report.json` and the test records carry their
+own versions (`report_version`, `schema_version`).

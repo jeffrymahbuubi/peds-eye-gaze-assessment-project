@@ -26,11 +26,7 @@ from src.app import AssessmentApp
 from src.data.recorder import SessionRecorder
 from src.data.schema import SessionMetadata
 from src.engine.config import deep_merge, load_task_config
-from src.engine.settings_profile import (
-    load_settings_profile,
-    resolve_settings_precedence,
-    save_settings_profile,
-)
+from src.engine.settings_profile import load_settings_profile, save_settings_profile
 from src.engine.target_size import (
     EDGE_RING_PX,
     ICON_DRAW_FRAC,
@@ -266,9 +262,9 @@ def test_size_choice_round_trips_through_a_settings_profile(qapp, tmp_path, task
     assert get_nested(overrides, key) == choice
 
     save_settings_profile(tmp_path, "S1", task_id, LIVE, overrides)
-    resolved = resolve_settings_precedence(None, load_settings_profile(tmp_path, "S1", task_id))
+    stored = load_settings_profile(tmp_path, "S1", task_id)["structural"]
     config = load_task_config(task_id)
-    config["task"] = deep_merge(config["task"], resolved["structural_overrides"])
+    config["task"] = deep_merge(config["task"], stored)
     assert initial_structural_values(task_id, config)[key] == choice
     dialog = TaskSettingsDialog(task_id, config)  # keep it alive: its widgets die with it
     assert dialog._controls[key].currentData() == choice
@@ -286,9 +282,9 @@ def test_an_older_profile_with_a_px_radius_still_loads_and_size_wins(
     qapp, tmp_path, task_id, old_structural, key
 ):
     save_settings_profile(tmp_path, "S1", task_id, LIVE, old_structural)
-    resolved = resolve_settings_precedence(None, load_settings_profile(tmp_path, "S1", task_id))
+    stored = load_settings_profile(tmp_path, "S1", task_id)["structural"]
     config = load_task_config(task_id)
-    config["task"] = deep_merge(config["task"], resolved["structural_overrides"])
+    config["task"] = deep_merge(config["task"], stored)
     dialog = TaskSettingsDialog(task_id, config)
     assert dialog._controls[key].currentData() == "medium"
     assert not any(k.endswith("radius_px") for k in dialog.overrides().get(key.split(".")[0], {}))

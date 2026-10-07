@@ -17,25 +17,20 @@ from src.engine.settings_profile import (
     PROFILE_SCHEMA_VERSION,
     NamedConfig,
     effective_config_name,
+    format_saved_at,
     known_subject_ids,
     list_named_configurations,
     list_settings_profiles,
     load_settings_profile,
     load_settings_profile_file,
     parse_saved_at,
-    resolve_settings_precedence,
     save_settings_profile,
     settings_profile_dir,
     settings_profile_path,
     task_live_values,
     validate_config_name,
 )
-from src.ui.settings_registry import (
-    apply_live_values_to_config,
-    format_calibration,
-    format_saved_at,
-    initial_live_values,
-)
+from src.ui.settings_registry import apply_live_values_to_config, initial_live_values
 
 LIVE = {"dwell.smoothing.alpha": 0.05, "dwell.jitter_tolerance_px": 100, "task.timeout_ms": 9000}
 
@@ -263,22 +258,6 @@ def test_profile_without_calibration_loads_with_an_empty_block(tmp_path):
     assert got["live"] == LIVE
 
 
-def test_format_calibration_renders_both_parts():
-    assert format_calibration({"error_px": 34.94, "points": 5}) == "35px error, 5pt"
-
-
-def test_format_calibration_is_empty_when_unknown():
-    """Must render nothing rather than "None px" for an older/partial profile."""
-    assert format_calibration(None) == ""
-    assert format_calibration({}) == ""
-    assert format_calibration({"error_px": None, "points": None}) == ""
-
-
-def test_format_calibration_handles_a_partial_block():
-    assert format_calibration({"points": 9}) == "9pt"
-    assert format_calibration({"error_px": 8.0}) == "8px error"
-
-
 # -- known subject IDs, for the Subject-ID completer (S10.7.3 B) --------------
 
 
@@ -294,68 +273,6 @@ def test_known_subject_ids_unions_settings_and_calibrations(tmp_path):
 def test_known_subject_ids_is_empty_when_nothing_is_saved(tmp_path):
     assert known_subject_ids(tmp_path) == []
     assert known_subject_ids(tmp_path / "does" / "not" / "exist") == []
-
-
-def _profile(live=None, structural=None, calibration=None, saved_at="2026-09-11T10:00:00+00:00"):
-    return {
-        "live": live or {},
-        "structural": structural or {},
-        "calibration": calibration or {},
-        "saved_at": saved_at,
-    }
-
-
-def test_carried_values_beat_a_saved_profile(tmp_path):
-    """The rule the Tasks-page badge exists to report honestly (S10.7.3 A):
-    with both present, the run applies the carried values, so a badge naming
-    the profile would be a promise the run does not keep."""
-    carried = {"dwell.smoothing.alpha": 0.4}
-    resolved = resolve_settings_precedence(carried, _profile(live=LIVE))
-    assert resolved["source"] == "carried"
-    assert resolved["live_overrides"] == carried
-
-
-def test_profile_applies_when_nothing_was_carried():
-    resolved = resolve_settings_precedence(None, _profile(live=LIVE, calibration={"points": 5}))
-    assert resolved["source"] == "profile"
-    assert resolved["live_overrides"] == LIVE
-    assert resolved["calibration"] == {"points": 5}
-    assert resolved["saved_at"]
-
-
-def test_no_carried_values_and_no_profile_is_defaults():
-    resolved = resolve_settings_precedence(None, None)
-    assert resolved["source"] == "defaults"
-    assert resolved["live_overrides"] is None
-
-
-def test_an_empty_profile_is_defaults_not_profile():
-    """``source`` must name what the run really uses. A profile file that holds
-    nothing changes nothing, so reporting "profile" would overstate it."""
-    assert resolve_settings_precedence(None, _profile())["source"] == "defaults"
-
-
-def test_a_structural_only_profile_still_counts_as_a_profile():
-    resolved = resolve_settings_precedence(None, _profile(structural={"target.radius_px": 120}))
-    assert resolved["source"] == "profile"
-    assert resolved["structural_overrides"] == {"target.radius_px": 120}
-
-
-def test_an_explicit_settings_dialog_choice_outranks_the_profiles_structural_block():
-    resolved = resolve_settings_precedence(
-        None,
-        _profile(live=LIVE, structural={"target.radius_px": 120}),
-        {"target.radius_px": 200},
-    )
-    assert resolved["structural_overrides"] == {"target.radius_px": 200}
-
-
-def test_structural_overrides_survive_the_carried_branch():
-    """Carrying live values must not drop a structural choice made this sitting."""
-    resolved = resolve_settings_precedence(
-        {"dwell.smoothing.alpha": 0.4}, None, {"target.radius_px": 200}
-    )
-    assert resolved["structural_overrides"] == {"target.radius_px": 200}
 
 
 def test_known_subject_ids_ignores_loose_files(tmp_path):

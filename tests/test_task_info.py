@@ -22,7 +22,8 @@ def test_grid_label_no_longer_claims_3x3():
 
 
 def test_ui_pages_share_the_engine_table():
-    from src.ui import results_page, tasks_page
+    from src.ui import add_test_dialog, task_config_page, test_list_page
 
-    assert results_page.TASK_INFO is TASK_INFO
-    assert tasks_page.TASK_INFO is TASK_INFO
+    assert test_list_page.TASK_INFO is TASK_INFO
+    assert add_test_dialog.TASK_INFO is TASK_INFO
+    assert task_config_page.TASK_INFO is TASK_INFO

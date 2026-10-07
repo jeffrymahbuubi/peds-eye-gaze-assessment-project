@@ -36,7 +36,7 @@ class ClickStaticTask(BaseTask):
     def target_position(self, target: TargetSpec, elapsed_ns: int) -> tuple[float, float]:
         """The configured position, pulled inward just far enough that the
         circle and its outer ring stay on the canvas. Per frame, because the
-        canvas resizes mid-run (HUD hide/show); a position already inside is
+        canvas resizes mid-run (window resize); a position already inside is
         returned untouched."""
         margin_x, margin_y = edge_inset_norm(target.radius_px, self.screen_w, self.screen_h)
         return clamp_to_inset(target.x_norm, margin_x), clamp_to_inset(target.y_norm, margin_y)

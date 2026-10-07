@@ -167,6 +167,12 @@ class ReportPage(QWidget):
             self.name_edit.text(), self._existing_names, exclude=self._own_name or None
         )
 
+    def show_note(self, text: str) -> None:
+        """A line in the footer from the host (a failed save); a Test Name problem
+        outranks it and the next edit clears it, like the page's own notes."""
+        self._note = text
+        self._refresh_footer()
+
     def selected_trial(self) -> int | None:
         """The report trial index of the selected Detailed row (``None`` if none)."""
         return self.detailed.selected_trial()

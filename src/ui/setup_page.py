@@ -269,10 +269,10 @@ class _CalibrationThread(QThread):
 class SetupPage(QWidget):
     stateChanged = Signal()
     continueRequested = Signal()
-    # Emitted on every keystroke in Subject ID. DashboardWindow re-resolves the
-    # Tasks-page settings badges from it (S10.7.3 A) -- which profile applies
-    # depends entirely on this field, so the badges must not outlive a change
-    # to it.
+    # Emitted on every keystroke in Subject ID. Nothing listens today: the
+    # dashboard reads the field whenever the Test List opens, so a typed ID
+    # never leaves a page showing another subject's tests (SPEC-compass-task-
+    # flow.md 4A.8).
     subjectIdChanged = Signal(str)
 
     def __init__(self, parent: QWidget | None = None) -> None:
@@ -386,7 +386,7 @@ class SetupPage(QWidget):
 
         # Expanding the calibration-details table (below) can push the card
         # stack taller than the window -- scrolling the cards (rather than
-        # the whole page) keeps "Continue to Tasks" pinned as a fixed footer
+        # the whole page) keeps "Continue to Tests" pinned as a fixed footer
         # outside the scroll area, so it's always reachable regardless of
         # scroll position or how much detail is showing.
         scroll = QScrollArea()
@@ -417,7 +417,7 @@ class SetupPage(QWidget):
         scroll_content.setAutoFillBackground(False)
         outer.addWidget(scroll, stretch=1)
 
-        self.continue_button = QPushButton("Continue to Tasks →")
+        self.continue_button = QPushButton("Continue to Tests →")
         self.continue_button.setObjectName("wtmhPrimary")
         self.continue_button.setEnabled(False)
         self.continue_button.clicked.connect(self.continueRequested)
@@ -700,7 +700,7 @@ class SetupPage(QWidget):
         buttons.addWidget(self.save_calibration_button)
 
         # SPEC-result-logic.md §8.1: disabled until a calibration result
-        # exists, same gating as Continue to Tasks -- toggles the inline
+        # exists, same gating as Continue to Tests -- toggles the inline
         # per-point breakdown below, not a modal (a modal would block the
         # qt-mcp automation probe, see setup.md's own design note).
         self.view_details_button = QPushButton("View Calibration Details")
@@ -1046,7 +1046,7 @@ class SetupPage(QWidget):
         """Human-readable list of unmet Continue-to-Tasks gate conditions.
 
         SPEC-ui-setup-task-selection.md S13: a real user loaded a
-        calibration file, then couldn't tell why "Continue to Tasks"
+        calibration file, then couldn't tell why "Continue to Tests"
         stayed disabled -- the gate (S5.6) has always also required a
         connected tracker, independently of where the calibration came
         from, but nothing in the UI ever said so. This isn't a code bug

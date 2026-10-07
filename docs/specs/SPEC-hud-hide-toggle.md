@@ -13,6 +13,13 @@ related:
 
 # SPEC-hud-hide-toggle — hide the operator HUD during a task
 
+> **Superseded by `SPEC-compass-task-flow.md` (HUD removed), 2026-10-07.** The operator HUD,
+> the Hide HUD button and the H shortcut no longer exist, nor do the `hud_hidden_at_start` and
+> `hud_toggle_count` metadata fields and the `HUD_TOGGLED` event (SPEC-compass-task-flow.md 4C.7
+> and HC13; the run screen is now the canvas and a thin run bar). The `CANVAS_RESIZED` event stays,
+> as does the tasks' per-frame handling of a changed canvas size (a window resize). The text below
+> is kept unchanged as the history of what was built and live-validated on 2026-10-02.
+
 **Status: design approved by the user 2026-10-02 (§2, plus the hub-chosen H key and §4.4 recording); wireframe approved (`docs/wireframes/run.md`); implemented and live-validated 2026-10-02.**
 The doctor can hide the operator side column (the HUD) at any time during a
 task, so it does not distract the child, and bring it back the same way. When

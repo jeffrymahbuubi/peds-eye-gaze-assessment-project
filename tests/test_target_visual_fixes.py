@@ -21,11 +21,7 @@ from PySide6.QtGui import QColor, QImage
 from PySide6.QtWidgets import QApplication
 
 from src.engine.config import CONFIG_ROOT, deep_merge, load_task_config
-from src.engine.settings_profile import (
-    load_settings_profile,
-    resolve_settings_precedence,
-    save_settings_profile,
-)
+from src.engine.settings_profile import load_settings_profile, save_settings_profile
 from src.engine.target_size import ICON_DRAW_FRAC
 from src.engine.task_runner import build_task
 from src.ui.canvas import TaskCanvas
@@ -128,12 +124,10 @@ def test_a_saved_profile_still_carrying_the_colour_keys_loads_and_runs(tmp_path,
     )
     profile = load_settings_profile(tmp_path, "S1", task_id)
     assert profile is not None
-    resolved = resolve_settings_precedence(None, profile)
-    assert resolved["source"] == "profile"
 
     config = load_task_config(task_id)
-    config["task"] = deep_merge(config["task"], resolved["structural_overrides"])
-    apply_live_values_to_config(config, resolved["live_overrides"])
+    config["task"] = deep_merge(config["task"], profile["structural"])
+    apply_live_values_to_config(config, profile["live"])
     assert config["dwell"]["smoothing"]["alpha"] == 0.05  # the known key was applied
     task = build_task(task_id, config)
     assert task.targets  # the task builds and plays; the stale keys changed nothing

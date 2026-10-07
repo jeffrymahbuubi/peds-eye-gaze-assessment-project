@@ -1,14 +1,14 @@
-"""WTMH Clinical Teal palette + Qt stylesheet for the Setup/Tasks dashboard.
+"""WTMH Clinical Teal palette + Qt stylesheet for the Setup/Tests dashboard.
 
 Same palette applied to the `docs/wireframes/` mockup (SPEC-ui-setup-task-
 selection.md S9) and its `tools/apply_wtmh_wireframe_theme.py` retint pass --
 this module is that palette's real-app counterpart. Hex values are quoted
 directly from S9's mapping table, not re-derived.
 
-Scoped to ``QWidget#wtmhDashboard`` and its descendants only (matching
-``operator_panel.py``'s established pattern), so it can never leak into
-``TaskCanvas`` or an embedded ``TaskRunView`` -- Qt stylesheets apply to the
-widget they're set on plus descendants, never siblings.
+Scoped to ``QWidget#wtmhDashboard`` and its descendants only, so it can
+never leak into ``TaskCanvas`` or an embedded ``TaskRunView`` -- Qt
+stylesheets apply to the widget they're set on plus descendants, never
+siblings.
 """
 
 from __future__ import annotations
@@ -64,14 +64,12 @@ QWidget#wtmhTitleBar QLabel {{ color: {TITLEBAR_TEXT}; }}
 QLabel#wtmhBrandTitle {{ font-size: 15px; font-weight: 600; }}
 
 /* Setup page's card stack scrolls independently of the pinned "Continue to
-   Tasks" footer (SPEC-ui-setup-task-selection.md S22), and the Results
-   page's card stack below its pinned header row (SPEC-result-logic.md S11)
-   -- the scroll area and its viewport otherwise paint an opaque native
-   background over the page's own {BACKGROUND} tint. The configuration page's
-   card grid (SPEC-compass-task-flow.md 4B.7) scrolls the same way, above its
-   pinned footer. */
+   Tasks" footer (SPEC-ui-setup-task-selection.md S22) -- the scroll area and
+   its viewport otherwise paint an opaque native background over the page's
+   own {BACKGROUND} tint. The configuration page's card grid
+   (SPEC-compass-task-flow.md 4B.7) scrolls the same way, above its pinned
+   footer. */
 QScrollArea#wtmhSetupScroll, QScrollArea#wtmhSetupScroll > QWidget,
-QScrollArea#wtmhResultsScroll, QScrollArea#wtmhResultsScroll > QWidget,
 QScrollArea#wtmhConfigScroll, QScrollArea#wtmhConfigScroll > QWidget {{
     background: transparent;
     border: none;
@@ -99,7 +97,7 @@ QScrollArea#wtmhConfigScroll QSlider::sub-page:horizontal:disabled {{ background
    theme. Slim, rounded thumb in ACCENT at reduced opacity instead, no
    arrow buttons, transparent track -- applies to every QScrollBar under
    wtmhDashboard (Setup's new card scroll, and any QTextEdit/QPlainTextEdit
-   internal scrollbar such as Notes or the Results Session Log). */
+   internal scrollbar such as Notes). */
 QScrollBar:vertical {{
     background: transparent;
     width: 10px;
@@ -158,7 +156,7 @@ QPushButton#wtmhNavButton[active="true"] {{
     border-bottom: 3px solid {ACCENT_GRADIENT_START};
 }}
 
-/* S16: two-tier title scale -- wtmhPageTitle for "1 · Setup"/"2 · Tasks"
+/* S16: two-tier title scale -- wtmhPageTitle for "1 · Setup"/"2 · Tests"
    (largest), wtmhSectionTitle for card titles (one tier down, and now
    also applied to Setup's 4 previously-unstyled card titles). Previously
    both tiers shared wtmhSectionTitle at 18px, so a page title and a card
@@ -485,5 +483,10 @@ QWidget#wtmhDashboard QHeaderView::section {{
     border-bottom: 1px solid {BORDER};
     padding: 6px 8px;
     font-weight: 600;
+}}
+/* The Test List is the one selectable table (SPEC-compass-task-flow.md 4A.4): the chosen row. */
+QWidget#wtmhDashboard QTableWidget#wtmhTestTable::item:selected {{
+    background: {SOFT_ACCENT};
+    color: {INK};
 }}
 """

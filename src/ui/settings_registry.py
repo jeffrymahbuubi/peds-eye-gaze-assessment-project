@@ -19,7 +19,6 @@ from __future__ import annotations
 from dataclasses import dataclass
 from typing import Any
 
-from ..engine.settings_profile import format_saved_at  # noqa: F401 -- re-exported (moved there)
 from ..engine.target_size import (
     DEFAULT_GAP,
     DEFAULT_SIZE,
@@ -91,7 +90,8 @@ class StructuralSetting:
 # Grouped by field origin, not by relevance tier (SPEC section 9): "settings"
 # is every dwell.* field (configs/default.yaml's global dwell: block);
 # "pacing" is everything else (each task's own YAML config -- how fast/slow
-# a trial moves along). Both groups are always visible in OperatorPanel.
+# a trial moves along). Both groups are shown together on the configuration
+# page (SPEC-compass-task-flow.md 4B).
 
 LIVE_SETTINGS: list[LiveSetting] = [
     LiveSetting(
@@ -332,27 +332,6 @@ def initial_live_values(config: dict[str, Any]) -> dict[str, Any]:
         "task.inter_trial_interval_ms": task_cfg.get("inter_trial_interval_ms", 800),
         "motion.speed_frac_per_s": motion_cfg.get("speed_frac_per_s", 0.20),
     }
-
-
-def format_calibration(calibration: dict[str, Any] | None) -> str:
-    """Render a profile's stored calibration for display, or "" if unknown.
-
-    Lives here rather than in the panel so it is testable without importing
-    PySide6, matching this module's existing no-Qt rule. Returns "" for
-    missing/empty/partial data instead of printing "None px" -- an older
-    profile written before S10.5.5 has no calibration block at all, and must
-    simply show nothing extra.
-    """
-    if not calibration:
-        return ""
-    error_px = calibration.get("error_px")
-    points = calibration.get("points")
-    parts: list[str] = []
-    if isinstance(error_px, (int, float)):
-        parts.append(f"{error_px:.0f}px error")
-    if isinstance(points, int):
-        parts.append(f"{points}pt")
-    return ", ".join(parts)
 
 
 def apply_live_values_to_config(config: dict[str, Any], values: dict[str, Any]) -> None:

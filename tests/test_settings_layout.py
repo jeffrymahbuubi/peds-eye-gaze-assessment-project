@@ -9,9 +9,7 @@ from __future__ import annotations
 
 import pytest
 
-from src.engine import settings_profile
 from src.engine.config import load_task_config
-from src.ui import settings_registry
 from src.ui.settings_registry import (
     HINT_GRID_FIT,
     HINT_ICON_FIT,
@@ -225,9 +223,3 @@ def test_number_and_choice_lookups_are_unchanged_by_the_bool_branch():
     assert values["target.size"] == "medium"
     assert values["grid.gap"] == "standard"
 
-
-# -- format_saved_at moved to the engine, still importable from here --------------------
-
-
-def test_format_saved_at_is_one_function_reexported_by_the_registry():
-    assert settings_registry.format_saved_at is settings_profile.format_saved_at

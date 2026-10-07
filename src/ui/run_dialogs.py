@@ -149,6 +149,21 @@ class SavePartialDialog(_ChoiceDialog):
         )
 
 
+def ask_choice(
+    parent: QWidget | None,
+    title: str,
+    text: str,
+    buttons: Sequence[tuple[str, str, str]],
+    default: str,
+    on_close: str,
+) -> str:
+    """A modal question with named answers, for the dashboard's own confirmations (the
+    Test List's Delete Test, the configuration page's save questions). ``buttons`` are
+    ``(key, label, tier)`` with the tiers above; returns the key picked, ``on_close``
+    for Esc or the window's close button."""
+    return _ChoiceDialog(parent, title, text, buttons, default, on_close).run()
+
+
 def ask_test_complete(parent: QWidget | None = None) -> str:
     """Show "Test Complete!"; returns ``save``, ``save_and_view`` or ``discard``."""
     return TestCompleteDialog(parent).run()

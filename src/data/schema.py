@@ -204,8 +204,10 @@ class SessionMetadata:
     notes: str = ""
     assessment_date: str = ""
     sex: str = ""
-    # The settings this run actually used, and where they came from
-    # (SPEC-live-settings-panel.md S10.4). Additive, so `schema_version` is
+    # The settings this run actually used (SPEC-live-settings-panel.md S10.4;
+    # complete since SPEC-compass-task-flow.md R7: ``config_name``, ``live`` and
+    # ``structural``). Older sessions also carry ``source`` / ``profile_saved_at``
+    # / ``profile_file``, which nothing reads. Additive, so `schema_version` is
     # deliberately NOT bumped: every existing reader takes named keys and is
     # unaffected, and older sessions simply lack the block.
     settings: dict[str, Any] | None = None

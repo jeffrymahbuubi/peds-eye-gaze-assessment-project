@@ -52,7 +52,7 @@ Control Port
 Display: 1920×1080 at 100% scale — recommended standard.
 :::
 
-> **State A — standard (shown above):** one green line, no checkbox. Continue to Tasks is gated only by the usual inputs. (SPEC-display-standard-check.md §4.2)
+> **State A — standard (shown above):** one green line, no checkbox. Continue to Tests is gated only by the usual inputs. (SPEC-display-standard-check.md §4.2)
 
 ---
 
@@ -68,7 +68,7 @@ To change it: Windows Settings → System → Display, set Display resolution to
 
 - [ ] Continue with this display anyway (recorded with the session)
 
-> **State B — non-standard:** amber warning with the detected values, plus an **unticked** checkbox. Continue to Tasks stays disabled until it is ticked (SPEC §4.4, decision D1).
+> **State B — non-standard:** amber warning with the detected values, plus an **unticked** checkbox. Continue to Tests stays disabled until it is ticked (SPEC §4.4, decision D1).
 > **Live updates:** the card re-checks when the window moves to another monitor, or when resolution/scale change in Windows while the app is open. If the values change, the checkbox **unticks** and must be ticked again. Becoming standard switches to State A.
 > **Recorded:** every session stores resolution, scale, a standard flag and whether this box was ticked, in `metadata.json` and as one `Display:` session-log line (SPEC §4.5).
 > **Placement:** between Tracker Connection and Calibration, so the display is fixed before calibrating (decision D2). Always visible; does not need the tracker to be connected.
@@ -93,7 +93,7 @@ No calibration yet for this subject — run Do Calibration or Load Calibration F
 > **Do Calibration:** runs a fresh calibration against the connected tracker using the point count/show-window controls above.
 > **Load Calibration File:** file picker over a saved `calibration.json`; hard-errors if its `subject_id` doesn't match the Subject ID field above — same check the existing `--calibration-file` CLI flag already performs.
 > **Alternate state (not shown above):** once calibration succeeds either way, this panel shows `::: alert success` — "Calibration loaded — 5 points, mean error 42px, valid" — in place of the warning, **and View Calibration Details becomes enabled.**
-> **View Calibration Details:** disabled until a calibration result exists (same gating as Continue to Tasks below). Clicking it expands the section illustrated below **in place**, directly under this card — not a modal dialog (a modal would block the qt-mcp automation probe during testing, a known issue in this codebase, and this dashboard already prefers inline expansion elsewhere).
+> **View Calibration Details:** disabled until a calibration result exists (same gating as Continue to Tests below). Clicking it expands the section illustrated below **in place**, directly under this card — not a modal dialog (a modal would block the qt-mcp automation probe during testing, a known issue in this codebase, and this dashboard already prefers inline expansion elsewhere).
 
 ---
 
@@ -130,6 +130,6 @@ Confirm in Gazepoint Control that Lens Focusing and Automatic Gain Sweep are ena
 
 ---
 
-[Continue to Tasks →]*{state:disabled}
+[Continue to Tests →]*{state:disabled}
 
 > **Design note:** disabled until Tracker shows |connected|{.success} **and** a calibration result exists (via either path above) **and** Subject ID, Assessment Date, and Sex are filled **and** the Display card is standard or its "Continue with this display anyway" box is ticked. Notes is optional. The "Before You Start" reminder above does **not** factor into this gate.

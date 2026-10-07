@@ -18,7 +18,12 @@ from src.ui.settings_registry import (
     live_settings_for_task,
     structural_settings_for_task,
 )
-from src.ui.settings_snapshot import complete_settings, run_settings, settings_snapshot
+from src.ui.settings_snapshot import (
+    complete_settings,
+    merged_config,
+    run_settings,
+    settings_snapshot,
+)
 
 TASKS = ("click_static", "click_grid", "follow_moving", "scanning")
 
@@ -232,3 +237,40 @@ def test_the_controls_only_snapshot_has_no_theme():
     snap = settings_snapshot("click_grid", load_task_config("click_grid"))
     assert "theme" not in snap["structural"]
     assert "particles" not in snap["structural"]["feedback"]
+
+
+# -- merged_config: what a run built from a test's stored configuration starts with ---------
+
+
+def test_merged_config_lays_structural_and_live_over_the_task_config():
+    config = load_task_config("click_grid")
+    out = merged_config(config, {"dwell.threshold_ms": 1234}, {"trials": 7, "grid": {"rows": 4}})
+    assert out["task"]["trials"] == 7 and out["task"]["grid"]["rows"] == 4
+    assert initial_live_values(out)["dwell.threshold_ms"] == 1234
+
+
+def test_merged_config_leaves_the_base_config_alone():
+    config = load_task_config("click_grid")
+    before = copy.deepcopy(config)
+    merged_config(config, {"dwell.threshold_ms": 1234}, {"trials": 7})
+    assert config == before
+
+
+def test_merged_config_with_nothing_to_lay_over_is_a_copy():
+    config = load_task_config("click_static")
+    out = merged_config(config)
+    assert out == config and out is not config and out["task"] is not config["task"]
+
+
+@pytest.mark.parametrize("task_id", TASKS)
+def test_complete_settings_is_the_snapshot_of_the_merged_config(task_id):
+    config = load_task_config(task_id)
+    live, structural = {"dwell.threshold_ms": 999}, {"trials": 5}
+    assert complete_settings(task_id, config, live, structural) == settings_snapshot(
+        task_id, merged_config(config, live, structural)
+    )
+
+
+def test_run_settings_keeps_a_missing_config_name_as_none():
+    block = run_settings("click_grid", load_task_config("click_grid"), None)
+    assert block["config_name"] is None

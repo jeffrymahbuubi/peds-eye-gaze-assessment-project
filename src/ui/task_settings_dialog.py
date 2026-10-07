@@ -100,7 +100,7 @@ class TaskSettingsDialog(QDialog):
         card.setAttribute(Qt.WidgetAttribute.WA_StyledBackground, True)
         # Soft drop shadow to lift the card off the page-background dialog
         # behind it -- same QGraphicsDropShadowEffect pattern already used
-        # for OperatorPanel's HUD cards (SPEC-diki-design-audit.md S8.10);
+        # for the old HUD's cards (SPEC-diki-design-audit.md S8.10);
         # QSS has no box-shadow property, so this needs a real graphics
         # effect, not CSS.
         shadow = QGraphicsDropShadowEffect(card)

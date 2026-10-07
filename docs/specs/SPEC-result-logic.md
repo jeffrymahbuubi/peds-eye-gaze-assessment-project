@@ -1,5 +1,13 @@
 # SPEC-result-logic — Result Logic (session metrics, results screen, calibration data)
 
+> **Results tab superseded by `SPEC-compass-task-flow.md` (2026-10-07).** The "3 · Results" tab,
+> `ResultsPage` and its layout (§3 and §8's Results page, the Session Log panel, the four-category
+> metrics) were removed. A finished test is now opened from the Tests tab (View Report) as the
+> per-test report: Summary and Detailed views and a PDF (SPEC-compass-task-flow.md 4D). Still
+> current from this SPEC: `session_metrics.json` and its aggregates, the calibration data capture
+> with `metadata.calibration_source` (§12), and the Setup page's inline Calibration Details
+> section. The text below is kept unchanged as history.
+
 **Status:** §1-§9 are all implemented, unit-tested, and live-validated.
 §8's redesign (calibration details inline section, the dedicated "3 ·
 Results" tab, the 4-category metric layout) is now **built, not just

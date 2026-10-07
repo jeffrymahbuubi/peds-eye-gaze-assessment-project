@@ -93,6 +93,7 @@ class StartTestPage(QWidget):
         self.title_label.setText(f"Start {test_name}")
         self._practice_count = 0
         self.set_practice_result(None)
+        self.show_note("")
         self.instructions = build_instructions(task_id, cfg, values)
         self._show_instructions(self.instructions)
         self.refresh_blockers()
@@ -103,6 +104,16 @@ class StartTestPage(QWidget):
         text = practice_result_text(result) if result is not None else None
         self.practice_label.setText(text or "")
         self.practice_label.setVisible(bool(text))
+        if result is not None:
+            self.show_note("")  # a practice ran, so an earlier "could not start" is outdated
+
+    def show_note(self, text: str) -> None:
+        """A muted line under the buttons from the host, e.g. "Could not start Grid
+        Click 1: ..." when a run could not be built. The operator stays here, can fix
+        the cause and press Start or Practice again; the next press, a practice result
+        or a new test clears it."""
+        self.message_label.setText(text)
+        self.message_label.setVisible(bool(text))
 
     def blockers(self) -> list[str]:
         """The reasons as of the last check."""
@@ -194,6 +205,13 @@ class StartTestPage(QWidget):
         self.practice_label.hide()
         outer.addWidget(self.practice_label)
 
+        self.message_label = QLabel("")
+        self.message_label.setObjectName("wtmhMuted")
+        self.message_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        self.message_label.setWordWrap(True)
+        self.message_label.hide()
+        outer.addWidget(self.message_label)
+
         self.help_bar = QFrame()
         self.help_bar.setObjectName("wtmhAlertInfo")
         help_row = QVBoxLayout(self.help_bar)
@@ -265,11 +283,13 @@ class StartTestPage(QWidget):
     # -- handlers -------------------------------------------------------------
 
     def _on_start(self) -> None:
+        self.show_note("")
         if self.refresh_blockers():
             return  # a stale enabled button still cannot launch
         self.startRequested.emit()
 
     def _on_practice(self) -> None:
+        self.show_note("")
         if self.refresh_blockers():
             return
         number = self._practice_count

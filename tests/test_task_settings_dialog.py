@@ -16,11 +16,7 @@ from PySide6.QtWidgets import QApplication, QComboBox
 
 from src.app import AssessmentApp
 from src.engine.config import deep_merge, load_task_config
-from src.engine.settings_profile import (
-    load_settings_profile,
-    resolve_settings_precedence,
-    save_settings_profile,
-)
+from src.engine.settings_profile import load_settings_profile, save_settings_profile
 from src.engine.target_size import ScaleInfo, apply_target_size
 from src.ui.settings_registry import (
     MOTION_PATH_CHOICES,
@@ -260,13 +256,12 @@ def test_string_choices_round_trip_through_a_settings_profile(tmp_path):
     ],
 )
 def test_saved_choice_is_restored_into_the_dialog(qapp, tmp_path, task_id, structural, key, expected):
-    # The same route the dashboard takes: profile -> resolved structural
-    # overrides -> merged over the task YAML -> the dialog's initial values.
+    # The stored profile's structural block, merged over the task YAML, is the
+    # dialog's initial values.
     save_settings_profile(tmp_path, "S1", task_id, LIVE, structural)
-    resolved = resolve_settings_precedence(None, load_settings_profile(tmp_path, "S1", task_id))
-    assert resolved["source"] == "profile"
+    stored = load_settings_profile(tmp_path, "S1", task_id)["structural"]
     config = load_task_config(task_id)
-    config["task"] = deep_merge(config["task"], resolved["structural_overrides"])
+    config["task"] = deep_merge(config["task"], stored)
 
     dialog = TaskSettingsDialog(task_id, config)
     assert dialog._controls[key].currentData() == expected
@@ -298,9 +293,9 @@ def test_a_dialog_choice_is_what_gets_saved_and_applied_to_the_run(qapp, tmp_pat
 def test_an_older_profile_with_a_px_radius_still_loads_into_the_new_dialog(qapp, tmp_path):
     # Written before click_grid had a size preset: a px radius, no `size`.
     save_settings_profile(tmp_path, "S1", "click_grid", LIVE, {"target": {"radius_px": 120}})
-    resolved = resolve_settings_precedence(None, load_settings_profile(tmp_path, "S1", "click_grid"))
+    stored = load_settings_profile(tmp_path, "S1", "click_grid")["structural"]
     config = load_task_config("click_grid")
-    config["task"] = deep_merge(config["task"], resolved["structural_overrides"])
+    config["task"] = deep_merge(config["task"], stored)
     dialog = TaskSettingsDialog("click_grid", config)
     assert dialog._controls["target.size"].currentData() == "medium"
     assert "target.radius_px" not in dialog.overrides().get("target", {})

@@ -14,7 +14,7 @@ from .report_geometry import Geometry
 from .report_metrics import OUTCOME_HIT, OUTCOME_TIMEOUT
 from .report_util import mean_or_none, round_or_none, to_float, to_int
 
-VALID_SHARE_FLOOR = 0.8  # the existing Results floor (results_page.py)
+VALID_SHARE_FLOOR = 0.8  # the floor the old Results page used (retired with it, HD17)
 
 
 def eye_summary(

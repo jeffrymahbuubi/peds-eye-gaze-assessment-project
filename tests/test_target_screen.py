@@ -24,8 +24,9 @@ from src.app import AssessmentApp
 from src.data.schema import SessionMetadata
 from src.engine.calibration import CalibrationFileError
 from src.engine.config import load_task_config
+from src.engine.subject_tests import create_test
 from src.engine.target_size import radius_px_for, screen_scale
-from src.ui import dashboard_window
+from src.ui import config_flow
 from src.ui.dashboard_window import DashboardWindow
 from src.ui.task_settings_dialog import TaskSettingsDialog
 
@@ -161,6 +162,8 @@ def test_init_without_a_screen_resolves_against_the_canvas_screen(qapp, scratch_
 
 
 def test_dashboard_passes_its_own_screen_to_the_run(qapp, scratch_cwd, monkeypatch):
+    # The run the dashboard starts today is Preview Test on a test's configuration page
+    # (the recorded run joins it in the next step); it builds its app the same way.
     captured = {}
 
     class _RecordingApp:
@@ -168,11 +171,13 @@ def test_dashboard_passes_its_own_screen_to_the_run(qapp, scratch_cwd, monkeypat
             captured.update(kwargs)
             raise CalibrationFileError("stop here: the arguments are what is under test")
 
-    monkeypatch.setattr(dashboard_window, "AssessmentApp", _RecordingApp)
+    monkeypatch.setattr(config_flow, "AssessmentApp", _RecordingApp)
     win = DashboardWindow()
     win.screen = lambda: LAB  # the shown window's screen
-    win.setup_page.can_continue = lambda: True
-    win._on_run_requested("click_grid")
+    win.setup_page.subject_id_edit.setText("T")
+    test = create_test(win.output_root, "T", "click_grid")
+    win.config_flow.open(test.test_id)
+    win.config_flow.page.preview_button.click()
     assert captured["screen"] is LAB
     assert captured["embedded"] is True
 

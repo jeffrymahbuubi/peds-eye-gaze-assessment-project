@@ -80,6 +80,7 @@ from .tasks.base_task import (
 from .ui.main_window import MainWindow, TaskRunView
 from .ui.run_dialogs import confirm_quit
 from .ui.settings_registry import apply_live_values_to_config, initial_live_values
+from .ui.settings_snapshot import run_settings
 from .ui.task_settings_dialog import TaskSettingsDialog
 
 
@@ -202,9 +203,6 @@ class AssessmentApp:
         calibration_file: str | None = None,
         structural_overrides: dict | None = None,
         live_overrides: dict | None = None,
-        settings_source: str = "defaults",
-        settings_saved_at: str = "",
-        settings_profile_file: str = "",
         client: GazepointClient | None = None,
         preset_calibration_result: CalibrationResult | None = None,
         embedded: bool = False,
@@ -286,10 +284,6 @@ class AssessmentApp:
             # -- self._live_values is derived from the config a few lines down,
             # so they cannot disagree.
             apply_live_values_to_config(self.config, live_overrides)
-        self._settings_source = settings_source
-        self._settings_saved_at = settings_saved_at
-        self._settings_profile_file = settings_profile_file
-        self._structural_overrides = dict(structural_overrides or {})
         theme_name = self.config.get("task", {}).get("theme") or self.config.get("theme", {}).get("name", "forest")
         self.theme = load_theme(theme_name)
         self.input_mode = self.config.get("input", {}).get("mode", "eye")
@@ -442,19 +436,11 @@ class AssessmentApp:
             # actually in effect are recorded with the data, or two runs of the
             # same task on the same child can differ with nothing to say how.
             # Nothing changes them during a run (the HUD's sliders are gone,
-            # 4C.7), so this snapshot of the values **as resolved at run start**
-            # is the complete configuration of the run (R7).
-            settings={
-                "config_name": config_name,  # SPEC-compass-task-flow.md R7
-                "source": self._settings_source,
-                "profile_saved_at": self._settings_saved_at,
-                # Which saved version this run started from (S10.12) -- with
-                # several versions per subject+task, the timestamp alone no
-                # longer identifies the file unambiguously.
-                "profile_file": self._settings_profile_file,
-                "live": dict(self._live_values),
-                "structural": self._structural_overrides,
-            },
+            # 4C.7), so ``run_settings`` of the **final** merged config (the
+            # task YAML, the test's structural and live values laid over it) is
+            # the complete configuration of the run (R7): the report's
+            # Test Configuration table reads it.
+            settings=run_settings(task_id, self.config, config_name),
         )
         self.recorder = (
             SessionRecorder(self.metadata, output_root=output_root)

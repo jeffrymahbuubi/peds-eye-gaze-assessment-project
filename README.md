@@ -117,13 +117,12 @@ before it starts — "Start task" with nothing changed reproduces the task's
 YAML defaults exactly. Pass `--skip-task-settings` to skip straight to the
 task (useful for scripted/automated launches).
 
-Operator controls (right panel): pause/resume, skip trial, a **Settings**
-group of always-visible controls (dwell threshold, gaze cursor, dwell
-progress ring, instant on-target ring), and a collapsible **Advanced**
-section (refractory period, jitter tolerance, gaze smoothing, trial timeout,
-inter-trial interval, and — for `follow_moving` only — target speed). Every
-control applies instantly, mid-task, with no restart needed — useful both to
-adapt to a child in the moment and for your own debugging.
+The run screen is the task canvas with one thin **run bar** under it: a status
+line (trial number, tracker state) and **Pause** (Alt-P), **Skip trial** and
+**Quit** (Alt-Q; Esc does the same, and asks first). There is no operator side
+panel and nothing changes mid-task: every setting is fixed before the run
+starts (the dialog above) and recorded in the session's `metadata.json`
+(`settings`, see `docs/DATA_SCHEMA.md`).
 
 ## Run the Setup/Task-selection dashboard (needs the `gui` extra)
 
@@ -131,17 +130,45 @@ adapt to a child in the moment and for your own debugging.
 python -m src.main --dashboard
 ```
 
-A persistent window (SPEC-ui-setup-task-selection.md) instead of one task
-per process: connect to the tracker and calibrate once in the **Setup**
-tab, then run any of the four tasks from the **Tasks** tab — each **Run**
-embeds the task canvas + operator sidebar into this same window in place of
-the task list (no new window, no subprocess) and returns to the task list,
-marked Complete, when the task ends. The tracker connection and calibration
-result are reused across every run in the session; re-running the same task
-for the same subject on the same day gets its own `_run<N>`-suffixed
-session folder rather than overwriting the prior attempt. This is an
-additional entry point alongside `--task ... --gui` above, not a
-replacement — the two don't interact.
+A persistent window (SPEC-ui-setup-task-selection.md, and the Compass-style
+test flow of SPEC-compass-task-flow.md) instead of one task per process, with
+two tabs, **1 · Setup** and **2 · Tests**. Everything runs inside this one
+window (no new window, no subprocess); the tracker connection and calibration
+are reused across every test in the session.
+
+1. **Setup.** Enter the Subject ID, connect to the tracker and calibrate once;
+   **Continue to Tests** opens the Tests tab.
+2. **Tests.** Each subject has their own Test List, saved on disk
+   (`sessions/_tests/<subject>/`), so it is still there after a restart and
+   whenever the same Subject ID is typed again. **Add New Test** (a task, 1-10
+   copies), **Configure Test**, **Run Test**, **View Report**, **Copy Test**
+   (an unrun copy with a new random target order) and **Delete Test**. A test
+   is *Not Done*, *Done* with its date, or *Ended early*; once it has run it is
+   locked.
+3. **Configure.** A full page for the test's settings (task layout, target
+   size, dwell, pacing, feedback). Settings are saved as named configurations
+   (*Standard* is the task's own defaults, or any name you save, kept per
+   subject and task). **Preview Test** plays a few trials driven by the mouse
+   and records nothing; **Save & Continue** returns to the list.
+4. **Start / Practice.** **Run Test** opens the Start page: the instructions to
+   read aloud, the tracker state, and the reason if Start is disabled.
+   **Practice** is a short throwaway round (up to 3 trials, nothing written,
+   repeatable); **Start** runs and records the test.
+5. **Run.** The canvas with the run bar's **Pause**, **Skip trial** and
+   **Quit**. Quitting a recorded run asks first.
+6. **Test Complete.** **Save**, **Save and View Report**, or **Discard
+   Results** (deletes the run). A run ended early offers **Save partial
+   results** or **Discard results**.
+7. **Report.** Summary and Detailed views (summary of results, target map with
+   gaze path and heat map, eye metrics, trial-by-trial table). **Print Report**
+   writes a PDF, by default into the run's own folder. The Test Name, Evaluator
+   and Notes are edited here.
+
+Each recorded run is its own `<date>_<subject>_<task>_run<N>` folder under
+`sessions/`, so a repeat of the same task by the same subject on the same day is
+never overwritten; a discarded run leaves no folder. This is an additional
+entry point alongside `--task ... --gui` above, not a replacement — the two
+don't interact.
 
 The Control Address field remembers the last host that connected
 successfully on this machine (`configs/local_state.json`, gitignored — a
@@ -274,7 +301,9 @@ re-run the task to feel the new pacing. Full diagnosis behind these settings:
 ## Tests & lint
 
 ```bash
-pytest        # 224 tests, all headless (1 long-known local-config failure, see docs/specs)
+pytest        # 1950 passed, 2 skipped, all headless (offscreen Qt, no device); the one long-known
+              # local-config failure, test_config_merges_task_over_default, only shows on a machine
+              # whose skip-worktree configs/default.yaml differs, see docs/specs
 ruff check .
 ```
 

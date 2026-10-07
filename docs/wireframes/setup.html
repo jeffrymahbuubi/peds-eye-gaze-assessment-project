@@ -597,7 +597,7 @@ body.wmd-root {
   <p class="wmd-paragraph">Display: 1920×1080 at 100% scale — recommended standard.</p>
 </div>
 <blockquote class="wmd-blockquote">
-  <p class="wmd-paragraph"><strong>State A — standard (shown above):</strong> one green line, no checkbox. Continue to Tasks is gated only by the usual inputs. (SPEC-display-standard-check.md §4.2)</p>
+  <p class="wmd-paragraph"><strong>State A — standard (shown above):</strong> one green line, no checkbox. Continue to Tests is gated only by the usual inputs. (SPEC-display-standard-check.md §4.2)</p>
 </blockquote>
 <hr class="wmd-separator" />
 <h3 class="wmd-h3">Display (non-standard state — illustrative)</h3>
@@ -616,7 +616,7 @@ body.wmd-root {
   </label>
 </ul>
 <blockquote class="wmd-blockquote">
-  <p class="wmd-paragraph"><strong>State B — non-standard:</strong> amber warning with the detected values, plus an <strong>unticked</strong> checkbox. Continue to Tasks stays disabled until it is ticked (SPEC §4.4, decision D1).
+  <p class="wmd-paragraph"><strong>State B — non-standard:</strong> amber warning with the detected values, plus an <strong>unticked</strong> checkbox. Continue to Tests stays disabled until it is ticked (SPEC §4.4, decision D1).
 <strong>Live updates:</strong> the card re-checks when the window moves to another monitor, or when resolution/scale change in Windows while the app is open. If the values change, the checkbox <strong>unticks</strong> and must be ticked again. Becoming standard switches to State A.
 <strong>Recorded:</strong> every session stores resolution, scale, a standard flag and whether this box was ticked, in <code>metadata.json</code> and as one <code>Display:</code> session-log line (SPEC §4.5).
 <strong>Placement:</strong> between Tracker Connection and Calibration, so the display is fixed before calibrating (decision D2). Always visible; does not need the tracker to be connected.</p>
@@ -650,7 +650,7 @@ body.wmd-root {
   <p class="wmd-paragraph"><strong>Do Calibration:</strong> runs a fresh calibration against the connected tracker using the point count/show-window controls above.
 <strong>Load Calibration File:</strong> file picker over a saved <code>calibration.json</code>; hard-errors if its <code>subject_id</code> doesn't match the Subject ID field above — same check the existing <code>--calibration-file</code> CLI flag already performs.
 <strong>Alternate state (not shown above):</strong> once calibration succeeds either way, this panel shows <code>::: alert success</code> — "Calibration loaded — 5 points, mean error 42px, valid" — in place of the warning, <strong>and View Calibration Details becomes enabled.</strong>
-<strong>View Calibration Details:</strong> disabled until a calibration result exists (same gating as Continue to Tasks below). Clicking it expands the section illustrated below <strong>in place</strong>, directly under this card — not a modal dialog (a modal would block the qt-mcp automation probe during testing, a known issue in this codebase, and this dashboard already prefers inline expansion elsewhere).</p>
+<strong>View Calibration Details:</strong> disabled until a calibration result exists (same gating as Continue to Tests below). Clicking it expands the section illustrated below <strong>in place</strong>, directly under this card — not a modal dialog (a modal would block the qt-mcp automation probe during testing, a known issue in this codebase, and this dashboard already prefers inline expansion elsewhere).</p>
 </blockquote>
 <hr class="wmd-separator" />
 <h3 class="wmd-h3">Calibration Details (expanded state — illustrative)</h3>
@@ -736,7 +736,7 @@ body.wmd-root {
   <p class="wmd-paragraph"><strong>Design note:</strong> this is a read-only reminder, not a checkbox and not a gate — neither setting can be checked or changed from this app. Gazepoint Control's own Settings dialog is the only place either one lives; the OpenGaze API has no command for either (confirmed against the vendor corpus).</p>
 </blockquote>
 <hr class="wmd-separator" />
-<button class="wmd-button wmd-button-primary wmd-state-disabled" disabled>Continue to Tasks →</button>
+<button class="wmd-button wmd-button-primary wmd-state-disabled" disabled>Continue to Tests →</button>
 <blockquote class="wmd-blockquote">
   <div class="wmd-container-form-group">
   <strong>Design note:</strong> disabled until Tracker shows 

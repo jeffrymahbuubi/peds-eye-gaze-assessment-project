@@ -266,3 +266,23 @@ def test_text_typed_by_the_operator_is_shown_as_typed_not_as_markup(qapp, tmp_pa
     page.name_edit.setText("<b>x</b>")
     assert page.footer_message.textFormat() == Qt.TextFormat.PlainText
     assert "<b>x</b>" in page.footer_message.text()  # the reason names the test, literally
+
+
+# -- show_note: a line from the host (a failed save) -----------------------------------------------------
+
+
+def test_the_host_can_put_a_line_in_the_footer_and_the_next_edit_clears_it(qapp, tmp_path):
+    page = make_page(tmp_path)
+    page.show_note("Could not save: disk full")
+    assert page.footer_message.text() == "Could not save: disk full"
+    assert page.save_button.isEnabled()  # a failed write does not stop another try
+    page.notes_edit.setPlainText("typed again")
+    assert page.footer_message.text() == ""
+
+
+def test_a_test_name_problem_outranks_the_hosts_note(qapp, tmp_path):
+    page = make_page(tmp_path)
+    page.show_note("Could not save: disk full")
+    page.name_edit.setText("")
+    assert page.footer_message.text() != "Could not save: disk full"
+    assert not page.save_button.isEnabled()

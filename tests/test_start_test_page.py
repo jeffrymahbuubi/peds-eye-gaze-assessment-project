@@ -261,3 +261,35 @@ def test_a_scrolling_card_keeps_the_buttons_outside_it(qapp):
     """The card scrolls above the buttons, so a small or scaled window never clips Start."""
     page = make_page()
     assert page.card.parent() is not page and page.start_button.parent() is page
+
+
+# -- show_note: a line from the host when a run could not start ------------------------------
+
+
+def test_the_host_can_say_why_a_run_could_not_start_and_the_buttons_stay_usable(qapp):
+    page = make_page()
+    assert page.message_label.isHidden()
+    page.show_note("Could not start Grid Click 1: disk is read-only")
+    assert not page.message_label.isHidden()
+    assert page.message_label.text() == "Could not start Grid Click 1: disk is read-only"
+    assert page.start_button.isEnabled() and page.practice_button.isEnabled() and page.cancel_button.isEnabled()
+    page.show_note("")
+    assert page.message_label.isHidden() and page.message_label.text() == ""
+
+
+@pytest.mark.parametrize("button", ["start_button", "practice_button"])
+def test_the_next_start_or_practice_press_clears_the_note(qapp, button):
+    page = make_page()
+    page.show_note("Could not start Grid Click 1: no")
+    getattr(page, button).click()
+    assert page.message_label.isHidden()
+
+
+def test_a_practice_result_or_a_new_test_clears_the_note(qapp):
+    page = make_page()
+    page.show_note("Could not start Grid Click 1: no")
+    page.set_practice_result(practice_result(3))
+    assert page.message_label.isHidden()
+    page.show_note("Could not start Grid Click 1: no")
+    page.set_test(test_name="Grid Click 2", task_id="click_grid", cfg=load_task_config("click_grid"))
+    assert page.message_label.isHidden()

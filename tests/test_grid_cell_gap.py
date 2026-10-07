@@ -24,11 +24,7 @@ from PySide6.QtWidgets import QApplication, QComboBox
 from src.app import AssessmentApp
 from src.data.schema import SessionMetadata
 from src.engine.config import CONFIG_ROOT, deep_merge, load_task_config
-from src.engine.settings_profile import (
-    load_settings_profile,
-    resolve_settings_precedence,
-    save_settings_profile,
-)
+from src.engine.settings_profile import load_settings_profile, save_settings_profile
 from src.engine.target_size import (
     CELL_PAD_FRAC,
     GAP_CHOICES,
@@ -830,9 +826,8 @@ def test_the_gap_round_trips_through_a_settings_profile(qapp, tmp_path):
     save_settings_profile(tmp_path, "S1", "click_grid", LIVE, overrides)
     stored = load_settings_profile(tmp_path, "S1", "click_grid")["structural"]
     assert stored["grid"]["gap"] == "wide"
-    resolved = resolve_settings_precedence(None, load_settings_profile(tmp_path, "S1", "click_grid"))
     config = load_task_config("click_grid")
-    config["task"] = deep_merge(config["task"], resolved["structural_overrides"])
+    config["task"] = deep_merge(config["task"], stored)
     restored = TaskSettingsDialog("click_grid", config)  # kept alive: its widgets die with it
     assert restored._controls["grid.gap"].currentData() == "wide"
 
@@ -853,9 +848,9 @@ def test_an_older_profile_without_a_gap_loads_as_standard(qapp, tmp_path):
     save_settings_profile(
         tmp_path, "S1", "click_grid", LIVE, {"target": {"size": "large"}, "grid": {"rows": 5, "cols": 5}}
     )
-    resolved = resolve_settings_precedence(None, load_settings_profile(tmp_path, "S1", "click_grid"))
+    stored = load_settings_profile(tmp_path, "S1", "click_grid")["structural"]
     config = load_task_config("click_grid")
-    config["task"] = deep_merge(config["task"], resolved["structural_overrides"])
+    config["task"] = deep_merge(config["task"], stored)
     restored = TaskSettingsDialog("click_grid", config)  # kept alive: its widgets die with it
     assert restored._controls["grid.gap"].currentData() == "standard"
     task = build_task("click_grid", config)

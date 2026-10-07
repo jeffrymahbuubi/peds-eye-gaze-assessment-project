@@ -85,14 +85,14 @@ class ClickGridTask(BaseTask):
     def _geometry(self) -> CellGeometry:
         """How a cell is drawn, fitted and hit-tested right now
         (:func:`~src.engine.target_size.grid_cell_geometry`, SPEC-grid-cell-
-        gap.md S4.3). Evaluated per frame: the canvas resizes mid-run (HUD
-        hide/show), and the gap in px does not follow the canvas."""
+        gap.md S4.3). Evaluated per frame: the canvas resizes mid-run (window
+        resize), and the gap in px does not follow the canvas."""
         return grid_cell_geometry(*self._cell_px(), self.gap_px)
 
     def effective_radius_px(self, target: TargetSpec) -> float:
         """The configured radius, capped so the circle sits fully inside its
         cell as the canvas draws it (the drawn cell of ``_geometry``). Evaluated
-        per frame: the canvas resizes mid-run (HUD hide/show)."""
+        per frame: the canvas resizes mid-run (window resize)."""
         return min(target.radius_px, self._geometry().fit_radius_px)
 
     def hit_test(

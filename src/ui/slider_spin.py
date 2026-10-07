@@ -1,7 +1,7 @@
 """Shared slider + numeric-readout widget for int/float task settings
 (SPEC-live-settings-panel.md section 8).
 
-Both OperatorPanel's live settings and TaskSettingsDialog's structural
+Both the configuration page's settings and TaskSettingsDialog's structural
 settings need the same slider+exact-value pairing, kept in sync both ways.
 This widget owns that sync so neither call site duplicates it.
 """

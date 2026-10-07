@@ -247,9 +247,11 @@ def load_settings_profile(
 ) -> dict[str, Any] | None:
     """Return the **newest** saved profile, or ``None`` if there isn't one.
 
-    This is the automatic path (S10.3): a fresh sitting starts from the most
-    recent save. Choosing an older version is the Tasks page's Load Settings
-    (S10.12), which goes through :func:`load_settings_profile_file` directly.
+    This was the automatic path (S10.3): a fresh sitting started from the most
+    recent save. The old Tasks page's Load Settings (S10.12) chose an older
+    version through :func:`load_settings_profile_file` directly; named
+    configurations (:func:`list_named_configurations`, SPEC-compass-task-
+    flow.md 4B.4) replaced both, and no run calls this any more.
     """
     versions = list_settings_profiles(output_root, subject_id, task_id)
     if not versions:
@@ -319,60 +321,6 @@ def task_live_values(task_id: str, live: dict[str, Any]) -> dict[str, Any]:
 
     applicable = {s.key for s in live_settings_for_task(task_id)}
     return {key: value for key, value in live.items() if key in applicable}
-
-
-def resolve_settings_precedence(
-    carried_live: dict[str, Any] | None,
-    profile: dict[str, Any] | None,
-    structural_overrides: dict[str, Any] | None = None,
-) -> dict[str, Any]:
-    """Decide which settings a run starts from, and say which source won.
-
-    The precedence itself (S10.3): values carried from an earlier run **in this
-    sitting** beat a saved profile, because they are the most recent deliberate
-    act. A profile applies only when nothing was carried.
-
-    Split out of the dashboard and kept Qt-free so the rule can be tested
-    headlessly, and so the Tasks-page badge (S10.7.3 A) and the run that
-    follows it resolve through the same code. A badge that reported mere file
-    existence would promise the profile while the run actually applied carried
-    values -- worse than no badge at all.
-
-    ``source`` is one of ``carried`` / ``profile`` / ``defaults``. Note a
-    profile carrying *only* structural overrides still counts as ``profile``,
-    while one that turns out to hold nothing at all is ``defaults`` -- the
-    source names what the run will really use, not what exists on disk.
-    """
-    if carried_live:
-        return {
-            "live_overrides": carried_live,
-            "structural_overrides": structural_overrides,
-            "source": "carried",
-            "saved_at": "",
-            "calibration": {},
-        }
-    if profile:
-        live = profile.get("live") or None
-        structural = profile.get("structural") or {}
-        # An explicit per-task Settings dialog choice this sitting outranks the
-        # profile's stored structural block, matching the live-value rule above.
-        if structural and not structural_overrides:
-            structural_overrides = structural
-        if live or structural:
-            return {
-                "live_overrides": live,
-                "structural_overrides": structural_overrides,
-                "source": "profile",
-                "saved_at": profile.get("saved_at", ""),
-                "calibration": profile.get("calibration") or {},
-            }
-    return {
-        "live_overrides": None,
-        "structural_overrides": structural_overrides,
-        "source": "defaults",
-        "saved_at": "",
-        "calibration": {},
-    }
 
 
 def save_settings_profile(

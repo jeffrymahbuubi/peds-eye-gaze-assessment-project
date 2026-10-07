@@ -2,7 +2,7 @@
 
 A *test* is one planned instance of a task for one subject: a name, the task,
 a configuration snapshot, a random seed, and -- once it has run -- a link to
-its session folder. The Tasks tab lists them like Compass's Test List and
+its session folder. The Tests tab lists them like Compass's Test List and
 they survive across days and restarts.
 
 One JSON file per test (``<output_root>/_tests/<subject_dirname>/<test_id>.json``)

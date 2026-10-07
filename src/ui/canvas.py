@@ -10,17 +10,12 @@ from __future__ import annotations
 import math
 
 from PySide6.QtCore import QPointF, QRectF, Qt
-from PySide6.QtGui import QColor, QPainter, QPainterPath, QPen, QRadialGradient
+from PySide6.QtGui import QColor, QPainter, QPen, QRadialGradient
 from PySide6.QtWidgets import QWidget
 
 from ..engine.target_size import ICON_DRAW_FRAC, grid_cell_geometry
 from ..inputs.base import norm_to_px, outside_distance
-
-# Distractor glyphs for the scanning field (ported from resources/diki, see
-# SPEC-diki-design-audit.md S3.4/S4). Distinct shapes -- not just distinct
-# colours -- mean the child discriminates form, which is what a scanning/
-# visual-search assessment is for.
-_SHAPE_CIRCLE, _SHAPE_SQUARE, _SHAPE_TRIANGLE, _SHAPE_DIAMOND, _SHAPE_HEX, _SHAPE_STAR = range(6)
+from .canvas_shapes import SHAPE_CIRCLE, shape_path
 
 # The gaze cursor is a small hollow ring, modelled on Gazepoint Control's own
 # marker (SPEC-gaze-cursor-redesign.md S4.3, reference screenshots at
@@ -324,40 +319,10 @@ class TaskCanvas(QWidget):
             if i == self.active_slot:
                 continue  # the target itself is drawn on top, in colour
             cx, cy = norm_to_px(xn, yn, w, h)
-            shape = shapes[i] if i < len(shapes) else _SHAPE_CIRCLE
+            shape = shapes[i] if i < len(shapes) else SHAPE_CIRCLE
             painter.setPen(Qt.PenStyle.NoPen)
             painter.setBrush(distractor)
-            painter.drawPath(self._shape_path(cx, cy, r, shape))
-
-    def _shape_path(self, cx: float, cy: float, r: float, shape: int) -> QPainterPath:
-        path = QPainterPath()
-        if shape == _SHAPE_SQUARE:
-            path.addRoundedRect(QRectF(cx - r, cy - r, 2 * r, 2 * r), r * 0.2, r * 0.2)
-            return path
-        if shape == _SHAPE_TRIANGLE:
-            pts = [(0, -r), (r * 0.92, r * 0.7), (-r * 0.92, r * 0.7)]
-        elif shape == _SHAPE_DIAMOND:
-            pts = [(0, -r), (r, 0), (0, r), (-r, 0)]
-        elif shape == _SHAPE_HEX:
-            pts = [
-                (r * math.cos(math.tau * k / 6), r * math.sin(math.tau * k / 6))
-                for k in range(6)
-            ]
-        elif shape == _SHAPE_STAR:
-            pts = []
-            for k in range(10):
-                rad = r if k % 2 == 0 else r * 0.45
-                ang = math.tau * k / 10 - math.pi / 2
-                pts.append((rad * math.cos(ang), rad * math.sin(ang)))
-        else:  # circle
-            path.addEllipse(QPointF(cx, cy), r, r)
-            return path
-
-        path.moveTo(cx + pts[0][0], cy + pts[0][1])
-        for dx, dy in pts[1:]:
-            path.lineTo(cx + dx, cy + dy)
-        path.closeSubpath()
-        return path
+            painter.drawPath(shape_path(cx, cy, r, shape))
 
     def _ring_base_radius(self) -> float:
         """Radius the selectable outline and the instant / dwell rings are drawn
@@ -385,8 +350,8 @@ class TaskCanvas(QWidget):
             # just brightness/colour -- a plain circle would turn a search
             # task into pop-out. Ported from resources/diki.
             shapes = self.scene.get("shapes") or []
-            shape = shapes[self.active_slot] if self.active_slot < len(shapes) else _SHAPE_CIRCLE
-            painter.drawPath(self._shape_path(x, y, r * ICON_DRAW_FRAC, shape))
+            shape = shapes[self.active_slot] if self.active_slot < len(shapes) else SHAPE_CIRCLE
+            painter.drawPath(shape_path(x, y, r * ICON_DRAW_FRAC, shape))
         else:
             painter.drawEllipse(QPointF(x, y), r, r)
 

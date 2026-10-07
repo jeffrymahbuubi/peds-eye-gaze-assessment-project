@@ -41,6 +41,7 @@ from .settings_registry import (
     get_nested,
 )
 from .slider_spin import SliderSpinRow
+from .wheel_guard import WheelGuard, guard_wheel
 
 COLUMNS = 3
 CONTENT_MAX_WIDTH = 1500  # 4B.1: "content max width about 1500 px"
@@ -82,6 +83,7 @@ class ConfigForm:
         self.fit_hint: QFrame | None = None
         self.fit_hint_label: QLabel | None = None
         self._hint_kind: str | None = None
+        self._wheel_guard = WheelGuard()  # shared by every slider row; lives as long as the form
         # The page's own fields (not options of a task, so not in ``controls``).
         self.test_name_edit = QLineEdit()
         self.config_combo = QComboBox()
@@ -159,6 +161,8 @@ class ConfigForm:
             combo.setInsertPolicy(QComboBox.InsertPolicy.NoInsert)
             combo.addItem(STANDARD_CONFIG_NAME)
             style_combo_popup(combo)
+            # A wheel over it would change the selection and load a configuration.
+            guard_wheel(combo, self._wheel_guard)
             return combo
         if kind == "notes":
             self.notes_edit.setObjectName("cfgNotes")
@@ -181,6 +185,9 @@ class ConfigForm:
             widget = RadioChoice(object_name(key), choices, str(initial))
         else:  # slider_int | slider_float
             widget = SliderSpinRow(setting.kind, setting.min, setting.max, setting.step, initial)
+            # The page scrolls at 125 / 150 % scaling: a wheel over a slider must scroll it,
+            # not change the value (a slider or spin box without focus ignores the wheel).
+            guard_wheel(widget, self._wheel_guard)
         widget.setObjectName(object_name(key))
         return widget
 
