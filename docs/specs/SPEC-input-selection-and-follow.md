@@ -4,7 +4,7 @@ title: Pointer (Gaze / Mouse) and Selection (Dwell / Switch) per test; Follow th
 status: approved 2026-10-07 (I1-I12, H1-H10); step 1 wireframes APPROVED 2026-10-07 (W1-W2); step 2 (engine) DONE 2026-10-08
 created: 2026-10-07
 last_updated: 2026-10-07
-next_step: steps 3-4 (spec-implementer) on feature/compass-task-flow, then step 5 (review + live check A10 with the user and the switch)
+next_step: step 3 (Follow the Target) was launched 2026-10-08 with spec-implementer in the worktree `.claude/worktrees/agent-abd63029551e9614d` (based on `64692b3`; uncommitted until hub review); then step 4 (spec-implementer) on feature/compass-task-flow, then step 5 (review + live check A10 with the user and the switch)
 related:
   - SPEC-compass-task-flow.md (parent redesign; configuration page 4B, run 4C, report 4D; P9c V1-V5 still open there and done FIRST)
   - SPEC-follow-moving-selection.md (the selection window this SPEC removes)
