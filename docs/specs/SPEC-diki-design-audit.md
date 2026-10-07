@@ -415,9 +415,11 @@ Not started — for the user to prioritize in a future session:
    rendering mechanism** is ported (SPEC-scanning-task-design-port.md).
    Porting the **stylesheet/palette** is **ruled out by the user
    (2026-10-02)**. The three-tab window structure stays reference-only.
-3. If porting the drift/validation check (§6) is wanted, that's calibration
+3. ~~If porting the drift/validation check (§6) is wanted, that's calibration
    *logic*, not UI — would need its own scoped design session against
-   `dev/`'s own calibration engine, out of this audit's scope.
+   `dev/`'s own calibration engine, out of this audit's scope.~~
+   **DROPPED PERMANENTLY by the user (2026-10-07, `/spec-backlog` item #3:
+   "Remove the #3 forever").** Do not re-raise it as a backlog item.
 
 ## 8. Approved port: diki's live Trial/Dwell panel → `dev/`'s `OperatorPanel` sidebar
 
