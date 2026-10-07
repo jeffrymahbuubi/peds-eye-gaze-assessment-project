@@ -389,15 +389,13 @@ def test_frame_result_reports_on_target_instantly_not_gated_by_dwell():
     assert result.on_target is False
 
 
-def test_follow_moving_selection_window_gates_hits():
+def test_follow_moving_has_no_selection_window_any_more():
+    """Follow the Target has nothing to select (SPEC-input-selection-and-follow.md I9): the
+    target is always "selectable" and no window is drawn (see test_follow_task.py)."""
     cfg = load_task_config("follow_moving")
     task = build_task("follow_moving", cfg)
-    target = task.targets[0]
-    start, end = task.select_windows[0]
-    # Before the window opens and after it closes, selection must not count.
-    assert task.is_selectable(target, max(0, start - 1)) is False
-    assert task.is_selectable(target, (start + end) // 2) is True
-    assert task.is_selectable(target, end + 1) is False
+    assert not hasattr(task, "select_windows")
+    assert all(task.is_selectable(t, 0) and task.is_selectable(t, 10**10) for t in task.targets)
 
 
 @pytest.mark.parametrize("task_id", sorted(TASK_REGISTRY))
@@ -410,8 +408,13 @@ def test_headless_replay_runs_every_task(task_id: str, tmp_path: Path):
     )
     assert result["n_trials"] > 0
     assert (Path(result["session_dir"]) / "trials.csv").exists()
-    # hits + timeouts should account for every completed trial
-    assert result["n_hits"] + result["n_timeouts"] == result["n_trials"]
+    if task_id == "follow_moving":
+        # Nothing is selected and no trial times out: every trial runs its duration, and a
+        # "hit" is a trial that was followed.
+        assert result["n_timeouts"] == 0 and result["n_hits"] <= result["n_trials"]
+    else:
+        # hits + timeouts should account for every completed trial
+        assert result["n_hits"] + result["n_timeouts"] == result["n_trials"]
 
 
 def test_headless_replay_auto_writes_session_metrics(tmp_path: Path):

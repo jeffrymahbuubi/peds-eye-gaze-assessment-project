@@ -30,13 +30,13 @@ from .report_format import (
     DASH,
     DEFINITIONS,
     SUMMARY_COLUMNS,
-    TASK_SENTENCES,
     TRIAL_COLUMNS,
     banner_lines,
     eye_rows,
     started_text,
     summary_footnote,
     summary_table,
+    task_sentence,
     trial_cells,
 )
 from .wtmh_theme import BORDER, INK, MUTED, SOFT_ACCENT, SOFT_ACCENT_TEXT, WARNING_BG
@@ -109,7 +109,6 @@ def build_report_html(
     ``evaluator`` and ``notes`` are the page's (edited) values, not the stored ones."""
     session = report.get("session", {})
     config_name = session.get("config_name") or DASH
-    task_id = session.get("task_id")
 
     header = (
         f'<h2 style="margin:0">Summary Results: {_e(test_name or DASH)}</h2>'
@@ -139,7 +138,7 @@ def build_report_html(
     summary = _table(list(SUMMARY_COLUMNS), summary_table(report), ["left"] + ["right"] * 4, bold_first=True)
     eye = _table(["Metric", "Value"], [[a, b] for a, b in eye_rows(report)], ["left", "left"], first_width=CONFIG_LABEL_WIDTH)
     summary_block = (
-        f'<p style="margin-bottom:2px">{_e(TASK_SENTENCES.get(task_id, ""))}</p>'
+        f'<p style="margin-bottom:2px">{_e(task_sentence(report))}</p>'
         f'<h3 style="margin-bottom:2px">Summary of Results</h3>{summary}'
         f'<p style="font-size:{BODY_PT - 1}pt; color:{MUTED}">{_e(summary_footnote(report))}</p>'
     )

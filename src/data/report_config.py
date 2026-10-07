@@ -81,11 +81,13 @@ def _first_task(meta: dict[str, Any], task_id: str | None) -> str | None:
     return str(tasks[0]) if isinstance(tasks, list) and tasks else None
 
 
-def _input_row(meta: dict[str, Any]) -> str:
+def _input_row(meta: dict[str, Any], follow_layout: bool = False) -> str:
     mode = meta.get("input_mode")
     if mode is None:
         return DASH
     label = _INPUT_LABELS.get(str(mode), str(mode))
+    if follow_layout and mode == "eye":
+        label = "Eye gaze"  # Follow the Target has no dwell to name
     if mode in _MOUSE_MODES and not meta.get("gaze_recorded"):
         return label  # the mouse drives the pointer and no tracker recorded
     rate = _num(meta.get("gazepoint_rate_hz")) or _num(meta.get("measured_sample_rate_hz"))
@@ -237,12 +239,16 @@ def build_config_rows(
     task_id: str | None = None,
     shrunk: dict[str, Any] | None = None,
     geometry: Any = None,
+    follow_layout: bool = False,
 ) -> list[tuple[str, str]]:
     """The 17 ``(label, value)`` rows of the Test Configuration table.
 
     ``task_id`` falls back to ``metadata["tasks"][0]``; ``shrunk`` is the run's
     ``TARGET_SHRUNK`` event payload (the preset did not fit its cell); ``geometry``
     (a :class:`~.report_geometry.Geometry`) adds the calibration error in degrees.
+    ``follow_layout`` is a Follow the Target run (SPEC-input-selection-and-follow.md 4.5): it
+    has nothing to select, so the **Selection** row is left out (16 rows), and its trials last
+    a fixed time, so "Maximum time per trial" reads **Trial duration**.
     """
     snapshot = snapshot if isinstance(snapshot, dict) else {}
     meta = metadata or {}
@@ -252,15 +258,18 @@ def build_config_rows(
     cursor = setting(snapshot, "dwell.visual_cursor", "dwell", "visual_cursor")
     distance = _num(meta.get("viewing_distance_mm"))
     size_label = "Icon size" if task == "scanning" else "Target size"
-    return [
+    rows = [
         ("Configuration name", str(config_name)),
         ("Task", TASK_INFO[task][0] if task in TASK_INFO else (task or DASH)),
-        ("Input", _input_row(meta)),
+        ("Input", _input_row(meta, follow_layout)),
         ("Trials (planned)", f"{planned:.0f}" if planned else DASH),
         ("Selection", _selection_row(snapshot, meta)),
         (size_label, _size_row(snapshot, meta, task, shrunk)),
         ("Layout", _layout_row(snapshot, meta, task)),
-        ("Maximum time per trial", _seconds(setting(snapshot, "task.timeout_ms", "timeout_ms"))),
+        (
+            "Trial duration" if follow_layout else "Maximum time per trial",
+            _seconds(setting(snapshot, "task.timeout_ms", "timeout_ms")),
+        ),
         (
             "Pause between trials",
             _seconds(setting(snapshot, "task.inter_trial_interval_ms", "inter_trial_interval_ms")),
@@ -274,3 +283,4 @@ def build_config_rows(
         ("Calibration", _calibration_row(meta, geometry)),
         ("Canvas", _canvas_row(meta)),
     ]
+    return [row for row in rows if not (follow_layout and row[0] == "Selection")]

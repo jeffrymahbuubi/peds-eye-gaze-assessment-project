@@ -187,6 +187,15 @@ class Geometry:
         chord = monitor_px * self.phys_w_mm / self.screen_w_px
         return math.degrees(2.0 * math.atan(chord / (2.0 * self.distance_mm)))
 
+    def logical_px_to_deg(self, logical_px: float) -> float | None:
+        """A distance of ``logical_px`` Qt logical px on the canvas (the unit of
+        ``target_radius_px`` and of the task's pointer distances) as visual angle:
+        ``2 * atan(mm / 2D)`` with ``mm = px * mm_per_px``. None without the run's
+        ``target_size`` block (``mm_per_px``) or the viewing distance."""
+        if not (self.mm_per_px and self.distance_mm) or logical_px < 0:
+            return None
+        return math.degrees(2.0 * math.atan(logical_px * self.mm_per_px / (2.0 * self.distance_mm)))
+
     def radius_to_diameter_deg(self, radius_px: float) -> float | None:
         """Diameter in degrees of a target of ``radius_px`` logical px:
         ``2 * atan(r_mm / D)``, the inverse of ``target_size.radius_px_for``.

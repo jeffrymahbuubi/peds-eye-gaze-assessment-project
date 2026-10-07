@@ -31,7 +31,7 @@ from src.ui.settings_registry import (
     MS_PER_S,
     STRUCTURAL_SETTINGS,
     initial_live_values,
-    initial_structural_values,
+    live_settings_for_task,
 )
 from src.ui.slider_spin import SliderSpinRow, display_decimals
 from src.ui.task_config_page import TaskConfigPage
@@ -39,9 +39,9 @@ from src.ui.task_settings_dialog import TaskSettingsDialog
 from tests.report_ui_fixtures import folder_report
 
 SRC = Path(__file__).resolve().parents[1] / "src"
+# (Follow the Target's selection window is gone: it has nothing to select.)
 TIME_KEYS = (
-    "dwell.threshold_ms", "dwell.refractory_ms", "task.timeout_ms",
-    "task.inter_trial_interval_ms", "motion.select_window_ms",
+    "dwell.threshold_ms", "dwell.refractory_ms", "task.timeout_ms", "task.inter_trial_interval_ms",
 )
 
 
@@ -168,7 +168,13 @@ def test_every_time_setting_is_labelled_in_seconds_and_shown_divided_by_a_thousa
 def test_the_stored_ranges_defaults_and_keys_are_still_in_milliseconds():
     by_key = {s.key: s for s in (*LIVE_SETTINGS, *STRUCTURAL_SETTINGS)}
     assert (by_key["dwell.threshold_ms"].min, by_key["dwell.threshold_ms"].max) == (300, 2000)
-    assert by_key["task.timeout_ms"].step == 500 and by_key["motion.select_window_ms"].max == 5000
+    assert by_key["task.timeout_ms"].step == 500
+    # Follow the Target's trial duration: 3-30 s in half-second steps (SPEC H9), same key, still ms.
+    duration = next(s for s in live_settings_for_task("follow_moving") if s.key == "task.timeout_ms")
+    assert (duration.label, duration.min, duration.max, duration.step) == (
+        "Trial duration (s)", 3000, 30000, 500,
+    )
+    assert duration.display_divisor == 1000.0
     live = initial_live_values(load_task_config("click_static"))
     assert live["dwell.threshold_ms"] >= 300 and isinstance(live["dwell.threshold_ms"], int)
     assert live["task.timeout_ms"] >= 1000  # a thousand times the number a person reads
@@ -208,42 +214,54 @@ def test_a_slider_row_without_a_divisor_is_what_it_was(qapp):
 
 
 def test_the_time_rows_of_the_page_show_seconds_and_collect_milliseconds(qapp):
-    config = load_task_config("follow_moving")
-    page = TaskConfigPage("follow_moving", config, screen=None)
+    config = load_task_config("click_static")
+    page = TaskConfigPage("click_static", config, screen=None)
     page.set_context(subject_id="TESTING", existing_test_names=[])
-    page.load_values(test_name="Follow 1")
+    page.load_values(test_name="Static 1")
     live = initial_live_values(config)
-    structural = initial_structural_values("follow_moving", config)
     for key in TIME_KEYS:
         row = page._form.controls[key]
-        stored = live[key] if key in live else structural[key]
-        assert row._spin.value() == pytest.approx(stored / 1000.0)
-        assert row.value() == stored  # milliseconds underneath
+        assert row._spin.value() == pytest.approx(live[key] / 1000.0)
+        assert row.value() == live[key]  # milliseconds underneath
     page._form.controls["dwell.threshold_ms"]._spin.setValue(1.5)
     values = page.collect_values()
     assert values["live"]["dwell.threshold_ms"] == 1500
     assert isinstance(values["live"]["dwell.threshold_ms"], int)
-    page._form.controls["motion.select_window_ms"]._spin.setValue(3.0)
-    assert page.collect_values()["structural"]["motion"]["select_window_ms"] == 3000
+
+
+def test_follows_trial_duration_row_shows_seconds_and_collects_milliseconds(qapp):
+    config = load_task_config("follow_moving")
+    page = TaskConfigPage("follow_moving", config, screen=None)
+    page.set_context(subject_id="TESTING", existing_test_names=[])
+    page.load_values(test_name="Follow 1")
+    row = page._form.controls["task.timeout_ms"]
+    assert row._spin.value() == pytest.approx(10.0)  # the shipped default, 10 s
+    assert row.value() == 10000
+    row._spin.setValue(12.5)
+    assert page.collect_values()["live"]["task.timeout_ms"] == 12500
+    row._spin.setValue(99.0)  # clamped to the 30 s maximum
+    assert page.collect_values()["live"]["task.timeout_ms"] == 30000
 
 
 def test_the_labels_on_the_page_say_seconds(qapp):
-    page = TaskConfigPage("follow_moving", load_task_config("follow_moving"), screen=None)
+    page = TaskConfigPage("click_static", load_task_config("click_static"), screen=None)
     text = " | ".join(label.text() for label in page.findChildren(QLabel))
     for label in ("Dwell threshold (s)", "Refractory period (s)", "Trial timeout (s)",
-                  "Inter-trial interval (s)", "Selection window (s)"):
+                  "Inter-trial interval (s)"):
         assert label in text
     assert "(ms)" not in text
+    follow = TaskConfigPage("follow_moving", load_task_config("follow_moving"), screen=None)
+    follow_text = " | ".join(label.text() for label in follow.findChildren(QLabel))
+    assert "Trial duration (s)" in follow_text and "Inter-trial interval (s)" in follow_text
+    assert "Trial timeout (s)" not in follow_text and "(ms)" not in follow_text
 
 
-def test_the_settings_dialog_shows_seconds_too_and_returns_milliseconds(qapp):
-    config = load_task_config("follow_moving")
-    dialog = TaskSettingsDialog("follow_moving", config)
-    row = dialog._controls["motion.select_window_ms"]
-    assert row._spin.value() == pytest.approx(row.value() / 1000.0)
-    row._spin.setValue(2.5)
-    assert dialog.overrides()["motion"]["select_window_ms"] == 2500
-    assert isinstance(dialog.overrides()["motion"]["select_window_ms"], int)
+def test_no_structural_setting_is_a_time_any_more_so_the_dialog_rescales_nothing(qapp):
+    # The selection window was the only one; the dialog (standalone launch) has no seconds rows.
+    assert not [s for s in STRUCTURAL_SETTINGS if s.key.endswith("_ms")]
+    dialog = TaskSettingsDialog("follow_moving", load_task_config("follow_moving"))
+    assert "motion.select_window_ms" not in dialog._controls
+    assert "motion" in dialog.overrides() and "select_window_ms" not in dialog.overrides()["motion"]
 
 
 # -- nothing user-visible says ms ------------------------------------------------------------------------

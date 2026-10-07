@@ -1,8 +1,14 @@
-"""Follow-and-click task (plan section 5.5).
+"""Follow the Target (plan section 5.5; SPEC-input-selection-and-follow.md 4.4).
 
-The target travels along a path; the child tracks it and selects it. Reaction
-time and gaze-to-target distance are the metrics of interest. The target's live
-position is computed per frame via :meth:`target_position`.
+The target travels along a path and the child **only follows it**: there is no
+selection (no click, no dwell, no selection window; I9). Every trial lasts exactly
+``timeout_ms`` -- the page calls it "Trial duration" (H9) -- and the task measures
+the pointer, per frame, from the same smoothed pointer and hitbox that draw the glow
+(H7): the time the pointer was on the target, the time it was valid, and its distance
+from the target's centre. A trial is *followed* when it was on the target for at least
+:data:`FOLLOWED_PCT` of its valid time (H6). The target's live position is computed per
+frame via :meth:`target_position`. (The class keeps its old name and the task id
+``follow_moving``.)
 
 Paths (``motion.path``, SPEC-target-size-and-motion-paths.md S4.4): ``circular``,
 and four straight bouncing paths -- ``horizontal``, ``vertical``,
@@ -48,9 +54,18 @@ def _axis_bounds(margin: float) -> tuple[float, float]:
     return (lo, hi) if lo <= hi else (0.5, 0.5)
 
 
+FOLLOWED_PCT = 50.0  # H6: a trial is followed with at least this share of its valid time on target
+# A frame's time counts for at most this long: a stalled loop (a window drag, a hiccup) must
+# not credit a whole second to one frame's state. The shares are ratios, so a cap barely moves them.
+MAX_FRAME_MS = 250.0
+
+
 class FollowMovingTask(BaseTask):
     # The target's path goes to target_track.csv (SPEC-compass-task-flow.md 4D.4-2).
     records_target_track = True
+    # Nothing to select (I9): no dwell, no switch, no selection window.
+    has_selection = False
+    _last_frame_ns = 0  # when the frame before the one being counted ran (set per trial)
 
     def build_targets(self) -> list[TargetSpec]:
         cfg = self.task_cfg
@@ -64,24 +79,76 @@ class FollowMovingTask(BaseTask):
             self.path = DEFAULT_PATH
             self._log(f"Unknown motion.path {requested!r}; using {DEFAULT_PATH!r}.")
         self.speed = float(motion.get("speed_frac_per_s", 0.20))
-        self.select_window_ns = int(float(motion.get("select_window_ms", 2500)) * 1e6)
+        # (An old test may still carry ``motion.select_window_ms``: it is read nowhere.)
 
-        # Per-trial selection window: the target is only selectable (and
-        # highlighted) for select_window_ms starting at a randomized offset, so
-        # the child must actively track and catch it rather than park on it.
-        latest_start = max(0, self.timeout_ns - self.select_window_ns)
-        self.select_windows: list[tuple[int, int]] = []
-
+        # Where on the canvas this trial's path lies, so the trials differ.
         targets: list[TargetSpec] = []
         for i in range(n_trials):
-            # Drawn for every path, in this order, so a given seed keeps the
-            # same selection windows whichever path is chosen.
             lane = self.rng.uniform(0.25, 0.75)
-            start = self.rng.randint(int(0.15 * self.timeout_ns), latest_start) if latest_start > 0 else 0
-            self.select_windows.append((start, start + self.select_window_ns))
             x, y = self._start_point(lane)
             targets.append(TargetSpec(index=i, x_norm=x, y_norm=y, radius_px=radius))
         return targets
+
+    # -- the pointer, measured (H7) -----------------------------------------
+
+    def _start_trial(self, t_ns: int) -> None:
+        super()._start_trial(t_ns)
+        assert self._current is not None
+        self._current.valid_ms = 0.0
+        self._current.on_target_ms = 0.0
+        self._last_frame_ns = t_ns
+
+    def _observe_frame(
+        self,
+        t_ns: int,
+        valid: bool,
+        on_target: bool,
+        px: float,
+        py: float,
+        cx_px: float,
+        cy_px: float,
+    ) -> None:
+        """Count this frame's time into the trial: the interval since the last frame goes to
+        this frame's state. Invalid frames (a blink, a lost eye) add to neither the valid nor
+        the on-target time, and no distance is taken from them."""
+        cur = self._current
+        assert cur is not None and cur.valid_ms is not None and cur.on_target_ms is not None
+        dt_ms = min(max(t_ns - self._last_frame_ns, 0) / 1e6, MAX_FRAME_MS)
+        self._last_frame_ns = t_ns
+        if not valid:
+            return
+        cur.valid_ms += dt_ms
+        if on_target:
+            cur.on_target_ms += dt_ms
+        cur.dist_sum_px += math.hypot(px - cx_px, py - cy_px)
+        cur.dist_n += 1
+
+    def _end_by_time(self, t_ns: int) -> None:
+        """Every trial lasts its full duration: it is *followed* with at least
+        :data:`FOLLOWED_PCT` of its valid time on the target (``is_hit``), else not. It is
+        never a timeout, and nothing was selected (no ``t_click_ns``)."""
+        assert self._current is not None
+        pct = self._current.time_on_target_pct
+        self._current.is_hit = pct is not None and pct >= FOLLOWED_PCT
+        self._finish_trial(t_ns, timed_out=False)
+
+    def _trial_cue(self) -> None:
+        """The hit sound when the trial was followed, silence when it was not: a miss
+        cue is never used here (I10). The burst is where the target ended."""
+        assert self._current is not None and self.feedback is not None
+        if self._current.is_hit:
+            self.feedback.on_hit(self._current.end_x, self._current.end_y)
+
+    def _end_event(self, timed_out: bool, skipped: bool) -> tuple[str, dict[str, Any]]:
+        if skipped:
+            return "SKIPPED", {}
+        cur = self._current
+        assert cur is not None
+        pct = cur.time_on_target_pct
+        return (
+            "FOLLOWED" if cur.is_hit else "NOT_FOLLOWED",
+            {"time_on_target_pct": None if pct is None else round(pct, 1)},
+        )
 
     def _start_point(self, lane: float) -> tuple[float, float]:
         """Where a trial's target starts, in normalized canvas coordinates.
@@ -103,10 +170,6 @@ class FollowMovingTask(BaseTask):
         # arrive." path/speed aren't read by the canvas today but are
         # included for parity with diki and any future trail-shape tuning.
         return {"mode": "moving", "path": self.path, "speed": self.speed}
-
-    def is_selectable(self, target: TargetSpec, elapsed_ns: int) -> bool:
-        start, end = self.select_windows[target.index]
-        return start <= elapsed_ns <= end
 
     def _margins(self, target: TargetSpec) -> tuple[float, float]:
         """Edge margin (fraction of canvas width, height) the target needs."""

@@ -32,6 +32,7 @@ FEEDBACK = [
     "dwell.visual_cursor", "dwell.progress_ring", "dwell.instant_feedback",
     "feedback.target_glow", "feedback.hit_sound", "feedback.miss_sound",
 ]
+FOLLOW_FEEDBACK = ["dwell.visual_cursor", "feedback.target_glow", "feedback.hit_sound"]
 INPUT = ["input.pointer", "input.selection"]  # Follow the Target has no Selection (I9)
 SELECTION = ["dwell.threshold_ms", "dwell.refractory_ms", "dwell.jitter_tolerance_px"]
 SMOOTHING = ["dwell.smoothing.enabled", "dwell.smoothing.alpha"]
@@ -59,14 +60,16 @@ EXPECTED = {
         ("selection", 2, None, SELECTION),
         ("smoothing", 2, None, SMOOTHING),
     ],
+    # Follow the Target (SPEC-input-selection-and-follow.md 4.1): nothing to select, so no Dwell
+    # card, no dwell ring or instant ring, no miss sound, no selection window; the Timing card
+    # holds "Trial duration" (same key as the timeout) and the inter-trial interval.
     "follow_moving": [
         ("test", 0, None, TEST_CARD),
-        ("feedback", 0, None, FEEDBACK),
+        ("feedback", 0, None, FOLLOW_FEEDBACK),
         ("target", 1, None, ["target.size"]),
         ("motion", 1, None, ["motion.path", "motion.speed_frac_per_s"]),
-        ("timing", 1, None, [*TIMING, "motion.select_window_ms"]),
+        ("timing", 1, None, TIMING),
         ("input", 2, None, ["input.pointer"]),
-        ("selection", 2, None, SELECTION),
         ("smoothing", 2, None, SMOOTHING),
     ],
     "scanning": [
@@ -116,10 +119,17 @@ def test_task_specific_controls_appear_only_on_their_task():
     for key, only in (
         ("grid.rows", "click_grid"), ("grid.cols", "click_grid"), ("grid.gap", "click_grid"),
         ("motion.path", "follow_moving"), ("motion.speed_frac_per_s", "follow_moving"),
-        ("motion.select_window_ms", "follow_moving"),
         ("layout.size", "scanning"), ("layout.n_icons", "scanning"),
     ):
         assert [t for t in TASKS if key in {c.key for c in _controls(t)}] == [only], key
+    # ... and what Follow the Target gave up is on the other three only.
+    for key in ("dwell.threshold_ms", "dwell.refractory_ms", "dwell.jitter_tolerance_px",
+                "dwell.progress_ring", "dwell.instant_feedback", "feedback.miss_sound",
+                "input.selection"):
+        assert [t for t in TASKS if key in {c.key for c in _controls(t)}] == [
+            "click_static", "click_grid", "scanning",
+        ], key
+    assert not any("select_window" in c.key for t in TASKS for c in _controls(t))
     assert [t for t in TASKS if "target.size" in {c.key for c in _controls(t)}] == [
         "click_static", "click_grid", "follow_moving",
     ]
@@ -144,8 +154,7 @@ def test_widget_kinds_follow_the_compass_principle():
         assert kinds[key] == "radio", key
     for key in FEEDBACK + ["dwell.smoothing.enabled"]:  # on/off: check box
         assert kinds[key] == "check", key
-    for key in ("trials", "grid.rows", "layout.n_icons", "dwell.threshold_ms", "task.timeout_ms",
-                "motion.select_window_ms"):
+    for key in ("trials", "grid.rows", "layout.n_icons", "dwell.threshold_ms", "task.timeout_ms"):
         assert kinds[key] == "slider_int", key
     for key in ("dwell.smoothing.alpha", "motion.speed_frac_per_s"):
         assert kinds[key] == "slider_float", key
@@ -181,13 +190,16 @@ def test_a_control_carries_its_registry_entry_and_label():
 
 
 @pytest.mark.parametrize("task_id", TASKS)
-def test_the_two_sound_toggles_are_structural_bools_on_every_task(task_id):
+def test_the_sound_toggles_are_structural_bools_and_follow_has_no_miss_sound(task_id):
     by_key = {s.key: s for s in structural_settings_for_task(task_id)}
-    for key, label in (("feedback.hit_sound", "Play hit sound"),
-                       ("feedback.miss_sound", "Play miss sound")):
+    sounds = [("feedback.hit_sound", "Play hit sound")]
+    if task_id != "follow_moving":  # Follow plays a hit sound only (I10)
+        sounds.append(("feedback.miss_sound", "Play miss sound"))
+    for key, label in sounds:
         assert by_key[key].kind == "bool"
         assert by_key[key].default is True
         assert by_key[key].label == label
+    assert ("feedback.miss_sound" in by_key) == (task_id != "follow_moving")
     assert "feedback.particles" not in by_key  # the dead key stays unexposed
 
 
@@ -195,7 +207,7 @@ def test_the_two_sound_toggles_are_structural_bools_on_every_task(task_id):
 def test_a_bool_takes_the_task_yaml_value_and_nests_like_the_others(task_id):
     values = initial_structural_values(task_id, load_task_config(task_id))
     assert values["feedback.hit_sound"] is True
-    assert values["feedback.miss_sound"] is True
+    assert values.get("feedback.miss_sound", True) is True  # (absent for Follow the Target)
     nested: dict = {}
     set_nested(nested, "feedback.hit_sound", values["feedback.hit_sound"])
     assert nested == {"feedback": {"hit_sound": True}}

@@ -71,9 +71,10 @@ def test_a_full_folder_gives_every_block(tmp_path):
     report = build_report(full_folder(tmp_path))
     assert report["report_version"] == REPORT_VERSION
     assert set(report) == {
-        "report_version", "params", "session", "geometry", "config", "trials", "summary",
-        "map", "heat", "quality",
+        "report_version", "params", "session", "geometry", "config", "trials", "follow",
+        "summary", "map", "heat", "quality",
     }
+    assert report["follow"] is None  # not a Follow the Target folder
     assert set(report["params"]) == {"ivt", "entries", "pupil", "heat", "path"}
     assert report["params"]["ivt"]["threshold_deg_s"] == 50.0
     assert report["params"]["entries"] == {"exit_hold_ms": 120.0}

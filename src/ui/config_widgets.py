@@ -54,8 +54,6 @@ CONFIG_TOOLTIPS: dict[str, str] = {
     " so a wider gap makes it less likely that a look lands on the wrong cell.",
     "layout.n_icons": "How many icons are on screen at once. One of them is the one to find.",
     "motion.path": "The route the moving target follows across the screen.",
-    "motion.select_window_ms": "How long, within each trial, the moving target can be selected."
-    " A shorter window is harder: the child has to catch the target while it counts.",
     "input.pointer": "What moves the pointer on the screen: the child's gaze (needs the tracker), or"
     " the mouse. A Mouse test is recorded too, and records gaze alongside when the tracker is"
     " connected and calibrated.",
@@ -64,7 +62,8 @@ CONFIG_TOOLTIPS: dict[str, str] = {
     "feedback.target_glow": "Show a soft glow round the target while the pointer is on it. It"
     " takes the place of the dwell ring when the target is selected with a switch, and is greyed"
     " out for Dwell.",
-    "feedback.hit_sound": "Play a short sound when a target is selected."
+    "feedback.hit_sound": "Play a short sound when a target is selected (in Follow the Target:"
+    " when a trial ends and the child followed the target)."
     " Turn it off for a child who is sensitive to sound.",
     "feedback.miss_sound": "Play a short sound when a trial ends without a selection."
     " Turn it off for a child who is sensitive to sound.",

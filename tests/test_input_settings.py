@@ -80,7 +80,10 @@ def test_the_new_controls_have_tooltips():
 @pytest.mark.parametrize("task_id", TASKS)
 def test_the_input_card_is_first_in_the_third_column(task_id):
     third = [g for g in config_groups_for_task(task_id) if g.column == 2]
-    assert [g.id for g in third][:3] == ["input", "selection", "smoothing"]
+    # (Follow the Target has no Dwell card: nothing to select.)
+    assert [g.id for g in third] == (
+        ["input", "selection", "smoothing"] if task_id in SELECTION_TASKS else ["input", "smoothing"]
+    )
     assert third[0].title == "Input"
     assert [c.key for c in third[0].controls] == (
         ["input.pointer", "input.selection"] if task_id in SELECTION_TASKS else ["input.pointer"]
@@ -88,7 +91,7 @@ def test_the_input_card_is_first_in_the_third_column(task_id):
     assert all(c.widget == "radio" for c in third[0].controls)
 
 
-@pytest.mark.parametrize("task_id", TASKS)
+@pytest.mark.parametrize("task_id", SELECTION_TASKS)
 def test_the_selection_dwell_card_is_now_called_dwell(task_id):
     by_id = {g.id: g for g in config_groups_for_task(task_id)}
     assert by_id["selection"].title == "Dwell"
@@ -98,19 +101,31 @@ def test_the_selection_dwell_card_is_now_called_dwell(task_id):
     assert not any(g.title == "Selection (Dwell)" for g in by_id.values())
 
 
+def test_follow_the_target_has_no_dwell_card_at_all():
+    by_id = {g.id: g for g in config_groups_for_task("follow_moving")}
+    assert "selection" not in by_id and not any(g.title == "Dwell" for g in by_id.values())
+
+
 @pytest.mark.parametrize("task_id", TASKS)
 def test_glow_sits_in_feedback_after_the_rings_and_before_the_sounds(task_id):
     feedback = next(g for g in config_groups_for_task(task_id) if g.id == "feedback")
     keys = [c.key for c in feedback.controls]
-    assert keys.index("dwell.instant_feedback") < keys.index("feedback.target_glow") < keys.index(
-        "feedback.hit_sound"
-    )
+    # Follow has no instant ring: the glow follows the gaze cursor there.
+    before = "dwell.instant_feedback" if task_id in SELECTION_TASKS else "dwell.visual_cursor"
+    assert keys.index(before) < keys.index("feedback.target_glow") < keys.index("feedback.hit_sound")
     assert next(c for c in feedback.controls if c.key == "feedback.target_glow").widget == "check"
 
 
 @pytest.mark.parametrize("task_id", TASKS)
 def test_the_greying_rules_of_4_1(task_id):
     greyed = {k: c.greyed_by for k, c in controls(task_id).items() if c.greyed_by}
+    if task_id == "follow_moving":
+        # No Selection to grey anything by, and no threshold or ring to grey: only the glow's
+        # rule remains on the data, which names a control this page does not have, so it never
+        # applies.
+        assert greyed == {"feedback.target_glow": ("input.selection", "dwell")}
+        assert "input.selection" not in controls(task_id)
+        return
     assert greyed == {
         "dwell.threshold_ms": ("input.selection", "switch"),
         "dwell.progress_ring": ("input.selection", "switch"),
@@ -120,7 +135,7 @@ def test_the_greying_rules_of_4_1(task_id):
     # hitbox apply to it too. And nothing is both greyed by a choice and by a check box.
     assert not any(c.greyed_by and c.depends_on for c in controls(task_id).values())
     for _key, (master, _value) in greyed.items():
-        assert master in controls(task_id) or task_id == "follow_moving"
+        assert master in controls(task_id)
 
 
 # -- the stored values ------------------------------------------------------------------
@@ -258,12 +273,14 @@ def test_pointer_mouse_greys_nothing(qapp):
     assert state(mouse) == state(plain)
 
 
-def test_follow_has_a_pointer_and_never_greys_the_dwell_controls(qapp):
+def test_follow_has_a_pointer_and_no_dwell_controls_and_its_glow_is_always_on_offer(qapp):
     page = page_for("follow_moving")
     assert "input.selection" not in page._form.controls
     assert page._form.controls["input.pointer"].value() == "gaze"
-    # No Selection on this page: the rules that name it never apply.
-    assert enabled(page, "dwell.threshold_ms") and enabled(page, "dwell.progress_ring")
+    for key in ("dwell.threshold_ms", "dwell.progress_ring", "dwell.refractory_ms",
+                "dwell.jitter_tolerance_px", "dwell.instant_feedback", "feedback.miss_sound"):
+        assert key not in page._form.controls, key
+    # No Selection on this page: the glow's rule (greyed under Dwell) never applies.
     assert enabled(page, "feedback.target_glow")
 
 

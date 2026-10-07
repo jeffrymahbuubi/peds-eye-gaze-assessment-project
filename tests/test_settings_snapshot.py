@@ -134,7 +134,12 @@ def test_the_sounds_can_be_switched_off_and_stay_switched_off():
     out = complete_settings(
         "follow_moving", config, structural={"feedback": {"hit_sound": False}}
     )
-    assert out["structural"]["feedback"] == {
+    # (Follow the Target plays no miss sound, so it has no such setting.)
+    assert out["structural"]["feedback"] == {"hit_sound": False, "target_glow": True}
+    scanning = complete_settings(
+        "scanning", load_task_config("scanning"), structural={"feedback": {"hit_sound": False}}
+    )
+    assert scanning["structural"]["feedback"] == {
         "hit_sound": False, "miss_sound": True, "target_glow": True,
     }
 

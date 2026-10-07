@@ -34,6 +34,16 @@ See `../303bfbea-eye_gaze_assessment_v1_plan.md` for the full design plan.
   without them; gaze tests are held back on their own Start page). It writes `pointer_stream.csv`, and
   records gaze alongside when the tracker is connected and calibrated (`gaze_recorded` in
   `metadata.json` says which). `trials.csv` gains `clicks` and `click_errors`.
+- **Follow the Target** (task id `follow_moving`, formerly Follow & Click): nothing is
+  selected. Every trial lasts exactly the **Trial duration** (default 10 s, 3 to 30 s) and
+  the child just keeps looking at the moving target; it glows while the pointer is on it.
+  A trial is **followed** when the pointer was on the target at least 50 % of its valid time
+  (`is_hit` in `trials.csv`; the hit sound plays only then, never a miss sound). Time on
+  target, mean distance and valid time are counted live from the smoothed pointer
+  (`trials.csv`: `valid_ms`, `on_target_ms`, `time_on_target_pct`, `mean_dist_px`). The
+  report's `follow` block (`src/data/report_follow.py`) adds the smooth-pursuit gain and the
+  catch-up saccades per second from the device-rate gaze; a Mouse run with no tracker has
+  the first set only. An older Follow & Click folder still opens, with its old report layout.
 
 ## Architecture
 
@@ -282,8 +292,10 @@ configurable per task in `configs/tasks/*.yaml` — this just spells out where.
 ```yaml
 motion:
   speed_frac_per_s: 0.20   # fraction of screen width the target crosses per second
-  select_window_ms: 2500   # how long the target stays selectable once it's reachable
 ```
+
+(There is no selection window any more: Follow the Target has nothing to select. A
+`select_window_ms` key left in an old config file is ignored.)
 
 Lower `speed_frac_per_s` (e.g. `0.10`) for a slower-moving target. This only
 applies to `follow_moving` — the other three tasks show a stationary target
@@ -306,6 +318,9 @@ setting that may be worth checking at the same time:
 timeout_ms: 8000   # click_static default; varies per task (see each task's YAML)
 ```
 
+For `follow_moving` the same `timeout_ms` is the **Trial duration**: how long every trial
+lasts (10000 by default), not a limit.
+
 Edit `configs/tasks/<task>.yaml` (or use the `git update-index --skip-worktree`
 trick above to try values without them showing up as a pending change), then
 re-run the task to feel the new pacing. Full diagnosis behind these settings:
@@ -314,8 +329,9 @@ re-run the task to feel the new pacing. Full diagnosis behind these settings:
 ## Tests & lint
 
 ```bash
-pytest        # 2392 passed, 2 skipped, all headless (offscreen Qt, no device) in a clean checkout;
-              # the few tests that read the lab's own skip-worktree configs/default.yaml (e.g.
+pytest        # 2485 passed, 2 skipped, all headless (offscreen Qt, no device) on the lab machine
+              # (2480 passed in a clean checkout); the few tests that read the lab's own
+              # skip-worktree configs/default.yaml (e.g.
               # test_config_merges_task_over_default, the smoothing-alpha 0.22 checks in
               # test_task_config_page / test_config_flow) only agree on the machine whose file
               # matches, see docs/specs

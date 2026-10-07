@@ -33,11 +33,11 @@ from .map_legend import MapLegend
 from .report_format import (
     EYE_NOTE,
     SUMMARY_COLUMNS,
-    TASK_SENTENCES,
     TRIAL_COLUMNS,
     eye_rows,
     summary_footnote,
     summary_table,
+    task_sentence,
     trial_cells,
     trial_line,
 )
@@ -151,7 +151,7 @@ class SummaryView(QScrollArea):
         setup_scroll(self, content)
 
     def set_report(self, report: dict[str, Any]) -> None:
-        self.task_label.setText(TASK_SENTENCES.get(report.get("session", {}).get("task_id"), ""))
+        self.task_label.setText(task_sentence(report))
         self.table.set_rows(summary_table(report), aligns=_SUMMARY_ALIGNS, bold_first=True)
         self.note.setText(summary_footnote(report))
         self.eye_table.set_rows([list(row) for row in eye_rows(report)])

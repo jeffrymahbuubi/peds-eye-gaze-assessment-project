@@ -232,7 +232,11 @@ def test_the_dialog_and_the_shared_function_agree_on_every_grid_state(qapp, lab_
 @pytest.mark.parametrize("task_id", ["click_static", "click_grid", "follow_moving", "scanning"])
 def test_the_sound_toggles_are_check_boxes_not_sliders(qapp, task_id):
     d = _dialog(task_id)
-    for key in ("feedback.hit_sound", "feedback.miss_sound"):
+    # Follow the Target plays a hit sound only (no miss sound, SPEC-input-selection-and-follow.md I10).
+    keys = ("feedback.hit_sound",) if task_id == "follow_moving" else (
+        "feedback.hit_sound", "feedback.miss_sound",
+    )
+    for key in keys:
         assert isinstance(d._controls[key], QCheckBox)
         assert d._controls[key].isChecked()  # the task YAMLs have both on
     n_sliders = sum(1 for s in structural_settings_for_task(task_id) if s.kind in ("int", "float"))

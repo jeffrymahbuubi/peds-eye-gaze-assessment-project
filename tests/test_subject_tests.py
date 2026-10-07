@@ -255,7 +255,7 @@ def test_default_names_count_up_and_reuse_a_freed_number(root):
 def test_next_default_name_is_the_smallest_free_number_case_insensitively():
     assert next_default_name("click_grid", []) == "Grid Click 1"
     assert next_default_name("click_grid", ["Grid Click 1", "grid click 3"]) == "Grid Click 2"
-    assert next_default_name("follow_moving", ["Follow & Click 1"]) == "Follow & Click 2"
+    assert next_default_name("follow_moving", ["Follow the Target 1"]) == "Follow the Target 2"
 
 
 @pytest.mark.parametrize("bad", ["Grid Click 1", "grid click 1", "  GRID CLICK 1  "])

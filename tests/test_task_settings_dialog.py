@@ -229,7 +229,8 @@ def test_path_choice_is_returned_in_overrides(qapp, path):
     result = d.overrides()
     assert result["motion"]["path"] == path
     assert isinstance(result["motion"]["path"], str)
-    assert "select_window_ms" in result["motion"]  # the other motion row still there
+    # The selection window is gone with the selection (SPEC-input-selection-and-follow.md I9).
+    assert result["motion"] == {"path": path}
 
 
 # -- 6.8: saved to and restored from a settings profile --------------------------------------

@@ -70,6 +70,7 @@ top-left) unless the field name ends in `_px`.
 | `ended_ns` | int\|null | when the run ended |
 | `layout_slots` | list[[x, y]]\|null | canvas-normalized centres of the task's fixed layout (grid cells, scanning icons), so a report can outline the empty slots; null for `click_static` and `follow_moving` |
 | `raw_clock_offset_ns` | int\|null | host-clock time of `all_gaze.csv` `TIME=0`, so `t_ns = raw_clock_offset_ns + TIME * 1e9` puts a device-rate row on the trial clock; null when no raw file was written |
+| `hitbox_margin_px` | float\|null | the run's `dwell.jitter_tolerance_px`, the margin added to the target radius to make the hitbox ("on target" for Follow the Target's time on target and for the first-fixation metric). Recorded for every task so a report can draw the hitbox; null on older sessions |
 | `settings` | object\|null | everything the run was configured with; see below |
 
 All of the rows from `test_id` on are additive and null on older sessions;
@@ -121,6 +122,20 @@ dropped by a pause is not written (its re-presentation is).
 | `slot_index` | int | which grid cell / scanning icon the target was, `-1` for a task with no fixed layout |
 | `clicks` | int | switch presses counted while this trial's target was up (a press on button down, left mouse press on the canvas or Space / Enter); 0 for a Dwell test. Presses between trials, and presses within the refractory period of the previous counted one, are not counted (they are `SWITCH_IGNORED` events) |
 | `click_errors` | int | how many of those presses were Click errors: off the target, or with no gaze (none valid within 150 ms, a blink); 0 for a Dwell test |
+| `valid_ms` | float\|"" | Follow the Target only: milliseconds of the trial the pointer had a valid sample (a frame's span is capped at 250 ms, so a stall is not counted as tracking); blank for the other tasks |
+| `on_target_ms` | float\|"" | Follow the Target only: milliseconds of those the pointer was inside the target's hitbox (radius plus `hitbox_margin_px`) at that frame; blank for the other tasks |
+| `time_on_target_pct` | float\|"" | `100 * on_target_ms / valid_ms`; blank when `valid_ms` is 0 or for the other tasks |
+| `mean_dist_px` | float\|"" | Follow the Target only: mean distance from the pointer to the target's centre over the valid frames, in canvas logical px; blank with none |
+
+**Follow the Target rows** (`specs/SPEC-input-selection-and-follow.md` H6, H7, H9): nothing
+is selected, so every trial lasts exactly `task.timeout_ms` ("Trial duration", default 10 s)
+and ends by time. `is_hit` is **followed** (at least 50 % of the valid time on target),
+`is_timeout` is always 0, `t_click_ns`, `attempts` and the click columns are blank or 0,
+and `time_to_first_fixation_ms` is when the pointer first reached the target ("time to
+find"). The four columns above are computed live from the smoothed pointer, per frame, so
+a Mouse run with no tracker has them too. A folder whose `trials.csv` header has no
+`on_target_ms` is an older Follow & Click run: `is_hit` there is a click on the target in its
+selection window and `is_timeout` a trial that ran out.
 
 Directly loadable with `pandas.read_csv` or R.
 
@@ -244,6 +259,7 @@ One JSON object per line: `{"t_ns": ..., "kind": "...", ...payload}`.
 |------|---------|---------|
 | `TARGET_SHOWN` | `trial`, `x`, `y` | a trial's target appeared |
 | `HIT`, `TIMEOUT`, `SKIPPED` | `trial` | how the trial ended |
+| `FOLLOWED`, `NOT_FOLLOWED` | `trial`, `time_on_target_pct` | how a Follow the Target trial ended (instead of `HIT` / `TIMEOUT`): at least 50 % of the valid time on the target, or less. A skipped Follow trial is `SKIPPED` as everywhere |
 | `MISS_CLICK` | `x`, `y`, `selectable`; a switch press adds `reason` (`"no_gaze"`) or `used_fallback` (true) when they apply | an off-target selection |
 | `SWITCH_PRESS` | `trial`, `x`, `y`, `on_target`, `used_fallback`, and `reason` (`"no_gaze"`) when no valid pointer lay within 150 ms | one switch press counted while a target was up. `x`, `y` are the pointer the press was judged at; `used_fallback` is true when the pointer was invalid at the press (a blink) and the last valid one within 150 ms was used |
 | `SWITCH_IGNORED` | `phase` (`iti`, `ready`, `done`, `paused` or `target`), `x`, `y`, and `reason` (`"refractory"`) for `phase` `target` | a switch press that counted for nothing: made while no target was up (between trials, before the first, after the last, or while paused), or, with a target up, within `dwell.refractory_ms` of the previous counted press of the same trial (the switch's debounce; the window restarts with each trial and an ignored press does not extend it). Not a click and not a Click error |
@@ -276,7 +292,7 @@ pages and in the PDF, shows seconds.
 
 | top-level key | contents |
 |---------------|----------|
-| `report_version` | `REPORT_VERSION` (currently `2`); a cache with another value is rebuilt |
+| `report_version` | `REPORT_VERSION` (currently `3`); a cache with another value is rebuilt |
 | `params` | the analysis parameters used (`ivt` saccade detector, `entries` exit hold, `pupil`, `heat`, `path`), so the numbers are reproducible. `path` holds the gaze path's thinning (`min_step_deg`, `min_step_ms`, `split_gap_ms`, `max_points`, applied to the raw stream) and `smoothing` (`{enabled, alpha}`), the on-screen cursor's own filter the path is drawn through (`alpha` is the run's `dwell.smoothing.alpha`, 0.22 when none was recorded; `enabled: false` leaves the raw stream) |
 | `session` | `session_id`, `task_id`, `subject`, `test_name`, `config_name`, `started_ns`, `planned_trials`, `completed_trials`, `outcome`, `n_rows`, `n_scored`, `n_skipped`, `n_not_presented`, `pointer`, `selection`, `gaze_recorded` (the three input facts of `metadata.json`; null on an older folder; `gaze_recorded: false` makes the Eye Metrics table say "not recorded" instead of a dash), and `sources` (which input files the folder had, so the UI can say why a value is shown as a dash; includes `pointer_stream`) |
 | `geometry` | the monitor / canvas geometry the degree and pixel figures use, and `assumed_for_visuals` (true when the folder lacks the monitor size) |
@@ -286,6 +302,33 @@ pages and in the PDF, shows seconds.
 | `map` | the Target Map: `aspect`, `slots`, `hit_tolerance_px`, `marks` and `note` |
 | `heat` | the gaze heat map: `w`, `h`, `data` (empty when there was no gaze on the canvas, with `empty: true`) and `off_canvas_share` |
 | `quality` | `valid_share`, `off_canvas_share` and `warnings` (`{code, text}` for the report's banner: `ended_early`, `low_valid_gaze`, `canvas_resized`) |
+| `follow` | Follow the Target only (absent for the other tasks); see below |
+
+A Follow the Target trial's `outcome` in `trials` is `followed` / `not_followed` (or `skipped`), read from `is_hit` when the `trials.csv` header has `on_target_ms`; the eye figures, the quality share and `n_scored` count those outcomes like `hit` / `timeout` for the other tasks. `map.hit_tolerance_px` is the run's `hitbox_margin_px`.
+
+### follow
+
+`{"legacy": true}` for a folder recorded as Follow & Click (no `on_target_ms` in its `trials.csv`),
+which keeps its old report layout. Otherwise (`specs/SPEC-input-selection-and-follow.md` H7, H8):
+
+| key | contents |
+|-----|----------|
+| `legacy` | `false` |
+| `params` | the analysis parameters: `max_err_deg` (3, a sample further than this from the target is not pursuit), `bounce_excl_ms` (100, excluded around each direction reversal of the target), `min_usable_s` (0.5, less usable time than this gives no gain), `followed_pct` (50) |
+| `path`, `speed_frac_per_s`, `trial_duration_s` | the motion path (`horizontal` / `vertical` / `diagonal_tlbr` / `diagonal_trbl` / `circular`), the target's speed (canvas widths per second), and the trial duration (median of the trials, seconds) |
+| `gaze_available` | false for a Mouse run with no tracker: `pursuit_gain`, `catch_up_*` and `gain_usable_s` are then null (the pointer is still measured) |
+| `hitbox_margin_px` | the margin the "on target" test used |
+| `trials` | one object per `trials.csv` row, in order: `trial` (1-based), `outcome`, `followed` (null when skipped), `duration_s`, `valid_ms`, `on_target_ms`, `time_on_target_pct`, `mean_distance_px` and `mean_distance_deg` (to the target's centre), `time_to_find_s`, `valid_pct` (valid share of the trial), `pursuit_gain`, `gain_usable_s` (the seconds the gain was taken over), `catch_up_count`, `catch_up_per_s` (catch-up saccades per second of valid gaze) and `pointer_path` (the pointer as `[{"on": true / false / null, "pts": [[x, y], ...]}, ...]`: canvas-normalized polylines split where the pointer enters or leaves the hitbox of the moving target, thinned like the gaze path; from the raw gaze, or from `pointer_stream.csv` for a Mouse run) |
+| `summary` | whole-test figures: `n_trials` (not skipped), `followed`, `time_on_target_pct` (`mean`, `min`, `max`), `mean_distance_deg`, `time_to_find_s`, `pursuit_gain` (median of the trials' gains) and `pursuit_gain_trials`, `catch_up_per_s` (all catch-ups over all valid gaze seconds), `valid_pct` |
+
+**Pursuit gain** is the least-squares slope of the gaze position along the target's direction of
+travel over 100 ms windows, divided by the target's speed; the trial's gain is the median over its
+usable windows. A window is usable only if every sample in it is valid, not inside a saccade (the
+existing I-VT detector, widened by one sample each side), within `max_err_deg` of the target and
+more than `bounce_excl_ms` away from a reversal of the target. A circular path uses the tangent.
+The target's position at the device rate is linearly interpolated from `target_track.csv`.
+Under `min_usable_s` of usable time, the gain is null. **Catch-up saccades** are the saccades of
+the existing detector falling inside the trial's valid gaze.
 
 ## Test store
 

@@ -20,15 +20,37 @@ DASH = "—"
 NOT_RECORDED = "not recorded"  # what the eye sections say of a Mouse test with no tracker
 DEFAULT_HIT_TOLERANCE_PX = 40.0  # dwell.jitter_tolerance_px's default: the hitbox margin
 
-OUTCOME_LABELS = {"hit": "Hit", "timeout": "Not selected", "skipped": "Skipped"}
+OUTCOME_LABELS = {
+    "hit": "Hit",
+    "timeout": "Not selected",
+    "skipped": "Skipped",
+    # Follow the Target (SPEC-input-selection-and-follow.md H6): on target for at least half
+    # of the trial or not.
+    "followed": "Followed",
+    "not_followed": "Not followed",
+}
 
 # One English sentence per task, under the Summary's heading (4D.2).
 TASK_SENTENCES = {
     "click_static": "A single target appears on an empty field; the child selects it by looking at it.",
     "click_grid": "One cell of a visible board lights up; the child selects it by looking at it.",
-    "follow_moving": "A target travels across the screen; the child follows it and selects it by looking at it.",
+    "follow_moving": "A target travels across the screen; the child follows it and nothing is selected.",
     "scanning": "The child finds the cued shape among other shapes and selects it by looking at it.",
 }
+# An old Follow & Click session (selection window, a click or dwell; SPEC H10) keeps its sentence.
+LEGACY_FOLLOW_SENTENCE = (
+    "A target travels across the screen; the child follows it and selects it by looking at it."
+)
+
+
+def task_sentence(report: dict[str, Any]) -> str:
+    """The one sentence under the Summary's heading for this report's task."""
+    session = report.get("session") or {}
+    task_id = session.get("task_id")
+    follow = report.get("follow")
+    if task_id == "follow_moving" and isinstance(follow, dict) and follow.get("legacy"):
+        return LEGACY_FOLLOW_SENTENCE
+    return TASK_SENTENCES.get(task_id, "")
 
 SUMMARY_COLUMNS = ("", "% (N)", "Trial Time (s)", "Reaction Time (s)", "Entries")
 TRIAL_COLUMNS = (

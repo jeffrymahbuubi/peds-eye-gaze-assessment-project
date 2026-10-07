@@ -42,9 +42,10 @@ def metadata(session_id: str = "S") -> SessionMetadata:
 
 def test_the_new_columns_follow_is_skipped_in_the_agreed_order():
     header = TrialRecord.csv_header()
-    # The two switch columns of SPEC-input-selection-and-follow.md 4.6 come last.
+    # The two switch columns and Follow the Target's four (SPEC-input-selection-and-follow.md 4.6) come last.
     assert header[header.index("is_skipped") :] == [
         "is_skipped", "entries", "end_x", "end_y", "slot_index", "clicks", "click_errors",
+        "valid_ms", "on_target_ms", "time_on_target_pct", "mean_dist_px",
     ]
     assert "outcome" not in header
     assert list(TrialRecord(0, "t", 0.5, 0.5, 90, 0).as_row()) == header

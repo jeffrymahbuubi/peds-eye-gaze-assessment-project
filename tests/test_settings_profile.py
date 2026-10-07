@@ -382,7 +382,11 @@ def test_the_live_block_holds_only_keys_that_apply_to_the_task(tmp_path):
     live_follow = load_settings_profile_file(follow)["live"]
     assert "motion.speed_frac_per_s" not in live_static
     assert live_follow["motion.speed_frac_per_s"] == 0.2
-    assert set(live_follow) == set(ALL_LIVE)
+    # Follow the Target has nothing to dwell on or select (SPEC-input-selection-and-follow.md I9):
+    # none of the dwell timing / ring / hitbox values is stored for it.
+    follow_less = {"dwell.threshold_ms", "dwell.refractory_ms", "dwell.jitter_tolerance_px",
+                   "dwell.progress_ring", "dwell.instant_feedback"}
+    assert set(live_follow) == set(ALL_LIVE) - follow_less
     assert set(live_static) == set(ALL_LIVE) - {"motion.speed_frac_per_s"}
     for live in (live_static, live_follow):
         assert "target.color" not in live and "totally.made.up" not in live

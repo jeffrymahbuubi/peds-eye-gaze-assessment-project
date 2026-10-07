@@ -18,6 +18,7 @@ from pathlib import Path
 from typing import Any, NamedTuple
 
 from .analysis_export import ALL_GAZE_FILENAME, base_column
+from .recorder import POINTER_STREAM_FILENAME
 from .report_geometry import Geometry
 from .report_util import to_float, to_int
 
@@ -56,6 +57,31 @@ def load_gaze_frames(session_dir: str | Path) -> list[GazeFrame]:
                     to_int(row.get("fixation_id")), to_float(row.get("fix_duration_s")),
                 )
             )
+    frames.sort(key=lambda f: f.t_ns)
+    return frames
+
+
+def load_pointer_frames(session_dir: str | Path, geometry: Geometry) -> list[GazeFrame]:
+    """A Mouse run's ``pointer_stream.csv`` as :class:`GazeFrame` objects, so the gaze-path code
+    (smoothing, thinning, the trial window) serves the mouse path unchanged
+    (SPEC-input-selection-and-follow.md 4.5). The file is canvas-normalized and the frames
+    are **monitor**-normalized like gaze, so a pointer position outside the canvas stays
+    outside it through :meth:`Geometry.monitor_to_canvas_norm`. Sorted by time and
+    de-duplicated on ``t_ns``; ``[]`` when the file is missing."""
+    path = Path(session_dir) / POINTER_STREAM_FILENAME
+    if not path.exists():
+        return []
+    frames: list[GazeFrame] = []
+    seen: set[int] = set()
+    with path.open(encoding="utf-8", newline="") as fh:
+        for row in csv.DictReader(fh):
+            t_ns = to_int(row.get("t_ns"))
+            x, y = to_float(row.get("x")), to_float(row.get("y"))
+            if t_ns is None or x is None or y is None or t_ns in seen:
+                continue
+            seen.add(t_ns)
+            mx, my = geometry.canvas_to_monitor_norm(x, y)
+            frames.append(GazeFrame(t_ns, mx, my, row.get("valid") == "1", None, None))
     frames.sort(key=lambda f: f.t_ns)
     return frames
 

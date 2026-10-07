@@ -54,7 +54,7 @@ def test_nothing_known_is_17_dashes_not_17_guesses():
 def test_the_task_comes_from_the_argument_or_metadata_tasks():
     meta = {"tasks": ["scanning"]}
     assert rows(meta)["Task"] == "Scanning Search"
-    assert rows(meta, task_id="follow_moving")["Task"] == "Follow & Click"
+    assert rows(meta, task_id="follow_moving")["Task"] == "Follow the Target"
     assert rows({"tasks": ["mystery"]})["Task"] == "mystery"
 
 

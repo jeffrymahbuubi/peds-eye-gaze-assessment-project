@@ -127,16 +127,11 @@ def test_diagonal_angle_follows_the_canvas_aspect_ratio():
 # -- horizontal is unchanged ------------------------------------------------------------
 
 
-def _old_targets(seed, n_trials, timeout_ns, window_ns):
-    """The pre-change build_targets draw order: y, then the window start."""
+def _lanes(seed, n_trials):
+    """build_targets' draw: one lane per trial (the selection window it used to draw after
+    each is gone with the selection, SPEC-input-selection-and-follow.md I9)."""
     rng = random.Random(seed)
-    latest_start = max(0, timeout_ns - window_ns)
-    out = []
-    for _ in range(n_trials):
-        y = rng.uniform(0.25, 0.75)
-        start = rng.randint(int(0.15 * timeout_ns), latest_start) if latest_start > 0 else 0
-        out.append((y, (start, start + window_ns)))
-    return out
+    return [rng.uniform(0.25, 0.75) for _ in range(n_trials)]
 
 
 def _old_horizontal_x(speed, elapsed_ns):
@@ -149,10 +144,9 @@ def _old_horizontal_x(speed, elapsed_ns):
 @pytest.mark.parametrize("seed", [0, 1, 42])
 def test_horizontal_is_numerically_identical_to_the_old_code_for_the_same_seed(seed):
     task = _task("horizontal", seed=seed)
-    old = _old_targets(seed, len(task.targets), task.timeout_ns, task.select_window_ns)
-    for target, (y, window) in zip(task.targets, old, strict=True):
+    lanes = _lanes(seed, len(task.targets))
+    for target, y in zip(task.targets, lanes, strict=True):
         assert (target.x_norm, target.y_norm) == (0.1, y)
-        assert task.select_windows[target.index] == window
         for elapsed_ns in range(0, 20_000_000_000, 137_000_000):
             assert task.target_position(target, elapsed_ns) == (
                 _old_horizontal_x(task.speed, elapsed_ns),
@@ -161,10 +155,22 @@ def test_horizontal_is_numerically_identical_to_the_old_code_for_the_same_seed(s
 
 
 @pytest.mark.parametrize("path", PATHS)
-def test_every_path_draws_the_same_selection_windows_for_one_seed(path):
+def test_every_path_draws_the_same_lanes_for_one_seed(path):
     task = _task(path, seed=7)
-    old = _old_targets(7, len(task.targets), task.timeout_ns, task.select_window_ns)
-    assert task.select_windows == [window for _y, window in old]
+    lanes = _lanes(7, len(task.targets))
+    if path == "vertical":  # the lane is the x of a vertical path
+        assert [t.x_norm for t in task.targets] == lanes
+    elif path in ("horizontal", "circular"):
+        assert [t.y_norm for t in task.targets] == lanes
+    else:  # a diagonal starts in its corner whatever the lane
+        assert {(t.x_norm, t.y_norm) for t in task.targets} == {
+            (0.1, 0.1) if path == "diagonal_tlbr" else (0.9, 0.1)
+        }
+
+
+def test_there_is_no_selection_window_to_draw():
+    task = _task("horizontal", seed=7)
+    assert not hasattr(task, "select_windows") and not hasattr(task, "select_window_ns")
 
 
 def test_circular_is_unchanged():
@@ -174,7 +180,7 @@ def test_circular_is_unchanged():
         omega = 2 * math.pi * 0.2
         expected = (0.5 + 0.3 * math.cos(omega * seconds), 0.5 + 0.3 * math.sin(omega * seconds))
         assert task.target_position(target, int(seconds * 1e9)) == expected
-    assert (target.x_norm, target.y_norm) == (0.1, _old_targets(0, 1, task.timeout_ns, task.select_window_ns)[0][0])
+    assert (target.x_norm, target.y_norm) == (0.1, _lanes(0, 1)[0])
 
 
 # -- equal on-screen speed ------------------------------------------------------------------

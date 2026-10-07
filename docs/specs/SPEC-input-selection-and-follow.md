@@ -1,10 +1,10 @@
 ---
 name: SPEC-input-selection-and-follow
 title: Pointer (Gaze / Mouse) and Selection (Dwell / Switch) per test; Follow the Target without a click
-status: approved 2026-10-07 (I1-I12, H1-H10); step 1 wireframes APPROVED 2026-10-07 (W1-W2); step 2 (engine) DONE 2026-10-08
+status: approved 2026-10-07 (I1-I12, H1-H10); step 1 wireframes APPROVED 2026-10-07 (W1-W2); step 2 (engine) DONE 2026-10-08; step 3 (Follow the Target) DONE 2026-10-08
 created: 2026-10-07
-last_updated: 2026-10-07
-next_step: step 3 (Follow the Target) was launched 2026-10-08 with spec-implementer in the worktree `.claude/worktrees/agent-abd63029551e9614d` (based on `64692b3`; uncommitted until hub review); then step 4 (spec-implementer) on feature/compass-task-flow, then step 5 (review + live check A10 with the user and the switch)
+last_updated: 2026-10-08
+next_step: step 4 (UI: config page Input card display, report tables / summary / map / legend + PDF for Switch and Follow, report_config labels) with spec-implementer in the worktree `.claude/worktrees/agent-abd63029551e9614d` (fast-forwarded to the step-3 commit), then step 5 (review + live check A10 with the user and the switch)
 related:
   - SPEC-compass-task-flow.md (parent redesign; configuration page 4B, run 4C, report 4D; P9c V1-V5 still open there and done FIRST)
   - SPEC-follow-moving-selection.md (the selection window this SPEC removes)
@@ -492,8 +492,129 @@ click**. It has no pointer movement and no keys.
     `test_config_flow::test_a_new_test_opens_at_standard_with_the_task_defaults` and the four
     `test_task_config_page::test_a_new_test_opens_with_standard_and_the_defaults[*]`. ruff is clean on
     the files touched in this addendum.
+- **2026-10-08 — step 3 (Follow the Target), `claude-sonnet-5-5`.** Same worktree, reset by the hub
+  to `64692b3` (step 2 committed `7b5ece6`); nothing staged or committed. §4.4, I8-I12, H6-H9,
+  A6, A7 and the data side of §4.5 / §4.6; the report page, PDF, summary tables and map legend are
+  step 4 and untouched (`report.json` carries what they need, see below).
+  - **Task (4.4, H6, H7, H9).** `FollowMovingTask` has `has_selection = False`: no select
+    windows, no `is_selectable`, no dwell or click path. `BaseTask` got four small hooks the
+    other tasks leave as they were (`_observe_frame`, `_end_by_time`, `_trial_cue`, `_end_event`)
+    and a `has_selection` class flag; with it False a frame never produces a click or a hit and
+    the trial ends at `timeout_ms`. Every frame, from the live smoothed pointer and the existing
+    hitbox (`effective_radius_px + jitter_px`, the same test that draws the glow): `valid_ms`,
+    `on_target_ms`, `dist_sum_px`, `dist_n` (an invalid frame adds nothing; one frame's span is
+    capped at 250 ms so a stall is not counted as tracking). At the end `is_hit` = followed =
+    at least 50 % of the valid time on target (`FOLLOWED_PCT`); no valid time at all is not
+    followed. Events `FOLLOWED` / `NOT_FOLLOWED` (`trial`, `time_on_target_pct`) replace
+    `HIT` / `TIMEOUT`; a skipped trial is `SKIPPED` as before. The hit sound (and particles) play
+    only for a followed trial, at its end, at the target's end position; there is no miss sound
+    anywhere in Follow. The target keeps moving for the whole duration (the trial length is exact
+    to the frame: tested in the app at 3 s). Glow while on target: the canvas is told `on_target`.
+  - **Data (4.6).** `trials.csv` gains `valid_ms`, `on_target_ms`, `time_on_target_pct`,
+    `mean_dist_px` (after `click_errors`, blank for the other tasks); `time_to_first_fixation_ms`
+    stays (the report's "time to find"). `metadata.hitbox_margin_px` (the run's
+    `dwell.jitter_tolerance_px`) is new, for every task, so a report can redraw the hitbox.
+  - **Settings (H9, I12).** `motion.select_window_ms` is gone from the registry and page (an old
+    test or config that carries it loads, the key is read nowhere). `task.timeout_ms` on the
+    Follow page is "Trial duration (s)": 3-30 s in 0.5 s steps (`_TASK_VARIANTS`, same key, so
+    stored values, profiles and data files are unchanged), default 10 s in the YAML. The Timing
+    card is trial duration + inter-trial interval. New `excludes` on both setting records ("every
+    task but ..."): the dwell threshold, ring, instant ring, refractory, jitter tolerance, the miss
+    sound and the Selection control are not offered on Follow (`TASKS_WITHOUT_SELECTION`), so the
+    Follow page is Pointer only with no Dwell card; `AssessmentApp` builds no dwell UI for it
+    (rings off, no refractory). `settings_registry.py` was 493 lines at `64692b3` and would have
+    been 525: the two records moved to the new `src/ui/setting_types.py` (re-exported; 480 now).
+  - **Wording (I11, W1).** Display name "Follow the Target" (`task_info`, YAML title
+    "追視 / Follow the Target", report text); the read-aloud text is W1's Follow wording with
+    `{timeout}` for the duration, the glow sentence dropped when the glow is off, "with the mouse"
+    for a Mouse test; the practice result says "N of M followed".
+  - **Analysis (4.5, H8, A7): `src/data/report_follow.py` (new, 468 lines).** `build_follow`
+    returns the `follow` block (below). Pursuit gain per H8: saccades from the existing I-VT
+    removed with one sample either side, gaze within 3 deg of the target (real degrees via the
+    geometry), 100 ms around each bounce of the target excluded, circular uses the tangent (the
+    direction is the chord of the interpolated track), target position at device rate by linear
+    interpolation of `target_track.csv`, median per trial, under 0.5 s usable gives `None`. Catch-up
+    saccades per second = the existing detector's saccades in the trial / valid gaze seconds.
+    Both need `all_gaze.csv`; a Mouse run with no tracker gets `None` for them but still has
+    time on target, distance, time to find and the pointer path (from `pointer_stream.csv`).
+    `report.json` `follow`: `{"legacy": true}` for a folder whose `trials.csv` has no
+    `on_target_ms` (H10, tested with a Follow & Click folder in the old layout), else `legacy`,
+    `params` (`max_err_deg` 3, `bounce_excl_ms` 100, `min_usable_s` 0.5, `followed_pct` 50, plus
+    the 100 ms velocity window and the 1-sample padding), `path`, `speed_frac_per_s`,
+    `trial_duration_s`, `gaze_available`, `hitbox_margin_px`, `trials` (per trial: `outcome`,
+    `followed`, `duration_s`, `valid_ms`, `on_target_ms`, `time_on_target_pct`, `mean_distance_px`
+    and `_deg`, `time_to_find_s`, `valid_pct`, `pursuit_gain`, `gain_usable_s`, `catch_up_count`,
+    `catch_up_per_s`, `pointer_path` = polylines `{on, pts}` split where the pointer enters or
+    leaves the moving target's hitbox) and `summary` (the W2 rows: `followed`/`n_trials`,
+    `time_on_target_pct` mean/min/max, `mean_distance_deg`, `time_to_find_s`, `pursuit_gain`
+    median, `catch_up_per_s`, `valid_pct`). `trials[*].outcome` is `followed` / `not_followed`
+    (counted as scored by the eye metrics, the quality share, `n_scored`); the config rows say
+    "Trial duration" and drop the Selection row for Follow. `REPORT_VERSION` is now 3 (cached
+    version-2 reports of Follow runs have the old shape and are rebuilt).
+  - **Docs.** `docs/DATA_SCHEMA.md` (columns, the Follow rows paragraph, `FOLLOWED` /
+    `NOT_FOLLOWED`, `hitbox_margin_px`, report version 3, the `follow` block and the gain
+    definition), `README.md` (Follow bullet, speed section without the selection window, the test
+    count).
+  - **Tests added (83 new, `tests/test_follow_task.py` 34, `test_follow_analysis.py` 25,
+    `test_follow_report.py` 14, `test_follow_run.py` 10; shared `tests/follow_fixtures.py`).**
+    A6: exact duration, no hit path, 50 +/- 1 % on target from a synthetic pointer that is on the
+    target half the time, sound only on followed trials, never a miss sound, glow, no rings, task
+    through the app. A7: gain 0.8 +/- 0.05 across seeds on horizontal, vertical and circular
+    paths, injected saccades counted, under 0.5 s usable is `None`, bounce and 3 deg rules, a Mouse
+    run with no tracker. H10: an old Follow & Click folder builds a report with no exception.
+    Existing tests updated for the removed select window / Dwell card / new columns / report
+    version 3 (listed in the diff; each change is the removal or the new column, no assertion
+    about other behaviour was loosened).
+  - **pytest (whole repo, worktree, offscreen):** `5 failed, 2480 passed, 2 skipped` (2487
+    collected; step-2 baseline in this worktree `5 failed, 2392 passed, 2 skipped`, so +88
+    passed). The 5 failures are the same lab-local `dwell.smoothing.alpha` 0.22 checks against the
+    worktree's committed `configs/default.yaml` (0.35): `test_config_flow::test_a_new_test_opens_at_standard_with_the_task_defaults`
+    and the four `test_task_config_page::test_a_new_test_opens_with_standard_and_the_defaults[*]`.
+    `ruff check src tests` reports only the 10 findings that were already there (import order in
+    `app.py`, `datetime.UTC`, `zip(strict=)` in files I did not touch for those lines); the new and
+    split files are clean. (One access violation in `start_test_page._fill` showed up once in a
+    mixed subset run midway and did not recur alone or in the full run; noted, not explained.)
+  - **Deviations from the SPEC text:** none that change a decision. Readings the SPEC left open are
+    in §9 ("decided, non-blocking"). Over 500 lines before and after: `base_task.py` (now 828) and
+    `app.py`, as in step 2.
+  - **Not done (step 4 / step 5):** the report page and PDF tables for Follow and Switch, the
+    summary rows on screen, the map legend entries and the Follow Target Map drawing, the
+    "Clicks" columns on the report, the per-trial eye columns saying "not recorded"; no live run
+    (A10 is step 5); nothing run on the device.
 
 ## 9. Implementer open questions
+
+- **2026-10-08 (step 3) — CONFIRMED by the user 2026-10-08 as built; the hitbox margin stays
+  fixed at 40 px (not a page control), recorded per run as `metadata.hitbox_margin_px`; if the
+  doctor wants to tune it after the live check A10, it is a later small step (un-exclude the
+  jitter control for Follow and place it on the Timing card).** The readings as the implementer
+  listed them: decided, non-blocking; for the hub's review. Calls the SPEC does not
+  spell out, each the least surprising reading:
+  - *Followed is stored as `is_hit`.* 4.4 says "a new outcome `followed` / `not_followed`" with
+    `is_timeout` false. `trials.csv` keeps its two flags: `is_hit` = followed, `is_timeout` = 0
+    always, and the report derives `followed` / `not_followed` from them when the header has
+    `on_target_ms`. An older Follow & Click folder (no such column) keeps `hit` / `timeout`.
+  - *The hitbox margin of Follow is not settable.* The Dwell card is gone from the Follow page
+    (including the jitter tolerance, which is the hitbox margin), so Follow's "on target" test
+    uses the configured `dwell.jitter_tolerance_px` (40 px by default) and records it as
+    `metadata.hitbox_margin_px`. If the clinician should tune it, the control would have to stay
+    on the Follow page.
+  - *Velocity for the gain is a 100 ms least-squares slope.* H8 says "gaze velocity component along
+    the target's direction"; a difference of two samples would drown a 10 deg/s target in the
+    device noise, so it is the slope over a 100 ms window centred on each kept sample, and the
+    window must be entirely usable (no invalid or saccade sample in it). The target's velocity is
+    the chord of the interpolated track over the same window.
+  - *The 3 deg test is angular distance from the target's interpolated position at the sample.*
+    Computed with the session geometry (`2 atan(d / 2D)`); a folder with no monitor size gives no
+    gain.
+  - *`valid_ms` caps one frame's span at 250 ms.* A stall (a long frame) is not counted as
+    tracked time.
+  - *A trial with no valid time is not followed* (`time_on_target_pct` blank) rather than an
+    undefined percentage.
+  - *`REPORT_VERSION` 3.* The new outcomes, the `follow` block and `hitbox_margin_px` change the
+    cached shape; existing caches are rebuilt on open.
+  - *The Follow Input row* reads "Eye gaze" for a gaze Follow (there is no Selection to name);
+    the Selection row is dropped from its Test Configuration table (16 rows).
 
 - **2026-10-07 (step 2) — RESOLVED 2026-10-07, user: "Yes, debounce". Built in the step-2
   addendum (§8): during a target, a press within `dwell.refractory_ms` of the previous counted
@@ -559,3 +680,4 @@ click**. It has no pointer movement and no keys.
 - **2026-10-07** — The user approved H1-H10 as written. SPEC committed on `feature/compass-task-flow`. Next: the compass SPEC's P9c pass (step 0), then step 1 here.
 - **2026-10-07** — Step 1 done: the hub updated the wireframes `task-config` (Input card, Dwell card, Glow on target, Follow timing), `start-test` (Mouse note, proposed read-aloud text), `report-summary` (Switch columns, Follow summary table, Mouse "not recorded") and `report-detailed` (Switch columns, Follow per-trial table, on/off-target path); rendered with wiremd. **The user approved them as is**, plus W1 (read-aloud wording) and W2 (Follow Metric/Value table) in §3.2a. P9c of the parent SPEC was committed first (`6bad506`) so these wireframes get their own commit. Next: steps 2-4 by spec-implementer.
 - **2026-10-08** — Step 2 done by spec-implementer in an isolated worktree (§8, incl. the addendum), merged into the main tree by the hub. §9 resolved with the user: refractory = switch debounce (`SWITCH_IGNORED reason=refractory`), Setup may continue without a tracker (Mouse-only note), the six small calls confirmed. Hub review: in scope, A1 (data), A2, A3, A4, A5, A9 met by tests; pre-existing key-release bug fixed (only the first Space press used to count); `app.py` (1231) and `base_task.py` (786) remain over 500 lines (pre-existing, later cleanup). Hub full pytest in the main tree: **2397 passed, 2 skipped, 0 failed**. Committed on the user's OK with offscreen review only; live check A10 is step 5. Next: step 3 (Follow the Target).
+- **2026-10-08** — Step 3 done by spec-implementer in the same worktree (§8), patched into the main tree by the hub (`git add -A` + `diff --cached --binary` + `git apply`). §9 step-3 readings taken to the user: **all confirmed as built; the 40 px hitbox margin stays fixed** (user decision, recorded per run as `metadata.hitbox_margin_px`). Hub review of every source diff and `report_follow.py`: `has_selection` + four BaseTask hooks leave the three selection tasks on their old path; per-frame accounting (invalid frames count for nothing, 250 ms frame cap, followed = 50 % of valid time, never a timeout); pursuit gain (saccades padded by one sample, whole 100 ms window clean, bounce exclusion, 3 deg limit, median, None under 0.5 s); legacy Follow & Click folders keep their old report (`on_target_ms` absent); `REPORT_VERSION` 3; `initial_live_values` still carries `dwell.jitter_tolerance_px` for every task, so the metadata field is always written. Hub full pytest in the main tree: **2487 collected, exit 0 (2485 passed, 2 skipped, 0 failed)**; the README's count stands. Committed on the user's OK; worktree fast-forwarded to the commit. The Fable design work (docs/design, `00a28bb`..`e81bdb6`) was done the same evening and has no code effect yet. Next: step 4.

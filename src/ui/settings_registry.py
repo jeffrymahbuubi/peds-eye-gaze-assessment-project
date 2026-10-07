@@ -19,7 +19,12 @@ from __future__ import annotations
 from dataclasses import dataclass
 from typing import Any
 
-from ..engine.input_choice import POINTER_GAZE, SELECTION_DWELL, SELECTION_SWITCH
+from ..engine.input_choice import (
+    POINTER_GAZE,
+    SELECTION_DWELL,
+    SELECTION_SWITCH,
+    TASKS_WITHOUT_SELECTION,
+)
 from ..engine.target_size import DEFAULT_GAP, DEFAULT_SIZE, GAP_CHOICES
 from .choice_lists import (  # re-exported: the dialog and the tests import them from here
     INPUT_POINTER_CHOICES,
@@ -27,53 +32,11 @@ from .choice_lists import (  # re-exported: the dialog and the tests import them
     MOTION_PATH_CHOICES,
     TARGET_SIZE_CHOICES,
 )
-
-MS_PER_S = 1000.0  # a stored millisecond figure is shown in seconds (``display_divisor``)
-
-
-@dataclass(frozen=True, slots=True)
-class LiveSetting:
-    key: str  # dotted key identifying this field (matches AssessmentApp's dispatch table)
-    label: str
-    group: str  # "settings" (dwell.*) | "pacing" (everything else)
-    kind: str  # "bool" | "int" | "float"
-    min: float | None = None
-    max: float | None = None
-    step: float | None = None
-    applies_to: tuple[str, ...] = ()  # empty = every task
-    # Plain-language explanation shown as a widget tooltip (SPEC-diki-design-
-    # audit.md S8 -- ported from diki's per-slider tooltip pattern, e.g.
-    # "Higher = steadier cursor, slightly slower to follow a new look").
-    tooltip: str | None = None
-    # A time is stored in milliseconds but shown in seconds (SPEC-compass-task-flow.md 7.1, V5):
-    # 1000.0 makes the slider row's number ``value / 1000`` and its label say "(s)". Only the
-    # display changes; the stored value, the profiles and the data files stay in ms.
-    display_divisor: float = 1.0
-
-    def applies(self, task_id: str) -> bool:
-        return not self.applies_to or task_id in self.applies_to
-
-
-@dataclass(frozen=True, slots=True)
-class StructuralSetting:
-    key: str  # dotted path within the task config's "task" block, e.g. "target.radius_px"
-    label: str
-    kind: str  # "int" | "float" | "choice" | "bool"
-    min: float = 0.0
-    max: float = 0.0
-    step: float = 0.0
-    applies_to: tuple[str, ...] = ()
-    # "choice" only (SPEC-target-size-and-motion-paths.md S4.5): (value, label)
-    # pairs rendered as a combo box; the saved/overridden value is the string.
-    choices: tuple[tuple[str, str], ...] = ()
-    # "choice" (a string) and "bool" (a bool, SPEC-compass-task-flow.md HB3): used
-    # when the task config has no value.
-    default: Any = ""
-    display_divisor: float = 1.0  # as on LiveSetting: 1000.0 shows a stored ms figure in seconds
-
-    def applies(self, task_id: str) -> bool:
-        return not self.applies_to or task_id in self.applies_to
-
+from .setting_types import (  # re-exported: the two records live in setting_types.py
+    MS_PER_S,
+    LiveSetting,
+    StructuralSetting,
+)
 
 # -- live, mid-task settings (SPEC section 5.1, regrouped per section 9) ----
 #
@@ -95,6 +58,7 @@ LIVE_SETTINGS: list[LiveSetting] = [
         tooltip="How long the gaze must rest on the target before it counts as a"
         " selection. Higher = fewer accidental selections, but slower to react.",
         display_divisor=MS_PER_S,
+        excludes=TASKS_WITHOUT_SELECTION,
     ),
     LiveSetting(
         "dwell.visual_cursor",
@@ -109,6 +73,7 @@ LIVE_SETTINGS: list[LiveSetting] = [
         "settings",
         "bool",
         tooltip="Show a filling ring around the target while the dwell timer counts up.",
+        excludes=TASKS_WITHOUT_SELECTION,
     ),
     LiveSetting(
         "dwell.instant_feedback",
@@ -117,6 +82,7 @@ LIVE_SETTINGS: list[LiveSetting] = [
         "bool",
         tooltip="Show an immediate ring the moment gaze lands on the target,"
         " before the dwell timer finishes.",
+        excludes=TASKS_WITHOUT_SELECTION,
     ),
     LiveSetting(
         "dwell.refractory_ms",
@@ -129,6 +95,7 @@ LIVE_SETTINGS: list[LiveSetting] = [
         tooltip="Minimum time after a selection before dwell can trigger again,"
         " to stop one long look from re-selecting the same target repeatedly.",
         display_divisor=MS_PER_S,
+        excludes=TASKS_WITHOUT_SELECTION,
     ),
     LiveSetting(
         "dwell.jitter_tolerance_px",
@@ -140,6 +107,7 @@ LIVE_SETTINGS: list[LiveSetting] = [
         5,
         tooltip="How far gaze can wander from the target and still count as"
         " on-target. Higher = steadier cursor, slightly less precise selection.",
+        excludes=TASKS_WITHOUT_SELECTION,
     ),
     LiveSetting(
         "dwell.smoothing.enabled",
@@ -195,6 +163,25 @@ LIVE_SETTINGS: list[LiveSetting] = [
     ),
 ]
 
+# A setting that reads differently on one task. Follow the Target has no timeout: its
+# ``task.timeout_ms`` is how long every trial lasts (SPEC-input-selection-and-follow.md H9, I12),
+# 3-30 s in half-second steps. Same key, so the stored value, the profiles and the data files
+# are unchanged; only the label, range and tooltip differ.
+_TASK_VARIANTS: dict[tuple[str, str], LiveSetting] = {
+    ("task.timeout_ms", "follow_moving"): LiveSetting(
+        "task.timeout_ms",
+        "Trial duration (s)",
+        "pacing",
+        "int",
+        3000,
+        30000,
+        500,
+        tooltip="How long each trial lasts. The target moves for this long, whatever the child"
+        " does, then the next one appears after the inter-trial interval.",
+        display_divisor=MS_PER_S,
+    ),
+}
+
 
 # -- structural, pre-launch-only settings (SPEC section 4) ------------------
 
@@ -243,20 +230,19 @@ STRUCTURAL_SETTINGS: list[StructuralSetting] = [
         choices=MOTION_PATH_CHOICES,
         default="horizontal",  # FollowMovingTask's own fallback when the YAML has no path
     ),
-    StructuralSetting(
-        "motion.select_window_ms",
-        "Selection window (s)",
-        "int",
-        500,
-        5000,
-        100,
-        applies_to=("follow_moving",),
-        display_divisor=MS_PER_S,
-    ),
+    # (No selection window any more: Follow the Target has nothing to select, I9/H9. An old
+    # test that still carries ``motion.select_window_ms`` loads fine; nothing reads it.)
     # The two sound toggles (SPEC-compass-task-flow.md HB3): read once at
     # GuiFeedback construction, so structural. `feedback.particles` stays unexposed.
+    # Follow plays the hit sound at the end of a followed trial and never a miss sound (I10).
     StructuralSetting("feedback.hit_sound", "Play hit sound", "bool", default=True),
-    StructuralSetting("feedback.miss_sound", "Play miss sound", "bool", default=True),
+    StructuralSetting(
+        "feedback.miss_sound",
+        "Play miss sound",
+        "bool",
+        default=True,
+        excludes=TASKS_WITHOUT_SELECTION,
+    ),
     # The input choices (SPEC-input-selection-and-follow.md H1): Pointer on every task,
     # Selection on the three tasks that select a target (Follow the Target has none, I9).
     StructuralSetting(
@@ -270,7 +256,7 @@ STRUCTURAL_SETTINGS: list[StructuralSetting] = [
         "input.selection",
         "Selection (how a target is selected)",
         "choice",
-        applies_to=("click_static", "click_grid", "scanning"),
+        excludes=TASKS_WITHOUT_SELECTION,
         choices=INPUT_SELECTION_CHOICES,
         default=SELECTION_DWELL,
     ),
@@ -281,7 +267,9 @@ STRUCTURAL_SETTINGS: list[StructuralSetting] = [
 
 
 def live_settings_for_task(task_id: str) -> list[LiveSetting]:
-    return [s for s in LIVE_SETTINGS if s.applies(task_id)]
+    """The live settings that apply to ``task_id``, a task's own variant of one
+    (:data:`_TASK_VARIANTS`) in place of the common entry."""
+    return [_TASK_VARIANTS.get((s.key, task_id), s) for s in LIVE_SETTINGS if s.applies(task_id)]
 
 
 def structural_settings_for_task(task_id: str) -> list[StructuralSetting]:
@@ -455,8 +443,7 @@ _CARDS = (
     ("icons", "Icons", 1, HINT_ICON_FIT, ("layout.size", "layout.n_icons")),
     ("grid", "Grid Layout", 1, HINT_GRID_FIT, ("grid.rows", "grid.cols", "grid.gap")),
     ("motion", "Motion", 1, None, ("motion.path", "motion.speed_frac_per_s")),
-    ("timing", "Timing", 1, None, (
-        "task.timeout_ms", "task.inter_trial_interval_ms", "motion.select_window_ms")),
+    ("timing", "Timing", 1, None, ("task.timeout_ms", "task.inter_trial_interval_ms")),
     ("input", "Input", 2, None, ("input.pointer", "input.selection")),
     ("selection", "Dwell", 2, None, (
         "dwell.threshold_ms", "dwell.refractory_ms", "dwell.jitter_tolerance_px")),

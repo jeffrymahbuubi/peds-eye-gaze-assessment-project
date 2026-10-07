@@ -100,6 +100,29 @@ class TrialRecord:
     # or had no gaze (a Click error). Both 0 for a Dwell test, which has no presses.
     clicks: int = 0
     click_errors: int = 0
+    # Follow the Target (SPEC-input-selection-and-follow.md 4.4, H7): what the live pointer
+    # did during the trial, counted per frame by the task. ``valid_ms`` is the frame time with a
+    # valid pointer, ``on_target_ms`` the part of it on the target (its hitbox), and the
+    # distance from the pointer to the target's centre is summed over the valid frames. All
+    # None / 0 for every other task (their four columns stay blank).
+    valid_ms: float | None = None
+    on_target_ms: float | None = None
+    dist_sum_px: float = 0.0
+    dist_n: int = 0
+
+    @property
+    def time_on_target_pct(self) -> float | None:
+        """Time on target, % of the valid time; None for a trial that measured none
+        (another task) or had no valid pointer at all."""
+        if self.valid_ms is None or self.on_target_ms is None or self.valid_ms <= 0:
+            return None
+        return 100.0 * self.on_target_ms / self.valid_ms
+
+    @property
+    def mean_dist_px(self) -> float | None:
+        """Mean distance from the pointer to the target's centre over the valid frames
+        (canvas px, Qt logical); None without any."""
+        return self.dist_sum_px / self.dist_n if self.dist_n else None
 
     @property
     def reaction_time_ms(self) -> float | None:
@@ -162,6 +185,10 @@ class TrialRecord:
             "slot_index": self.slot_index,
             "clicks": self.clicks,
             "click_errors": self.click_errors,
+            "valid_ms": _blank(_round(self.valid_ms, 1)),
+            "on_target_ms": _blank(_round(self.on_target_ms, 1)),
+            "time_on_target_pct": _blank(_round(self.time_on_target_pct)),
+            "mean_dist_px": _blank(_round(self.mean_dist_px)),
         }
         return row
 
@@ -191,6 +218,10 @@ class TrialRecord:
             "slot_index",
             "clicks",
             "click_errors",
+            "valid_ms",
+            "on_target_ms",
+            "time_on_target_pct",
+            "mean_dist_px",
         ]
 
 
@@ -338,6 +369,11 @@ class SessionMetadata:
     input_pointer: str | None = None
     input_selection: str | None = None
     gaze_recorded: bool | None = None
+    # The margin the run's hit test added to the target's radius (``dwell.jitter_tolerance_px``,
+    # Qt logical px): what "on target" meant. Follow the Target has no such control on its page
+    # (SPEC-input-selection-and-follow.md 4.1), so the report reads it here to colour the path
+    # on / off target. None on older sessions. Additive; ``schema_version`` not bumped.
+    hitbox_margin_px: float | None = None
 
     def to_dict(self) -> dict[str, Any]:
         return {f.name: getattr(self, f.name) for f in fields(self)}

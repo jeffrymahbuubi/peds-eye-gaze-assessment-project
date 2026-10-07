@@ -68,8 +68,15 @@ def test_every_task_shows_numbered_steps_a_note_and_the_clinician_block(qapp, ta
     assert page.heading_label.text() == f"Instructions for the {TASK_INFO[task_id][0]} test:"
     steps = [t for t in shown if t[:3] in ("1. ", "2. ", "3. ", "4. ")]
     assert len(steps) == 4 and [s[:2] for s in steps] == ["1.", "2.", "3.", "4."]
-    assert page.note_label.text().startswith("NOTE: ") and "8 seconds" in page.note_label.text()
-    assert any("0.8 seconds" in t for t in steps)
+    if task_id == "follow_moving":
+        # Nothing to select: no NOTE line (the label is hidden) and no dwell time; the trial
+        # duration is spoken instead (SPEC-input-selection-and-follow.md W1).
+        assert page.note_label.text() == "" and page.note_label.isHidden()
+        assert any("After about 8 seconds a new circle will appear." in t for t in steps)
+    else:
+        assert page.note_label.text().startswith("NOTE: ") and "8 seconds" in page.note_label.text()
+        assert not page.note_label.isHidden()
+        assert any("0.8 seconds" in t for t in steps)
     assert all("{" not in t and "}" not in t for t in shown)
     clinician = shown[-3:]
     assert 'press ALT-P' in clinician[0] and 'press ALT-Q' in clinician[0]

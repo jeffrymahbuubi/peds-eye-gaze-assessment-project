@@ -29,12 +29,18 @@ from ..tasks.entry_tracker import DEFAULT_EXIT_HOLD_MS
 from .exporter import load_metadata, load_trials_rows
 from .recorder import POINTER_STREAM_FILENAME
 from .report_config import build_config_rows, setting
-from .report_eye import DEFAULT_PUPIL, FrameIndex, load_gaze_frames, load_raw_samples
+from .report_eye import (
+    DEFAULT_PUPIL,
+    FrameIndex,
+    load_gaze_frames,
+    load_pointer_frames,
+    load_raw_samples,
+)
+from .report_follow import build_follow
 from .report_geometry import Geometry
 from .report_metrics import (
-    OUTCOME_HIT,
     OUTCOME_SKIPPED,
-    OUTCOME_TIMEOUT,
+    SCORED_OUTCOMES,
     analyse_raw,
     build_trials,
     summary_rows,
@@ -53,7 +59,10 @@ from .saccades import DEFAULT_IVT
 
 # 2: ``path`` is the gaze stream smoothed as the on-screen cursor was (it was the raw
 # stream), trials gain ``scanpath`` (fixation centroids), the config rows show seconds.
-REPORT_VERSION = 2
+# 3: the ``follow`` block (Follow the Target, SPEC-input-selection-and-follow.md: ``None`` for
+# every other task, ``{"legacy": true}`` for an old Follow & Click folder), the trial outcomes
+# ``followed`` / ``not_followed``, a Mouse run's ``path`` from ``pointer_stream.csv``.
+REPORT_VERSION = 3
 REPORT_FILENAME = "report.json"
 
 _log = logging.getLogger(__name__)
@@ -112,8 +121,14 @@ def build_report(session_dir: str | Path) -> dict[str, Any]:
         setting(settings, "dwell.smoothing.enabled", "dwell", "smoothing", "enabled"),
         setting(settings, "dwell.smoothing.alpha", "dwell", "smoothing", "alpha"),
     )
-    path_index = FrameIndex(smooth_frames(index.frames, smoothing))
-    raw = analyse_raw(load_raw_samples(session_dir), meta, geometry)
+    # The path drawn is the *pointer's*: the gaze, or -- a Mouse run -- the mouse
+    # (SPEC-input-selection-and-follow.md 4.5), through the same cursor filter.
+    pointer_frames = (
+        load_pointer_frames(session_dir, geometry) if meta.get("input_pointer") == "mouse" else []
+    )
+    path_index = FrameIndex(smooth_frames(pointer_frames or index.frames, smoothing))
+    raw_samples = load_raw_samples(session_dir)
+    raw = analyse_raw(raw_samples, meta, geometry)
     track = load_target_track(session_dir)
     events = _events(session_dir)
     shrunk = next((e for e in events if e.get("kind") == "TARGET_SHRUNK"), None)
@@ -130,6 +145,23 @@ def build_report(session_dir: str | Path) -> dict[str, Any]:
     planned = meta.get("planned_trials") if isinstance(meta.get("planned_trials"), int) else None
     header = trial_rows[0].keys() if trial_rows else ()
     n_skipped = sum(1 for t in trials if t["outcome"] == OUTCOME_SKIPPED)
+    # What "on target" meant: the radius plus this. The setting (a selection task), else what the
+    # run recorded (Follow the Target has no such control on its page).
+    margin_px = _number(
+        setting(settings, "dwell.jitter_tolerance_px", "dwell", "jitter_tolerance_px")
+    )
+    if margin_px is None:
+        margin_px = _number(meta.get("hitbox_margin_px"))
+    follow = None
+    if task_id == "follow_moving":
+        follow = build_follow(
+            trial_rows, trials, geometry=geometry, raw=raw, raw_samples=raw_samples,
+            track=track, path_index=path_index, margin_px=margin_px,
+            motion_path=setting(settings, None, "motion", "path"),
+            speed_frac_per_s=_number(
+                setting(settings, "motion.speed_frac_per_s", "motion", "speed_frac_per_s")
+            ),
+        )
 
     return {
         "report_version": REPORT_VERSION,
@@ -155,7 +187,7 @@ def build_report(session_dir: str | Path) -> dict[str, Any]:
             else n_rows,
             "outcome": meta.get("outcome"),
             "n_rows": n_rows,
-            "n_scored": sum(1 for t in trials if t["outcome"] in (OUTCOME_HIT, OUTCOME_TIMEOUT)),
+            "n_scored": sum(1 for t in trials if t["outcome"] in SCORED_OUTCOMES),
             "n_skipped": n_skipped,
             "n_not_presented": max(0, planned - n_rows) if planned is not None else None,
             # The test's input (SPEC-input-selection-and-follow.md H1, 4.6): None on an
@@ -185,11 +217,15 @@ def build_report(session_dir: str | Path) -> dict[str, Any]:
             "rows": [
                 list(r)
                 for r in build_config_rows(
-                    settings, meta, task_id=task_id, shrunk=shrunk, geometry=geometry
+                    settings, meta, task_id=task_id, shrunk=shrunk, geometry=geometry,
+                    follow_layout=follow is not None and not follow.get("legacy"),
                 )
             ]
         },
         "trials": trials,
+        # Follow the Target's figures (SPEC-input-selection-and-follow.md 4.5/4.6); None for
+        # every other task, ``{"legacy": true}`` for an old Follow & Click folder.
+        "follow": follow,
         "summary": {
             "rows": summary_rows(trials),
             "eye": eye_summary(trials, meta, geometry, share),
@@ -197,9 +233,7 @@ def build_report(session_dir: str | Path) -> dict[str, Any]:
         "map": {
             "aspect": None if geometry.aspect is None else round(geometry.aspect, 5),
             "slots": meta.get("layout_slots"),
-            "hit_tolerance_px": _number(
-                setting(settings, "dwell.jitter_tolerance_px", "dwell", "jitter_tolerance_px")
-            ),
+            "hit_tolerance_px": margin_px,
             **map_marks(trials, geometry, moving=task_id == "follow_moving"),
         },
         "heat": heat,

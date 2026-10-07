@@ -1,10 +1,13 @@
-# Follow-and-click task. Target moves along a path; select it inside a zone.
+# Follow the Target. The target moves along a path and the child follows it with the
+# eyes (or the mouse): nothing is selected, no click, no dwell. Each trial lasts exactly
+# `timeout_ms` (the page calls it "Trial duration"), and is "followed" when the pointer
+# was on the target for at least half of its valid time.
 task_id: follow_moving
-title: "追視點擊 / Follow & Click"
-instruction: "跟著移動的目標，在它變亮時選到它。"
+title: "追視 / Follow the Target"
+instruction: "用眼睛跟著移動的目標。"
 
 trials: 6
-timeout_ms: 12000
+timeout_ms: 10000             # how long every trial lasts (3000-30000)
 inter_trial_interval_ms: 1000
 
 motion:
@@ -14,7 +17,6 @@ motion:
   # (speed_frac_per_s x canvas width, in px/s).
   path: circular
   speed_frac_per_s: 0.20      # fraction of screen width per second
-  select_window_ms: 2500      # window during which selection counts as hit
 
 target:
   # Target size as a preset by visual angle (diameter): small 3 deg | medium
@@ -26,8 +28,7 @@ target:
   size: medium
 
 feedback:
-  hit_sound: true
-  miss_sound: true
+  hit_sound: true             # played at the end of a followed trial; no miss sound here
   particles: true
 
 theme: forest

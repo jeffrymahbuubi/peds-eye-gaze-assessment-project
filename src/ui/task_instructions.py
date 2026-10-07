@@ -54,13 +54,20 @@ _SWITCH_STEPS: dict[str, tuple[str, str]] = {
 _GLOW = " The {noun} glows while you are looking at it."
 
 
+# Follow the Target's glow step (read only with "Glow on target" on).
+_FOLLOW_GLOW_STEP = "The circle glows while you are looking at it."
+
+
 def _point_wording(text: str) -> str:
-    """The Mouse version of a sentence: "look at" is "point at", "looking at" "pointing at"."""
+    """The Mouse version of a sentence: "look at" is "point at", "looking at" "pointing at",
+    and a child follows "with the mouse", not "with your eyes"."""
     return (
         text.replace("Look at", "Point at")
         .replace("look at", "point at")
         .replace("looking at", "pointing at")
+        .replace("with your eyes", "with the mouse")
     )
+
 
 # Per task: four step templates and the timeout NOTE. ``{dwell}`` / ``{timeout}``
 # are seconds ("0.8 seconds"); ``{ring}`` is the optional ring sentence (with its
@@ -84,14 +91,16 @@ _TEMPLATES: dict[str, tuple[tuple[str, ...], str]] = {
         ),
         "NOTE: If the square is not selected within {timeout}, the next square will light up.",
     ),
+    # Follow the Target (W1): nothing is selected, so no NOTE line and no dwell or ring; the third
+    # step is only read with "Glow on target" on; ``{timeout}`` here is the trial duration.
     "follow_moving": (
         (
             "{dot}A circle will appear and start to move across the screen.",
-            "Follow the moving circle with your eyes.",
-            "When the circle becomes bright with a white ring, keep looking at it for about {dwell} to select it.{ring}",
-            "Then a new circle will appear. Continue until no more circles appear.",
+            "Follow the moving circle with your eyes and keep looking at it while it moves.",
+            _FOLLOW_GLOW_STEP,
+            "After about {timeout} a new circle will appear. Continue until no more circles appear.",
         ),
-        "NOTE: If the circle is not selected within {timeout}, it will disappear and the next one will appear.",
+        "",
     ),
     "scanning": (
         (
@@ -147,13 +156,15 @@ def build_instructions(
         "timeout": format_seconds(live["task.timeout_ms"]),
     }
     steps, note = _TEMPLATES[task_id]
+    glow = get_nested(cfg.get("task", {}), "feedback.target_glow", True)
     if choice.is_switch and task_id in _SWITCH_STEPS:
         # The dwell step becomes a press (W1); the glow sentence only with the glow on.
         sentence, noun = _SWITCH_STEPS[task_id]
-        glow = get_nested(cfg.get("task", {}), "feedback.target_glow", True)
         if glow is not False:
             sentence += _GLOW.format(noun=noun)
         steps = tuple(sentence if "{dwell}" in s else s for s in steps)
+    if glow is False:
+        steps = tuple(s for s in steps if s != _FOLLOW_GLOW_STEP)  # Follow only
     trials = cfg.get("task", {}).get("trials")
     count = str(int(trials)) if trials is not None else "all"
     out = tuple(s.format(**fill) for s in steps)

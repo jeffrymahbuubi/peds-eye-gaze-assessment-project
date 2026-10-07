@@ -63,6 +63,8 @@ class RunResult:
     hits: int
     session_dir: Path | None
     finished_at: str
+    # The task's id, so a line can say "followed" (Follow the Target) instead of "selected".
+    task_id: str = ""
 
     @property
     def is_complete(self) -> bool:
@@ -95,6 +97,7 @@ def run_result_from_task(
         hits=sum(1 for t in task.trials if t.is_hit),
         session_dir=session_dir,
         finished_at=finished_at,
+        task_id=str(getattr(task, "task_id", "") or ""),
     )
 
 
@@ -104,8 +107,10 @@ def practice_result_text(result: RunResult) -> str | None:
     nothing."""
     if result.run_mode != "practice" or not result.is_complete:
         return None
+    # Follow the Target selects nothing: its "hits" are the trials that were followed.
+    what = "followed" if result.task_id == "follow_moving" else "selected"
     return (
-        f"Practice finished: {result.hits} of {result.planned} selected. "
+        f"Practice finished: {result.hits} of {result.planned} {what}. "
         "You can practice again or press Start."
     )
 

@@ -297,6 +297,7 @@ class StartTestPage(QWidget):
         self.heading_label.setText(text.heading)
         self._fill(self.steps_layout, [f"{i}. {step}" for i, step in enumerate(text.steps, 1)], 15)
         self.note_label.setText(text.note)
+        self.note_label.setVisible(bool(text.note))  # Follow the Target has no NOTE line
         self._fill(self.clinician_layout, list(text.clinician), 13)
 
     @staticmethod

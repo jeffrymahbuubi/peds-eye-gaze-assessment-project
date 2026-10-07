@@ -84,6 +84,7 @@ def test_is_skipped_defaults_false_and_is_followed_by_the_p3_columns():
     # R6: is_skipped, then the 4D.4 columns, in one go (P3 adds the last four).
     assert header[header.index("is_skipped"):] == [
         "is_skipped", "entries", "end_x", "end_y", "slot_index", "clicks", "click_errors",
+        "valid_ms", "on_target_ms", "time_on_target_pct", "mean_dist_px",
     ]
     assert "outcome" not in header  # R6: no outcome column, the report derives it
     assert list(trial.as_row()) == header

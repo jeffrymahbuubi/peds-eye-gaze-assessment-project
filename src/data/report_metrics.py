@@ -42,6 +42,12 @@ from .saccades import DEFAULT_IVT, IvtParams, Saccade, detect_saccades, window_s
 OUTCOME_HIT, OUTCOME_TIMEOUT, OUTCOME_SKIPPED, OUTCOME_UNKNOWN = (
     "hit", "timeout", "skipped", "unknown"
 )
+# Follow the Target (SPEC-input-selection-and-follow.md H6): its trials are never a hit or a
+# timeout, they are followed (on target for at least half of the valid time) or not.
+OUTCOME_FOLLOWED, OUTCOME_NOT_FOLLOWED = "followed", "not_followed"
+# The trials that were presented and judged: the ones the percentages, the eye metrics, the
+# heat map and the valid-gaze share are taken over (a skipped trial is none of them).
+SCORED_OUTCOMES = (OUTCOME_HIT, OUTCOME_TIMEOUT, OUTCOME_FOLLOWED, OUTCOME_NOT_FOLLOWED)
 
 SUMMARY_ROWS = (
     ("error_free", "Error-free Target Selections"),
@@ -51,11 +57,15 @@ SUMMARY_ROWS = (
 )
 
 
-def trial_outcome(row: dict[str, str]) -> str:
+def trial_outcome(row: dict[str, str], follow: bool = False) -> str:
     """``skipped`` / ``hit`` / ``timeout`` from the three flags (R6); ``unknown``
-    when none is set (never a made-up one)."""
+    when none is set (never a made-up one). For a Follow the Target row (``follow``, its
+    ``on_target_ms`` column present) ``is_hit`` means *followed* and every other
+    unskipped row is ``not_followed``."""
     if row.get("is_skipped") == "1":
         return OUTCOME_SKIPPED
+    if follow:
+        return OUTCOME_FOLLOWED if row.get("is_hit") == "1" else OUTCOME_NOT_FOLLOWED
     if row.get("is_hit") == "1":
         return OUTCOME_HIT
     if row.get("is_timeout") == "1":
@@ -157,12 +167,14 @@ def build_trials(
     fixation centroids in time order, whatever the smoothing.
     """
     moving = task_id == "follow_moving"
+    # A Follow the Target folder (not an old Follow & Click one): see ``report_follow``.
+    follow_layout = moving and bool(trial_rows) and "on_target_ms" in trial_rows[0]
     logical = geometry.canvas_logical_size()
     out: list[dict[str, Any]] = []
     prev_start: tuple[float, float] | None = None
     for row in trial_rows:
         trial_id = to_int(row.get("trial_id")) or 0
-        outcome = trial_outcome(row)
+        outcome = trial_outcome(row, follow_layout)
         onset = to_int(row.get("t_target_shown_ns"))
         end = to_int(row.get("t_end_ns"))
         x, y = to_float(row.get("target_x")), to_float(row.get("target_y"))
@@ -180,7 +192,7 @@ def build_trials(
         attempts = to_int(row.get("attempts"))
         t_click = to_int(row.get("t_click_ns"))
         t_first = to_int(row.get("t_first_gaze_on_target_ns"))
-        scored = outcome in (OUTCOME_HIT, OUTCOME_TIMEOUT) and onset is not None
+        scored = outcome in SCORED_OUTCOMES and onset is not None
         trial_time = reaction = None
         if scored:
             done = t_click if outcome == OUTCOME_HIT and t_click is not None else end
@@ -229,9 +241,11 @@ def build_trials(
                     "items": [[round(f.x, 4), round(f.y, 4), round(f.dur_ms, 1)] for f in fixes],
                 }
                 item["scanpath"] = [[round(f.x, 4), round(f.y, 4)] for f in fixes]
-                item["path"] = gaze_path(
-                    (path_index or index).window(onset, end), geometry, path_params
-                )
+            # Independent of the gaze window: a Mouse run's path is the mouse's, and it may have
+            # no gaze at all (SPEC-input-selection-and-follow.md 4.5).
+            pointer_window = (path_index or index).window(onset, end)
+            if pointer_window:
+                item["path"] = gaze_path(pointer_window, geometry, path_params)
             if raw is not None:
                 if raw.saccades is not None:
                     item["saccades"] = _saccade_block(

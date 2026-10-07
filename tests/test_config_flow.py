@@ -167,8 +167,9 @@ def test_the_stored_snapshot_is_complete_and_has_no_theme_or_particles(win):
     cfg = stored(win, test.test_id).configuration
     assert "motion.speed_frac_per_s" in cfg["live"]
     assert cfg["structural"]["motion"]["path"] == "circular"
-    # The two sounds and the glow (SPEC-input-selection-and-follow.md H3); Follow has no Selection.
-    assert cfg["structural"]["feedback"] == {"hit_sound": True, "miss_sound": True, "target_glow": True}
+    # The hit sound and the glow (SPEC-input-selection-and-follow.md H3, I10): Follow has no Selection
+    # and no miss sound.
+    assert cfg["structural"]["feedback"] == {"hit_sound": True, "target_glow": True}
     assert cfg["structural"]["input"] == {"pointer": "gaze"}
     assert "theme" not in cfg["structural"] and "particles" not in cfg["structural"]["feedback"]
 

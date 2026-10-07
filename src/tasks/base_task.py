@@ -141,6 +141,10 @@ class BaseTask:
     # Log the target's position to ``target_track.csv`` (SPEC-compass-task-flow.md
     # 4D.4-2); only a task whose target moves has a path worth recording.
     records_target_track = False
+    # Whether the child selects the target (dwell or switch). Follow the Target does not
+    # (SPEC-input-selection-and-follow.md I9): it only measures the pointer and ends every
+    # trial after ``timeout_ms``; see ``_observe_frame`` / ``_end_by_time``.
+    has_selection = True
 
     def __init__(
         self,
@@ -167,7 +171,9 @@ class BaseTask:
         # by dwell, or by a switch press -- which is also the path a task built with no
         # dwell selector takes. The switch rules (I5) live in ``_switch_press``.
         self.input_selection = selection_of_mode(input_mode)
-        self._switch_rules = not (self.input_selection == SELECTION_DWELL and dwell is not None)
+        self._switch_rules = self.has_selection and not (
+            self.input_selection == SELECTION_DWELL and dwell is not None
+        )
         # The switch's debounce (user decision of 2026-10-07): while a target is up, a press
         # within ``dwell.refractory_ms`` of the last counted one is ignored. The value is the
         # dwell selector's own when there is one, else the config's, else none (a bare task).
@@ -466,7 +472,12 @@ class BaseTask:
                 # random offset (SPEC-follow-moving-selection.md S4.2).
                 self._current.t_selectable_start_ns = t_ns
 
-            if not self._switch_rules:
+            if not self.has_selection:
+                # Follow the Target: nothing is selected, the pointer is only measured.
+                self._observe_frame(t_ns, pointer.valid, on_target, px, py, cx_px, cy_px)
+                clicked = hit = False
+                miss_extra: dict[str, Any] = {}
+            elif not self._switch_rules:
                 # `selectable` gates *completion*, not accumulation: an early
                 # dwell holds at full and fires the moment the window opens,
                 # rather than completing and being rejected
@@ -477,7 +488,7 @@ class BaseTask:
                     self.feedback.on_progress(tx_norm, ty_norm, state.progress)
                 clicked = state.triggered  # dwell only triggers while on target
                 hit = clicked and selectable
-                miss_extra: dict[str, Any] = {}
+                miss_extra = {}
             elif pointer.clicked:
                 press_judged = True
                 if self._debounced(t_ns):
@@ -511,8 +522,7 @@ class BaseTask:
                 self._finish_trial(t_ns, timed_out=False)
                 just_finished = True
             elif elapsed >= self.timeout_ns:
-                self._current.is_timeout = True
-                self._finish_trial(t_ns, timed_out=True)
+                self._end_by_time(t_ns)
                 just_finished = True
 
         elif self._phase is Phase.ITI:
@@ -547,6 +557,41 @@ class BaseTask:
             on_target=on_target,
             target_radius_px=self.effective_radius_px(target) if target is not None else 0.0,
         )
+
+    # -- how a trial can end without a selection ---------------------------
+
+    def _observe_frame(
+        self,
+        t_ns: int,
+        valid: bool,
+        on_target: bool,
+        px: float,
+        py: float,
+        cx_px: float,
+        cy_px: float,
+    ) -> None:
+        """Called once per frame of a trial in a task with no selection
+        (:attr:`has_selection` false), with the pointer and the target in canvas px.
+        Nothing by default; Follow the Target accumulates its metrics here."""
+
+    def _end_by_time(self, t_ns: int) -> None:
+        """The trial ran its ``timeout_ms``: a timeout, for a task that waits for a
+        selection. Follow the Target overrides it (its trials are meant to last that long)."""
+        assert self._current is not None
+        self._current.is_timeout = True
+        self._finish_trial(t_ns, timed_out=True)
+
+    def _trial_cue(self) -> None:
+        """The hit or miss cue at a trial's end (a skip plays neither)."""
+        assert self._current is not None and self.feedback is not None
+        if self._current.is_hit:
+            self.feedback.on_hit(self._current.target_x, self._current.target_y)
+        else:
+            self.feedback.on_miss(self._current.target_x, self._current.target_y)
+
+    def _end_event(self, timed_out: bool, skipped: bool) -> tuple[str, dict[str, Any]]:
+        """The event a trial's end is logged as, and its payload beyond ``trial``."""
+        return ("SKIPPED" if skipped else ("TIMEOUT" if timed_out else "HIT")), {}
 
     # -- the switch (SPEC-input-selection-and-follow.md I5) ----------------
 
@@ -764,12 +809,9 @@ class BaseTask:
         self.trials.append(self._current)
         # A skip plays neither cue: it is not a hit, and not a miss either (U5).
         if self.feedback is not None and not skipped:
-            if self._current.is_hit:
-                self.feedback.on_hit(self._current.target_x, self._current.target_y)
-            else:
-                self.feedback.on_miss(self._current.target_x, self._current.target_y)
-        kind = "SKIPPED" if skipped else ("TIMEOUT" if timed_out else "HIT")
-        self._record_event(kind, t_ns, trial=self._trial_index)
+            self._trial_cue()
+        kind, extra = self._end_event(timed_out, skipped)
+        self._record_event(kind, t_ns, trial=self._trial_index, **extra)
         self._current = None
         self._phase = Phase.ITI
         self._phase_deadline_ns = t_ns + self.iti_ns

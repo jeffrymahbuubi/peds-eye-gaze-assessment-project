@@ -130,6 +130,12 @@ def _thin(segment: Sequence[GazeFrame], geometry: Geometry, params: PathParams) 
     return kept
 
 
+# The two decimation helpers, public for the Follow the Target pointer path
+# (:mod:`report_follow`), which thins its runs the same way.
+thin_segment = _thin
+uniform_indices = _uniform_indices
+
+
 def gaze_path(
     window: Sequence[GazeFrame], geometry: Geometry, params: PathParams = DEFAULT_PATH
 ) -> list[list[list[float]]]:

@@ -11,7 +11,7 @@ from typing import Any
 
 from .report_eye import FrameIndex, GazeFrame
 from .report_geometry import Geometry
-from .report_metrics import OUTCOME_HIT, OUTCOME_TIMEOUT
+from .report_metrics import SCORED_OUTCOMES
 from .report_util import mean_or_none, round_or_none, to_float, to_int
 
 VALID_SHARE_FLOOR = 0.8  # the floor the old Results page used (retired with it, HD17)
@@ -77,7 +77,7 @@ def gaze_valid_share(index: FrameIndex, trials: Sequence[dict[str, Any]]) -> flo
     ``None`` when there are none (no ``gaze_stream.csv``)."""
     total = valid = 0
     for t in trials:
-        if t["outcome"] not in (OUTCOME_HIT, OUTCOME_TIMEOUT):
+        if t["outcome"] not in SCORED_OUTCOMES:
             continue
         if t["onset_ns"] is None or t["end_ns"] is None:
             continue
@@ -93,7 +93,7 @@ def frames_by_window(
     """``(frames, end_ns)`` of every scored trial, the heat map's input."""
     out = []
     for t in trials:
-        if t["outcome"] in (OUTCOME_HIT, OUTCOME_TIMEOUT) and t["onset_ns"] and t["end_ns"]:
+        if t["outcome"] in SCORED_OUTCOMES and t["onset_ns"] and t["end_ns"]:
             out.append((index.window(t["onset_ns"], t["end_ns"]), t["end_ns"]))
     return out
 

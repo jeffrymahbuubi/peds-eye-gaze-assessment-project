@@ -41,7 +41,7 @@ from .engine.display_check import check_display
 from .engine.config import CONFIG_ROOT, deep_merge, load_task_config, load_theme
 from .engine.gaze_diagnostics import GazeDropoutLog, gaze_dropout_log_path
 from .engine.feedback import FeedbackBus
-from .engine.input_choice import glow_active, resolve_input
+from .engine.input_choice import TASKS_WITHOUT_SELECTION, glow_active, resolve_input
 from .engine.latency import LatencyTracker
 from .engine.loop_rate import config_target_fps, resolve_target_fps, target_fps_is_invalid
 from .engine.run_mode import (
@@ -457,9 +457,13 @@ class AssessmentApp:
         if self.pointer_source is not self.client and hasattr(self.pointer_source, "bind_canvas"):
             self.pointer_source.bind_canvas(self.canvas)
         self.canvas.show_cursor = bool(lv["dwell.visual_cursor"])
-        # A switch run has no dwell ring (A4): its place is taken by the glow.
-        self.canvas.show_progress_ring = bool(lv["dwell.progress_ring"]) and not self._is_switch
-        self.canvas.show_instant_feedback = bool(lv["dwell.instant_feedback"])
+        # A switch run has no dwell ring (A4): its place is taken by the glow. Follow the
+        # Target has nothing to dwell on at all: no ring and no instant ring, just the glow.
+        has_dwell_ui = task_id not in TASKS_WITHOUT_SELECTION
+        self.canvas.show_progress_ring = (
+            bool(lv["dwell.progress_ring"]) and not self._is_switch and has_dwell_ui
+        )
+        self.canvas.show_instant_feedback = bool(lv["dwell.instant_feedback"]) and has_dwell_ui
         glow_on = get_nested(self.config.get("task", {}), "feedback.target_glow", True)
         self.canvas.show_glow = glow_active(
             task_id, self.input_choice.selection, glow_on if isinstance(glow_on, bool) else True
@@ -482,6 +486,8 @@ class AssessmentApp:
             input_pointer=self.input_choice.pointer,
             input_selection=self.input_choice.selection,
             gaze_recorded=self._gaze_recorded,
+            # What "on target" meant: the radius plus this (Follow has no control for it).
+            hitbox_margin_px=float(lv["dwell.jitter_tolerance_px"]),
             tasks=[task_id],
             assessment_date=assessment_date,
             sex=sex,
