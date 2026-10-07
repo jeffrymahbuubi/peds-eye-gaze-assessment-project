@@ -535,7 +535,10 @@ body.wmd-root {
   <p class="wmd-paragraph">SPEC-compass-task-flow.md 4B. A full page opened by Configure Test on the Test List. It replaces the Settings dialog inside the dashboard (the old dialog stays only for standalone <code>--task X --gui</code>, see <code>task-settings.md</code>). Shown: Grid Click in its Standard state. Compass reference: <code>docs/compass/screenshots/06-*.png</code>. The nav is locked while this page is open.</p>
 </blockquote>
 <blockquote class="wmd-blockquote">
-  <p class="wmd-paragraph">Three columns of cards. <strong>Column A:</strong> Test, Feedback. <strong>Column B:</strong> Target, the task card (here Grid Layout), Timing. <strong>Column C:</strong> Selection (Dwell), Gaze Smoothing. Every number is a slider plus a spin box (the existing SliderSpinRow), shown here as a number box.</p>
+  <p class="wmd-paragraph">Three columns of cards. <strong>Column A:</strong> Test, Feedback. <strong>Column B:</strong> Target, the task card (here Grid Layout), Timing. <strong>Column C:</strong> Input, Dwell, Gaze Smoothing. Every number is a slider plus a spin box (the existing SliderSpinRow), shown here as a number box.</p>
+</blockquote>
+<blockquote class="wmd-blockquote">
+  <p class="wmd-paragraph">SPEC-input-selection-and-follow.md 4.1 (added 2026-10-07): the <strong>Input</strong> card (Pointer + Selection), the card "Selection (Dwell)" renamed <strong>Dwell</strong>, and "Glow on target" in Feedback. Shown: Gaze + Dwell, the default.</p>
 </blockquote>
 <div class="wmd-grid wmd-grid-3" style="--grid-columns: 3">
   <div class="wmd-grid-item wmd-card wmd-grid-item-card">
@@ -582,19 +585,30 @@ body.wmd-root {
 </ul>
   </div>
   <div class="wmd-grid-item wmd-card wmd-grid-item-card">
-    <h3 class="wmd-h3">C · Selection (Dwell)</h3>
-    <div class="wmd-container-form-group">
-  Dwell threshold (s)
-  <input type="number" class="wmd-input" placeholder="0.8" style="width: 9ch; max-width: 9ch;" />
-</div>
-    <div class="wmd-container-form-group">
-  Refractory period (s)
-  <input type="number" class="wmd-input" placeholder="0.5" style="width: 9ch; max-width: 9ch;" />
-</div>
-    <div class="wmd-container-form-group">
-  Jitter tolerance (px)
-  <input type="number" class="wmd-input" placeholder="40" style="width: 8ch; max-width: 8ch;" />
-</div>
+    <h3 class="wmd-h3">C · Input</h3>
+    <p class="wmd-paragraph">Pointer (what moves the pointer)</p>
+    <ul class="wmd-list">
+  <label class="wmd-radio">
+    <input type="radio" checked />
+    <span>Gaze</span>
+  </label>
+  <label class="wmd-radio">
+    <input type="radio" />
+    <span>Mouse</span>
+  </label>
+</ul>
+    <p class="wmd-paragraph">Selection (how a target is selected)</p>
+    <ul class="wmd-list">
+  <label class="wmd-radio">
+    <input type="radio" checked />
+    <span>Dwell — keep looking at the target</span>
+  </label>
+  <label class="wmd-radio">
+    <input type="radio" />
+    <span>Switch — look at the target, then press the switch</span>
+  </label>
+</ul>
+    <p class="wmd-paragraph">Pointer is on every task. Selection is on Static Click, Grid Click and Scanning Search; Follow the Target has none.</p>
   </div>
 </div>
 <div class="wmd-grid wmd-grid-3" style="--grid-columns: 3">
@@ -615,6 +629,10 @@ body.wmd-root {
   </label>
   <label class="wmd-checkbox">
     <input type="checkbox" checked />
+    <span>Glow on target</span>
+  </label>
+  <label class="wmd-checkbox">
+    <input type="checkbox" checked />
     <span>Play hit sound</span>
   </label>
   <label class="wmd-checkbox">
@@ -622,6 +640,7 @@ body.wmd-root {
     <span>Play miss sound</span>
   </label>
 </ul>
+    <p class="wmd-paragraph">&quot;Show dwell progress ring&quot; is greyed while Selection = Switch. &quot;Glow on target&quot; (default on) is greyed while Selection = Dwell, as here.</p>
   </div>
   <div class="wmd-grid-item wmd-card wmd-grid-item-card">
     <h3 class="wmd-h3">B · Grid Layout</h3>
@@ -651,18 +670,20 @@ body.wmd-root {
     <p class="wmd-paragraph">Amber hint when it does not fit: &quot;Targets will be shrunk to about 180 px to fit a 3x3 grid with this gap.&quot;</p>
   </div>
   <div class="wmd-grid-item wmd-card wmd-grid-item-card">
-    <h3 class="wmd-h3">C · Gaze Smoothing</h3>
-    <ul class="wmd-list">
-  <label class="wmd-checkbox">
-    <input type="checkbox" checked />
-    <span>Smoothing enabled</span>
-  </label>
-</ul>
+    <h3 class="wmd-h3">C · Dwell</h3>
     <div class="wmd-container-form-group">
-  Smoothing alpha
-  <input type="number" class="wmd-input" placeholder="0.22" style="width: 10ch; max-width: 10ch;" />
+  Dwell threshold (s)
+  <input type="number" class="wmd-input" placeholder="0.8" style="width: 9ch; max-width: 9ch;" />
 </div>
-    <p class="wmd-paragraph">Greyed (not hidden) while Smoothing enabled is off: the only dependent control.</p>
+    <div class="wmd-container-form-group">
+  Refractory period (s)
+  <input type="number" class="wmd-input" placeholder="0.5" style="width: 9ch; max-width: 9ch;" />
+</div>
+    <div class="wmd-container-form-group">
+  Jitter tolerance (px)
+  <input type="number" class="wmd-input" placeholder="40" style="width: 8ch; max-width: 8ch;" />
+</div>
+    <p class="wmd-paragraph">While Selection = Switch only &quot;Dwell threshold&quot; is greyed. Refractory and jitter tolerance stay active: the hitbox and the debounce apply to the switch too.</p>
   </div>
 </div>
 <div class="wmd-grid wmd-grid-3" style="--grid-columns: 3">
@@ -682,10 +703,26 @@ body.wmd-root {
 </div>
   </div>
   <div class="wmd-grid-item wmd-card wmd-grid-item-card">
-    <h3 class="wmd-h3">(column C ends)</h3>
-    <p class="wmd-paragraph">—</p>
+    <h3 class="wmd-h3">C · Gaze Smoothing</h3>
+    <ul class="wmd-list">
+  <label class="wmd-checkbox">
+    <input type="checkbox" checked />
+    <span>Smoothing enabled</span>
+  </label>
+</ul>
+    <div class="wmd-container-form-group">
+  Smoothing alpha
+  <input type="number" class="wmd-input" placeholder="0.22" style="width: 10ch; max-width: 10ch;" />
+</div>
+    <p class="wmd-paragraph">Greyed (not hidden) while Smoothing enabled is off: the only dependent control.</p>
   </div>
 </div>
+<blockquote class="wmd-blockquote">
+  <p class="wmd-paragraph"><strong>State: Selection = Switch</strong> (same page, nothing moves or disappears): the Input card shows "(*) Switch"; in Feedback "Show dwell progress ring" is greyed and "Glow on target" is active; in Dwell only the threshold is greyed.</p>
+</blockquote>
+<blockquote class="wmd-blockquote">
+  <p class="wmd-paragraph"><strong>State: Pointer = Mouse:</strong> nothing extra is greyed. Dwell with the mouse = hover dwell. With Selection = Switch, the mouse's own left button is the switch.</p>
+</blockquote>
 <hr class="wmd-separator" />
 <div class="wmd-row">
   <div class="wmd-grid-item">
@@ -706,7 +743,7 @@ body.wmd-root {
   <ul class="wmd-list">
   <li class="wmd-list-item">Column A: Test, then Feedback.</li>
   <li class="wmd-list-item">Column B: Target, then the task card (Grid Layout / Motion / Icons), then Timing.</li>
-  <li class="wmd-list-item">Column C: Selection (Dwell), then Gaze Smoothing.</li>
+  <li class="wmd-list-item">Column C: Input, then Dwell, then Gaze Smoothing.</li>
   <li class="wmd-list-item">At 1920x1080 @ 100 % nothing scrolls. At larger scaling the cards scroll and the footer stays visible.</li>
 </ul>
 </blockquote>
@@ -717,29 +754,9 @@ body.wmd-root {
     <p class="wmd-paragraph">Target card only (no task card). Defaults: 32 trials, timeout 8000, interval 800.</p>
   </div>
   <div class="wmd-grid-item wmd-card wmd-grid-item-card">
-    <h3 class="wmd-h3">Follow &amp; Click — Motion</h3>
-    <div class="wmd-radio-group wmd-radio-group-inline">
-    <label class="wmd-radio">
-    <input type="radio" checked name="radio-vbbsfxcqq" />
-    <span>Circular</span>
-  </label>
-    <label class="wmd-radio">
-    <input type="radio" name="radio-vbbsfxcqq" />
-    <span>Horizontal</span>
-  </label>
-    <label class="wmd-radio">
-    <input type="radio" name="radio-vbbsfxcqq" />
-    <span>Vertical</span>
-  </label>
-    <label class="wmd-radio">
-    <input type="radio" name="radio-vbbsfxcqq" />
-    <span>Diagonal ↘</span>
-  </label>
-    <label class="wmd-radio">
-    <input type="radio" name="radio-vbbsfxcqq" />
-    <span>Diagonal ↙ · Target speed</span>
-  </label>
-</div>
+    <h3 class="wmd-h3">Follow the Target — Motion</h3>
+    <p class="wmd-paragraph">Movement path: Circular (selected) / Horizontal / Vertical / Diagonal ↘ / Diagonal ↙ · Target speed (frac/s) 0.20.</p>
+    <p class="wmd-paragraph">Input card: Pointer only, no Selection radio. No Dwell card. Feedback: gaze cursor, &quot;Glow on target&quot;, hit sound (plays at the end of a followed trial); no dwell progress ring, no miss sound. Timing card: &quot;Trial duration (s) 10&quot; (3–30, step 0.5) and the inter-trial interval; no selection window.</p>
   </div>
   <div class="wmd-grid-item wmd-card wmd-grid-item-card">
     <h3 class="wmd-h3">Scanning Search — Icons</h3>

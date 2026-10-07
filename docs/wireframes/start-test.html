@@ -541,6 +541,13 @@ body.wmd-root {
 <blockquote class="wmd-blockquote">
   <p class="wmd-paragraph"><strong>Blocker banner:</strong> shown only when something is missing (the list comes from <code>SetupPage.run_blockers()</code>). Start and Practice are disabled while it shows. It is checked again every second, because the tracker can drop. It is hidden when there is nothing to fix.</p>
 </blockquote>
+<div class="wmd-container-alert">
+  <p class="wmd-paragraph">info</p>
+  <p class="wmd-paragraph">Mouse test — the tracker is not connected, so no eye data will be recorded.</p>
+</div>
+<blockquote class="wmd-blockquote">
+  <p class="wmd-paragraph"><strong>Mouse note</strong> (SPEC-input-selection-and-follow.md H5, added 2026-10-07): shown only for a test with Pointer = Mouse, in place of the blocker banner. A Mouse test needs no tracker or calibration, so Start and Practice stay enabled. With the tracker connected (and calibrated) the line reads "Mouse test — eye data will be recorded alongside." A Gaze test keeps the blocker banner above, unchanged.</p>
+</blockquote>
 <div class="wmd-container-card">
   <h3 class="wmd-h3">Read aloud to the child</h3>
   <p class="wmd-paragraph"><strong>Instructions for the Grid Click test:</strong></p>
@@ -559,6 +566,14 @@ body.wmd-root {
 </div>
 <blockquote class="wmd-blockquote">
   <p class="wmd-paragraph">The numbers (0.8 seconds, 8 seconds, 18 trials) come from this test's own configuration. The "small dot" sentence appears only when the gaze cursor is on, and the "ring" sentence only when the progress ring is on. Each task has its own four steps (SPEC 4C.3). <strong>The text is read to children and needs clinician review before release.</strong></p>
+</blockquote>
+<blockquote class="wmd-blockquote">
+  <p class="wmd-paragraph"><strong>Proposed read-aloud wording for the new input choices</strong> (SPEC-input-selection-and-follow.md; proposal, to be confirmed at the wireframe gate):</p>
+  <ul class="wmd-list">
+  <li class="wmd-list-item">Selection = Switch, step 3: &quot;Look at the lit square, then press the button. The square glows while you are looking at it.&quot; (replaces the dwell/ring sentence; the &quot;glows&quot; part only when &quot;Glow on target&quot; is on)</li>
+  <li class="wmd-list-item">Pointer = Mouse: step 1 becomes &quot;Move the mouse to point at the screen.&quot; and &quot;look at&quot; becomes &quot;point at&quot; in the following steps.</li>
+  <li class="wmd-list-item">Follow the Target: &quot;1. A circle will appear and start to move across the screen. 2. Follow the moving circle with your eyes and keep looking at it while it moves. 3. The circle glows while you are looking at it. 4. After about 10 seconds a new circle will appear. Continue until no more circles appear.&quot; No NOTE line (nothing to select, so no timeout). 10 = this test&#039;s trial duration; the &quot;glows&quot; step only when &quot;Glow on target&quot; is on.</li>
+</ul>
 </blockquote>
 <div class="wmd-row">
   <div class="wmd-grid-item">

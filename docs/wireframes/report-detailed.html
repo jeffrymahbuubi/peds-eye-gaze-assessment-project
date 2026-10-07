@@ -666,6 +666,83 @@ body.wmd-root {
   <li class="wmd-list-item">Size is the real drawn diameter, so it can be smaller than the preset when a grid cell capped it. Distance = the visual angle from the previous target.</li>
 </ul>
 </blockquote>
+    <blockquote class="wmd-blockquote">
+  <p class="wmd-paragraph"><strong>Selection = Switch</strong> (SPEC-input-selection-and-follow.md 4.5, added 2026-10-07): two columns after Entries, <strong>Clicks</strong> and <strong>Click errors</strong> (e.g. trial 2: 2 · 1). Not shown with Dwell.</p>
+</blockquote>
+    <h4 class="wmd-h4">Trial-by-Trial Results — Follow the Target</h4>
+    <table class="wmd-table">
+  <thead>
+    <tr>
+      <th class="wmd-table-cell wmd-align-left">Trial</th>
+    <th class="wmd-table-cell wmd-align-left">Path</th>
+    <th class="wmd-table-cell wmd-align-left">Outcome</th>
+    <th class="wmd-table-cell wmd-align-left">Duration (s)</th>
+    <th class="wmd-table-cell wmd-align-left">Time on target (%)</th>
+    <th class="wmd-table-cell wmd-align-left">Mean distance (deg)</th>
+    <th class="wmd-table-cell wmd-align-left">Time to find (s)</th>
+    <th class="wmd-table-cell wmd-align-left">Pursuit gain</th>
+    <th class="wmd-table-cell wmd-align-left">Catch-up sacc. (/s)</th>
+    <th class="wmd-table-cell wmd-align-left">Valid (%)</th>
+    <th class="wmd-table-cell wmd-align-left">Fixations</th>
+    <th class="wmd-table-cell wmd-align-left">Saccades</th>
+    <th class="wmd-table-cell wmd-align-left">Pupil (mm)</th>
+    <th class="wmd-table-cell wmd-align-left">Pupil change (mm)</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+    <td class="wmd-table-cell wmd-align-left"><strong>1</strong></td>
+    <td class="wmd-table-cell wmd-align-left"><strong>Circular</strong></td>
+    <td class="wmd-table-cell wmd-align-left"><strong>Followed</strong></td>
+    <td class="wmd-table-cell wmd-align-left"><strong>10.0</strong></td>
+    <td class="wmd-table-cell wmd-align-left"><strong>74</strong></td>
+    <td class="wmd-table-cell wmd-align-left"><strong>1.8</strong></td>
+    <td class="wmd-table-cell wmd-align-left"><strong>0.40</strong></td>
+    <td class="wmd-table-cell wmd-align-left"><strong>0.78</strong></td>
+    <td class="wmd-table-cell wmd-align-left"><strong>1.2</strong></td>
+    <td class="wmd-table-cell wmd-align-left"><strong>95</strong></td>
+    <td class="wmd-table-cell wmd-align-left"><strong>12</strong></td>
+    <td class="wmd-table-cell wmd-align-left"><strong>14</strong></td>
+    <td class="wmd-table-cell wmd-align-left"><strong>3.6</strong></td>
+    <td class="wmd-table-cell wmd-align-left"><strong>+0.03</strong></td>
+  </tr>
+    <tr>
+    <td class="wmd-table-cell wmd-align-left">2</td>
+    <td class="wmd-table-cell wmd-align-left">Circular</td>
+    <td class="wmd-table-cell wmd-align-left">Followed</td>
+    <td class="wmd-table-cell wmd-align-left">10.0</td>
+    <td class="wmd-table-cell wmd-align-left">81</td>
+    <td class="wmd-table-cell wmd-align-left">1.5</td>
+    <td class="wmd-table-cell wmd-align-left">0.35</td>
+    <td class="wmd-table-cell wmd-align-left">0.81</td>
+    <td class="wmd-table-cell wmd-align-left">1.0</td>
+    <td class="wmd-table-cell wmd-align-left">97</td>
+    <td class="wmd-table-cell wmd-align-left">9</td>
+    <td class="wmd-table-cell wmd-align-left">11</td>
+    <td class="wmd-table-cell wmd-align-left">3.6</td>
+    <td class="wmd-table-cell wmd-align-left">+0.01</td>
+  </tr>
+    <tr>
+    <td class="wmd-table-cell wmd-align-left">3</td>
+    <td class="wmd-table-cell wmd-align-left">Circular</td>
+    <td class="wmd-table-cell wmd-align-left">Not followed</td>
+    <td class="wmd-table-cell wmd-align-left">10.0</td>
+    <td class="wmd-table-cell wmd-align-left">41</td>
+    <td class="wmd-table-cell wmd-align-left">3.9</td>
+    <td class="wmd-table-cell wmd-align-left">1.20</td>
+    <td class="wmd-table-cell wmd-align-left">0.55</td>
+    <td class="wmd-table-cell wmd-align-left">2.3</td>
+    <td class="wmd-table-cell wmd-align-left">84</td>
+    <td class="wmd-table-cell wmd-align-left">21</td>
+    <td class="wmd-table-cell wmd-align-left">24</td>
+    <td class="wmd-table-cell wmd-align-left">3.7</td>
+    <td class="wmd-table-cell wmd-align-left">+0.09</td>
+  </tr>
+  </tbody>
+</table>
+    <blockquote class="wmd-blockquote">
+  <p class="wmd-paragraph">Follow table: the follow metrics of the summary per trial, then the usual eye columns. Outcome = Followed / Not followed (on target ≥ 50 %). A Mouse run without the tracker shows &quot;—&quot; in the gain, catch-up and eye columns. Old Follow &amp; Click sessions keep their old layout (H10).</p>
+</blockquote>
     <h4 class="wmd-h4">Selected trial — Trial 1</h4>
     <pre class="wmd-code-block"><code>+------------------------------------------------------------------+
 |                                                                  |
@@ -685,7 +762,7 @@ body.wmd-root {
   <ul class="wmd-list">
   <li class="wmd-list-item">It is the same map widget as on the Summary, showing one trial.</li>
   <li class="wmd-list-item">Up/Down keys move the selection, and the map follows.</li>
-  <li class="wmd-list-item">For Follow &amp; Click it also draws the target&#039;s track during the trial.</li>
+  <li class="wmd-list-item">For Follow the Target it draws the target&#039;s track during the trial plus the smoothed pointer path; samples off target are drawn lighter (legend: on target / off target).</li>
 </ul>
 </blockquote>
   </div>

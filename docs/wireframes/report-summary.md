@@ -37,7 +37,7 @@ Configuration Name: **Large targets**
 |---|---|
 | Configuration name | Large targets |
 | Task | Grid Click |
-| Input | Eye (dwell) · GP3 HD 150 Hz |
+| Input | Gaze (GP3 HD, 150 Hz) · Dwell |
 | Trials (planned) | 18 |
 | Selection | Dwell 0.8 s, refractory 0.5 s |
 | Target size | Large — 8° (328 px), capped to 180 px |
@@ -74,6 +74,35 @@ One cell of a visible board lights up; the child selects it by looking at it.
 
 1 skipped trial(s) excluded. Target area = drawn target + 40 px tolerance ring. Reaction Time = onset to the first gaze entry; about 0 if the gaze already rested on the new target's place.
 
+> **Selection = Switch** (SPEC-input-selection-and-follow.md 4.5, added 2026-10-07): the same table gains two columns, means per row. The configuration rows read "Input: Gaze (GP3 HD, 150 Hz) · Switch" and "Selection: Switch press (mouse/switch button), refractory 0.5 s". With Dwell these columns are not shown.
+
+| | % (N) | Trial Time (s) | Reaction Time (s) | Entries | Clicks | Click errors |
+|---|---|---|---|---|---|---|
+| Error-free Target Selections | 61% (11/18) | 1.02 | 0.28 | 1.0 | 1.0 | 0.0 |
+| All Targets Selected | 89% (16/18) | 1.40 | 0.31 | 1.3 | 1.6 | 0.6 |
+| Targets Not Selected | 11% (2/18) | 8.00 | 0.95 | 2.5 | 3.0 | 3.0 |
+| All Trials | 100% (18/18) | 2.13 | 0.36 | 1.4 | 1.8 | 0.9 |
+
+Clicks = switch presses counted in the trial (presses between trials are ignored). Click errors = presses with the gaze off the target, or with no valid gaze in the last 150 ms.
+
+> **Follow the Target** (SPEC-input-selection-and-follow.md 4.5): instead of the Summary of Results table above, the main column shows this table. The configuration rows show "Trial duration 10.0 s" in place of "Maximum time per trial" and no Selection row.
+
+#### Summary of Results — Follow the Target
+
+| Metric | Value |
+|---|---|
+| Followed (on target ≥ 50 % of the trial) | 5 of 6 |
+| Time on target | 68 % (range 41–88 %) |
+| Mean distance to target | 2.1° |
+| Time to find target | 0.45 s |
+| Smooth-pursuit gain | 0.72 (median) |
+| Catch-up saccades | 1.4 per s |
+| Valid pointer during trials | 93 % |
+
+Smooth-pursuit gain = eye speed ÷ target speed, saccades removed; children's typical range about 0.6–0.85, vertical lower. Not a pass/fail value. "Followed" uses a fixed 50 % threshold.
+
+> Pursuit gain and catch-up saccades come from the eye tracker only, so a Mouse run shows "—" for them (and "not recorded" when no gaze was recorded).
+
 #### Target Map
 
 - [x] Targets
@@ -107,7 +136,8 @@ Numbers = trials shown at that place
 > **Overlays:**
 > - Scanpath draws one dot per fixation, joined by straight lines in time order, per trial in a 6-colour cycle. The Detailed per-trial view draws the full gaze path smoothed like the on-screen cursor (the run's smoothing alpha), with numbered fixation circles.
 > - Heat map is an alpha ramp over the whole test.
-> - Follow & Click also shows the target's track as a faint line, with the mark at its end position.
+> - Follow the Target also shows the target's track as a faint line, with the mark at its end position. Its legend adds "on target" (dark path) and "off target" (light path) entries.
+> - A Mouse run draws the mouse path (from `pointer_stream.csv`) in place of the gaze path; Scanpath and Heat map are disabled with "not recorded" when no gaze was recorded.
 
 #### Eye Metrics
 
@@ -123,6 +153,8 @@ Numbers = trials shown at that place
 | Mean pupil change from baseline | +0.04 mm (+1.1 %) |
 | Valid gaze during trials | 94 % |
 | Calibration error | 0.6° (24 px), measured |
+
+> A Mouse run with no tracker shows one line here instead of the table: "Eye metrics: not recorded (mouse test without the eye tracker)."
 
 > Peak saccade velocity is a smoothed value (accepted 2026-10-06). Compare it only between children measured on the same device and sample rate. Old sessions without the new fields show "—".
 

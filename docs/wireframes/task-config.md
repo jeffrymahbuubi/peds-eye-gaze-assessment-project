@@ -6,7 +6,9 @@ Grid Click · Subject TESTING
 
 > SPEC-compass-task-flow.md 4B. A full page opened by Configure Test on the Test List. It replaces the Settings dialog inside the dashboard (the old dialog stays only for standalone `--task X --gui`, see `task-settings.md`). Shown: Grid Click in its Standard state. Compass reference: `docs/compass/screenshots/06-*.png`. The nav is locked while this page is open.
 
-> Three columns of cards. **Column A:** Test, Feedback. **Column B:** Target, the task card (here Grid Layout), Timing. **Column C:** Selection (Dwell), Gaze Smoothing. Every number is a slider plus a spin box (the existing SliderSpinRow), shown here as a number box.
+> Three columns of cards. **Column A:** Test, Feedback. **Column B:** Target, the task card (here Grid Layout), Timing. **Column C:** Input, Dwell, Gaze Smoothing. Every number is a slider plus a spin box (the existing SliderSpinRow), shown here as a number box.
+
+> SPEC-input-selection-and-follow.md 4.1 (added 2026-10-07): the **Input** card (Pointer + Selection), the card "Selection (Dwell)" renamed **Dwell**, and "Glow on target" in Feedback. Shown: Gaze + Dwell, the default.
 
 ::: grid-3 card
 
@@ -37,16 +39,17 @@ Notes
 - (*) Medium — 5° (≈205 px)
 - ( ) Large — 8° (≈328 px)
 
-### C · Selection (Dwell)
+### C · Input
 
-Dwell threshold (s)
-[0.8___]{type:number}
+Pointer (what moves the pointer)
+- (*) Gaze
+- ( ) Mouse
 
-Refractory period (s)
-[0.5___]{type:number}
+Selection (how a target is selected)
+- (*) Dwell — keep looking at the target
+- ( ) Switch — look at the target, then press the switch
 
-Jitter tolerance (px)
-[40____]{type:number}
+Pointer is on every task. Selection is on Static Click, Grid Click and Scanning Search; Follow the Target has none.
 
 :::
 
@@ -57,8 +60,11 @@ Jitter tolerance (px)
 - [x] Show gaze cursor
 - [x] Show dwell progress ring
 - [x] Show instant on-target ring
+- [x] Glow on target
 - [x] Play hit sound
 - [x] Play miss sound
+
+"Show dwell progress ring" is greyed while Selection = Switch. "Glow on target" (default on) is greyed while Selection = Dwell, as here.
 
 ### B · Grid Layout
 
@@ -75,14 +81,18 @@ Cell gap
 
 Amber hint when it does not fit: "Targets will be shrunk to about 180 px to fit a 3x3 grid with this gap."
 
-### C · Gaze Smoothing
+### C · Dwell
 
-- [x] Smoothing enabled
+Dwell threshold (s)
+[0.8___]{type:number}
 
-Smoothing alpha
-[0.22__]{type:number}
+Refractory period (s)
+[0.5___]{type:number}
 
-Greyed (not hidden) while Smoothing enabled is off: the only dependent control.
+Jitter tolerance (px)
+[40____]{type:number}
+
+While Selection = Switch only "Dwell threshold" is greyed. Refractory and jitter tolerance stay active: the hitbox and the debounce apply to the switch too.
 
 :::
 
@@ -100,11 +110,20 @@ Trial timeout (s)
 Inter-trial interval (s)
 [0.8___]{type:number}
 
-### (column C ends)
+### C · Gaze Smoothing
 
-—
+- [x] Smoothing enabled
+
+Smoothing alpha
+[0.22__]{type:number}
+
+Greyed (not hidden) while Smoothing enabled is off: the only dependent control.
 
 :::
+
+> **State: Selection = Switch** (same page, nothing moves or disappears): the Input card shows "(*) Switch"; in Feedback "Show dwell progress ring" is greyed and "Glow on target" is active; in Dwell only the threshold is greyed.
+
+> **State: Pointer = Mouse:** nothing extra is greyed. Dwell with the mouse = hover dwell. With Selection = Switch, the mouse's own left button is the switch.
 
 ---
 
@@ -121,7 +140,7 @@ Inter-trial interval (s)
 > **Layout:**
 > - Column A: Test, then Feedback.
 > - Column B: Target, then the task card (Grid Layout / Motion / Icons), then Timing.
-> - Column C: Selection (Dwell), then Gaze Smoothing.
+> - Column C: Input, then Dwell, then Gaze Smoothing.
 > - At 1920x1080 @ 100 % nothing scrolls. At larger scaling the cards scroll and the footer stays visible.
 
 ### Task-specific cards
@@ -132,9 +151,11 @@ Inter-trial interval (s)
 
 Target card only (no task card). Defaults: 32 trials, timeout 8000, interval 800.
 
-### Follow & Click — Motion
+### Follow the Target — Motion
 
-Movement path: (*) Circular ( ) Horizontal ( ) Vertical ( ) Diagonal ↘ ( ) Diagonal ↙ · Target speed (frac/s) 0.20 · Timing card gains "Selection window (s) 2.5".
+Movement path: Circular (selected) / Horizontal / Vertical / Diagonal ↘ / Diagonal ↙ · Target speed (frac/s) 0.20.
+
+Input card: Pointer only, no Selection radio. No Dwell card. Feedback: gaze cursor, "Glow on target", hit sound (plays at the end of a followed trial); no dwell progress ring, no miss sound. Timing card: "Trial duration (s) 10" (3–30, step 0.5) and the inter-trial interval; no selection window.
 
 ### Scanning Search — Icons
 

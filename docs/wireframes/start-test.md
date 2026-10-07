@@ -12,6 +12,12 @@ Still needed before you can start: The tracker is not connected. Connect it on t
 
 > **Blocker banner:** shown only when something is missing (the list comes from `SetupPage.run_blockers()`). Start and Practice are disabled while it shows. It is checked again every second, because the tracker can drop. It is hidden when there is nothing to fix.
 
+::: alert info
+Mouse test — the tracker is not connected, so no eye data will be recorded.
+:::
+
+> **Mouse note** (SPEC-input-selection-and-follow.md H5, added 2026-10-07): shown only for a test with Pointer = Mouse, in place of the blocker banner. A Mouse test needs no tracker or calibration, so Start and Practice stay enabled. With the tracker connected (and calibrated) the line reads "Mouse test — eye data will be recorded alongside." A Gaze test keeps the blocker banner above, unchanged.
+
 ::: card
 
 ### Read aloud to the child
@@ -38,6 +44,11 @@ Start records 18 trials. Check that the bottom bar says "tracking OK" before you
 :::
 
 > The numbers (0.8 seconds, 8 seconds, 18 trials) come from this test's own configuration. The "small dot" sentence appears only when the gaze cursor is on, and the "ring" sentence only when the progress ring is on. Each task has its own four steps (SPEC 4C.3). **The text is read to children and needs clinician review before release.**
+
+> **Proposed read-aloud wording for the new input choices** (SPEC-input-selection-and-follow.md; proposal, to be confirmed at the wireframe gate):
+> - **Selection = Switch**, step 3: "Look at the lit square, then press the button. The square glows while you are looking at it." (replaces the dwell/ring sentence; the "glows" part only when "Glow on target" is on)
+> - **Pointer = Mouse**: step 1 becomes "Move the mouse to point at the screen." and "look at" becomes "point at" in the following steps.
+> - **Follow the Target**: "1. A circle will appear and start to move across the screen. 2. Follow the moving circle with your eyes and keep looking at it while it moves. 3. The circle glows while you are looking at it. 4. After about 10 seconds a new circle will appear. Continue until no more circles appear." No NOTE line (nothing to select, so no timeout). 10 = this test's trial duration; the "glows" step only when "Glow on target" is on.
 
 ::: row
 [Start]{.outline} [Practice]{.outline} [Cancel]{.outline}

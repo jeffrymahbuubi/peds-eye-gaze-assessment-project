@@ -55,6 +55,18 @@ Configuration Name: **Large targets**
 > - A partial run lists only the trials that were presented.
 > - Size is the real drawn diameter, so it can be smaller than the preset when a grid cell capped it. Distance = the visual angle from the previous target.
 
+> **Selection = Switch** (SPEC-input-selection-and-follow.md 4.5, added 2026-10-07): two columns after Entries, **Clicks** and **Click errors** (e.g. trial 2: 2 · 1). Not shown with Dwell.
+
+#### Trial-by-Trial Results — Follow the Target
+
+| Trial | Path | Outcome | Duration (s) | Time on target (%) | Mean distance (deg) | Time to find (s) | Pursuit gain | Catch-up sacc. (/s) | Valid (%) | Fixations | Saccades | Pupil (mm) | Pupil change (mm) |
+|---|---|---|---|---|---|---|---|---|---|---|---|---|---|
+| **1** | **Circular** | **Followed** | **10.0** | **74** | **1.8** | **0.40** | **0.78** | **1.2** | **95** | **12** | **14** | **3.6** | **+0.03** |
+| 2 | Circular | Followed | 10.0 | 81 | 1.5 | 0.35 | 0.81 | 1.0 | 97 | 9 | 11 | 3.6 | +0.01 |
+| 3 | Circular | Not followed | 10.0 | 41 | 3.9 | 1.20 | 0.55 | 2.3 | 84 | 21 | 24 | 3.7 | +0.09 |
+
+> Follow table: the follow metrics of the summary per trial, then the usual eye columns. Outcome = Followed / Not followed (on target ≥ 50 %). A Mouse run without the tracker shows "—" in the gain, catch-up and eye columns. Old Follow & Click sessions keep their old layout (H10).
+
 #### Selected trial — Trial 1
 
 ```
@@ -76,7 +88,7 @@ Configuration Name: **Large targets**
 > **Selected-trial map:**
 > - It is the same map widget as on the Summary, showing one trial.
 > - Up/Down keys move the selection, and the map follows.
-> - For Follow & Click it also draws the target's track during the trial.
+> - For Follow the Target it draws the target's track during the trial plus the smoothed pointer path; samples off target are drawn lighter (legend: on target / off target).
 
 :::
 

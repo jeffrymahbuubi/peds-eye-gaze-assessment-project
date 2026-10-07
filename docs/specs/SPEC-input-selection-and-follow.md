@@ -1,10 +1,10 @@
 ---
 name: SPEC-input-selection-and-follow
 title: Pointer (Gaze / Mouse) and Selection (Dwell / Switch) per test; Follow the Target without a click
-status: approved 2026-10-07 (I1-I12, H1-H10)
+status: approved 2026-10-07 (I1-I12, H1-H10); step 1 wireframes APPROVED 2026-10-07 (W1-W2)
 created: 2026-10-07
 last_updated: 2026-10-07
-next_step: after the compass SPEC's P9c pass (step 0), /spec-run this SPEC on feature/compass-task-flow from step 1 (wireframes, WF gate)
+next_step: steps 2-4 (spec-implementer) on feature/compass-task-flow, then step 5 (review + live check A10 with the user and the switch)
 related:
   - SPEC-compass-task-flow.md (parent redesign; configuration page 4B, run 4C, report 4D; P9c V1-V5 still open there and done FIRST)
   - SPEC-follow-moving-selection.md (the selection window this SPEC removes)
@@ -94,6 +94,24 @@ click**. It has no pointer movement and no keys.
   15-17; 0.84 horizontal / 0.68 vertical at 0.25 Hz. Vertical gain is lower and more variable.
   Saccades are removed before computing gain. So the report shows gain with a caution, not a
   pass/fail threshold (H8).
+
+### 3.2a Wireframe-gate decisions (user, 2026-10-07)
+
+- **W1 Read-aloud text** (Start page, `task_instructions.py`; still flagged for clinician review):
+  - Selection = Switch, the "keep looking for about {dwell}{ring}" step becomes "Look at the lit
+    square, then press the button." plus "The square glows while you are looking at it." when
+    `feedback.target_glow` is on (per task: square / shape / circle as in today's text).
+  - Pointer = Mouse: the "small dot shows where you are looking" step becomes "Move the mouse to
+    point at the screen.", and "look at" becomes "point at" in the following steps.
+  - Follow the Target: "A circle will appear and start to move across the screen." / "Follow the
+    moving circle with your eyes and keep looking at it while it moves." / "The circle glows while
+    you are looking at it." (only with glow on) / "After about {duration} a new circle will appear.
+    Continue until no more circles appear." No NOTE line.
+- **W2 Follow summary layout:** a 2-column Metric / Value table (Followed n of N, Time on target
+  mean + range, Mean distance, Time to find target, Smooth-pursuit gain median + caption,
+  Catch-up saccades per s, Valid pointer %), in place of the 4-row selection table. The Follow
+  per-trial table = these metrics per trial, then the usual eye columns (Fixations, Saccades,
+  Pupil, Pupil change). See `docs/wireframes/report-summary.md` / `report-detailed.md`.
 
 ### 3.3 Hub decisions (approved by the user 2026-10-07)
 
@@ -319,8 +337,8 @@ click**. It has no pointer movement and no keys.
 
 | Step | Content | Gate |
 |---|---|---|
-| 0 | Parent SPEC P9c (V1-V5) implemented and checked first, so the report work below builds on it | — |
-| 1 | Wireframes: `task-config` (Input card, renamed Dwell card, Glow, Follow timing), `report-summary` / `report-detailed` (Switch columns, Follow block), `start-test` (Mouse note) | **WF gate** |
+| 0 | Parent SPEC P9c (V1-V5) implemented and checked first, so the report work below builds on it. **P9c committed `6bad506` 2026-10-07; its live re-check is still open** (the user chose to go ahead) | — |
+| 1 **DONE 2026-10-07** (approved) | Wireframes: `task-config` (Input card, renamed Dwell card, Glow, Follow timing), `report-summary` / `report-detailed` (Switch columns, Follow block), `start-test` (Mouse note) | **WF gate** |
 | 2 | Engine: settings keys + registry/page data (H1, H3), `SwitchInput` canvas press, cursor park/hide, BaseTask switch rules + events + `clicks` / `click_errors`, pointer/recording split + `pointer_stream.csv` + run gate (H4, H5) | — |
 | 3 | Follow: task rewrite (4.4), live metrics + columns, glow + end sound; analysis (`report_follow.py`: gain, catch-up saccades) + `report.json` block | — |
 | 4 | UI: config page Input card, report tables/summary/map/legend + PDF for Switch and Follow, report_config labels | — |
@@ -342,3 +360,4 @@ click**. It has no pointer movement and no keys.
   (§3.2). User decisions I1-I12 taken in this session (three rounds of questions). Hub decisions
   H1-H10 proposed, awaiting approval.
 - **2026-10-07** — The user approved H1-H10 as written. SPEC committed on `feature/compass-task-flow`. Next: the compass SPEC's P9c pass (step 0), then step 1 here.
+- **2026-10-07** — Step 1 done: the hub updated the wireframes `task-config` (Input card, Dwell card, Glow on target, Follow timing), `start-test` (Mouse note, proposed read-aloud text), `report-summary` (Switch columns, Follow summary table, Mouse "not recorded") and `report-detailed` (Switch columns, Follow per-trial table, on/off-target path); rendered with wiremd. **The user approved them as is**, plus W1 (read-aloud wording) and W2 (Follow Metric/Value table) in §3.2a. P9c of the parent SPEC was committed first (`6bad506`) so these wireframes get their own commit. Next: steps 2-4 by spec-implementer.
