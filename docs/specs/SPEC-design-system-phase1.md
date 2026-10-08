@@ -8,7 +8,7 @@ next_step: /spec-run step 1 (spec-implementer in a worktree based on 1d38819 + t
 related:
   - docs/design/fable-proposal.md (source: §2 design system v1, §4 copy rules, §5.2 phase 1)
   - docs/design/fable-evaluation.md (Task A findings the proposal cites)
-  - docs/design/design-system.html (visual reference, WTMH blue; artifact https://claude.ai/artifact/URv8RdF44shQTphsYWxUCN)
+  - docs/design/design-system.html (visual reference, WTMH blue)
   - SPEC-subject-data-layout.md (implemented, committed on its worktree branch, not merged; phase 1 is stacked on it, U2)
 ---
 
