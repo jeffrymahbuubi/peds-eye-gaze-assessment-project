@@ -4,7 +4,7 @@ title: Preview follows the test's Input (real gaze when the tracker is ready); n
 status: approved 2026-10-08 (user decisions P1-P3; hub decisions H1-H9 approved by the user)
 created: 2026-10-08
 last_updated: 2026-10-08
-next_step: /spec-run after SPEC-design-system-phase2 is merged (both touch the configuration page and settings_registry)
+next_step: /spec-run after SPEC-design-system-phase2 is merged AND SPEC-audit-fixes is done (user order 2026-10-09; all three touch shared files, app.py with audit-fixes)
 related:
   - SPEC-compass-task-flow.md (U6, 4B.6 Preview Test: mouse-driven; this SPEC revises U6 for gaze tests)
   - SPEC-input-selection-and-follow.md (4.2 "Preview's pointer is always the mouse"; H4/H5 Mouse runs; revised here)
@@ -141,3 +141,4 @@ report changes; any design-system phase work.
   starts a fresh one (`app.py:381`), so H2 passes the Setup calibration. Hub H1-H9 await approval.
   Queued after design-system phase 2 (shared files: settings_registry, configuration page).
 - **2026-10-08** — The user approved H1-H9 as written. SPEC committed on `feature/compass-task-flow`. Next: /spec-run this SPEC after design-system phase 2 is merged.
+- **2026-10-09** — Order changed by the user: SPEC-audit-fixes (Fable audit F1-F9) runs first, then this SPEC.
