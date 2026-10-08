@@ -86,7 +86,6 @@ class SubjectTestListPage(QWidget):
         super().__init__(parent)
         self._subject_id = ""
         self._output_root = Path("sessions")
-        self._folder_mode = "id"  # how a new subject's folder is named (Setup's choice, H6)
         self._subject_path: Path | None = None  # the typed subject's folder, as of the last reload
         self._tests: dict[str, SubjectTest] = {}
         self._sort: tuple[int, Qt.SortOrder] | None = None  # None = creation order
@@ -101,14 +100,12 @@ class SubjectTestListPage(QWidget):
 
     # -- public API ---------------------------------------------------------------
 
-    def set_subject(self, subject_id: str, output_root: str | Path, folder_mode: str = "id") -> None:
+    def set_subject(self, subject_id: str, output_root: str | Path) -> None:
         """Show ``subject_id``'s tests, read from ``output_root`` now. A blank ID is the
-        "Enter a Subject ID in Setup." state: nothing is read, created or enabled.
-        ``folder_mode`` is how Setup chose to name a **new** subject's folder; the first
-        test added creates it (SPEC-subject-data-layout.md H6)."""
+        "Enter a Subject ID in Setup." state: nothing is read, created or enabled. The
+        first test added creates a new subject's folder."""
         self._subject_id = subject_id.strip()
         self._output_root = Path(output_root)
-        self._folder_mode = folder_mode
         self.reload()
 
     def reload(self, select: str | None = None) -> None:
@@ -415,9 +412,7 @@ class SubjectTestListPage(QWidget):
         created: list[SubjectTest] = []
         try:
             for _ in range(count):
-                created.append(
-                    create_test(self._output_root, self._subject_id, task_id, folder_mode=self._folder_mode)
-                )
+                created.append(create_test(self._output_root, self._subject_id, task_id))
         except (TestStoreError, ValueError) as exc:
             if not created:
                 self._failed("add the test", exc)

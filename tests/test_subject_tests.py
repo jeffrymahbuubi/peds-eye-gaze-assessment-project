@@ -302,7 +302,7 @@ def test_rename_blank_and_too_long_are_rejected(root):
     assert list_tests(root, SUBJECT).tests[0].name == "Grid Click 1"
 
 
-# -- the subject's folder (SPEC-subject-data-layout.md H1, H5, H6) -----------------------------------
+# -- the subject's folder (SPEC-subject-data-layout.md H1, H5) -----------------------------------
 
 
 def test_the_first_test_makes_the_subjects_folder_and_the_next_ones_reuse_it(root):
@@ -315,14 +315,14 @@ def test_the_first_test_makes_the_subjects_folder_and_the_next_ones_reuse_it(roo
     assert [t.test_id for t in list_tests(root, SUBJECT).tests] == [first.test_id, second.test_id]
 
 
-def test_the_first_test_can_make_an_anonymous_code_folder(root):
-    test = create_test(root, "Maria Lopez", "click_grid", folder_mode="code")
-    assert [p.name for p in root.iterdir() if p.name != "_system"] == ["S-0001"]
-    assert (root / "S-0001" / "tests" / f"{test.test_id}.json").is_file()
-    # The mode is fixed at creation: a later test with another choice lands in the same folder.
-    again = create_test(root, "maria lopez", "scanning", folder_mode="id")
-    assert (root / "S-0001" / "tests" / f"{again.test_id}.json").is_file()
-    assert sorted(p.name for p in root.iterdir() if p.name != "_system") == ["S-0001"]
+def test_the_first_test_names_the_folder_after_the_subject_id(root):
+    test = create_test(root, "Maria Lopez", "click_grid")
+    assert [p.name for p in root.iterdir()] == ["Maria Lopez"]  # no S-000N code, no _system
+    assert (root / "Maria Lopez" / "tests" / f"{test.test_id}.json").is_file()
+    # A later test typed in another case lands in the same folder.
+    again = create_test(root, "maria lopez", "scanning")
+    assert (root / "Maria Lopez" / "tests" / f"{again.test_id}.json").is_file()
+    assert [p.name for p in root.iterdir()] == ["Maria Lopez"]
 
 
 def test_a_failed_subject_write_leaves_no_folder_and_no_test(root, monkeypatch):

@@ -15,16 +15,9 @@ Session |1|{.primary}   Tracker |not connected|{.error}   Calibration |none|{.wa
 Subject ID
 [_____________________________]{required}
 
-Folder name
-- (*) Subject ID
-- ( ) Anonymous code (S-0004)
+Use a study code, not the child's name.
 
-> **Folder name choice** (SPEC-subject-data-layout.md H6, D4): shown only while the typed Subject ID is **new**, i.e. no subject folder on this PC holds that ID (matched ignoring case, so "Ana" and "ANA" are one subject). Default = Subject ID. Anonymous code = the next free `S-000N`, never reused. The choice is fixed when the subject's folder is created (the first calibration, setting or test saved for it) and cannot be changed afterwards.
-> **Tooltip on "Anonymous code":** "The folder is named S-0004 instead of the Subject ID, so Explorer and zip file names do not show it. The files inside still contain the Subject ID."
-
-Folder: S-0003 (Anonymous code)
-
-> **Existing subject (illustrative, replaces the choice above):** one read-only muted line under Subject ID, e.g. "Folder: S-0003 (Anonymous code)" or "Folder: P9REAL (Subject ID)". Only one of the two states is ever visible.
+> **Hint under Subject ID** (SPEC-subject-data-layout.md D4 revised 2026-10-08): one muted caption line, always shown. The subject's folder is always named after the Subject ID (matched ignoring case, so "Ana" and "ANA" are one subject), so there is no folder-name choice and no "Folder: ..." line.
 
 Assessment Date
 [2026-09-08__________________]{type:date}

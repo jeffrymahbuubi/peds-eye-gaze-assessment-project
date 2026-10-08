@@ -63,7 +63,6 @@ from ..engine.subject_store import (
 from ..inputs.gazepoint_client import DeviceInfo, GazepointClient
 from .design_tokens import BORDER_STRONG, PANEL, RADIUS, TABLE_ROW_HEIGHT
 from .report_format import DASH
-from .subject_folder_row import SubjectFolderRow
 
 _SEX_OPTIONS = ["Select", "Female", "Male", "Other / Prefer not to say"]
 
@@ -327,12 +326,6 @@ class SetupPage(QWidget):
     def subject_id(self) -> str:
         return self.subject_id_edit.text().strip()
 
-    def folder_mode(self) -> str:
-        """``"id"`` or ``"code"``: how the typed subject's folder is (or will be) named
-        (SPEC-subject-data-layout.md H6). An existing subject keeps its own; the store
-        ignores this for it."""
-        return self.folder_row.folder_mode()
-
     def assessment_date(self) -> str:
         return self.date_edit.date().toString("yyyy-MM-dd")
 
@@ -349,11 +342,9 @@ class SetupPage(QWidget):
         Called at build time and again whenever something is written under a
         subject during this sitting (a saved calibration, a saved settings
         profile), so a subject entered today is offered for the rest of the
-        session without needing a restart. The folder line under the field follows:
-        a subject saved now has a folder, so the choice becomes "Folder: ...".
+        session without needing a restart.
         """
         self._subject_completer_model.setStringList(known_subject_ids(self.output_root))
-        self.folder_row.update_for(self.output_root, self.subject_id())
 
     def display_acknowledged(self) -> bool:
         """True only when the display is non-standard and the operator
@@ -517,14 +508,8 @@ class SetupPage(QWidget):
         form = QFormLayout()
         form.setVerticalSpacing(10)
         self.subject_id_edit = QLineEdit()
-        # The folder-name choice under the field (SPEC-subject-data-layout.md H6, wireframe
-        # W1); built before the completer refresh below, which updates it.
-        self.folder_row = SubjectFolderRow()
         self.subject_id_edit.textChanged.connect(self._on_state_changed)
         self.subject_id_edit.textChanged.connect(self.subjectIdChanged)
-        self.subject_id_edit.textChanged.connect(
-            lambda _text: self.folder_row.update_for(self.output_root, self.subject_id())
-        )
         # Autocomplete over subjects already on disk (SPEC-live-settings-
         # panel.md S10.7.3 B). Without it a mistyped ID is silently a *new*
         # subject: no profile and no calibration are found, the run proceeds on
@@ -541,7 +526,11 @@ class SetupPage(QWidget):
         self.subject_id_edit.setCompleter(completer)
         self.refresh_subject_completer()
         form.addRow("Subject ID", self.subject_id_edit)
-        form.addRow(self.folder_row)
+        # The subject's folder is named after the Subject ID, so the page asks for a study
+        # code, not a child's name (SPEC-subject-data-layout.md D4, wireframe W1).
+        self.subject_id_hint = QLabel("Use a study code, not the child's name.")
+        self.subject_id_hint.setObjectName("wtmhMuted")
+        form.addRow("", self.subject_id_hint)
 
         # No calendar popup (SPEC-ui-setup-task-selection.md S13, user
         # feedback): a physician recording an assessment isn't "booking" a
@@ -974,9 +963,8 @@ class SetupPage(QWidget):
             return  # button is disabled in this state; guard against a stray signal anyway
         n_points = self._calibration_result.n_points
         try:
-            # The subject's first save of anything makes their folder, named as the
-            # operator chose under Subject ID (an existing subject keeps theirs).
-            folder = ensure_subject(self.output_root, subject_id, self.folder_mode())
+            # The subject's first save of anything makes their folder.
+            folder = ensure_subject(self.output_root, subject_id)
             target_path = folder.calibrations / f"calibration_{int(n_points)}pt.json"
             target_path.parent.mkdir(parents=True, exist_ok=True)
             save_calibration_result(target_path, subject_id, self._calibration_result)

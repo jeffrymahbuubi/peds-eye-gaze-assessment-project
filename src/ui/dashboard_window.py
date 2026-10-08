@@ -128,9 +128,7 @@ class DashboardWindow(QMainWindow):
 
     def _reload_tests(self) -> None:
         """Read the typed Subject ID's tests from disk (4A.8: never kept in memory)."""
-        self.test_list_page.set_subject(
-            self.setup_page.subject_id(), self.output_root, self.setup_page.folder_mode()
-        )
+        self.test_list_page.set_subject(self.setup_page.subject_id(), self.output_root)
 
     def show_tests(self, select: str | None = None) -> None:
         """Back to the Tests tab after a flow ends: flow ``IDLE``, the list reloaded

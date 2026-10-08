@@ -1,10 +1,10 @@
 ---
 name: SPEC-subject-data-layout
 title: Per-subject data folders — one folder per child holding calibrations, settings, tests, runs and reports
-status: approved 2026-10-07 (D1-D6, H1-H13)
+status: done 2026-10-08 (D1-D6, H1-H13; D4 revised: no Anonymous code option)
 created: 2026-10-07
 last_updated: 2026-10-08
-next_step: step 5 live check DONE 2026-10-08. Next: step 6 (remove the Anonymous code option, D4 revised), then on the user's OK delete the old-layout folders in sessions/ (no backup), merge into feature/compass-task-flow and push (user pushes)
+next_step: all steps DONE 2026-10-08 (step 6 removed the Anonymous code option); merged into feature/compass-task-flow; push is the user's
 related:
   - SPEC-compass-task-flow.md (Test List store 4A, run end / Discard 4C.6, report + PDF 4D; branch feature/compass-task-flow, U17)
   - SPEC-input-selection-and-follow.md (adds pointer_stream.csv inside a run folder; built first)
@@ -138,7 +138,7 @@ condensed in §2 and §3.2.
   folder name is `safe_subject_dirname(id.strip())` capped at **40** characters (+ `~hash` when
   changed), so "Ana" and "ANA" stay one subject (as on NTFS today). The Setup completer lists the
   `subject_id` values from `subject.json`, verbatim.
-- **H6 Anonymous code (D4).** On Setup, when the typed Subject ID is **new** (no matching
+- **H6 Anonymous code (D4).** **Superseded 2026-10-08 by D4 revised and step 6: no code option; the Test List button below stays.** Original: On Setup, when the typed Subject ID is **new** (no matching
   `subject.json`), a choice appears: "Folder name: (•) Subject ID ( ) Anonymous code". Code = the
   next free `S-0001`, `S-0002`… (never reused). The choice is fixed when the subject's folder is
   created (first save of anything) and shown read-only afterwards ("Folder: S-0003"). The Test List
@@ -176,7 +176,7 @@ condensed in §2 and §3.2.
 - Start page: the H9 path-too-long blocker line.
 
 Wireframe-gate details (user OK 2026-10-08, `docs/wireframes/setup.md`, `test-list.md`, `start-test.md`):
-- **W1 Setup:** the "Folder name: (•) Subject ID ( ) Anonymous code (S-000N)" radio pair sits
+- **W1 Setup:** **Superseded 2026-10-08 (step 6): the radio pair and the "Folder:" line are gone; a muted hint "Use a study code, not the child's name." sits under Subject ID.** Original: the "Folder name: (•) Subject ID ( ) Anonymous code (S-000N)" radio pair sits
   directly under Subject ID, shown only while the typed id matches no `subject.json`; the code
   label shows the code that would be assigned. Tooltip on "Anonymous code": "The folder is named
   S-000N instead of the Subject ID, so Explorer and zip file names do not show it. The files inside
@@ -204,7 +204,7 @@ data; renaming run files; changing what a run folder contains; network/OneDrive 
 - **L3** Settings, calibrations and tests of a subject live under its folder; nothing is written
   to `_calibrations`, `_settings`, `_tests` or `_diagnostics` any more.
 - **L4** "Ana" then "ANA" resolve to the same subject folder; the completer shows the verbatim id.
-- **L5** Anonymous code: a new subject in code mode gets `S-000N` (next free, never reused); no
+- **L5** (revised 2026-10-08, step 6) A new subject's folder is its Subject ID, and Setup shows the hint "Use a study code, not the child's name."; Open Subject Folder opens it. Original: Anonymous code: a new subject in code mode gets `S-000N` (next free, never reused); no
   file or folder name under the root contains the Subject ID; Open Subject Folder opens it.
 - **L6** PDF default = `<subject>/reports/<date>_<test name>.pdf`, no subject in the name.
 - **L7** A root deep enough to push a run path over 240 characters blocks Start with the H9 text.
@@ -222,7 +222,7 @@ data; renaming run files; changing what a run folder contains; network/OneDrive 
 | 3 | UI: Setup choice, Test List button, PDF default, Start blocker, texts | — |
 | 4 | ~~Migration script~~ **Dropped 2026-10-08** (D5 revised); on the user's OK after step 5, delete the old-layout folders in `sessions/` (no backup) | user |
 | 5 | Review + live check (new subject in both modes, one recorded run, report + PDF, Discard); commit on the user's OK — **DONE 2026-10-08** (live check passed, shared with design-system phase 1) | user |
-| 6 | **Remove the Anonymous code option (D4 revised 2026-10-08).** Setup: drop the "Folder name" radio pair and the read-only "Folder: …" line (W1); add the muted hint "Use a study code, not the child's name." under Subject ID. Engine: the subject folder is always the sanitised Subject ID; no new `S-000N` code is assigned and `sessions/_system/subject_codes.json` is no longer written; `subject.json` keeps `folder_mode` (always `"id"`) so the schema does not change; `folder_mode=` plumbing to `create_test` / Save Calibration goes. The Test List's Open Subject Folder (W2) stays. L5 is replaced by: a new subject's folder is its Subject ID, and Setup shows the hint. Existing tests for code mode are updated or removed with the feature, the rest stay. | — |
+| 6 | **Remove the Anonymous code option (D4 revised 2026-10-08).** **DONE 2026-10-08.** Setup: drop the "Folder name" radio pair and the read-only "Folder: …" line (W1); add the muted hint "Use a study code, not the child's name." under Subject ID. Engine: the subject folder is always the sanitised Subject ID; no new `S-000N` code is assigned and `sessions/_system/subject_codes.json` is no longer written; `subject.json` keeps `folder_mode` (always `"id"`) so the schema does not change; `folder_mode=` plumbing to `create_test` / Save Calibration goes. The Test List's Open Subject Folder (W2) stays. L5 is replaced by: a new subject's folder is its Subject ID, and Setup shows the hint. Existing tests for code mode are updated or removed with the feature, the rest stay. | — |
 
 ## 8. Impl log
 
@@ -311,6 +311,49 @@ data; renaming run files; changing what a run folder contains; network/OneDrive 
   *Deviations:* none. *Not done:* step 5 (live check, user OK, commit); BIDS, de-identified export,
   per-subject diagnostics (out of scope); no GUI launch, no device, no live test. The README's pytest
   line was updated to the clean-checkout count.
+- **2026-10-08 — plan step 6, remove the Anonymous code option (spec-implementer, model
+  `claude-sonnet-5-5`; worktree `design-phase1` at `4360537`; nothing committed or staged).**
+  *pytest (full, venv, `-o addopts=""`):* `5 failed, 2785 passed, 2 skipped in 486.18s (0:08:06)`. The 5
+  are the known smoothing-alpha 0.22-vs-0.35 checks of the committed config
+  (`test_config_flow::test_a_new_test_opens_at_standard_with_the_task_defaults`,
+  `test_task_config_page::test_a_new_test_opens_with_standard_and_the_defaults[click_static|click_grid|follow_moving|scanning]`);
+  nothing else fails.
+  *Engine:* `subject_store.py`: `ensure_subject(root, subject_id)` always claims `id_folder_name(id)` and
+  writes `{"subject_id", "folder_mode": "id", "created_at"}`; removed `FOLDER_MODE_CODE`, `FOLDER_MODES`,
+  `MODE_LABELS`, `CODE_COUNTER_FILENAME`, `next_subject_code`, `preview_folder_name`, the `_system/subject_codes.json`
+  reader/writer (`_highest_code`, `_store_code`, `_counter_path`, `_code_name`), `SubjectFolder.label()` and
+  `SubjectFolder.mode` (its only users were `label()` and the code option; `FOLDER_MODE_ID` stays as the value
+  written). The reader ignores `folder_mode`, so an old `S-0001` folder with `"folder_mode": "code"` is still
+  found by its `subject_id`. `folder_mode=` plumbing removed from `run_paths.new_run_dir`,
+  `settings_profile.save_settings_profile`, `subject_tests.create_test` / `_save`.
+  *UI:* `setup_page.py`: the `SubjectFolderRow` and `SetupPage.folder_mode()` are gone; a new
+  `subject_id_hint` (`QLabel`, `objectName` `wtmhMuted`, the existing muted caption style, no new colour or
+  size) with exactly "Use a study code, not the child's name." sits in its own form row directly under the
+  Subject ID field (`form.addRow("", hint)`, so it lines up with the field), always shown; Save Calibration calls
+  `ensure_subject(root, subject_id)`. `test_list_page.py`: `set_subject(subject_id, output_root)` and
+  `create_test(...)` lose `folder_mode`; `dashboard_window.py::_reload_tests` stops passing it. Deleted
+  `src/ui/subject_folder_row.py` (the whole widget was the radio pair + "Folder: ..." line). Open Subject Folder
+  (W2) untouched.
+  *Docs:* `docs/wireframes/setup.md` (radio pair, tooltip and "Folder: ..." line replaced by the hint line and
+  one note), `docs/wireframes/test-list.md` (`sessions/S-0003` example dropped), `README.md` and
+  `docs/DATA_SCHEMA.md` (tree, `folder_mode` is always `"id"`, `subject_codes.json` gone, study-code advice).
+  The rendered `docs/wireframes/setup.html` still shows the old radio pair: not re-rendered, as instructed.
+  *Tests (L5 replaced):* new `tests/test_setup_subject_id.py` replaces `tests/test_setup_folder_row.py`
+  (deleted; most cases in it were about the radio pair / "Folder: ..." line or code mode; the ones that were not
+  (Save Calibration makes `<id>/calibrations/...`, saving twice keeps one folder, the saved file is found by the
+  typed ID, a failed save says so, the completer lists IDs verbatim) are carried over): 8 tests: hint text, style
+  and place (the row right under the Subject ID field), hint always visible, no radio buttons / "Folder: ..."
+  label / `folder_row` / `folder_mode` left, and a new subject's folder is its Subject ID with no `S-000N` and no
+  `subject_codes.json`. `test_subject_store.py`: the "Anonymous code" section (8 tests, incl. the
+  `preview_folder_name` one) and the mode-kept / unknown-mode tests replaced by 6 tests (blank ID refused; a new subject's folder is the ID and
+  no code; first save of anything never makes a code folder, `subject_codes.json` neither read nor written; an
+  old `S-0001` code folder is still found by its ID; an ID that looks like a code name gets that name);
+  `test_subject_tests.py`, `test_test_list_page.py`, `test_run_paths.py`: the code-mode tests turned into
+  "folder is the Subject ID" ones (Open Subject Folder still resolves the folder by the typed ID in any case).
+  *Deviations:* none. *Left for the hub:* the SPEC's own §6 L5, §3.3 H6 and §4 W1 text still describe the
+  Anonymous code (left untouched: decisions are the hub's); `docs/wireframes/setup.html` re-render; the old
+  `sessions/S-0001` + `_system/subject_codes.json` from the live check are on disk and untouched (the app no
+  longer reads the counter; the folder is still found by its `subject_id`). No GUI launch, no live test.
 
 ## 9. Implementer open questions
 
@@ -328,3 +371,4 @@ data; renaming run files; changing what a run folder contains; network/OneDrive 
 - **2026-10-08** — Steps 2-4 implemented by the spec-implementer (§8), no §9 questions, no deviations. Hub review: scope matches H1-H13 and W1-W3, no legacy-layout reader left; L1-L8 and L10 covered by tests, L9 rehearsed on a copy only. Hub pytest in the worktree: 2669 passed, 5 failed, 2 skipped (2676); the 5 are the smoothing-alpha 0.22 checks, which fail because the worktree carries the committed `configs/default.yaml` (alpha 0.35) instead of the user's skip-worktree copy (0.22); not caused by this change. (`pyproject` addopts `-q` plus a second `-q` hides the count line: count from the progress output.) The user was not ready to be the subject; parked before step 4 `--apply` and the step 5 live check. Nothing committed.
 - **2026-10-08** — **User: no migration** (all `sessions/` data is test data). D5 revised, H12 / L9 / step 4 dropped: `tools/migrate_layout_v2.py` and `tests/test_migrate_layout.py` deleted, README and DATA_SCHEMA no longer mention a migration. The old-layout folders are deleted without a backup when this SPEC lands. Ordering (user): steps 2-3 committed on the worktree branch (not merged, not pushed); design-system phase 1 is built on top of that commit, and the step 5 live check covers both.
 - **2026-10-08** - Step 5 live check, shared with design-system phase 1, the user as subject on the real GP3 HD, app launched from worktree design-phase1 (phase 1 stacked on `1d38819`). Subject LIVECHK1 (Subject ID mode): `sessions/LIVECHK1/{subject.json, calibrations/calibration_5pt.json, settings/click_grid/, tests/, runs/click_grid/2026-10-08_1552/, reports/}`; the run folder holds all 11 files; `subject.json` folder_mode "id"; test record schema 2. One recorded Grid Click run (6 trials), report + PDF opened. Discard after a mid-run stop left no run folder. Subject TSET in Anonymous code mode got folder `S-0001` (`_system/subject_codes.json` written). Diagnostics stayed in `_system/diagnostics/`. **User decision after the check: remove the Anonymous code option** (a folder named S-0001 while every page shows the Subject ID would confuse clinicians); D4 revised, step 6 added. Not checked live: a path-budget blocker, Open Subject Folder.
+- **2026-10-08** - Step 6 (D4 revised) implemented by the spec-implementer (§8): radio pair, "Folder:" line, `S-000N` codes and `subject_codes.json` removed; muted hint "Use a study code, not the child's name." under Subject ID; `subject.json` keeps `folder_mode` "id". Hub review: scope matches step 6, no code-mode reference left in `src/`; H6, W1 and L5 marked superseded; `docs/wireframes/setup.html` re-rendered. Hub pytest in the worktree: 2785 passed, 5 failed (known skip-worktree alpha checks), 2 skipped (12 code-mode tests removed or folded). Not seen live in the app (wireframe only). Committed on design-phase1 and merged into feature/compass-task-flow on the user's OK.

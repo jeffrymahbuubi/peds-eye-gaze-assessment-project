@@ -63,9 +63,10 @@ def test_ana_and_ana_in_capitals_share_a_runs_folder(tmp_path):
     assert a.parent == b.parent and b.name == "2026-10-07_1432_2"
 
 
-def test_a_run_in_code_mode_lands_in_the_code_folder(tmp_path):
-    run = new_run_dir(tmp_path, "Maria", "click_grid", folder_mode="code", now=NOW)
-    assert run.parts[-4] == "S-0001"
+def test_a_runs_subject_folder_is_named_after_the_subject_id(tmp_path):
+    run = new_run_dir(tmp_path, "Maria", "click_grid", now=NOW)
+    assert run.parts[-4] == "Maria"
+    assert [p.name for p in tmp_path.iterdir()] == ["Maria"]  # no S-000N code folder
 
 
 def test_concurrent_runs_never_share_a_folder(tmp_path):

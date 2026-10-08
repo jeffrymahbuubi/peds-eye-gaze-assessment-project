@@ -235,11 +235,11 @@ def _load(output_root: str | Path, subject_id: str, test_id: str) -> SubjectTest
     return test
 
 
-def _save(output_root: str | Path, test: SubjectTest, folder_mode: str | None = None) -> None:
+def _save(output_root: str | Path, test: SubjectTest) -> None:
     """Write the record under the subject's folder, which is made (with its
-    ``subject.json``, in ``folder_mode``) if this is the subject's first save."""
+    ``subject.json``) if this is the subject's first save."""
     try:
-        folder = ensure_subject(output_root, test.subject_id, folder_mode)
+        folder = ensure_subject(output_root, test.subject_id)
     except OSError as exc:
         raise TestStoreError(f"Could not save {test.test_id}.json: {exc.strerror or exc}") from exc
     _atomic_write_json(folder.tests / f"{test.test_id}.json", test.to_record())
@@ -266,13 +266,10 @@ def create_test(
     *,
     name: str | None = None,
     configuration: dict[str, Any] | None = None,
-    folder_mode: str | None = None,
 ) -> SubjectTest:
     """Add a Not Done test: default name, Standard configuration, a fresh seed.
 
-    A subject's first test creates the subject's folder; ``folder_mode`` (``"id"`` or
-    ``"code"``, SPEC-subject-data-layout.md H6) is the Setup page's choice and applies
-    only then. ``None`` means ``"id"``."""
+    A subject's first test creates the subject's folder."""
     subject_id = subject_id.strip()
     if not subject_id:
         raise ValueError("A Subject ID is required to add a test.")
@@ -295,7 +292,7 @@ def create_test(
         configuration=_configuration_arg(configuration),
         seed=_new_seed(),
     )
-    _save(output_root, test, folder_mode)
+    _save(output_root, test)
     return test
 
 

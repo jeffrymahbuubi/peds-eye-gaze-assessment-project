@@ -297,7 +297,6 @@ def save_settings_profile(
     structural: dict[str, Any] | None = None,
     calibration: dict[str, Any] | None = None,
     name: str = "",
-    folder_mode: str | None = None,
 ) -> Path:
     """Write a **new** version for this subject+task; earlier ones are kept.
 
@@ -322,14 +321,13 @@ def save_settings_profile(
     child, and re-applying them under a good calibration would be wrong;
     without this, nothing in the profile would say which case it was.
 
-    A subject's first save of anything creates the subject's folder; ``folder_mode``
-    (``"id"`` / ``"code"``, SPEC-subject-data-layout.md H6) applies only then.
+    A subject's first save of anything creates the subject's folder.
     """
     name = name.strip()
     if name and (error := validate_config_name(name)):
         raise ValueError(error)
     now = datetime.now().astimezone()
-    directory = ensure_subject(output_root, subject_id, folder_mode).settings / task_id
+    directory = ensure_subject(output_root, subject_id).settings / task_id
     directory.mkdir(parents=True, exist_ok=True)
     stem = now.strftime(_FILENAME_TIME_FORMAT)
     path = directory / f"{stem}.json"

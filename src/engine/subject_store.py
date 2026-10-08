@@ -1,4 +1,4 @@
-"""One folder per subject under the output root (SPEC-subject-data-layout.md H1, H5, H6, H8).
+"""One folder per subject under the output root (SPEC-subject-data-layout.md H1, H5, H8).
 
 ::
 
@@ -9,13 +9,13 @@
         calibrations/  settings/  tests/  runs/<task_id>/<YYYY-MM-DD_HHMM>/  reports/
 
 A folder is a subject folder only if it holds ``subject.json``
-(``{"subject_id": <as first typed>, "folder_mode": "id" | "code", "created_at"}``).
+(``{"subject_id": <as first typed>, "folder_mode": "id", "created_at"}``).
 The app finds a subject by reading those files and matching ``subject_id``
 case-insensitively (casefold) -- it never recomputes the folder name from the ID,
-so "Ana" and "ANA" are one subject and an Anonymous-code subject (``S-0003``) is
-found by the ID it was typed with. The folder name is chosen once, when the folder
-is created: ``safe_subject_dirname(id)`` capped at 40 characters (mode ``id``), or
-the next free ``S-000N`` that is never reused (mode ``code``, D4).
+so "Ana" and "ANA" are one subject. The folder name is chosen once, when the folder
+is created: always ``safe_subject_dirname(id)`` capped at 40 characters (D4 revised
+2026-10-08: no Anonymous code option). ``folder_mode`` stays in the file, always
+``"id"``, so the schema does not change; the reader ignores its value.
 
 :func:`output_root` is the one place the output root is read (H8). Qt-free.
 """
@@ -25,7 +25,6 @@ from __future__ import annotations
 import hashlib
 import json
 import os
-import re
 import time
 from collections.abc import Mapping
 from dataclasses import dataclass
@@ -41,7 +40,6 @@ SYSTEM_DIRNAME = "_system"  # reserved: never a subject folder
 DIAGNOSTICS_DIRNAME = "diagnostics"
 REPLAY_DIRNAME = "replay"
 SUBJECT_FILENAME = "subject.json"
-CODE_COUNTER_FILENAME = "subject_codes.json"  # in _system: the highest code ever issued
 
 CALIBRATIONS_DIRNAME = "calibrations"
 SETTINGS_DIRNAME = "settings"
@@ -49,14 +47,9 @@ TESTS_DIRNAME = "tests"
 RUNS_DIRNAME = "runs"
 REPORTS_DIRNAME = "reports"
 
-FOLDER_MODE_ID = "id"
-FOLDER_MODE_CODE = "code"
-FOLDER_MODES = (FOLDER_MODE_ID, FOLDER_MODE_CODE)
-MODE_LABELS = {FOLDER_MODE_ID: "Subject ID", FOLDER_MODE_CODE: "Anonymous code"}
+FOLDER_MODE_ID = "id"  # the only value written to subject.json's "folder_mode" key
 
 MAX_FOLDER_ID_LEN = 40  # H5: the Subject ID part of a folder name (+ "~hash" when changed)
-
-_CODE_NAME = re.compile(r"S-(\d{4,})")
 
 # Antivirus / OneDrive can hold a freshly written file for a moment on Windows.
 REPLACE_RETRIES = 5
@@ -89,7 +82,6 @@ class SubjectFolder:
 
     path: Path
     subject_id: str
-    mode: str
     created_at: str = ""
 
     @property
@@ -116,10 +108,6 @@ class SubjectFolder:
     def reports(self) -> Path:
         return self.path / REPORTS_DIRNAME
 
-    def label(self) -> str:
-        """``Folder: S-0003 (Anonymous code)`` (the Setup page's read-only line)."""
-        return f"Folder: {self.name} ({MODE_LABELS[self.mode]})"
-
 
 def same_subject(a: str, b: str) -> bool:
     """Subject IDs are one subject when they match ignoring case and outer spaces."""
@@ -137,12 +125,10 @@ def _read_subject_json(folder: Path) -> SubjectFolder | None:
     subject_id = data.get("subject_id")
     if not isinstance(subject_id, str) or not subject_id.strip():
         return None
-    mode = data.get("folder_mode")
     created = data.get("created_at")
     return SubjectFolder(
         path=folder,
         subject_id=subject_id.strip(),
-        mode=mode if mode in FOLDER_MODES else FOLDER_MODE_ID,
         created_at=created if isinstance(created, str) else "",
     )
 
@@ -189,55 +175,15 @@ def known_subject_ids(root: str | Path) -> list[str]:
 
 
 def id_folder_name(subject_id: str) -> str:
-    """The folder name of a subject in mode ``id`` (H5): ``safe_subject_dirname`` of the
-    stripped ID, cut at 40 characters. ``_system`` is reserved, so a subject typed that
-    gets a prefixed name."""
+    """The folder name of a new subject (H5): ``safe_subject_dirname`` of the stripped
+    ID, cut at 40 characters. ``_system`` is reserved, so a subject typed that gets a
+    prefixed name."""
     sid = subject_id.strip()
     name = safe_subject_dirname(sid, MAX_FOLDER_ID_LEN)
     if name.casefold() == SYSTEM_DIRNAME:
         digest = hashlib.sha1(sid.encode("utf-8", errors="surrogatepass"), usedforsecurity=False)
         name = f"_{name}~{digest.hexdigest()[:6]}"
     return name
-
-
-def _code_name(number: int) -> str:
-    return f"S-{number:04d}"
-
-
-def _counter_path(root: Path) -> Path:
-    return system_dir(root) / CODE_COUNTER_FILENAME
-
-
-def _highest_code(root: Path) -> int:
-    """The highest code number seen: in a folder name, or in the counter file that
-    remembers codes whose folder was later deleted (so a code is never reused)."""
-    best = 0
-    try:
-        names = [p.name for p in root.iterdir()]
-    except OSError:
-        names = []
-    for name in names:
-        match = _CODE_NAME.fullmatch(name)
-        if match:
-            best = max(best, int(match.group(1)))
-    try:
-        data = json.loads(_counter_path(root).read_text(encoding="utf-8"))
-        last = data.get("last") if isinstance(data, dict) else None
-        if isinstance(last, int) and not isinstance(last, bool):
-            best = max(best, last)
-    except (OSError, ValueError):
-        pass
-    return best
-
-
-def next_subject_code(root: str | Path) -> str:
-    """The code a new Anonymous-code subject would get: ``S-0001``, ``S-0002`` ..."""
-    return _code_name(_highest_code(Path(root)) + 1)
-
-
-def preview_folder_name(root: str | Path, subject_id: str, folder_mode: str) -> str:
-    """The folder name a new subject would get in ``folder_mode`` (for the Setup choice)."""
-    return next_subject_code(root) if folder_mode == FOLDER_MODE_CODE else id_folder_name(subject_id)
 
 
 # -- creating -------------------------------------------------------------------------
@@ -286,15 +232,12 @@ def _claim_folder(root: Path, base: str) -> Path:
         return path
 
 
-def ensure_subject(
-    root: str | Path, subject_id: str, folder_mode: str | None = None
-) -> SubjectFolder:
+def ensure_subject(root: str | Path, subject_id: str) -> SubjectFolder:
     """The folder of ``subject_id``, created (with its ``subject.json``) if it is new.
 
-    An existing subject keeps the mode it was created with, whatever ``folder_mode``
-    says: the choice is fixed when the folder is created (H6). ``None`` means mode
-    ``id``. Raises ``ValueError`` for a blank ID or an unknown mode, ``OSError`` if the
-    folder cannot be written.
+    The folder is named after the Subject ID (:func:`id_folder_name`); an existing
+    subject keeps whatever folder it has. Raises ``ValueError`` for a blank ID,
+    ``OSError`` if the folder cannot be written.
     """
     sid = subject_id.strip()
     if not sid:
@@ -302,22 +245,15 @@ def ensure_subject(
     found = find_subject(root, sid)
     if found is not None:
         return found
-    mode = folder_mode or FOLDER_MODE_ID
-    if mode not in FOLDER_MODES:
-        raise ValueError(f"folder_mode must be one of {FOLDER_MODES}, not {mode!r}")
     base_root = Path(root)
     base_root.mkdir(parents=True, exist_ok=True)
-    number = _highest_code(base_root) + 1 if mode == FOLDER_MODE_CODE else 0
-    base = _code_name(number) if mode == FOLDER_MODE_CODE else id_folder_name(sid)
-    path = _claim_folder(base_root, base)
+    path = _claim_folder(base_root, id_folder_name(sid))
     created = datetime.now().astimezone().isoformat(timespec="seconds")
     try:
         _write_json(
             path / SUBJECT_FILENAME,
-            {"subject_id": sid, "folder_mode": mode, "created_at": created},
+            {"subject_id": sid, "folder_mode": FOLDER_MODE_ID, "created_at": created},
         )
-        if number:
-            _store_code(base_root, number)
     except OSError:
         try:
             (path / SUBJECT_FILENAME).unlink(missing_ok=True)
@@ -325,11 +261,4 @@ def ensure_subject(
         except OSError:
             pass
         raise
-    return SubjectFolder(path=path, subject_id=sid, mode=mode, created_at=created)
-
-
-def _store_code(root: Path, number: int) -> None:
-    """Remember the highest code issued, so deleting its folder never frees it."""
-    directory = system_dir(root)
-    directory.mkdir(parents=True, exist_ok=True)
-    _write_json(_counter_path(root), {"last": number})
+    return SubjectFolder(path=path, subject_id=sid, created_at=created)

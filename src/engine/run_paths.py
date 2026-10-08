@@ -53,18 +53,17 @@ def new_run_dir(
     subject_id: str,
     task_id: str,
     *,
-    folder_mode: str | None = None,
     now: datetime | None = None,
 ) -> Path:
     """Create and return the folder of a new recorded run (H2).
 
-    Makes the subject's folder first if it is new (``folder_mode`` applies then and
-    only then), then ``runs/<task_id>/<YYYY-MM-DD_HHMM>``; on a collision ``_2``,
-    ``_3`` ... The ``mkdir`` has no ``exist_ok``, so two runs can never share a folder.
+    Makes the subject's folder first if it is new, then
+    ``runs/<task_id>/<YYYY-MM-DD_HHMM>``; on a collision ``_2``, ``_3`` ... The
+    ``mkdir`` has no ``exist_ok``, so two runs can never share a folder.
     """
     if not TASK_DIR_RE.fullmatch(task_id):
         raise ValueError(f"Not a task id: {task_id!r}")
-    folder = ensure_subject(output_root, subject_id, folder_mode)
+    folder = ensure_subject(output_root, subject_id)
     parent = folder.runs / task_id
     parent.mkdir(parents=True, exist_ok=True)
     stem = (now or datetime.now()).strftime(RUN_NAME_FORMAT)
