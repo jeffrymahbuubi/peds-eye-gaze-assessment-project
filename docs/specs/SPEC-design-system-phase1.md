@@ -1,15 +1,15 @@
 ---
 name: SPEC-design-system-phase1
 title: Design system v1, phase 1: colour tokens, type scale, component QSS and copy rules (operator UI)
-status: implemented 2026-10-08 (live check passed with three carry-over bugs moved to phase 2 by the user); committed on branch design-phase1
+status: done 2026-10-08 (live check passed; three carry-over bugs moved to phase 2 H13 by the user); merged into feature/compass-task-flow `f2376d3`, pushed
 created: 2026-10-08
 last_updated: 2026-10-08
-next_step: step 4 (on the user's OK) delete the old-layout folders in sessions/, merge data-layout then phase 1 into feature/compass-task-flow, push (user pushes)
+next_step: none; follow-ups live in SPEC-design-system-phase2 H13 and SPEC-design-system-phase4 H8
 related:
   - docs/design/fable-proposal.md (source: §2 design system v1, §4 copy rules, §5.2 phase 1)
   - docs/design/fable-evaluation.md (Task A findings the proposal cites)
   - docs/design/design-system.html (visual reference, WTMH blue)
-  - SPEC-subject-data-layout.md (implemented, committed on its worktree branch, not merged; phase 1 is stacked on it, U2)
+  - SPEC-subject-data-layout.md (done; merged together with this phase, U2)
 ---
 
 # SPEC-design-system-phase1: tokens, type, copy
@@ -204,7 +204,7 @@ string is in H11); full screen during a run (phase 3); any new feature.
 | 1 | spec-implementer in a new worktree based on the data-layout commit, with this SPEC's commit cherry-picked: H1-H12 (DONE, rounds 1-2) | — |
 | 2 | Hub review + full pytest; §9 questions to the user (DONE 2026-10-08) | — |
 | 3 | Live check with the user (P7), together with the data-layout step 5 live check (one session, the user as subject) (DONE 2026-10-08; three bugs moved to phase 2 H13) | user |
-| 4 | On the user's OK: delete the old-layout folders in `sessions/` (no backup), merge data-layout then phase 1 into `feature/compass-task-flow`, push | user |
+| 4 | On the user's OK: delete the old-layout folders in `sessions/` (no backup), merge data-layout then phase 1 into `feature/compass-task-flow`, push (DONE 2026-10-08: `f2376d3`, step 6 `9bbb8c0`, pushed by the user) | user |
 
 ## 8. Impl log
 
@@ -409,3 +409,4 @@ string is in H11); full screen during a run (phase 3); any new feature.
 - **2026-10-08** — Round 2 (A1-A4) implemented by spec-implementer (claude-sonnet-5-5) in worktree `design-phase1`, uncommitted: interpuncts replaced except the three later-phase ones, path message and motion-path words aligned. Full pytest: 5 failed (known), 2797 passed, 2 skipped.
 - **2026-10-08** - Hub review after rounds 1-2: scope matches H1-H12 plus the A1-A4 answers; out-of-scope touches (canvas.py comment, app.py run-bar call, target_size.py gap label, follow_moving.py MOTION_PATH_LABELS) accepted by the user; P1-P6 and P8 covered by tests; hub pytest in the worktree 2797 passed, 5 failed (known skip-worktree alpha checks), 2 skipped. The Follow trial table's short Path labels (Diagonal TL-BR) stay until phase 4. PARKED before the P7 live check: the device is not ready; the live check is shared with the data-layout step 5. Nothing committed.
 - **2026-10-08** - Step 3 live check with the user as subject on the real GP3 HD (GP3HD 150 Hz, SN 23309153), maximized 1920x1080, app launched from this worktree; the user drove most pages by hand (qt-mcp lost the window after the modal Add Test dialog and while the window was minimized). P7: Tab focus visible on Setup, the Test List, the configuration page and the Start page; run bar shows the PRACTICE chip in a practice run; one recorded Grid Click run (6 trials) and its report + PDF read `yyyy-MM-dd HH:mm` and "not recorded" (P5, P6). Hub pytest in the worktree before the check: 2797 passed, 5 failed (known skip-worktree alpha checks), 2 skipped. Three bugs found, all moved to phase 2 (SPEC-design-system-phase2 H13) by the user's choice ("commit as is, fix later"): (1) buttons with a white fill draw the native Windows focus rectangle inside the 2 px focus border (no `outline: 0` in `button_rule`); (2) Tab inside the Setup Notes `QTextEdit` types a tab instead of moving focus (`metadata.json` notes held ten tab characters); (3) the PRACTICE chip has `min-height: 24px` but no maximum, so it stretches to the bar height. Not checked: the disabled checked box #8D8D8D under Mouse + Switch (covered by `test_design_tokens.py::test_a_disabled_checked_indicator_is_grey_not_the_accent_blue`). The PDF's tiny section headings and the "Entrie s" header break predate phase 1 and were added to SPEC-design-system-phase4 H8. Phase 1 committed on branch design-phase1.
+- **2026-10-08** - Step 4 on the user's OK: old-layout folders in `sessions/` deleted (no backup); design-phase1 merged into `feature/compass-task-flow` as `f2376d3` (add/add conflict on this SPEC resolved with the branch copy); data-layout step 6 merged `9bbb8c0`; full pytest on the merged branch 2790 passed, 2 skipped, 0 failed; pushed by the user. `docs/wireframes/setup.html` re-rendered from the merged `setup.md` (the textual merge of the generated HTML was stale).

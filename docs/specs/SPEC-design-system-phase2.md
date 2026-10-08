@@ -1,10 +1,10 @@
 ---
 name: SPEC-design-system-phase2
 title: Design system v1, phase 2: status badges, alerts with glyphs, and page layout (operator UI)
-status: approved 2026-10-08 (V1-V4 user decisions, H1-H12 hub decisions approved by the user)
+status: approved 2026-10-08 (V1-V4 user decisions, H1-H12 hub decisions approved by the user; H13 phase-1 carry-overs added by the user 2026-10-08)
 created: 2026-10-08
 last_updated: 2026-10-08
-next_step: /spec-run step 2 (spec-implementer) once phase 1 is reviewed; wireframes approved 2026-10-08
+next_step: /spec-run step 2 (spec-implementer in a new worktree based on feature/compass-task-flow at or after `9bbb8c0`, which holds phase 1 + data layout); wireframes approved 2026-10-08
 related:
   - docs/design/fable-proposal.md (source: §2.3 spacing and widths, §2.5 components, §3.1-§3.6 per-page changes, §5.2 phase 2)
   - SPEC-design-system-phase1.md (tokens, type, component QSS, copy; this phase builds on it and needs its tokens)
@@ -27,7 +27,7 @@ tracking badge, the configuration page's column order, and slider length caps. T
 this SPEC on 2026-10-08, while phase 1 is being implemented, and settled the four open points of the
 design page that belong here (§3.1).
 
-## 2. Current code (commit `1d38819`; line numbers shift once phase 1 lands)
+## 2. Current code (commit `1d38819`; phase 1 and data-layout step 6 landed `9bbb8c0`, so line numbers are stale: re-grep)
 
 - Setup (`src/ui/setup_page.py`, 1199 lines, already over 500): page title `"1 · Setup"`;
   `tracker_status_label = QLabel("Not connected.")` (line 668); Continue to Tests carries a tooltip
@@ -179,7 +179,7 @@ C7, §3.5 P1-P5, §3.6 R2.
 
 | Step | Content | Gate |
 |---|---|---|
-| 0 | Phase 1 implemented and reviewed (live check may be shared with this one) | — |
+| 0 | Phase 1 implemented and reviewed (DONE 2026-10-08, merged `f2376d3`) | — |
 | 1 | Wireframes: setup, test-list, task-config, start-test, run, run-end (H11) — **DONE 2026-10-08, user-approved** | **WF gate** |
 | 2 | spec-implementer in a worktree based on the phase-1 result: H1-H10, H12, H13 | — |
 | 3 | Hub review + full pytest; §9 questions | — |

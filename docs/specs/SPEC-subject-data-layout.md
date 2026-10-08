@@ -4,7 +4,7 @@ title: Per-subject data folders — one folder per child holding calibrations, s
 status: done 2026-10-08 (D1-D6, H1-H13; D4 revised: no Anonymous code option)
 created: 2026-10-07
 last_updated: 2026-10-08
-next_step: all steps DONE 2026-10-08 (step 6 removed the Anonymous code option); merged into feature/compass-task-flow; push is the user's
+next_step: none; all steps DONE 2026-10-08 (merged `f2376d3` + step 6 `9bbb8c0`, pushed)
 related:
   - SPEC-compass-task-flow.md (Test List store 4A, run end / Discard 4C.6, report + PDF 4D; branch feature/compass-task-flow, U17)
   - SPEC-input-selection-and-follow.md (adds pointer_stream.csv inside a run folder; built first)
@@ -220,7 +220,7 @@ data; renaming run files; changing what a run folder contains; network/OneDrive 
 | 1 | Wireframes: `setup` (folder-name choice), `test-list` (Open Subject Folder), `start-test` (path blocker) — **DONE 2026-10-08** | **WF gate** |
 | 2 | Engine: `output_root()`, subject resolver + `subject.json`, `new_run_dir`, `run_dir` link, stores re-anchored, discard guard, diagnostics/replay paths, path budget | — |
 | 3 | UI: Setup choice, Test List button, PDF default, Start blocker, texts | — |
-| 4 | ~~Migration script~~ **Dropped 2026-10-08** (D5 revised); on the user's OK after step 5, delete the old-layout folders in `sessions/` (no backup) | user |
+| 4 | ~~Migration script~~ **Dropped 2026-10-08** (D5 revised); on the user's OK after step 5, delete the old-layout folders in `sessions/` (no backup) (DONE 2026-10-08) | user |
 | 5 | Review + live check (new subject in both modes, one recorded run, report + PDF, Discard); commit on the user's OK — **DONE 2026-10-08** (live check passed, shared with design-system phase 1) | user |
 | 6 | **Remove the Anonymous code option (D4 revised 2026-10-08).** **DONE 2026-10-08.** Setup: drop the "Folder name" radio pair and the read-only "Folder: …" line (W1); add the muted hint "Use a study code, not the child's name." under Subject ID. Engine: the subject folder is always the sanitised Subject ID; no new `S-000N` code is assigned and `sessions/_system/subject_codes.json` is no longer written; `subject.json` keeps `folder_mode` (always `"id"`) so the schema does not change; `folder_mode=` plumbing to `create_test` / Save Calibration goes. The Test List's Open Subject Folder (W2) stays. L5 is replaced by: a new subject's folder is its Subject ID, and Setup shows the hint. Existing tests for code mode are updated or removed with the feature, the rest stay. | — |
 
