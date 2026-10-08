@@ -69,7 +69,7 @@ def test_configure_puts_the_page_on_top_with_the_nav_locked(win):
     assert not any(b.isEnabled() for b in win.title_bar.buttons)
     assert not win.title_bar.isHidden()  # the title bar stays for a page; only a canvas hides it
     assert page.title_label.text() == "Grid Click 1 Configuration"
-    assert page.subtitle_label.text() == "Grid Click · Subject TESTING"
+    assert page.subtitle_label.text() == "Grid Click, subject TESTING"
 
 
 def test_a_new_test_opens_at_standard_with_the_task_defaults(win):

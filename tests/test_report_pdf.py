@@ -19,11 +19,11 @@ from PySide6.QtGui import QTextDocument, QTextTable
 from PySide6.QtWidgets import QApplication
 
 import src.ui.report_pdf as report_pdf
+from src.ui.design_tokens import LEGACY_REPORT_COLOURS
 from src.ui.map_legend import LEGEND_ENTRIES, NUMBERS_NOTE
 from src.ui.report_format import DEFINITIONS, TRIAL_COLUMNS, eye_rows, summary_table, trial_cells
 from src.ui.report_pdf import build_report_html, export_report_pdf
 from src.ui.target_map import TargetMapWidget
-from src.ui.wtmh_theme import SOFT_ACCENT
 from tests.report_ui_fixtures import folder_report
 
 QtPdf = pytest.importorskip("PySide6.QtPdf")
@@ -126,7 +126,7 @@ def test_the_html_holds_header_configuration_both_tables_the_map_and_every_trial
     html = build_report_html(
         report, test_name="Grid Click 1", evaluator="Dr. Lin", notes="Good attention", map_image=map_image(report)
     )
-    assert "Summary Results: Grid Click 1" in html
+    assert "Summary Results, Grid Click 1" in html
     assert "Dr. Lin" in html and "Good attention" in html and "P001" in html
     for label, value in report["config"]["rows"]:
         assert label in html and value.replace("&", "&amp;") in html
@@ -166,7 +166,7 @@ def test_the_html_has_the_same_text_as_the_page_for_every_trial_cell(qapp, tmp_p
 def test_the_banner_of_a_partial_run_is_in_the_pdf(qapp, tmp_path):
     report = folder_report(tmp_path / "data", planned=18)
     html = build_report_html(report, test_name="T", evaluator="", notes="", map_image=None)
-    assert "Ended early — 6 of 18 trials" in html
+    assert "Ended early: 6 of 18 trials" in html
 
 
 def test_without_a_map_image_there_is_no_target_map_section(qapp, tmp_path):
@@ -186,9 +186,10 @@ def test_text_from_the_operator_is_escaped_and_notes_keep_their_line_breaks(qapp
     assert "line 1<br>line &lt;2&gt;" in html
 
 
-def test_an_empty_evaluator_and_notes_print_as_dashes(qapp, tmp_path):
+def test_an_empty_evaluator_and_notes_print_as_not_recorded(qapp, tmp_path):
     html = build_report_html(folder_report(tmp_path / "data"), test_name="T", evaluator="", notes="", map_image=None)
-    assert "Evaluator: <b>—</b>" in html
+    assert "Evaluator: <b>not recorded</b>" in html
+    assert '<h3 style="margin-bottom:2px">Notes</h3><p style="margin-top:0">not recorded</p>' in html
 
 
 def test_a_legacy_folder_exports_without_error(qapp, tmp_path):
@@ -289,7 +290,7 @@ def test_the_legend_is_under_the_map_with_its_four_entries_and_the_numbers_note(
     for _kind, label in LEGEND_ENTRIES:
         assert label in html
     assert NUMBERS_NOTE in html
-    assert SOFT_ACCENT in html  # the light tinted box
+    assert LEGACY_REPORT_COLOURS.soft_accent in html  # the light tinted box (today's colour, phase 4)
     assert f'width="{report_pdf.mm_to_css_px(report_pdf.MAP_WIDTH_MM)}"' in html  # as wide as the map
 
 
@@ -310,5 +311,5 @@ def test_the_pdf_shows_seconds_never_milliseconds(qapp, tmp_path):
     html = build_report_html(report, test_name="T", evaluator="", notes="", map_image=map_image(report))
     visible = re.sub(r"<[^>]*>", " ", re.sub(r"data:image/png;base64,[A-Za-z0-9+/=]+", "", html))
     assert not re.search(r"\bms\b", visible), re.findall(r".{20}\bms\b.{10}", visible)
-    assert "Dwell 0.8 s, refractory 0.5 s" in visible
+    assert "Dwell, threshold 0.8 s, refractory 0.5 s" in visible
     assert "Mean fix. dur. (s)" in visible and "0.12 s" in visible

@@ -15,9 +15,9 @@ from PySide6.QtCore import QCoreApplication, Qt
 from PySide6.QtTest import QTest
 from PySide6.QtWidgets import QApplication
 
+from src.ui.design_tokens import TEXT_SECONDARY
 from src.ui.report_format import DASH, TRIAL_COLUMNS
 from src.ui.report_page import DETAILED, SUMMARY, ReportPage
-from src.ui.wtmh_theme import MUTED
 from tests.report_ui_fixtures import folder_report
 
 OUTCOME_COLUMN, REACTION_COLUMN, ENTRIES_COLUMN = 3, 5, 6
@@ -52,7 +52,7 @@ def shown_trials(page: ReportPage) -> list[str]:
 def test_the_page_opens_on_the_summary_with_the_header_filled(qapp, tmp_path):
     page = make_page(tmp_path, evaluator="Dr. Lin", notes="Good attention")
     assert page.view_mode == SUMMARY
-    assert page.title_label.text() == "Summary Results:"
+    assert page.title_label.text() == "Summary Results"
     assert page.name_edit.text() == "Grid Click 1"
     assert page.evaluator_edit.text() == "Dr. Lin"
     assert page.notes_edit.toPlainText() == "Good attention"
@@ -111,11 +111,11 @@ def test_view_details_and_view_summary_toggle_the_view(qapp, tmp_path):
     page = make_page(tmp_path)
     page.toggle_button.click()
     assert page.view_mode == DETAILED
-    assert page.title_label.text() == "Detailed Results:" and page.toggle_button.text() == "View Summary"
+    assert page.title_label.text() == "Detailed Results" and page.toggle_button.text() == "View Summary"
     assert page._stack.currentIndex() == 1
     page.toggle_button.click()
     assert page.view_mode == SUMMARY and page._stack.currentIndex() == 0
-    assert page.title_label.text() == "Summary Results:" and page.toggle_button.text() == "View Details"
+    assert page.title_label.text() == "Summary Results" and page.toggle_button.text() == "View Details"
     page.show_detailed()
     assert page.view_mode == DETAILED
     page.show_summary()
@@ -148,7 +148,7 @@ def test_the_first_row_is_selected_when_the_page_opens_and_the_pane_shows_it(qap
     page = make_page(tmp_path)
     assert page.detailed.table.currentRow() == 0 and page.selected_trial() == 0
     assert page.detailed.map.trial() == 0
-    assert page.detailed.selected_title.text() == "Selected trial — Trial 1"
+    assert page.detailed.selected_title.text() == "Selected trial: Trial 1"
     assert page.detailed.line_label.text().startswith("Scan path ")
 
 
@@ -157,7 +157,7 @@ def test_selecting_a_row_updates_the_selected_trial_pane(qapp, tmp_path):
     page.show_detailed()
     page.detailed.table.setCurrentCell(2, 0)
     assert page.selected_trial() == 2 and page.detailed.map.trial() == 2
-    assert page.detailed.selected_title.text() == "Selected trial — Trial 3"
+    assert page.detailed.selected_title.text() == "Selected trial: Trial 3"
     assert "fixation" in page.detailed.line_label.text() and "saccade" in page.detailed.line_label.text()
     page.detailed.table.selectRow(1)
     assert page.detailed.map.trial() == 1 and page.detailed.selected_title.text().endswith("Trial 2")
@@ -182,8 +182,8 @@ def test_a_skipped_row_is_grey_with_dashes_and_is_still_selectable(qapp, tmp_pat
     page = make_page(tmp_path)
     table = page.detailed.table
     assert [table.item(3, c).text() for c in range(4, 13)] == [DASH] * 9
-    assert table.item(3, 3).foreground().color().name().lower() == MUTED.lower()
-    assert table.item(0, 3).foreground().color().name().lower() != MUTED.lower()
+    assert table.item(3, 3).foreground().color().name().lower() == TEXT_SECONDARY.lower()
+    assert table.item(0, 3).foreground().color().name().lower() != TEXT_SECONDARY.lower()
     table.setCurrentCell(3, 0)
     assert page.detailed.map.trial() == 3  # shows the skipped trial's target as a dashed ring
 
@@ -253,7 +253,7 @@ def test_the_summary_map_shows_the_whole_test_and_the_pane_map_one_trial(qapp, t
 def test_a_partial_run_shows_ended_early_with_the_counts(qapp, tmp_path):
     page = make_page(tmp_path, planned=18)
     assert page.banner.isVisible()
-    assert page.banner_label.text() == "Ended early — 6 of 18 trials"
+    assert page.banner_label.text() == "Ended early: 6 of 18 trials"
     assert "12 planned trial(s) not presented." in page.summary.note.text()
 
 

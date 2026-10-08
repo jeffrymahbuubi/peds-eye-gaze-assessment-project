@@ -7,7 +7,8 @@ import copy
 
 import pytest
 
-from src.data.report_config import DASH, build_config_rows
+from src.data.report_config import build_config_rows
+from src.data.report_util import NOT_RECORDED
 from src.engine.config import deep_merge, load_task_config
 from src.engine.settings_profile import list_named_configurations, save_settings_profile
 from src.ui.settings_registry import (
@@ -218,11 +219,11 @@ def test_report_config_reads_the_run_block_without_dashes_for_the_snapshot_rows(
     rows = dict(build_config_rows(block, _meta(block), task_id="click_grid"))
     assert rows["Configuration name"] == "Standard"
     assert rows["Theme"] == "Forest"
-    assert rows["Gaze cursor shown"] == "Yes"
-    assert rows["Feedback"] == "Sound on, sparkle on"
-    for label in ("Selection", "Maximum time per trial", "Pause between trials", "Gaze smoothing",
-                  "Layout", "Trials (planned)"):
-        assert rows[label] != DASH, label
+    assert rows["Gaze cursor"] == "Shown"
+    assert rows["Feedback"] == "Hit sound on, miss sound on, glow on"
+    for label in ("Selection", "Trial timeout", "Inter-trial interval", "Gaze smoothing",
+                  "Layout", "Number of trials"):
+        assert rows[label] != NOT_RECORDED, label
     assert rows["Layout"].startswith("3×3 grid")
 
 
@@ -236,8 +237,8 @@ def test_report_config_follows_a_changed_run_block():
     rows = dict(build_config_rows(block, _meta(block), task_id="click_grid"))
     assert rows["Configuration name"] == "Quiet"
     assert rows["Theme"] == "Space"
-    assert rows["Gaze cursor shown"] == "No"
-    assert rows["Feedback"] == "Sound miss only, sparkle on"
+    assert rows["Gaze cursor"] == "Hidden"
+    assert rows["Feedback"] == "Hit sound off, miss sound on, glow on"
 
 
 def test_the_controls_only_snapshot_has_no_theme():

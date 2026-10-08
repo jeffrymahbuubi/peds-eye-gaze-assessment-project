@@ -92,7 +92,7 @@ def test_the_outcomes_of_the_trial_table_agree_with_the_follow_block(tmp_path):
 def test_the_configuration_rows_say_trial_duration_and_have_no_selection_row(tmp_path):
     rows = dict(build_report(folder(tmp_path))["config"]["rows"])
     assert "Trial duration" in rows and rows["Trial duration"] == "10 s"
-    assert "Maximum time per trial" not in rows and "Selection" not in rows
+    assert "Trial timeout" not in rows and "Selection" not in rows
     assert rows["Input"] == "Gaze (GP3HD, 150 Hz)"  # nothing to select, so no Dwell or Switch
     assert rows["Task"] == "Follow the Target" and len(rows) == 16
 
@@ -186,7 +186,7 @@ def test_an_old_follow_and_click_folder_still_builds_in_its_old_layout(tmp_path)
     rows = {r["key"]: r for r in report["summary"]["rows"]}
     assert (rows["all_selected"]["n"], rows["not_selected"]["n"], rows["all_trials"]["N"]) == (2, 1, 3)
     config = dict(report["config"]["rows"])
-    assert "Selection" in config and "Maximum time per trial" in config
+    assert "Selection" in config and "Trial timeout" in config
     assert "selection window 2.5 s" in config["Layout"]
     assert len(config) == 17
     assert report["session"]["pointer"] is None and report["session"]["gaze_recorded"] is None

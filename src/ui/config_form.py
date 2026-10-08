@@ -209,7 +209,7 @@ class ConfigForm:
         return widget
 
     def _add_config_extras(self, layout: QVBoxLayout) -> None:
-        """Under the Configuration Name: the "Modified from ..." line and [Reset to defaults]."""
+        """Under the Configuration Name: the "Changed from ..." line and [Reset to defaults]."""
         self.modified_label.setObjectName("wtmhMuted")
         self.modified_label.hide()
         self.reset_button.setObjectName("cfgReset")

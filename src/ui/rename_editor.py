@@ -17,7 +17,7 @@ from PySide6.QtCore import Qt, Signal
 from PySide6.QtWidgets import QFrame, QLabel, QLineEdit, QVBoxLayout, QWidget
 
 from ..engine.subject_test_record import validate_test_name
-from .wtmh_theme import BORDER, PANEL_BG
+from .design_tokens import BORDER_STRONG, PANEL, RADIUS
 
 MIN_WIDTH = 320
 
@@ -37,8 +37,8 @@ class RenameEditor(QFrame):
         super().__init__(parent, Qt.WindowType.Popup)
         self.setObjectName("wtmhRenameEditor")
         self.setStyleSheet(
-            f"QFrame#wtmhRenameEditor {{ background: {PANEL_BG}; border: 1px solid {BORDER};"
-            " border-radius: 6px; }"
+            f"QFrame#wtmhRenameEditor {{ background: {PANEL}; border: 1px solid {BORDER_STRONG};"
+            f" border-radius: {RADIUS}px; }}"
         )
         self._current = current_name
         self._existing = list(existing_names)

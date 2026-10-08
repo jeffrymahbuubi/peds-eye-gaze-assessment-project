@@ -46,6 +46,7 @@ from .report_metrics import (
     summary_rows,
 )
 from .report_quality import eye_summary, frames_by_window, gaze_valid_share, quality_block
+from .report_util import DASH
 from .report_visual import (
     DEFAULT_HEAT,
     DEFAULT_PATH,
@@ -194,13 +195,13 @@ def build_report(session_dir: str | Path) -> dict[str, Any]:
             "n_not_presented": max(0, planned - n_rows) if planned is not None else None,
             # The test's input (SPEC-input-selection-and-follow.md H1, 4.6): None on an
             # older folder. ``gaze_recorded`` False (a Mouse run with no tracker) is what
-            # makes the eye sections say "not recorded" instead of "—".
+            # makes the eye sections say "not recorded" instead of a dash.
             "pointer": meta.get("input_pointer"),
             "selection": meta.get("input_selection"),
             "gaze_recorded": meta.get("gaze_recorded")
             if isinstance(meta.get("gaze_recorded"), bool)
             else None,
-            # Which inputs the folder had, so the UI can say why a column is "—".
+            # Which inputs the folder had, so the UI can say why a column is a dash.
             "sources": {
                 "pointer_stream": (session_dir / POINTER_STREAM_FILENAME).exists(),
                 "gaze_stream": bool(index.frames),
@@ -305,7 +306,7 @@ def load_or_build_report(session_dir: str | Path) -> dict[str, Any]:
 
 def _fmt(value: Any, digits: int = 2) -> str:
     if value is None:
-        return "—"
+        return DASH
     return f"{value:.{digits}f}" if isinstance(value, float) else str(value)
 
 

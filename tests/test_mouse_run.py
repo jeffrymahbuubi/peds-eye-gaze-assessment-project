@@ -129,7 +129,7 @@ def test_the_report_eye_sections_say_not_recorded(make_app):
     assert session["sources"]["pointer_stream"] is True and session["sources"]["gaze_stream"] is False
     rows = eye_rows(report)
     assert rows and all(value == NOT_RECORDED == "not recorded" for _label, value in rows)
-    assert dict(report["config"]["rows"])["Input"] == "Mouse · Dwell 0.3 s"  # no tracker named
+    assert dict(report["config"]["rows"])["Input"] == "Mouse, Dwell 0.3 s"  # no tracker named
 
 
 def test_a_mouse_run_with_no_tracker_says_not_recorded_in_every_eye_cell_of_the_trial_table(make_app):
@@ -171,7 +171,7 @@ def test_a_mouse_switch_run_reports_its_clicks_and_still_says_not_recorded(make_
     cells = trial_rows(report)[0]
     assert [c.text for c in cells[7:9]] == ["1", "0"]
     assert [c.text for c in cells[9:]] == [NOT_RECORDED] * 6
-    assert dict(report["config"]["rows"])["Input"] == "Mouse · Switch"
+    assert dict(report["config"]["rows"])["Input"] == "Mouse, Switch"
 
 
 def test_a_mouse_switch_run_uses_the_mouses_left_button(make_app):
@@ -196,8 +196,8 @@ def test_the_bar_says_mouse_pointer_and_does_not_report_a_missing_tracker(make_a
     app = make_app(choice=MOUSE_DWELL, client=None, trials=1)
     tick(app, 3)
     text = app.view.run_bar.status_text()
-    assert "mouse pointer" in text and "tracker" not in text and "tracking" not in text
-    assert text.startswith("Trial 1/1")
+    assert "Mouse pointer" in text and "tracker" not in text.lower() and "tracking" not in text.lower()
+    assert text.startswith("Trial 1 of 1")
 
 
 # -- with a tracker --------------------------------------------------------------------------
@@ -216,7 +216,7 @@ def test_a_mouse_run_with_a_tracker_records_the_gaze_alongside(make_app):
     assert report["session"]["gaze_recorded"] is True and report["session"]["sources"]["gaze_stream"]
     assert all(value != NOT_RECORDED for _label, value in eye_rows(report))
     assert dict(report["config"]["rows"])["Input"].startswith("Mouse, gaze recorded (")
-    assert dict(report["config"]["rows"])["Input"].endswith(") · Dwell 0.3 s")
+    assert dict(report["config"]["rows"])["Input"].endswith("), Dwell 0.3 s")
 
 
 def test_the_run_uses_the_trackers_calibration_not_a_new_one(make_app, monkeypatch):
@@ -289,10 +289,10 @@ def test_follow_the_target_derives_eye_or_mouse_follow_and_has_no_selection(make
 @pytest.mark.parametrize(
     "mode, label",
     [
-        ("eye", "Gaze · Dwell"),
-        ("gaze_switch", "Gaze · Switch"),
-        ("switch", "Mouse · Switch"),
-        ("mouse_dwell", "Mouse · Dwell"),
+        ("eye", "Gaze, Dwell"),
+        ("gaze_switch", "Gaze, Switch"),
+        ("switch", "Mouse, Switch"),
+        ("mouse_dwell", "Mouse, Dwell"),
         ("mouse_follow", "Mouse"),
     ],
 )
@@ -312,7 +312,7 @@ def test_a_mouse_mode_names_the_tracker_only_when_it_recorded(mode):
 
 @pytest.mark.parametrize(
     "mode, selection",
-    [("eye", "Dwell 0.8 s, refractory 0.5 s"), ("mouse_dwell", "Dwell 0.8 s, refractory 0.5 s"),
+    [("eye", "Dwell, threshold 0.8 s, refractory 0.5 s"), ("mouse_dwell", "Dwell, threshold 0.8 s, refractory 0.5 s"),
      ("gaze_switch", "Switch press (mouse/switch button), refractory 0.5 s"),
      ("switch", "Switch press (mouse/switch button), refractory 0.5 s")],
 )

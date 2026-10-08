@@ -10,6 +10,7 @@ import pytest
 from src.ui.report_format import (
     DASH,
     DEFAULT_HIT_TOLERANCE_PX,
+    NOT_RECORDED,
     SUMMARY_COLUMNS,
     TRIAL_COLUMNS,
     banner_lines,
@@ -138,11 +139,11 @@ def test_the_sort_key_of_a_number_is_the_number_and_of_a_dash_is_none(tmp_path):
 
 def test_the_line_under_the_selected_trial_map(tmp_path):
     trial = {"saccades": {"scanpath_deg": 12.34, "count": 6}, "fixations": {"count": 7}}
-    assert trial_line(trial) == "Scan path 12.3 deg · 7 fixations · 6 saccades"
+    assert trial_line(trial) == "Scan path 12.3°, 7 fixations, 6 saccades"
     one = {"saccades": {"scanpath_deg": 0.0, "count": 1}, "fixations": {"count": 1}}
-    assert trial_line(one) == "Scan path 0.0 deg · 1 fixation · 1 saccade"
+    assert trial_line(one) == "Scan path 0.0°, 1 fixation, 1 saccade"
     none = {"saccades": {"scanpath_deg": None, "count": None}, "fixations": {"count": None}}
-    assert trial_line(none) == "Scan path — · — fixations · — saccades"
+    assert trial_line(none) == "Scan path not recorded, fixations not recorded, saccades not recorded"
 
 
 # -- banner, footnote, date, file name ---------------------------------------------------
@@ -150,7 +151,7 @@ def test_the_line_under_the_selected_trial_map(tmp_path):
 
 def test_the_banner_says_ended_early_with_the_counts(tmp_path):
     lines = banner_lines(folder_report(tmp_path, planned=18))
-    assert lines == ["Ended early — 6 of 18 trials"]
+    assert lines == ["Ended early: 6 of 18 trials"]
 
 
 def test_the_banner_says_the_gaze_data_is_low_quality():
@@ -185,12 +186,12 @@ def test_the_hit_tolerance_is_forty_pixels_unless_the_report_says_otherwise():
     assert "60 px tolerance ring" in summary_footnote({"map": {"hit_tolerance_px": 60}})
 
 
-def test_the_test_date_is_local_time_in_the_wireframes_form():
+def test_the_test_date_is_local_time_as_an_iso_date_and_a_24_hour_time():
     ns = int(datetime(2026, 10, 6, 14, 6).timestamp() * 1e9)
-    assert started_text(ns) == "Oct 6, 2026 2:06 PM"
-    assert started_text(int(datetime(2026, 1, 2, 0, 5).timestamp() * 1e9)) == "Jan 2, 2026 12:05 AM"
-    assert started_text(int(datetime(2026, 1, 2, 12, 0).timestamp() * 1e9)) == "Jan 2, 2026 12:00 PM"
-    assert started_text(None) == DASH and started_text("x") == DASH
+    assert started_text(ns) == "2026-10-06 14:06"
+    assert started_text(int(datetime(2026, 1, 2, 0, 5).timestamp() * 1e9)) == "2026-01-02 00:05"
+    assert started_text(int(datetime(2026, 1, 2, 12, 0).timestamp() * 1e9)) == "2026-01-02 12:00"
+    assert started_text(None) == NOT_RECORDED and started_text("x") == NOT_RECORDED  # a text, not a figure
 
 
 def test_the_pdf_file_name_is_the_tests_date_then_the_test_name_and_no_subject():

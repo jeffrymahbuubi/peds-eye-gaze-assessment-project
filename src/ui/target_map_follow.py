@@ -19,9 +19,12 @@ from typing import Any
 from PySide6.QtCore import QPointF, QRectF
 from PySide6.QtGui import QColor, QPainter, QPen, QPolygonF
 
+from .design_tokens import LEGACY_REPORT_COLOURS
 from .report_format_follow import follow_block
-from .wtmh_theme import MUTED
 
+# Phase 4 gives the report map, its legend and the PDF the design tokens; until then they keep
+# today's colours (SPEC-design-system-phase1.md H2).
+MUTED = LEGACY_REPORT_COLOURS.muted
 FOLLOW_ON = "#0F3D52"  # the pointer on the target (the darkest end of the selection tasks' path)
 FOLLOW_OFF = "#6FA3BB"  # the pointer off the target: lighter, about 2.8:1 against the white canvas
 ON_WIDTH, OFF_WIDTH = 3.0, 2.0  # design px: the off-target stretches are thinner too

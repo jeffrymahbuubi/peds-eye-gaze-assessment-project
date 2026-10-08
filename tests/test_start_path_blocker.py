@@ -41,7 +41,7 @@ def alert_shown(page) -> bool:
 
 def test_the_text_is_the_wireframes(qapp):
     assert PATH_TOO_LONG_TEXT == (
-        "The data folder path is too long — move the program folder closer to the drive root."
+        "The data folder path is too long. Move the program folder closer to the drive root."
     )
 
 

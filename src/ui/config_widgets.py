@@ -30,8 +30,8 @@ from PySide6.QtWidgets import (
 )
 
 from ..engine.target_size import gap_px_for, radius_px_for
+from .design_tokens import BORDER_STRONG, PANEL, RADIUS
 from .run_dialogs import GHOST, PRIMARY, ask_choice
-from .wtmh_theme import BORDER, PANEL_BG
 
 # Plain-language tooltips (SPEC 4B.1: every structural control gets one, same
 # convention as the live settings' ``LiveSetting.tooltip``), by registry key.
@@ -86,22 +86,30 @@ def screen_dpr(screen: Any) -> float:
     return dpr if dpr > 0 else 1.0
 
 
+def _with_px(label: str, px: int) -> str:
+    """``Small (3°)`` to ``Small (3°, about 124 px)``; a label with no brackets gets them."""
+    if label.endswith(")"):
+        return f"{label[:-1]}, about {px} px)"
+    return f"{label} (about {px} px)"
+
+
 def choice_label(
     key: str, value: str, label: str, mm_per_px: float, distance_mm: float, dpr: float = 1.0
 ) -> str:
     """A choice's label with the px it comes to on this monitor: the operator
-    can't picture "5 degrees". Standard cell gap has no angle, so no px.
+    can't picture "5 degrees". The px go inside the label's brackets: ``Small (3°)`` becomes
+    ``Small (3°, about 124 px)``. Standard cell gap has no angle, so no px.
 
     The size maths is in Qt's logical px; ``dpr`` (the screen's device pixel ratio) turns
     them into the physical px of the panel, the unit the run's metadata records (FX4: at
     150 % scaling the label said 83 px for a target that is 124 px on the panel)."""
     if key in ("target.size", "layout.size"):
         diameter = 2 * radius_px_for(value, mm_per_px, distance_mm)
-        return f"{label} (≈{round(diameter * dpr)} px)"
+        return _with_px(label, round(diameter * dpr))
     if key == "grid.gap":
         gap = gap_px_for(value, mm_per_px, distance_mm)
         if gap is not None:
-            return f"{label} (≈{round(gap * dpr)} px)"
+            return _with_px(label, round(gap * dpr))
     return label
 
 
@@ -114,8 +122,8 @@ def style_combo_popup(combo: QComboBox) -> None:
     container = combo.view().parentWidget()
     if container is not None:
         container.setStyleSheet(
-            f"background: {PANEL_BG}; border: 1px solid {BORDER}; "
-            f"border-top: none; border-radius: 8px;"
+            f"background: {PANEL}; border: 1px solid {BORDER_STRONG}; "
+            f"border-top: none; border-radius: {RADIUS}px;"
         )
 
 

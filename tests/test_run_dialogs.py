@@ -59,12 +59,12 @@ def run_result(completed: int, planned: int = 18, outcome: str | None = None) ->
     )
 
 
-# -- Test Complete! ------------------------------------------------------------
+# -- Test complete ------------------------------------------------------------
 
 
 def test_test_complete_offers_save_save_and_view_and_discard(qapp):
     dialog = TestCompleteDialog()
-    assert dialog.windowTitle() == "Test Complete" and dialog.text_label.text() == "Test Complete!"
+    assert dialog.windowTitle() == "Test complete" and dialog.text_label.text() == "Test complete"
     assert labels(dialog) == {
         SAVE: "Save",
         SAVE_AND_VIEW: "Save and View Report",
@@ -247,7 +247,7 @@ def test_no_finished_trial_means_no_choice_and_an_automatic_discard():
 
 
 def test_the_real_dialogs_walk_a_completed_run_through_keep_then_save(qapp):
-    keys = [DISCARD, "keep", SAVE]  # Test Complete!: Discard Results, then Keep, then back: Save
+    keys = [DISCARD, "keep", SAVE]  # Test complete: Discard Results, then Keep, then back: Save
     asked: list[str] = []
 
     def respond():
@@ -262,4 +262,4 @@ def test_the_real_dialogs_walk_a_completed_run_through_keep_then_save(qapp):
 
     QTimer.singleShot(0, respond)
     assert ask_run_end(run_result(18)) == SAVE
-    assert asked == ["Test Complete", "Discard results", "Test Complete"]
+    assert asked == ["Test complete", "Discard results", "Test complete"]

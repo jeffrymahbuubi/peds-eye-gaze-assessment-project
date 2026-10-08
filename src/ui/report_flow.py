@@ -1,6 +1,6 @@
 """View Report inside the dashboard (SPEC-compass-task-flow.md 4D.2, 4D.8, 4A.7, R11, HD1).
 
-:class:`ReportFlow` is what the Tests tab's View Report button and the Test Complete
+:class:`ReportFlow` is what the Tests tab's View Report button and the Test complete
 dialog's "Save and View Report" hand a test to. It builds a
 :class:`~src.ui.report_page.ReportPage` for that test from its ``report.json``
 (:func:`~src.data.report_cache.load_or_build_report`, which rebuilds it when it is

@@ -15,7 +15,7 @@ Start page lists what is missing.
 
 The table is a ``QTableWidget`` that is not sortable by Qt itself: a header click sorts
 it (Test Name by a natural key, so "Grid Click 2" comes before "Grid Click 10"; Date
-Complete with "—" first) and the order and the selection are kept across a reload.
+Complete with a dash first) and the order and the selection are kept across a reload.
 """
 
 from __future__ import annotations
@@ -56,6 +56,7 @@ from ..engine.subject_tests import (
     subject_tests_dir,
 )
 from .add_test_dialog import AddTestDialog
+from .design_tokens import TABLE_ROW_HEIGHT
 from .folder_opener import open_folder
 from .rename_editor import RenameEditor
 from .run_dialogs import DANGER_TIER, PRIMARY, ask_choice
@@ -216,6 +217,7 @@ class SubjectTestListPage(QWidget):
         self.table.setSelectionBehavior(QAbstractItemView.SelectionBehavior.SelectRows)
         self.table.setSelectionMode(QAbstractItemView.SelectionMode.SingleSelection)
         self.table.verticalHeader().hide()
+        self.table.verticalHeader().setDefaultSectionSize(TABLE_ROW_HEIGHT)
         header = self.table.horizontalHeader()
         header.setSectionsClickable(True)
         header.setHighlightSections(False)
@@ -271,7 +273,7 @@ class SubjectTestListPage(QWidget):
 
         footer = QHBoxLayout()
         footer.setSpacing(16)
-        self.back_button = QPushButton("← Back to Setup / recalibrate")
+        self.back_button = QPushButton("Back to Setup")
         self.back_button.setObjectName("wtmhGhost")
         self.back_button.setAutoDefault(False)
         footer.addWidget(self.back_button)

@@ -94,7 +94,7 @@ def test_an_old_folder_without_the_columns_has_no_presses_not_zeros(tmp_path):
 
 def test_the_configuration_rows_name_the_switch(tmp_path):
     rows = dict(switch_report(tmp_path)["config"]["rows"])
-    assert rows["Input"] == "Gaze (GP3HD, 150 Hz) · Switch"
+    assert rows["Input"] == "Gaze (GP3HD, 150 Hz), Switch"
     assert rows["Selection"] == "Switch press (mouse/switch button), refractory 0.5 s"
 
 

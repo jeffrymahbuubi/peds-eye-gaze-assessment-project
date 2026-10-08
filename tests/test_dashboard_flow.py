@@ -59,8 +59,8 @@ def active(win) -> list[bool]:
 
 def test_the_nav_reads_setup_and_tests_only(win):
     # R11: the per-test report replaced the old "3 · Results" tab.
-    assert [b.text() for b in win.title_bar.buttons] == ["1 · Setup", "2 · Tests"]
-    assert NAV_LABELS == ("1 · Setup", "2 · Tests")
+    assert [b.text() for b in win.title_bar.buttons] == ["Setup", "Tests"]
+    assert NAV_LABELS == ("Setup", "Tests")
     assert win.setup_nav_button is win.title_bar.setup_button
     assert win.tests_nav_button is win.title_bar.tests_button
     assert not hasattr(win, "results_nav_button") and not hasattr(win.title_bar, "results_button")

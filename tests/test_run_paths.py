@@ -183,7 +183,7 @@ def test_a_root_deep_enough_blocks_with_the_h9_text(tmp_path):
     assert len(str(deep)) > 240
     assert path_budget_error(deep, "P9REAL", "click_grid") == PATH_TOO_LONG_TEXT
     assert PATH_TOO_LONG_TEXT == (
-        "The data folder path is too long — move the program folder closer to the drive root."
+        "The data folder path is too long. Move the program folder closer to the drive root."
     )
 
 

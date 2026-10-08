@@ -21,6 +21,7 @@ from typing import Any
 from PySide6.QtCore import QPointF, QRectF, Qt
 from PySide6.QtGui import QColor, QFont, QFontMetricsF, QImage, QPainter, QPen, QPolygonF
 
+from .design_tokens import LEGACY_REPORT_COLOURS as _LEGACY
 from .report_format import hit_tolerance_px
 from .target_map_follow import (
     LINE_KINDS,
@@ -29,7 +30,18 @@ from .target_map_follow import (
     pointer_runs,
     run_points,
 )
-from .wtmh_theme import ACCENT, BORDER, DANGER, INK, MUTED, PANEL_BG, SUCCESS
+
+# Phase 4 gives the report map, its legend and the PDF the design tokens; until then they keep
+# today's colours (SPEC-design-system-phase1.md H2).
+ACCENT, BORDER, DANGER, INK, MUTED, PANEL_BG, SUCCESS = (
+    _LEGACY.accent,
+    _LEGACY.border,
+    _LEGACY.danger,
+    _LEGACY.ink,
+    _LEGACY.muted,
+    _LEGACY.panel_bg,
+    _LEGACY.success,
+)
 
 DEFAULT_ASPECT = 16 / 9
 MIN_RADIUS = 0.02  # canvas-x units, for a mark whose radius the folder lacks

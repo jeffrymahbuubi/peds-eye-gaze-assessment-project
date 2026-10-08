@@ -68,7 +68,7 @@ from .engine.target_size import (
     viewing_distance_mm,
 )
 from .engine.task_runner import build_task
-from .engine.tracking_status import run_status_line, tracking_status
+from .engine.tracking_status import run_status, tracking_status
 from .inputs.base import Pointer
 from .inputs.eye_input import DwellConfig, EyeInput, SmoothingConfig
 from .inputs.gazepoint_client import GazepointClient
@@ -817,24 +817,25 @@ class AssessmentApp:
         return self.task.trial_number + (1 if self._paused and self._pause_interrupted else 0)
 
     def _update_run_bar(self, t_ns: int) -> None:
-        """One line of status, and whether Skip trial can be pressed (4C.5)."""
+        """The run bar status, and whether Skip trial can be pressed (4C.5)."""
         since = None if self._last_valid_ns is None else max(0.0, (t_ns - self._last_valid_ns) / 1e9)
         text, level = tracking_status(bool(self.client.is_connected()), since)
         preview = self.run_mode == PREVIEW
         mouse = self._pointer_is_mouse and not preview
         if mouse and not self._gaze_recorded:
             text = ""  # a Mouse run with no tracker has nothing to report on it
-        line = run_status_line(
+        status = run_status(
             self._display_trial_number(),
             len(self.task.targets),
             text,
+            level,
             practice=self.run_mode == PRACTICE,
             paused=self._paused,
             preview=preview,
             mouse=mouse,
         )
         bar = self.view.run_bar
-        bar.set_status(line, text if text and not (self._paused or preview) else None, level)
+        bar.set_status(status)
         bar.set_skip_enabled(not self._paused and self.task.phase is Phase.WAIT_INPUT)
 
     def _check_canvas_resized(self, t_ns: int) -> None:

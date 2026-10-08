@@ -227,7 +227,7 @@ class TaskCanvas(QWidget):
         """Draw the unlit candidate positions of a multi-item task.
 
         click_grid's 3x3 cells and scanning's icon row are otherwise invisible
-        between trials — only the single active target is ever painted — which
+        between trials (only the single active target is ever painted) which
         made the two tasks (and click_static) look identical to an observer.
         This paints every other slot as a dim outline so the layout itself is
         visible, while the active target (painted afterwards) stays the only

@@ -185,9 +185,9 @@ def test_dashboard_passes_its_own_screen_to_the_run(qapp, scratch_cwd, monkeypat
 # -- TaskSettingsDialog -------------------------------------------------------------------------
 
 LAB_LABELS = [
-    "Small — 3° (≈123 px)",
-    "Medium — 5° (≈205 px)",
-    "Large — 8° (≈328 px)",
+    "Small (3°, about 123 px)",
+    "Medium (5°, about 205 px)",
+    "Large (8°, about 328 px)",
 ]
 
 
@@ -215,11 +215,11 @@ def test_dialog_describes_its_parents_screen_not_its_own(qapp, dialog_own_screen
 def test_dialog_without_a_parent_uses_its_own_screen(qapp, dialog_own_screen_is_other):
     dialog = TaskSettingsDialog("click_grid", load_task_config("click_grid"))
     expected = [
-        f"{label} (≈{round(2 * radius_px_for(value, 400.0 / 1280, 650.0))} px)"
+        f"{label[:-1]}, about {round(2 * radius_px_for(value, 400.0 / 1280, 650.0))} px)"
         for value, label in (
-            ("small", "Small — 3°"),
-            ("medium", "Medium — 5°"),
-            ("large", "Large — 8°"),
+            ("small", "Small (3°)"),
+            ("medium", "Medium (5°)"),
+            ("large", "Large (8°)"),
         )
     ]
     assert _labels(dialog) == expected

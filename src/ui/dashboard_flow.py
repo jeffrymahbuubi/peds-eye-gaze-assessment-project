@@ -7,8 +7,8 @@ locked (R11: configure, start, practice, run, finishing, report) and, while a ca
 on screen (Preview, Practice, a recorded run and its end dialogs), the title bar is
 hidden so the canvas fills the window above the run bar (HC8).
 
-:class:`TitleBar` is the brand strip with the nav buttons ``1 · Setup`` / ``2 · Tests``
-(R11: the per-test report replaced the old ``3 · Results`` tab). It has one lock,
+:class:`TitleBar` is the brand strip with the nav buttons ``Setup`` / ``Tests``
+(R11: the per-test report replaced the old ``Results`` tab). It has one lock,
 :meth:`TitleBar.set_locked`, which :meth:`DashboardWindow._set_nav_locked` calls, and one
 signal, ``navRequested(index)``; the window decides whether to honour it.
 
@@ -30,7 +30,7 @@ from ..engine.subject_tests import SubjectTest, list_tests
 SETUP_INDEX = 0
 TESTS_INDEX = 1
 
-NAV_LABELS = ("1 · Setup", "2 · Tests")
+NAV_LABELS = ("Setup", "Tests")
 
 
 class Flow(Enum):

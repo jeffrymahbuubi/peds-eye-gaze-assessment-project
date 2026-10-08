@@ -39,16 +39,17 @@ from PySide6.QtWidgets import (
 
 from ..engine.input_choice import drop_gaze_only_blockers, resolve_input
 from ..engine.run_result import RunResult, practice_result_text
+from .design_tokens import TYPE_BODY, TYPE_BODY_LARGE, TYPE_HEADING
 from .task_instructions import Instructions, build_instructions
 
 BLOCKER_REFRESH_MS = 1000
 
 # The line of a test with Pointer = Mouse (SPEC-input-selection-and-follow.md H5, I7): it
 # needs no tracker and no calibration, but says what happens to the eye data.
-MOUSE_NOTE_ALONGSIDE = "Mouse test — eye data will be recorded alongside."
-MOUSE_NOTE_NO_TRACKER = "Mouse test — the tracker is not connected, so no eye data will be recorded."
+MOUSE_NOTE_ALONGSIDE = "Mouse test. Eye data will be recorded alongside."
+MOUSE_NOTE_NO_TRACKER = "Mouse test. The tracker is not connected, so no eye data will be recorded."
 MOUSE_NOTE_NOT_CALIBRATED = (
-    "Mouse test — the tracker is not calibrated, so no eye data will be recorded."
+    "Mouse test. The tracker is not calibrated, so no eye data will be recorded."
 )
 
 HELP_TEXT = (
@@ -294,14 +295,14 @@ class StartTestPage(QWidget):
         aloud_title.setObjectName("wtmhSectionTitle")
         layout.addWidget(aloud_title)
         self.heading_label = QLabel("")
-        self.heading_label.setStyleSheet("font-size: 17px; font-weight: 600;")
+        self.heading_label.setStyleSheet(f"font-size: {TYPE_HEADING}px; font-weight: 600;")
         layout.addWidget(self.heading_label)
         self.steps_layout = QVBoxLayout()
         self.steps_layout.setSpacing(6)
         layout.addLayout(self.steps_layout)
         self.note_label = QLabel("")
         self.note_label.setWordWrap(True)
-        self.note_label.setStyleSheet("font-size: 15px; font-weight: 600;")
+        self.note_label.setStyleSheet(f"font-size: {TYPE_BODY_LARGE}px; font-weight: 600;")
         layout.addWidget(self.note_label)
 
         rule = QFrame()
@@ -319,10 +320,10 @@ class StartTestPage(QWidget):
 
     def _show_instructions(self, text: Instructions) -> None:
         self.heading_label.setText(text.heading)
-        self._fill(self.steps_layout, [f"{i}. {step}" for i, step in enumerate(text.steps, 1)], 15)
+        self._fill(self.steps_layout, [f"{i}. {step}" for i, step in enumerate(text.steps, 1)], TYPE_BODY_LARGE)
         self.note_label.setText(text.note)
         self.note_label.setVisible(bool(text.note))  # Follow the Target has no NOTE line
-        self._fill(self.clinician_layout, list(text.clinician), 13)
+        self._fill(self.clinician_layout, list(text.clinician), TYPE_BODY)
 
     @staticmethod
     def _fill(layout: QVBoxLayout, lines: list[str], pixel_size: int) -> None:

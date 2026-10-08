@@ -4,7 +4,7 @@
 rows like Compass's. ``snapshot`` is ``metadata["settings"]``
 (``{config_name, live, structural}``, R7): what was *requested*. The resolved facts
 (target size in px, the capped cell gap, the display, the calibration) come from the
-rest of ``metadata.json``. A value its source lacks is "—", never a guess, so an old
+rest of ``metadata.json``. A value its source lacks is "not recorded", never a guess, so an old
 folder with a partial snapshot still gives all 17 rows.
 
 Pure and Qt-free. ``live`` is a flat dict keyed like ``dwell.threshold_ms``;
@@ -17,9 +17,8 @@ from typing import Any
 
 from ..engine.target_size import GAP_NAMES, SIZE_NAMES
 from ..engine.task_info import TASK_INFO
-from .report_util import seconds_text
-
-DASH = "—"
+from ..tasks.follow_moving import MOTION_PATH_LABELS
+from .report_util import NOT_RECORDED, seconds_text
 
 # What every value ``metadata.input_mode`` takes means as (pointer, selection)
 # (SPEC-input-selection-and-follow.md H1, A9). ``mouse_follow`` selects nothing. A folder that
@@ -30,13 +29,6 @@ _MODE_CHOICE: dict[str, tuple[str, str | None]] = {
     "switch": ("mouse", "switch"),
     "mouse_dwell": ("mouse", "dwell"),
     "mouse_follow": ("mouse", None),
-}
-_MOTION_PATHS = {
-    "circular": "Circular",
-    "horizontal": "Horizontal",
-    "vertical": "Vertical",
-    "diagonal_tlbr": "Diagonal (top-left to bottom-right)",
-    "diagonal_trbl": "Diagonal (top-right to bottom-left)",
 }
 
 
@@ -66,11 +58,11 @@ def _num(value: Any) -> float | None:
 
 def _seconds(ms: Any) -> str:
     n = _num(ms)
-    return DASH if n is None else seconds_text(n, dash=DASH)
+    return NOT_RECORDED if n is None else seconds_text(n, dash=NOT_RECORDED)
 
 
-def _yes_no(value: Any) -> str:
-    return DASH if value is None else ("Yes" if value else "No")
+def _shown_hidden(value: Any) -> str:
+    return NOT_RECORDED if value is None else ("Shown" if value else "Hidden")
 
 
 def _first_task(meta: dict[str, Any], task_id: str | None) -> str | None:
@@ -90,12 +82,12 @@ def _choice(meta: dict[str, Any], mode: str) -> tuple[str, str | None] | None:
 
 
 def _input_row(meta: dict[str, Any], snapshot: dict[str, Any], follow_layout: bool = False) -> str:
-    """``Gaze (GP3HD, 150 Hz) · Switch`` / ``Mouse · Dwell 0.8 s`` (SPEC-input-selection-and-
+    """``Gaze (GP3HD, 150 Hz), Switch`` / ``Mouse, Dwell 0.8 s`` (SPEC-input-selection-and-
     follow.md 4.5): the pointer, then how a target is selected. A mouse names the tracker only
     when gaze was recorded alongside it; Follow the Target has nothing to select."""
     mode = meta.get("input_mode")
     if mode is None:
-        return DASH
+        return NOT_RECORDED
     choice = _choice(meta, str(mode))
     if choice is None:
         return str(mode)
@@ -112,9 +104,9 @@ def _input_row(meta: dict[str, Any], snapshot: dict[str, Any], follow_layout: bo
     if follow_layout or selection is None:
         return head  # nothing to select
     if selection == "switch":
-        return f"{head} · Switch"
+        return f"{head}, Switch"
     threshold = _num(setting(snapshot, "dwell.threshold_ms", "dwell", "threshold_ms"))
-    return f"{head} · Dwell" + ("" if threshold is None else f" {_seconds(threshold)}")
+    return f"{head}, Dwell" + ("" if threshold is None else f" {_seconds(threshold)}")
 
 
 def _selection_row(snapshot: dict[str, Any], meta: dict[str, Any]) -> str:
@@ -123,21 +115,20 @@ def _selection_row(snapshot: dict[str, Any], meta: dict[str, Any]) -> str:
     if meta.get("input_mode") in ("gaze_switch", "switch") or meta.get("input_selection") == "switch":
         return f"Switch press (mouse/switch button){tail}"
     threshold = _num(setting(snapshot, "dwell.threshold_ms", "dwell", "threshold_ms"))
-    return DASH if threshold is None else f"Dwell {_seconds(threshold)}{tail}"
+    return NOT_RECORDED if threshold is None else f"Dwell, threshold {_seconds(threshold)}{tail}"
 
 
 def _size_row(snapshot: dict[str, Any], meta: dict[str, Any], task: str | None, shrunk: Any) -> str:
     info = meta.get("target_size")
     if isinstance(info, dict) and info.get("preset") in SIZE_NAMES:
-        text = f"{SIZE_NAMES[info['preset']]} ({_num(info.get('diameter_deg')) or 0:g}°)"
+        text = f"{SIZE_NAMES[info['preset']]} ({_num(info.get('diameter_deg')) or 0:g}°"
         radius = _num(info.get("radius_px"))
-        if radius:
-            text += f", {radius:.0f} px radius"
+        text += f", {2 * radius:.0f} px)" if radius else ")"  # the diameter, as the page shows it
     else:
         block = "layout" if task == "scanning" else "target"
         radius = _num(setting(snapshot, None, block, "radius_px"))
         if radius is None:
-            return DASH
+            return NOT_RECORDED
         text = f"{radius:g} px radius"
     if isinstance(shrunk, dict) and _num(shrunk.get("used_px")):
         text += f", capped to {_num(shrunk['used_px']):.0f} px to fit"
@@ -150,24 +141,24 @@ def _layout_row(snapshot: dict[str, Any], meta: dict[str, Any], task: str | None
     if task == "click_grid":
         rows, cols = (_num(setting(snapshot, None, "grid", k)) for k in ("rows", "cols"))
         text = f"{rows:g}×{cols:g} grid" if rows and cols else (
-            f"{n_slots} cells" if n_slots else DASH
+            f"{n_slots} cells" if n_slots else NOT_RECORDED
         )
         gap = meta.get("grid_gap")
         preset = gap.get("preset") if isinstance(gap, dict) else setting(snapshot, None, "grid", "gap")
-        if text != DASH and preset in GAP_NAMES:
+        if text != NOT_RECORDED and preset in GAP_NAMES:
             text += f", gap {GAP_NAMES[preset]}"
         return text
     if task == "scanning":
         n = _num(setting(snapshot, None, "layout", "n_icons")) or n_slots
         arrangement = setting(snapshot, None, "layout", "arrangement")
         if not n:
-            return DASH
+            return NOT_RECORDED
         return f"{n:g} icons" + (f", {arrangement}" if arrangement else "")
     if task == "follow_moving":
         path = setting(snapshot, None, "motion", "path")
         if path is None:
-            return DASH
-        text = f"{_MOTION_PATHS.get(str(path), str(path))} path"
+            return NOT_RECORDED
+        text = f"{MOTION_PATH_LABELS.get(str(path), str(path))} path"
         speed = _num(setting(snapshot, "motion.speed_frac_per_s", "motion", "speed_frac_per_s"))
         if speed is not None:
             text += f", {speed * 100:g}% of the width per second"
@@ -177,30 +168,28 @@ def _layout_row(snapshot: dict[str, Any], meta: dict[str, Any], task: str | None
         return text
     if task == "click_static":
         positions = setting(snapshot, None, "target", "positions")
-        return f"{len(positions)} positions" if isinstance(positions, list) and positions else DASH
-    return DASH
+        return f"{len(positions)} positions" if isinstance(positions, list) and positions else NOT_RECORDED
+    return NOT_RECORDED
 
 
 def _theme_row(snapshot: dict[str, Any]) -> str:
     theme = setting(snapshot, None, "theme")
     if isinstance(theme, dict):
         theme = theme.get("name")
-    return str(theme).capitalize() if theme else DASH
+    return str(theme).capitalize() if theme else NOT_RECORDED
 
 
 def _feedback_row(snapshot: dict[str, Any]) -> str:
-    hit, miss, sparkle = (
-        setting(snapshot, None, "feedback", k) for k in ("hit_sound", "miss_sound", "particles")
+    """One on / off per Feedback check box the configuration page shows (the sparkle has no
+    control there, so it is not reported)."""
+    flags = (
+        ("hit sound", setting(snapshot, None, "feedback", "hit_sound")),
+        ("miss sound", setting(snapshot, None, "feedback", "miss_sound")),
+        ("glow", setting(snapshot, None, "feedback", "target_glow")),
     )
-    if hit is None and miss is None and sparkle is None:
-        return DASH
-    if hit and miss:
-        sound = "on"
-    elif hit or miss:
-        sound = "hit only" if hit else "miss only"
-    else:
-        sound = "off"
-    return f"Sound {sound}, sparkle {'on' if sparkle else 'off'}"
+    parts = [f"{name} {'on' if value else 'off'}" for name, value in flags if value is not None]
+    text = ", ".join(parts)
+    return f"{text[:1].upper()}{text[1:]}" if parts else NOT_RECORDED
 
 
 def _smoothing_row(snapshot: dict[str, Any]) -> str:
@@ -208,16 +197,16 @@ def _smoothing_row(snapshot: dict[str, Any]) -> str:
     alpha = _num(setting(snapshot, "dwell.smoothing.alpha", "dwell", "smoothing", "alpha"))
     jitter = _num(setting(snapshot, "dwell.jitter_tolerance_px", "dwell", "jitter_tolerance_px"))
     if enabled is None and jitter is None:
-        return DASH
-    head = DASH if enabled is None else (f"Smoothing α {alpha:g}" if enabled and alpha is not None
-                                         else ("Smoothing on" if enabled else "Smoothing off"))
+        return NOT_RECORDED
+    head = NOT_RECORDED if enabled is None else (f"On, alpha {alpha:g}" if enabled and alpha is not None
+                                                 else ("On" if enabled else "Off"))
     return head if jitter is None else f"{head}, jitter tolerance {jitter:g} px"
 
 
 def _display_row(meta: dict[str, Any]) -> str:
     w, h = _num(meta.get("display_width_px")), _num(meta.get("display_height_px"))
     if not (w and h):
-        return DASH
+        return NOT_RECORDED
     text = f"{w:.0f}×{h:.0f}"
     scale = _num(meta.get("display_scale_percent"))
     if scale:
@@ -242,13 +231,13 @@ def _calibration_row(meta: dict[str, Any], geometry: Any) -> str:
         parts.append(f"mean error {error:.1f} px" + (f" ({deg:.2f}°)" if deg is not None else ""))
     if source:
         parts.append(str(source))
-    return ", ".join(parts) if parts else DASH
+    return ", ".join(parts) if parts else NOT_RECORDED
 
 
 def _canvas_row(meta: dict[str, Any]) -> str:
     w, h = _num(meta.get("canvas_width_px")), _num(meta.get("canvas_height_px"))
     if not (w and h):
-        return DASH
+        return NOT_RECORDED
     unit = "physical px" if meta.get("canvas_units") == "physical" else "px"
     return f"{w:.0f}×{h:.0f} {unit}"
 
@@ -269,38 +258,38 @@ def build_config_rows(
     (a :class:`~.report_geometry.Geometry`) adds the calibration error in degrees.
     ``follow_layout`` is a Follow the Target run (SPEC-input-selection-and-follow.md 4.5): it
     has nothing to select, so the **Selection** row is left out (16 rows), and its trials last
-    a fixed time, so "Maximum time per trial" reads **Trial duration**.
+    a fixed time, so "Trial timeout" reads **Trial duration**.
     """
     snapshot = snapshot if isinstance(snapshot, dict) else {}
     meta = metadata or {}
     task = _first_task(meta, task_id)
-    config_name = snapshot.get("config_name") or meta.get("config_name") or DASH
+    config_name = snapshot.get("config_name") or meta.get("config_name") or NOT_RECORDED
     planned = _num(meta.get("planned_trials")) or _num(setting(snapshot, None, "trials"))
     cursor = setting(snapshot, "dwell.visual_cursor", "dwell", "visual_cursor")
     distance = _num(meta.get("viewing_distance_mm"))
     size_label = "Icon size" if task == "scanning" else "Target size"
     rows = [
         ("Configuration name", str(config_name)),
-        ("Task", TASK_INFO[task][0] if task in TASK_INFO else (task or DASH)),
+        ("Task", TASK_INFO[task][0] if task in TASK_INFO else (task or NOT_RECORDED)),
         ("Input", _input_row(meta, snapshot, follow_layout)),
-        ("Trials (planned)", f"{planned:.0f}" if planned else DASH),
+        ("Number of trials", f"{planned:.0f}" if planned else NOT_RECORDED),
         ("Selection", _selection_row(snapshot, meta)),
         (size_label, _size_row(snapshot, meta, task, shrunk)),
         ("Layout", _layout_row(snapshot, meta, task)),
         (
-            "Trial duration" if follow_layout else "Maximum time per trial",
+            "Trial duration" if follow_layout else "Trial timeout",
             _seconds(setting(snapshot, "task.timeout_ms", "timeout_ms")),
         ),
         (
-            "Pause between trials",
+            "Inter-trial interval",
             _seconds(setting(snapshot, "task.inter_trial_interval_ms", "inter_trial_interval_ms")),
         ),
         ("Theme", _theme_row(snapshot)),
-        ("Gaze cursor shown", _yes_no(cursor)),
+        ("Gaze cursor", _shown_hidden(cursor)),
         ("Feedback", _feedback_row(snapshot)),
         ("Gaze smoothing", _smoothing_row(snapshot)),
         ("Display", _display_row(meta)),
-        ("Viewing distance", f"{distance:g} mm" if distance else DASH),
+        ("Viewing distance", f"{distance:g} mm" if distance else NOT_RECORDED),
         ("Calibration", _calibration_row(meta, geometry)),
         ("Canvas", _canvas_row(meta)),
     ]

@@ -159,7 +159,7 @@ def test_a_saved_partial_run_gets_a_report_with_the_partial_banner(world, tmp_pa
     result = RunResult("record", "ended_early", "operator_quit", 3, 1, 0, 1, partial, FINISHED_AT)
     finish_run(result, SAVE, output_root=world.root, subject_id=SUBJECT, test_id=world.test.test_id)
     report = json.loads((partial / REPORT_FILENAME).read_text(encoding="utf-8"))
-    assert report["quality"]["warnings"][0]["text"] == "Ended early — 1 of 3 trials"
+    assert report["quality"]["warnings"][0]["text"] == "Ended early: 1 of 3 trials"
     assert report["session"]["outcome"] == "ended_early"
 
 

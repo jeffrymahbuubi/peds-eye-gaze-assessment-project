@@ -38,7 +38,7 @@ from PySide6.QtWidgets import (
 )
 
 from ..engine.subject_test_record import validate_test_name
-from .report_format import DASH, banner_lines, pdf_default_name, started_text
+from .report_format import NOT_RECORDED, banner_lines, pdf_default_name, started_text
 from .report_pdf import export_report_pdf
 from .report_tables import FitTable
 from .report_views import (
@@ -112,7 +112,7 @@ class ReportPage(QWidget):
             self.evaluator_edit.setText(evaluator)
             self.notes_edit.setPlainText(notes)
             who = subject if subject is not None else session.get("subject")
-            self.subject_label.setText(f"Subject: <b>{escape(str(who or DASH))}</b>")
+            self.subject_label.setText(f"Subject: <b>{escape(str(who or NOT_RECORDED))}</b>")
             self.date_label.setText(f"Test Date: <b>{started_text(session.get('started_ns'))}</b>")
             self._fill_banner()
             self._fill_left()
@@ -208,7 +208,7 @@ class ReportPage(QWidget):
         outer.setContentsMargins(24, 20, 24, 20)
         outer.setSpacing(12)
 
-        self.title_label = QLabel("Summary Results:")
+        self.title_label = QLabel("Summary Results")
         self.title_label.setObjectName("wtmhPageTitle")
         outer.addWidget(self.title_label)
 
@@ -224,8 +224,8 @@ class ReportPage(QWidget):
         info = QVBoxLayout()
         info.setSpacing(4)
         facts = QHBoxLayout()
-        self.subject_label = QLabel(f"Subject: <b>{DASH}</b>")
-        self.date_label = QLabel(f"Test Date: <b>{DASH}</b>")
+        self.subject_label = QLabel(f"Subject: <b>{NOT_RECORDED}</b>")
+        self.date_label = QLabel(f"Test Date: <b>{NOT_RECORDED}</b>")
         facts.addWidget(self.subject_label)
         facts.addSpacing(16)
         facts.addWidget(self.date_label)
@@ -281,7 +281,7 @@ class ReportPage(QWidget):
         layout.setContentsMargins(0, 0, 8, 0)
         layout.setSpacing(8)
         layout.addWidget(section_title("Test Configuration"))
-        self.config_name_label = QLabel(f"Configuration Name: <b>{DASH}</b>")
+        self.config_name_label = QLabel(f"Configuration Name: <b>{NOT_RECORDED}</b>")
         layout.addWidget(self.config_name_label)
         self.config_table = FitTable(["Setting", "Value"], stretch_column=1, wrap=True, compact=True)
         layout.addWidget(self.config_table)
@@ -313,7 +313,7 @@ class ReportPage(QWidget):
 
     def _fill_left(self) -> None:
         session = self._report.get("session", {})
-        name = escape(str(session.get("config_name") or DASH))
+        name = escape(str(session.get("config_name") or NOT_RECORDED))
         self.config_name_label.setText(f"Configuration Name: <b>{name}</b>")
         rows = [[str(a), str(b)] for a, b in self._report.get("config", {}).get("rows", [])]
         self.config_table.set_rows(rows)
@@ -322,7 +322,7 @@ class ReportPage(QWidget):
         self._view = view
         detailed = view == DETAILED
         self._stack.setCurrentIndex(1 if detailed else 0)
-        self.title_label.setText("Detailed Results:" if detailed else "Summary Results:")
+        self.title_label.setText("Detailed Results" if detailed else "Summary Results")
         self.toggle_button.setText("View Summary" if detailed else "View Details")
         if detailed:
             self.detailed.table.setFocus()

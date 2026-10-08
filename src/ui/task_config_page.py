@@ -17,7 +17,7 @@ flat by dotted key, ``structural`` nested like ``TaskSettingsDialog.overrides()`
 
 Standard is the task's computed defaults, never stored (4B.4). The page remembers the
 configuration it last loaded (Standard, a saved name, or a test's own snapshot):
-"Modified from ..." and the ask-before-replacing rule compare against it. The page is
+"Changed from ..." and the ask-before-replacing rule compare against it. The page is
 *dirty* when anything differs from the last ``load_values()`` / ``mark_clean()``;
 Cancel then asks first.
 """
@@ -299,7 +299,7 @@ class TaskConfigPage(QWidget):
         self.cancel_button.clicked.connect(self._on_cancel)
 
     def _subtitle(self) -> str:
-        return f"{self._task_name} · Subject {self._subject_id}" if self._subject_id else self._task_name
+        return f"{self._task_name}, subject {self._subject_id}" if self._subject_id else self._task_name
 
     # -- reading and writing the form ----------------------------------------------
 
@@ -377,7 +377,7 @@ class TaskConfigPage(QWidget):
                 widget.setEnabled(not grey)
         form.update_hint(self._values())
         modified = self.is_modified()
-        form.modified_label.setText(f'Modified from "{self._loaded_name}"' if modified else "")
+        form.modified_label.setText(f"Changed from {self._loaded_name}" if modified else "")
         form.modified_label.setVisible(modified)
         self._refresh_footer()
 

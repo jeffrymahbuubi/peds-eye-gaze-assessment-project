@@ -195,9 +195,9 @@ def test_size_items_of_every_task_show_degrees_and_the_diameter_on_this_monitor(
         dialog = _dialog(task_id)  # keep it alive: its widgets die with it
         combo = dialog._controls[key]
         assert [combo.itemText(i) for i in range(combo.count())] == [
-            "Small — 3° (≈123 px)",
-            "Medium — 5° (≈205 px)",
-            "Large — 8° (≈328 px)",
+            "Small (3°, about 123 px)",
+            "Medium (5°, about 205 px)",
+            "Large (8°, about 328 px)",
         ]
 
 

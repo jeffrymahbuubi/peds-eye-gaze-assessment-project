@@ -38,7 +38,7 @@ TASK_DIR_RE = re.compile(r"[a-z][a-z0-9_]*")
 # H9: the longest path a run may write (Explorer, zip and OneDrive fail near 260).
 MAX_PATH_BUDGET = 240
 PATH_TOO_LONG_TEXT = (
-    "The data folder path is too long — move the program folder closer to the drive root."
+    "The data folder path is too long. Move the program folder closer to the drive root."
 )
 # The longest file a run folder holds (``session_metrics.json``); a test pins it against
 # every name the recorder, the report cache and the exporter write.

@@ -12,23 +12,20 @@ from ..engine.input_choice import (
     SELECTION_SWITCH,
 )
 from ..engine.target_size import SIZE_NAMES, SIZE_PRESETS_DEG
+from ..tasks.follow_moving import MOTION_PATH_LABELS, PATHS
 
 # Target size presets (SPEC-target-size-and-motion-paths.md S4.1/S4.5): (value
 # stored in target.size, label). The dialog appends the diameter in px on the
 # operator's own monitor, which only it can know.
 TARGET_SIZE_CHOICES: tuple[tuple[str, str], ...] = tuple(
-    (name, f"{SIZE_NAMES[name]} — {degrees:g}°")
+    (name, f"{SIZE_NAMES[name]} ({degrees:g}°)")
     for name, degrees in SIZE_PRESETS_DEG.items()
 )
 
 # follow_moving's movement paths (SPEC-target-size-and-motion-paths.md S4.4):
 # (value stored in motion.path, label shown in the dialog).
-MOTION_PATH_CHOICES: tuple[tuple[str, str], ...] = (
-    ("circular", "Circular"),
-    ("horizontal", "Horizontal ↔"),
-    ("vertical", "Vertical ↕"),
-    ("diagonal_tlbr", "Diagonal ↘ (top-left ↔ bottom-right)"),
-    ("diagonal_trbl", "Diagonal ↙ (top-right ↔ bottom-left)"),
+MOTION_PATH_CHOICES: tuple[tuple[str, str], ...] = tuple(
+    (path, MOTION_PATH_LABELS[path]) for path in PATHS
 )
 
 # The two input choices of a test (SPEC-input-selection-and-follow.md H1, 4.1): what moves
@@ -40,6 +37,6 @@ INPUT_POINTER_CHOICES: tuple[tuple[str, str], ...] = (
     (POINTER_MOUSE, "Mouse"),
 )
 INPUT_SELECTION_CHOICES: tuple[tuple[str, str], ...] = (
-    (SELECTION_DWELL, "Dwell — keep looking at the target"),
-    (SELECTION_SWITCH, "Switch — look at the target, then press the switch"),
+    (SELECTION_DWELL, "Dwell: keep looking at the target"),
+    (SELECTION_SWITCH, "Switch: look at the target, then press the switch"),
 )

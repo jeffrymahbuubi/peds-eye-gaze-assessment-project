@@ -2,7 +2,7 @@
 
 All are modal over the frozen canvas and follow ``docs/wireframes/run-end.md``:
 
-* **Test Complete!**: Save / Save and View Report / Discard Results. Close or Esc = Save.
+* **Test complete**: Save / Save and View Report / Discard Results. Close or Esc = Save.
 * **Discard these results?**: Discard / Keep. Keep is the default.
 * **Quit the test?**: Quit test / Keep going. Keep going is the default.
 * **Save the c completed trials?**: Save partial results / Discard results. Close or
@@ -25,23 +25,17 @@ from collections.abc import Callable, Sequence
 from PySide6.QtWidgets import QDialog, QHBoxLayout, QLabel, QPushButton, QVBoxLayout, QWidget
 
 from ..engine.run_result import DISCARD, SAVE, SAVE_AND_VIEW, RunResult
+from .design_tokens import DANGER, DANGER_TEXT, PANEL, TYPE_HEADING
 from .dialog_theme import apply_dialog_theme
-from .wtmh_theme import DANGER
+from .wtmh_theme import button_rule
 
-# A destructive answer: the theme has primary and ghost tiers only, so the dialogs
-# add this one (scoped by object name, so no other page changes).
-_DANGER_STYLE = f"""
-QPushButton#runDlgDanger {{
-    color: white;
-    background: {DANGER};
-    border: none;
-    border-radius: 6px;
-    padding: 8px 18px;
-    font-weight: 600;
-}}
-QPushButton#runDlgDanger:hover {{ background: #c94444; }}
-QLabel#runDlgHeading {{ font-size: 20px; font-weight: 700; }}
-"""
+# A destructive answer: the theme's primary and secondary tiers do not fit it, so the
+# dialogs add the danger tier (scoped by object name, so no other page changes), built
+# from the same button rule as the other tiers, and the heading step of the type scale.
+_DANGER_STYLE = (
+    button_rule("QPushButton#runDlgDanger", text=PANEL, fill=DANGER, border=DANGER, hover_fill=DANGER_TEXT)
+    + f"\nQLabel#runDlgHeading {{ font-size: {TYPE_HEADING}px; font-weight: 600; }}\n"
+)
 
 PRIMARY, GHOST, DANGER_TIER = "wtmhPrimary", "wtmhGhost", "runDlgDanger"
 
@@ -116,13 +110,13 @@ class _ChoiceDialog(QDialog):
 
 
 class TestCompleteDialog(_ChoiceDialog):
-    """"Test Complete!": ``choice`` is ``save``, ``save_and_view`` or ``discard``."""
+    """""Test complete": ``choice`` is ``save``, ``save_and_view`` or ``discard``."""
 
     def __init__(self, parent: QWidget | None = None) -> None:
         super().__init__(
             parent,
-            "Test Complete",
-            "Test Complete!",
+            "Test complete",
+            "Test complete",
             [
                 (SAVE, "Save", GHOST),
                 (SAVE_AND_VIEW, "Save and View Report", PRIMARY),
@@ -165,7 +159,7 @@ def ask_choice(
 
 
 def ask_test_complete(parent: QWidget | None = None) -> str:
-    """Show "Test Complete!"; returns ``save``, ``save_and_view`` or ``discard``."""
+    """Show "Test complete"; returns ``save``, ``save_and_view`` or ``discard``."""
     return TestCompleteDialog(parent).run()
 
 
@@ -225,8 +219,8 @@ def ask_run_end(
     ``save_and_view`` or ``discard`` for :func:`~src.engine.run_result.finish_run`.
 
     * no trial finished: say so and discard (no choice is offered);
-    * the run completed: Test Complete!; Discard Results asks once more, and Keep
-      brings Test Complete! back;
+    * the run completed: Test complete; Discard Results asks once more, and Keep
+      brings Test complete back;
     * the run was ended early with trials done: Save partial / Discard, no extra
       confirmation.
 

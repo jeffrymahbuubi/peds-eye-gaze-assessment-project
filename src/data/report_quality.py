@@ -113,7 +113,7 @@ def quality_block(
     if outcome == "ended_early" or (planned is not None and planned > n_rows):
         total = f" of {planned}" if planned is not None else ""
         warnings.append(
-            {"code": "ended_early", "text": f"Ended early — {n_rows}{total} trials"}
+            {"code": "ended_early", "text": f"Ended early: {n_rows}{total} trials"}
         )
     if share is not None and share < VALID_SHARE_FLOOR:
         warnings.append(

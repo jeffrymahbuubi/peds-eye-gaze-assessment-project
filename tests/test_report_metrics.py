@@ -375,7 +375,7 @@ def test_quality_warnings():
     q = quality_block(n_rows=3, planned=6, outcome="ended_early", share=0.7,
                       off_canvas_share=0.01, canvas_resized=True)
     assert [w["code"] for w in q["warnings"]] == ["ended_early", "low_valid_gaze", "canvas_resized"]
-    assert q["warnings"][0]["text"] == "Ended early — 3 of 6 trials"
+    assert q["warnings"][0]["text"] == "Ended early: 3 of 6 trials"
     assert "70%" in q["warnings"][1]["text"] and "80%" in q["warnings"][1]["text"]
     assert q["valid_share"] == 0.7 and q["off_canvas_share"] == 0.01
 
@@ -395,4 +395,4 @@ def test_a_partial_run_is_flagged_even_when_the_outcome_field_is_missing():
                          off_canvas_share=None, canvas_resized=False)["warnings"] == []
     assert quality_block(n_rows=3, planned=None, outcome="ended_early", share=None,
                          off_canvas_share=None, canvas_resized=False)["warnings"][0]["text"] == (
-        "Ended early — 3 trials")
+        "Ended early: 3 trials")

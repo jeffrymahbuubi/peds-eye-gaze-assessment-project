@@ -6,6 +6,9 @@ from __future__ import annotations
 from collections.abc import Sequence
 from typing import Any
 
+DASH = "—"  # a figure that could not be given, in a numeric or date table cell
+NOT_RECORDED = "not recorded"  # what a text cell or a report row says when it has no value
+
 
 def to_int(raw: Any) -> int | None:
     """``int`` of a CSV/JSON value, ``None`` for blank or unreadable."""
@@ -35,7 +38,7 @@ def ms_to_seconds(ms: Any) -> float | None:
         return None
 
 
-def seconds_text(ms: Any, digits: int = 3, dash: str = "—") -> str:
+def seconds_text(ms: Any, digits: int = 3, dash: str = DASH) -> str:
     """Milliseconds as compact seconds: ``800`` -> "0.8 s", ``8000`` -> "8 s", ``120`` ->
     "0.12 s"; ``dash`` when ``ms`` is not a number. At most ``digits`` decimals, no
     trailing zeros."""

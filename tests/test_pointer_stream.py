@@ -15,7 +15,7 @@ from src.data.recorder import (
     NullRecorder,
 )
 from src.data.schema import GazeSample, SessionMetadata, TrialRecord
-from src.engine.tracking_status import run_status_line
+from src.engine.tracking_status import run_status
 from src.inputs.no_tracker import NoTracker
 from tests.recorder_helpers import recorder_in
 
@@ -141,16 +141,14 @@ def test_a_trial_has_no_clicks_unless_it_counted_some():
 # -- the bar and the stand-in -------------------------------------------------------------------------------
 
 
-def test_a_mouse_run_names_its_pointer_in_the_status_line():
-    assert run_status_line(2, 18, "tracking OK") == "Trial 2/18 · tracking OK"
-    assert run_status_line(2, 18, "tracking OK", mouse=True) == "Trial 2/18 · mouse pointer · tracking OK"
-    assert run_status_line(2, 18, "", mouse=True) == "Trial 2/18 · mouse pointer"  # no tracker
-    assert run_status_line(2, 18, "", mouse=True, practice=True) == (
-        "PRACTICE (not recorded) · Trial 2/18 · mouse pointer"
-    )
-    assert run_status_line(2, 18, "x", mouse=True, paused=True) == "Paused · Trial 2/18"
-    # A preview keeps its own wording.
-    assert run_status_line(1, 3, "", preview=True, mouse=True).startswith("PREVIEW · Trial 1/3 · mouse pointer")
+def test_a_mouse_run_names_its_pointer_in_the_status():
+    assert run_status(2, 18, "Tracking OK").line == "Trial 2 of 18, Tracking OK"
+    assert run_status(2, 18, "Tracking OK", mouse=True).line == "Trial 2 of 18, Mouse pointer, Tracking OK"
+    assert run_status(2, 18, "", mouse=True).line == "Trial 2 of 18, Mouse pointer"  # no tracker
+    assert run_status(2, 18, "", mouse=True, practice=True).line == "PRACTICE, Trial 2 of 18, Mouse pointer"
+    assert run_status(2, 18, "x", mouse=True, paused=True).line == "Paused, Trial 2 of 18"
+    # A preview always names the mouse; its chip says nothing is recorded.
+    assert run_status(1, 3, "", preview=True, mouse=True).line == "PREVIEW, Trial 1 of 3, Mouse pointer"
 
 
 def test_no_tracker_reports_nothing():

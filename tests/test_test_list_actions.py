@@ -411,7 +411,7 @@ def test_back_to_setup_and_the_saved_line(qapp, root):
     back = Recorder(page.backToSetupRequested)
     page.back_button.click()
     assert len(back.items) == 1
-    assert page.back_button.text() == "← Back to Setup / recalibrate"
+    assert page.back_button.text() == "Back to Setup"
 
 
 def test_a_message_is_cleared_by_the_next_selection(qapp, root):

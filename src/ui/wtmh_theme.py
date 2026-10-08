@@ -1,9 +1,9 @@
-"""WTMH Clinical Teal palette + Qt stylesheet for the Setup/Tests dashboard.
+"""The Qt stylesheet of the Setup / Tests dashboard, built from the design tokens.
 
-Same palette applied to the `docs/wireframes/` mockup (SPEC-ui-setup-task-
-selection.md S9) and its `tools/apply_wtmh_wireframe_theme.py` retint pass --
-this module is that palette's real-app counterpart. Hex values are quoted
-directly from S9's mapping table, not re-derived.
+Every colour, size and radius comes from :mod:`~src.ui.design_tokens` (SPEC-design-system-
+phase1.md H1-H9; ``docs/design/fable-proposal.md`` 2.1-2.5): this module holds the QSS and
+no hex value of its own. The old module-level colour names are kept below as aliases of the
+new tokens for one release.
 
 Scoped to ``QWidget#wtmhDashboard`` and its descendants only, so it can
 never leak into ``TaskCanvas`` or an embedded ``TaskRunView`` -- Qt
@@ -13,64 +13,149 @@ siblings.
 
 from __future__ import annotations
 
-from ..engine.config import CONFIG_ROOT
+from .design_tokens import (
+    ACCENT,
+    ACCENT_FOCUS,
+    ACCENT_HOVER,
+    ACCENT_SUBTLE,
+    BORDER_STRONG,
+    BORDER_SUBTLE,
+    BORDER_WIDTH,
+    BUTTON_HEIGHT,
+    BUTTON_MIN_WIDTH,
+    DANGER,
+    DANGER_SUBTLE,
+    DANGER_TEXT,
+    DISABLED_FILL,
+    FOCUS_BORDER_WIDTH,
+    HEADER,
+    INK,
+    PAGE,
+    PANEL,
+    RADIUS,
+    SUCCESS,
+    SUCCESS_SUBTLE,
+    SUCCESS_TEXT,
+    TEXT_DISABLED,
+    TEXT_SECONDARY,
+    TITLE_BAR,
+    TITLE_BAR_TEXT,
+    TYPE_BODY,
+    TYPE_BODY_LARGE,
+    TYPE_CAPTION,
+    TYPE_DISPLAY,
+    TYPE_HEADING,
+    WARNING,
+)
+from .wtmh_controls import CONTROLS_STYLESHEET
 
-# S12 fix: Qt's QSS "zero-size box + border" triangle trick does not
-# reliably render as a triangle for ::up-arrow/::down-arrow subcontrols in
-# this Qt/PySide6 build -- confirmed via a pixel-level zoomed widget grab
-# that it painted a solid filled rectangle instead, under both the default
-# "windowsvista" style and "Fusion" (SPEC-ui-setup-task-selection.md S12).
-# Real PNG assets (generated once via a scratch script, committed here) are
-# the standard, actually-reliable fix. CONFIG_ROOT is already absolute
-# (Path(__file__).resolve()...), so this path is never CWD-dependent --
-# important because QSS `url()` on a stylesheet string (not loaded from a
-# .qss file) resolves relative paths against the process's current working
-# directory, not this module's location.
-_ICONS_DIR = (CONFIG_ROOT / "assets" / "icons").as_posix()
+# A control keeps its outer size when it takes the focus: the 1 px border becomes 2 px, so
+# the padding and the minimum content size each give 1 px back (H6). QSS ``min-height`` is
+# the size of the content box, inside border and padding.
+_BORDER = BORDER_WIDTH
+_FOCUS_BORDER = FOCUS_BORDER_WIDTH
+_BUTTON_PAD_H = 16 - _BORDER  # "padding 0 16" counted from the outer edge
+_BUTTON_MIN_H = BUTTON_HEIGHT - 2 * _BORDER
+_BUTTON_MIN_W = BUTTON_MIN_WIDTH - 2 * (_BUTTON_PAD_H + _BORDER)
 
-ACCENT = "#1F7A9C"
-ACCENT_RGB = "31, 122, 156"  # ACCENT as r, g, b -- for rgba() opacity blends
-ACCENT_GRADIENT_START = "#2FA8C4"
-ACCENT_GRADIENT_END = "#1A6F95"
-TITLEBAR_BG = "#12374A"
-TITLEBAR_TEXT = "#CFE6EE"
-SOFT_ACCENT = "#DCF0F5"
-SOFT_ACCENT_TEXT = "#0F5670"
-BACKGROUND = "#F5F9FB"
-PANEL_BG = "#FFFFFF"
-BORDER = "#DBE6EC"
-INK = "#122B3A"
-MUTED = "#5C7684"
-DANGER = "#E15353"
-SUCCESS = "#2F9E6E"
-NEUTRAL_BADGE_BG = "#E6EDF1"
-# A disabled button reads "off" (grey fill and border, muted text, 3:1 on the fill), and an
-# unchecked radio / check box has an outline that shows on white (3:1) -- BORDER is for cards.
-DISABLED_BG, DISABLED_BORDER, DISABLED_TEXT = "#E9EDF0", "#CDD6DC", "#6F808A"
-CONTROL_BORDER = "#7B93A1"
-# Muted left-border for static info/warning banners -- deliberately NOT the
-# same vivid ACCENT used for primary-button gradients/focus rings, so a
-# banner never reads as a clickable CTA (SPEC-ui-setup-task-selection.md
-# S11.1 critique point 3). Warning gets its own amber tint (S11.3 finding:
-# info/warning previously shared identical styling with no way to tell them
-# apart).
-BANNER_BORDER = "#8FB4C2"
-WARNING_BG = "#FBF0DC"
-WARNING_BORDER = "#D9A441"
 
-STYLESHEET = f"""
-QWidget#wtmhDashboard {{ background: {BACKGROUND}; color: {INK}; }}
+def _states(selectors: tuple[str, ...], state: str) -> str:
+    return ",\n".join(f"{selector}{state}" for selector in selectors)
+
+
+def button_rule(
+    selectors: tuple[str, ...] | str,
+    *,
+    text: str,
+    fill: str,
+    border: str,
+    hover_fill: str,
+    hover_text: str | None = None,
+) -> str:
+    """One tier of the button family (H5): 40 px high, 96 px wide at least, 14 px / 600, a
+    1 px border in the tier's colour, the hover fill, a 2 px focus border that moves
+    nothing, and the same grey-on-grey disabled look for every tier (the primary never
+    changes tier with its state)."""
+    if isinstance(selectors, str):
+        selectors = (selectors,)
+    hover_text = hover_text or text
+    return f"""
+{_states(selectors, "")} {{
+    color: {text};
+    background: {fill};
+    border: {_BORDER}px solid {border};
+    border-radius: {RADIUS}px;
+    min-height: {_BUTTON_MIN_H}px;
+    min-width: {_BUTTON_MIN_W}px;
+    padding: 0 {_BUTTON_PAD_H}px;
+    font-size: {TYPE_BODY}px;
+    font-weight: 600;
+}}
+{_states(selectors, ":hover")}, {_states(selectors, ":pressed")} {{
+    color: {hover_text};
+    background: {hover_fill};
+    border-color: {hover_fill};
+}}
+{_states(selectors, ":focus")} {{
+    border: {_FOCUS_BORDER}px solid {ACCENT_FOCUS};
+    min-height: {_BUTTON_MIN_H - 2}px;
+    padding: 0 {_BUTTON_PAD_H - 1}px;
+}}
+{_states(selectors, ":disabled")} {{
+    color: {TEXT_DISABLED};
+    background: {DISABLED_FILL};
+    border-color: {DISABLED_FILL};
+}}
+"""
+
+
+_PRIMARY = ("QPushButton#wtmhPrimary", "QPushButton#cfgSave")
+# The configuration page's footer buttons carry fixed names for qt-mcp and tests (cfgSave,
+# cfgPreview, cfgCancel, cfgReset -- SPEC-compass-task-flow.md 4B.1), so they join the tier
+# rules by selector instead of taking the tier's object name.
+_SECONDARY = (
+    "QPushButton#wtmhSecondary",
+    "QPushButton#wtmhGhost",
+    "QPushButton#cfgPreview",
+    "QPushButton#cfgCancel",
+    "QPushButton#cfgReset",
+)
+_TERTIARY = ("QPushButton#wtmhTertiary",)
+
+
+def _alert(name: str, border: str) -> str:
+    return f"""QFrame#wtmhAlert{name} {{
+    background: {PANEL};
+    border: 1px solid {border};
+}}
+"""
+
+
+def _badge(name: str, fill: str, text: str) -> str:
+    return f"""QLabel#wtmhBadge{name} {{
+    background: {fill};
+    color: {text};
+    border-radius: 9px;
+    padding: 2px 10px;
+    font-size: {TYPE_CAPTION}px;
+    font-weight: 600;
+}}
+"""
+
+
+_DASHBOARD_STYLESHEET = f"""
+QWidget#wtmhDashboard {{ background: {PAGE}; color: {INK}; }}
 QWidget#wtmhDashboard QLabel {{ color: {INK}; }}
 QWidget#wtmhDashboard QCheckBox {{ color: {INK}; }}
 
-QWidget#wtmhTitleBar {{ background: {TITLEBAR_BG}; }}
-QWidget#wtmhTitleBar QLabel {{ color: {TITLEBAR_TEXT}; }}
-QLabel#wtmhBrandTitle {{ font-size: 15px; font-weight: 600; }}
+QWidget#wtmhTitleBar {{ background: {TITLE_BAR}; }}
+QWidget#wtmhTitleBar QLabel {{ color: {TITLE_BAR_TEXT}; }}
+QLabel#wtmhBrandTitle {{ font-size: {TYPE_BODY_LARGE}px; font-weight: 600; }}
 
 /* Setup page's card stack scrolls independently of the pinned "Continue to
    Tasks" footer (SPEC-ui-setup-task-selection.md S22) -- the scroll area and
    its viewport otherwise paint an opaque native background over the page's
-   own {BACKGROUND} tint. The configuration page's card grid
+   own {PAGE} tint. The configuration page's card grid
    (SPEC-compass-task-flow.md 4B.7) scrolls the same way, above its pinned
    footer. */
 QScrollArea#wtmhSetupScroll, QScrollArea#wtmhSetupScroll > QWidget,
@@ -79,41 +164,28 @@ QScrollArea#wtmhConfigScroll, QScrollArea#wtmhConfigScroll > QWidget {{
     border: none;
 }}
 
-/* A control greyed in place on the configuration page (4B.3: Smoothing alpha
-   while Smoothing is off). The base rules above colour labels, spin boxes and
-   slider handles the same whether or not they are enabled, so a disabled one
-   would not look disabled. Scoped to the page's scroll area so no other page's
-   disabled widgets change. */
-QScrollArea#wtmhConfigScroll QLabel:disabled,
-QScrollArea#wtmhConfigScroll QCheckBox:disabled,
-QScrollArea#wtmhConfigScroll QRadioButton:disabled {{ color: {MUTED}; }}
-QScrollArea#wtmhConfigScroll QSpinBox:disabled,
-QScrollArea#wtmhConfigScroll QDoubleSpinBox:disabled {{
-    color: {MUTED};
-    background: {NEUTRAL_BADGE_BG};
-}}
-QScrollArea#wtmhConfigScroll QSlider::handle:horizontal:disabled {{ background: {BORDER}; }}
-QScrollArea#wtmhConfigScroll QSlider::sub-page:horizontal:disabled {{ background: {BORDER}; }}
+/* A control greyed in place (the configuration page's Smoothing alpha while
+   Smoothing is off): the base rules colour labels, fields and slider handles the
+   same whether or not they are enabled, so each has a disabled rule (H5, H7). */
+QWidget#wtmhDashboard QLabel:disabled,
+QWidget#wtmhDashboard QCheckBox:disabled,
+QWidget#wtmhDashboard QRadioButton:disabled {{ color: {TEXT_DISABLED}; }}
 
-/* Themed scrollbar (SPEC-ui-setup-task-selection.md S22.6) -- this app's
-   first scrollbar rendered with the native OS style (square arrow buttons,
-   flat opaque gray/black thumb), out of place against this soft, rounded
-   theme. Slim, rounded thumb in ACCENT at reduced opacity instead, no
-   arrow buttons, transparent track -- applies to every QScrollBar under
-   wtmhDashboard (Setup's new card scroll, and any QTextEdit/QPlainTextEdit
-   internal scrollbar such as Notes). */
+/* Themed scrollbar (SPEC-ui-setup-task-selection.md S22.6): a slim, rounded thumb, no
+   arrow buttons, transparent track -- every QScrollBar under wtmhDashboard (Setup's
+   card scroll, a Notes box's internal scrollbar). */
 QScrollBar:vertical {{
     background: transparent;
     width: 10px;
     margin: 2px 2px 2px 0px;
 }}
 QScrollBar::handle:vertical {{
-    background: rgba({ACCENT_RGB}, 0.35);
+    background: {BORDER_STRONG};
     min-height: 24px;
     border-radius: 5px;
 }}
 QScrollBar::handle:vertical:hover {{
-    background: rgba({ACCENT_RGB}, 0.55);
+    background: {TEXT_SECONDARY};
 }}
 QScrollBar::add-line:vertical, QScrollBar::sub-line:vertical {{
     height: 0px;
@@ -130,12 +202,12 @@ QScrollBar:horizontal {{
     margin: 0px 2px 2px 2px;
 }}
 QScrollBar::handle:horizontal {{
-    background: rgba({ACCENT_RGB}, 0.35);
+    background: {BORDER_STRONG};
     min-width: 24px;
     border-radius: 5px;
 }}
 QScrollBar::handle:horizontal:hover {{
-    background: rgba({ACCENT_RGB}, 0.55);
+    background: {TEXT_SECONDARY};
 }}
 QScrollBar::add-line:horizontal, QScrollBar::sub-line:horizontal {{
     width: 0px;
@@ -147,350 +219,77 @@ QScrollBar::add-page:horizontal, QScrollBar::sub-page:horizontal {{
 }}
 
 QPushButton#wtmhNavButton {{
-    color: {TITLEBAR_TEXT};
+    color: {TITLE_BAR_TEXT};
     background: rgba(255,255,255,0.08);
     border: 1px solid rgba(255,255,255,0.16);
-    border-radius: 6px;
+    border-radius: {RADIUS}px;
     padding: 6px 14px;
     font-weight: 600;
 }}
 QPushButton#wtmhNavButton:hover {{ background: rgba(255,255,255,0.16); }}
+QPushButton#wtmhNavButton:focus {{ border: {_FOCUS_BORDER}px solid {TITLE_BAR_TEXT}; padding: 5px 13px; }}
 QPushButton#wtmhNavButton[active="true"] {{
     background: rgba(255,255,255,0.08);
-    border-bottom: 3px solid {ACCENT_GRADIENT_START};
+    border-bottom: 3px solid {TITLE_BAR_TEXT};
 }}
 
-/* S16: two-tier title scale -- wtmhPageTitle for "1 · Setup"/"2 · Tests"
-   (largest), wtmhSectionTitle for card titles (one tier down, and now
-   also applied to Setup's 4 previously-unstyled card titles). Previously
-   both tiers shared wtmhSectionTitle at 18px, so a page title and a card
-   title were pixel-identical. margin-bottom gives every card title some
-   breathing room before its first content row, in one shared rule
-   instead of touching each card-builder call site. */
-QLabel#wtmhPageTitle {{ font-size: 22px; font-weight: 700; color: {INK}; }}
+/* The type scale (proposal 2.1): wtmhPageTitle is the display step, wtmhSectionTitle the
+   heading step. margin-bottom gives every card title some breathing room before its
+   first content row, in one shared rule instead of touching each card-builder call
+   site. */
+QLabel#wtmhPageTitle {{ font-size: {TYPE_DISPLAY}px; font-weight: 700; color: {INK}; }}
 QLabel#wtmhSectionTitle {{
-    font-size: 16px;
+    font-size: {TYPE_HEADING}px;
     font-weight: 600;
     color: {INK};
     margin-bottom: 6px;
 }}
-QLabel#wtmhMuted {{ color: {MUTED}; }}
+QLabel#wtmhMuted {{ color: {TEXT_SECONDARY}; }}
 
-/* The configuration page's footer buttons carry fixed names for qt-mcp and tests
-   (cfgSave, cfgPreview, cfgCancel, cfgReset -- SPEC-compass-task-flow.md 4B.1), so
-   they join the tier rules by selector instead of taking the tier's object name. */
-QPushButton#wtmhPrimary, QPushButton#cfgSave {{
-    color: white;
-    background: qlineargradient(x1:0, y1:0, x2:1, y2:0,
-        stop:0 {ACCENT_GRADIENT_START}, stop:1 {ACCENT_GRADIENT_END});
-    border: none;
-    border-radius: 6px;
-    padding: 8px 18px;
-    font-weight: 600;
-}}
-QPushButton#wtmhPrimary:hover, QPushButton#cfgSave:hover {{ background: {ACCENT_GRADIENT_END}; }}
-QPushButton#wtmhPrimary:disabled, QPushButton#cfgSave:disabled {{
-    background: {DISABLED_BG};
-    color: {DISABLED_TEXT};
-}}
-
-QPushButton#wtmhSecondary {{
-    color: {SOFT_ACCENT_TEXT};
-    background: {SOFT_ACCENT};
-    border: 2px solid {SOFT_ACCENT};
-    border-radius: 6px;
-    padding: 7px 16px;
-    font-weight: 600;
-}}
-QPushButton#wtmhSecondary:hover {{ border-color: {ACCENT}; }}
-QPushButton#wtmhSecondary:disabled {{
-    color: {MUTED};
-    background: {NEUTRAL_BADGE_BG};
-    border: 2px solid {NEUTRAL_BADGE_BG};
-}}
-
-QPushButton#wtmhGhost, QPushButton#cfgPreview, QPushButton#cfgCancel, QPushButton#cfgReset {{
-    color: {INK};
-    background: transparent;
-    border: 1px solid {BORDER};
-    border-radius: 6px;
-    padding: 7px 16px;
-}}
-QPushButton#wtmhGhost:hover, QPushButton#cfgPreview:hover, QPushButton#cfgCancel:hover,
-QPushButton#cfgReset:hover {{ background: {SOFT_ACCENT}; border-color: {ACCENT}; }}
-QPushButton#wtmhGhost:disabled, QPushButton#cfgPreview:disabled, QPushButton#cfgCancel:disabled,
-QPushButton#cfgReset:disabled {{ color: {DISABLED_TEXT}; background: {DISABLED_BG}; border-color: {DISABLED_BORDER}; }}
+/* Button tiers (H5): primary, secondary (the old ghost), tertiary (text only); the danger
+   tier is the run-end dialogs' own (run_dialogs.py), built from the same button_rule. */
+{button_rule(_PRIMARY, text=PANEL, fill=ACCENT, border=ACCENT, hover_fill=ACCENT_HOVER)}
+{button_rule(_SECONDARY, text=ACCENT, fill=PANEL, border=ACCENT, hover_fill=ACCENT_SUBTLE)}
+{button_rule(_TERTIARY, text=ACCENT, fill="transparent", border="transparent",
+             hover_fill=ACCENT_SUBTLE)}
 
 QFrame#wtmhCard {{
-    background: {PANEL_BG};
-    border: 1px solid {BORDER};
-    border-radius: 8px;
+    background: {PANEL};
+    border: 1px solid {BORDER_SUBTLE};
+    border-radius: {RADIUS}px;
 }}
 
+/* Alerts (H8): white, a 1 px border in the state colour, body-large ink text. The glyph
+   tile and the bold state word come with the badge helper (phase 2). */
 QFrame#wtmhAlertInfo, QFrame#wtmhAlertWarning, QFrame#wtmhAlertSuccess, QFrame#wtmhAlertError {{
-    border-radius: 6px;
+    border-radius: {RADIUS}px;
     padding: 4px;
 }}
-QFrame#wtmhAlertInfo {{
-    background: {SOFT_ACCENT};
-    border-left: 4px solid {BANNER_BORDER};
-}}
-QFrame#wtmhAlertWarning {{
-    background: {WARNING_BG};
-    border-left: 4px solid {WARNING_BORDER};
-}}
-QFrame#wtmhAlertSuccess {{
-    background: #E3F5EC;
-    border-left: 4px solid {SUCCESS};
-}}
-QFrame#wtmhAlertError {{
-    background: #FBE7E7;
-    border-left: 4px solid {DANGER};
+{_alert("Info", BORDER_STRONG)}{_alert("Warning", WARNING)}{_alert("Success", SUCCESS)}{_alert("Error", DANGER)}
+QFrame#wtmhAlertInfo QLabel, QFrame#wtmhAlertWarning QLabel,
+QFrame#wtmhAlertSuccess QLabel, QFrame#wtmhAlertError QLabel {{
+    font-size: {TYPE_BODY_LARGE}px;
 }}
 
-QLabel#wtmhBadgeNeutral {{
-    background: {NEUTRAL_BADGE_BG};
-    color: {MUTED};
-    border-radius: 9px;
-    padding: 2px 10px;
-    font-size: 11px;
-    font-weight: 600;
-}}
-QLabel#wtmhBadgeSuccess {{
-    background: {SUCCESS};
-    color: white;
-    border-radius: 9px;
-    padding: 2px 10px;
-    font-size: 11px;
-    font-weight: 600;
-}}
-QLabel#wtmhBadgeAccent {{
-    background: {SOFT_ACCENT};
-    color: {SOFT_ACCENT_TEXT};
-    border-radius: 9px;
-    padding: 2px 10px;
-    font-size: 11px;
-    font-weight: 600;
-}}
-QLabel#wtmhBadgeDanger {{
-    background: #FBE7E7;
-    color: {DANGER};
-    border-radius: 9px;
-    padding: 2px 10px;
-    font-size: 11px;
-    font-weight: 600;
-}}
-
-QWidget#wtmhDashboard QLineEdit,
-QWidget#wtmhDashboard QTextEdit,
-QWidget#wtmhDashboard QPlainTextEdit,
-QWidget#wtmhDashboard QComboBox,
-QWidget#wtmhDashboard QDateEdit,
-QWidget#wtmhDashboard QSpinBox,
-QWidget#wtmhDashboard QDoubleSpinBox {{
-    background: {PANEL_BG};
-    color: {INK};
-    border: 1px solid {BORDER};
-    border-radius: 6px;
-    padding: 5px 8px;
-}}
-QWidget#wtmhDashboard QLineEdit:focus,
-QWidget#wtmhDashboard QTextEdit:focus,
-QWidget#wtmhDashboard QPlainTextEdit:focus,
-QWidget#wtmhDashboard QComboBox:focus,
-QWidget#wtmhDashboard QDateEdit:focus,
-QWidget#wtmhDashboard QSpinBox:focus,
-QWidget#wtmhDashboard QDoubleSpinBox:focus {{
-    border: 1px solid {ACCENT};
-}}
-
-/* Custom chevron + dropdown chrome, replacing the native OS arrow
-   (S11.1 critique point 4). Drawn via a real PNG asset (see _ICONS_DIR
-   above) -- an earlier zero-size/border "CSS triangle" version rendered as
-   a solid filled rectangle instead of a triangle in this Qt/PySide6 build
-   (S12), so a real image is used instead of a QSS-only trick. */
-QWidget#wtmhDashboard QComboBox {{ padding-right: 22px; }}
-QWidget#wtmhDashboard QComboBox::drop-down {{
-    subcontrol-origin: padding;
-    subcontrol-position: top right;
-    width: 22px;
-    border-left: 1px solid {BORDER};
-}}
-QWidget#wtmhDashboard QComboBox::down-arrow {{
-    subcontrol-origin: padding;
-    subcontrol-position: center right;
-    image: url({_ICONS_DIR}/chevron-down.png);
-    width: 16px;
-    height: 16px;
-    margin-right: 4px;
-}}
-
-/* The popup list is a separate top-level QAbstractItemView, not a
-   layout-tree descendant of QWidget#wtmhDashboard -- Qt forwards a
-   QComboBox's own effective stylesheet down into its popup, so this rule
-   still needs to be declared here even though it never leaked in from the
-   rules above. Without it the popup falls back to the OS/Qt default
-   palette, which on this app's Windows setup renders white text on a white
-   background (SPEC-ui-setup-task-selection.md S11.2 finding A -- the Sex
-   dropdown bug). Same root-cause family as the QCheckBox fix in S10.
-
-   S13: this rule alone only styles the QListView itself -- the native
-   popup FRAME wrapping it (Qt's undocumented QComboBoxPrivateContainer,
-   a QFrame with no public class/object-name selector) draws its own
-   heavy default border independently, especially visible after S12's
-   switch to the Fusion style. QSS can't reach that frame directly, so
-   setup_page.py additionally calls
-   ``sex_combo.view().setFrameShape(QFrame.Shape.NoFrame)`` in code to
-   remove the native frame decoration, leaving this rule's own border/
-   radius as the only visible one. */
-QWidget#wtmhDashboard QComboBox QAbstractItemView {{
-    background: {PANEL_BG};
-    color: {INK};
-    border: 1px solid {BORDER};
-    border-radius: 8px;
-    padding: 4px;
-    outline: none;
-}}
-QWidget#wtmhDashboard QComboBox QAbstractItemView::item {{
-    padding: 9px 12px;
-    border-radius: 4px;
-}}
-QWidget#wtmhDashboard QComboBox QAbstractItemView::item:hover {{
-    background: {SOFT_ACCENT};
-    outline: none;
-    border: none;
-}}
-/* S16: an explicit transparent border (not just outline: none) --
-   Fusion's own PE_FrameFocusRect primitive can still paint a bare focus
-   outline around the current item on a fresh popup open even with
-   outline suppressed; giving it a real border color to paint instead
-   (rather than relying on outline suppression alone) is the fix being
-   tried here -- verified live, see SPEC-ui-setup-task-selection.md
-   §16.3 for the actual result. */
-QWidget#wtmhDashboard QComboBox QAbstractItemView::item:focus {{
-    background: {SOFT_ACCENT};
-    outline: 0;
-    border: 1px solid transparent;
-}}
-QWidget#wtmhDashboard QComboBox QAbstractItemView::item:selected {{
-    background: {ACCENT};
-    color: white;
-    outline: none;
-    border: none;
-}}
-
-/* Themed spin-box steppers, replacing native OS up/down arrows (S12).
-   Arrows are real PNG assets (see _ICONS_DIR above), each given its own
-   "padding"-origin, centered subcontrol box -- without an explicit
-   subcontrol-origin/position, Qt falls back to its platform style's own
-   tiny built-in icon-metric box, which would clip even a real image down
-   small. A 1px border between up-button and down-button (previously
-   absent) gives the visible separator the critique asked for. */
-QWidget#wtmhDashboard QSpinBox::up-button, QWidget#wtmhDashboard QDoubleSpinBox::up-button,
-QWidget#wtmhDashboard QSpinBox::down-button, QWidget#wtmhDashboard QDoubleSpinBox::down-button {{
-    background: {SOFT_ACCENT};
-    width: 18px;
-    border-left: 1px solid {BORDER};
-}}
-QWidget#wtmhDashboard QSpinBox::up-button, QWidget#wtmhDashboard QDoubleSpinBox::up-button {{
-    subcontrol-position: top right;
-    border-top-right-radius: 5px;
-    border-bottom: 1px solid {BORDER};
-}}
-QWidget#wtmhDashboard QSpinBox::down-button, QWidget#wtmhDashboard QDoubleSpinBox::down-button {{
-    subcontrol-position: bottom right;
-    border-bottom-right-radius: 5px;
-}}
-QWidget#wtmhDashboard QSpinBox::up-arrow, QWidget#wtmhDashboard QDoubleSpinBox::up-arrow {{
-    subcontrol-origin: padding;
-    subcontrol-position: center;
-    image: url({_ICONS_DIR}/spin-up.png);
-    width: 12px;
-    height: 12px;
-}}
-QWidget#wtmhDashboard QSpinBox::down-arrow, QWidget#wtmhDashboard QDoubleSpinBox::down-arrow {{
-    subcontrol-origin: padding;
-    subcontrol-position: center;
-    image: url({_ICONS_DIR}/spin-down.png);
-    width: 12px;
-    height: 12px;
-}}
-
-/* Custom checkbox check style, replacing the native OS indicator. */
-QWidget#wtmhDashboard QCheckBox::indicator {{
-    width: 15px;
-    height: 15px;
-    border: 1px solid {CONTROL_BORDER};
-    border-radius: 4px;
-    background: {PANEL_BG};
-}}
-QWidget#wtmhDashboard QCheckBox::indicator:hover {{ border-color: {ACCENT}; }}
-QWidget#wtmhDashboard QCheckBox::indicator:checked {{
-    background: {ACCENT};
-    border: 1px solid {ACCENT};
-    image: url({_ICONS_DIR}/checkmark.png);
-}}
-
-/* Radio button (the configuration page's one-of choices, SPEC-compass-task-
-   flow.md 4B.1): text in INK like the check box above, and a round indicator
-   in the same border / accent colours -- a radial gradient draws the dot, so
-   no image asset is needed. */
-QWidget#wtmhDashboard QRadioButton {{ color: {INK}; }}
-QWidget#wtmhDashboard QRadioButton::indicator {{
-    width: 14px;
-    height: 14px;
-    border: 1px solid {CONTROL_BORDER};
-    border-radius: 8px;
-    background: {PANEL_BG};
-}}
-QWidget#wtmhDashboard QRadioButton::indicator:hover {{ border-color: {ACCENT}; }}
-QWidget#wtmhDashboard QRadioButton::indicator:checked {{
-    border: 1px solid {ACCENT};
-    background: qradialgradient(cx:0.5, cy:0.5, radius:0.5, fx:0.5, fy:0.5,
-        stop:0 {ACCENT}, stop:0.5 {ACCENT}, stop:0.55 {PANEL_BG}, stop:1 {PANEL_BG});
-}}
-
-/* Themed slider, matching the accent gradient rather than native OS chrome
-   -- used by TaskSettingsDialog's SliderSpinRow controls. */
-QWidget#wtmhDashboard QSlider::groove:horizontal {{
-    height: 4px;
-    background: {BORDER};
-    border-radius: 2px;
-}}
-QWidget#wtmhDashboard QSlider::sub-page:horizontal {{
-    background: {ACCENT_GRADIENT_START};
-    border-radius: 2px;
-}}
-QWidget#wtmhDashboard QSlider::handle:horizontal {{
-    background: {ACCENT};
-    width: 14px;
-    height: 14px;
-    margin: -5px 0;
-    border-radius: 7px;
-}}
-
-/* Plain data tables (calibration per-point breakdown, results metric
-   tables) -- SPEC-result-logic.md §8.1/§8.3. Read-only, so no ::item states
-   for hover/selected are needed. */
-QWidget#wtmhDashboard QTableWidget {{
-    background: {PANEL_BG};
-    color: {INK};
-    border: 1px solid {BORDER};
-    border-radius: 6px;
-    gridline-color: {BORDER};
-}}
-QWidget#wtmhDashboard QTableWidget::item {{ padding: 4px 8px; }}
-QWidget#wtmhDashboard QHeaderView::section {{
-    background: {SOFT_ACCENT};
-    color: {SOFT_ACCENT_TEXT};
-    border: none;
-    border-bottom: 1px solid {BORDER};
-    padding: 6px 8px;
-    font-weight: 600;
-}}
-/* The Test List is the one selectable table (SPEC-compass-task-flow.md 4A.4): the chosen row. */
-QWidget#wtmhDashboard QTableWidget#wtmhTestTable::item:selected {{
-    background: {SOFT_ACCENT};
-    color: {INK};
-}}
+{_badge("Neutral", HEADER, TEXT_SECONDARY)}{_badge("Success", SUCCESS_SUBTLE, SUCCESS_TEXT)}{_badge("Accent", ACCENT_SUBTLE, ACCENT)}{_badge("Danger", DANGER_SUBTLE, DANGER_TEXT)}
 """
+
+STYLESHEET = _DASHBOARD_STYLESHEET + CONTROLS_STYLESHEET
+
+# -- the old names, as aliases of the new tokens, for one release (H2) ----------------------------
+# ACCENT_GRADIENT_START / END and ACCENT_RGB went with the gradient and the translucent thumb.
+
+BACKGROUND = PAGE
+PANEL_BG = PANEL
+BORDER = BORDER_SUBTLE
+MUTED = TEXT_SECONDARY
+SOFT_ACCENT = ACCENT_SUBTLE
+SOFT_ACCENT_TEXT = ACCENT
+TITLEBAR_BG = TITLE_BAR
+TITLEBAR_TEXT = TITLE_BAR_TEXT
+NEUTRAL_BADGE_BG = HEADER
+DISABLED_BG, DISABLED_BORDER, DISABLED_TEXT = DISABLED_FILL, BORDER_STRONG, TEXT_DISABLED
+CONTROL_BORDER = BORDER_STRONG
+BANNER_BORDER = BORDER_STRONG
+WARNING_BG = PANEL
+WARNING_BORDER = WARNING

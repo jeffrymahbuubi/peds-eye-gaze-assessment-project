@@ -26,30 +26,40 @@ from PySide6.QtWidgets import (
     QWidget,
 )
 
-from .wtmh_theme import BORDER, INK, PANEL_BG, SOFT_ACCENT, SOFT_ACCENT_TEXT
+from .design_tokens import (
+    ACCENT_FOCUS,
+    BORDER_SUBTLE,
+    FOCUS_BORDER_WIDTH,
+    HEADER,
+    INK,
+    PANEL,
+    ROW_SELECTED,
+    TABLE_ROW_HEIGHT,
+)
 
 # The theme styles QTableWidget under wtmhDashboard; the overlay is a plain QTableView,
 # so both get the same rule here (by object name) and cannot look different.
 _STYLE = f"""
 QTableView#reportTrialTable, QTableView#reportTrialFrozen {{
-    background: {PANEL_BG};
+    background: {PANEL};
     color: {INK};
-    border: 1px solid {BORDER};
-    border-radius: 6px;
-    gridline-color: {BORDER};
+    border: 1px solid {BORDER_SUBTLE};
+    border-radius: 0px;
+    gridline-color: {BORDER_SUBTLE};
     outline: 0;
 }}
-QTableView#reportTrialFrozen {{ border: none; border-right: 2px solid {BORDER}; border-radius: 0px; }}
+QTableView#reportTrialTable:focus {{ border: {FOCUS_BORDER_WIDTH}px solid {ACCENT_FOCUS}; }}
+QTableView#reportTrialFrozen {{ border: none; border-right: 2px solid {BORDER_SUBTLE}; }}
 QTableView#reportTrialTable::item, QTableView#reportTrialFrozen::item {{ padding: 4px 8px; }}
 QTableView#reportTrialTable::item:selected, QTableView#reportTrialFrozen::item:selected {{
-    background: {SOFT_ACCENT};
+    background: {ROW_SELECTED};
     color: {INK};
 }}
 QTableView#reportTrialTable QHeaderView::section, QTableView#reportTrialFrozen QHeaderView::section {{
-    background: {SOFT_ACCENT};
-    color: {SOFT_ACCENT_TEXT};
+    background: {HEADER};
+    color: {INK};
     border: none;
-    border-bottom: 1px solid {BORDER};
+    border-bottom: 1px solid {BORDER_SUBTLE};
     padding: 6px 8px;
     font-weight: 600;
 }}
@@ -81,7 +91,7 @@ class FrozenColumnTable(QTableWidget):
         self.setShowGrid(True)
         self.setWordWrap(False)
         self.verticalHeader().hide()
-        self.verticalHeader().setDefaultSectionSize(30)
+        self.verticalHeader().setDefaultSectionSize(TABLE_ROW_HEIGHT)
         self.verticalHeader().setSectionResizeMode(QHeaderView.ResizeMode.Fixed)
         header = self.horizontalHeader()
         header.setSectionResizeMode(QHeaderView.ResizeMode.ResizeToContents)

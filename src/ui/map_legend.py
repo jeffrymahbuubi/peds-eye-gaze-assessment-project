@@ -15,8 +15,12 @@ from PySide6.QtCore import QBuffer, QByteArray, QIODevice, QRectF, QSize, Qt
 from PySide6.QtGui import QColor, QImage, QPainter
 from PySide6.QtWidgets import QFrame, QGridLayout, QLabel, QWidget
 
+from .design_tokens import LEGACY_REPORT_COLOURS as _LEGACY
 from .target_map_paint import paint_symbol
-from .wtmh_theme import BORDER, INK, SOFT_ACCENT
+
+# Phase 4 gives the report map, its legend and the PDF the design tokens; until then they keep
+# today's colours (SPEC-design-system-phase1.md H2).
+BORDER, INK, SOFT_ACCENT = _LEGACY.border, _LEGACY.ink, _LEGACY.soft_accent
 
 # (kind of mark, label). The kinds are those of :func:`paint_symbol`.
 LEGEND_ENTRIES: tuple[tuple[str, str], ...] = (

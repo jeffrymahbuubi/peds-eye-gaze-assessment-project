@@ -93,13 +93,13 @@ def test_a_mouse_test_with_no_tracker_can_start_and_practise_and_says_so(qapp):
     assert page.start_button.isEnabled() and page.practice_button.isEnabled()
     assert not page.mouse_note.isHidden()
     assert page.mouse_note_label.text() == MOUSE_NOTE_NO_TRACKER
-    assert MOUSE_NOTE_NO_TRACKER == "Mouse test — the tracker is not connected, so no eye data will be recorded."
+    assert MOUSE_NOTE_NO_TRACKER == "Mouse test. The tracker is not connected, so no eye data will be recorded."
 
 
 def test_a_mouse_test_with_a_ready_tracker_says_the_eye_data_is_recorded_alongside(qapp):
     page, _ = page_for(pointer="mouse", blockers=[])
     assert page.start_button.isEnabled() and not page.mouse_note.isHidden()
-    assert page.mouse_note_label.text() == MOUSE_NOTE_ALONGSIDE == "Mouse test — eye data will be recorded alongside."
+    assert page.mouse_note_label.text() == MOUSE_NOTE_ALONGSIDE == "Mouse test. Eye data will be recorded alongside."
 
 
 def test_a_connected_but_uncalibrated_tracker_records_nothing_and_the_note_says_that(qapp):

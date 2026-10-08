@@ -23,6 +23,7 @@ opt-in entry point (``--dashboard``), not a replacement.
 
 from __future__ import annotations
 
+from PySide6.QtGui import QFont
 from PySide6.QtWidgets import (
     QApplication,
     QMainWindow,
@@ -42,6 +43,7 @@ from .dashboard_flow import (
     Flow,
     TitleBar,
 )
+from .design_tokens import FONT_FAMILY, TYPE_BODY
 from .report_flow import ReportFlow
 from .run_flow import RunFlow
 from .setup_page import SetupPage
@@ -151,6 +153,15 @@ class DashboardWindow(QMainWindow):
         self._go_to_tab(TESTS_INDEX)
 
 
+def apply_application_font(app: QApplication) -> None:
+    """The body step of the type scale (SPEC-design-system-phase1.md H4): Segoe UI at 14 px.
+    Set once on the application, because a style sheet's font does not reach every child
+    (dialogs, the run bar, the canvas); only the larger roles have a QSS rule."""
+    font = QFont(FONT_FAMILY)
+    font.setPixelSize(TYPE_BODY)
+    app.setFont(font)
+
+
 def run_dashboard() -> int:
     existing = QApplication.instance()
     app = existing or QApplication([])
@@ -181,6 +192,7 @@ def run_dashboard() -> int:
         # gives every not-yet-explicitly-styled corner a sane light
         # fallback instead of near-black.
         app.setPalette(style.standardPalette())
+        apply_application_font(app)
     window = DashboardWindow()
     # showMaximized(), not show() (SPEC-live-settings-panel.md S10.8). The
     # old HUD column (gone, SPEC-compass-task-flow.md 4C.7) could not shrink

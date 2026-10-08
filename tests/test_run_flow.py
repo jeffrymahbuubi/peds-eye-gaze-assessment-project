@@ -214,7 +214,7 @@ def test_practice_hides_the_title_bar_and_locks_the_nav(rig):
     assert win.flow is Flow.PRACTICE and win.stack.currentWidget() is app.view
     assert win.title_bar.isHidden() and nav_locked(win)
     app._tick()
-    assert app.view.run_bar.status_text().startswith("PRACTICE (not recorded)")
+    assert app.view.run_bar.status_text().startswith("PRACTICE")
 
 
 def test_each_practice_press_gets_its_own_number_and_seed(rig):
@@ -330,7 +330,7 @@ def test_the_recorded_run_hides_the_title_bar_and_locks_the_nav(rig):
     assert win.stack.currentWidget() is app.view and win.stack.indexOf(win.run_flow.page) >= 0
     assert win.title_bar.isHidden() and nav_locked(win)
     app._tick()
-    assert app.view.run_bar.status_text().startswith("Trial 1/")  # no practice marker
+    assert app.view.run_bar.status_text().startswith("Trial 1 of ")  # no practice marker
 
 
 def test_an_unconfigured_standard_test_runs_with_the_task_defaults(rig):

@@ -148,6 +148,6 @@ def test_the_report_configuration_table_reads_the_written_block(make_app):
     rows = dict(build_config_rows(meta["settings"], meta))
     assert rows["Configuration name"] == "Quick look"
     assert rows["Theme"] == "Forest"
-    assert rows["Gaze cursor shown"] == "No"
-    assert rows["Feedback"] == "Sound on, sparkle on"
-    assert rows["Trials (planned)"] != "—"
+    assert rows["Gaze cursor"] == "Hidden"
+    assert rows["Feedback"] == "Hit sound on, miss sound on, glow on"
+    assert rows["Number of trials"] != "not recorded"

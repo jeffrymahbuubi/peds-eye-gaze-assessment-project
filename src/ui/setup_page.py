@@ -61,8 +61,9 @@ from ..engine.subject_store import (
     output_root,
 )
 from ..inputs.gazepoint_client import DeviceInfo, GazepointClient
+from .design_tokens import BORDER_STRONG, PANEL, RADIUS, TABLE_ROW_HEIGHT
+from .report_format import DASH
 from .subject_folder_row import SubjectFolderRow
-from .wtmh_theme import BORDER, PANEL_BG
 
 _SEX_OPTIONS = ["Select", "Female", "Male", "Other / Prefer not to say"]
 
@@ -94,9 +95,9 @@ def _format_device_info(info: DeviceInfo | None) -> str:
 
     lines = []
     if identity_parts:
-        lines.append("Device: " + " · ".join(identity_parts))
+        lines.append("Device: " + ", ".join(identity_parts))
     if detail_parts:
-        lines.append("Camera: " + " · ".join(detail_parts))
+        lines.append("Camera: " + ", ".join(detail_parts))
     return "\n".join(lines)
 
 
@@ -111,7 +112,7 @@ def _format_rate_warning(info: DeviceInfo | None) -> str:
     bus_text = f" over {info.bus}" if info.bus else ""
     return (
         f"Tracker is running at {info.rate_hz} Hz{bus_text}. The GP3 HD only "
-        "reaches 150 Hz on a USB 3.0 connection — move the data cable to a "
+        "reaches 150 Hz on a USB 3.0 connection. Move the data cable to a "
         "USB 3.0 port and reconnect for full-rate data."
     )
 
@@ -139,11 +140,11 @@ def _format_display_warning(check: DisplayCheck) -> str:
 def calibration_measured_alert_text(result, error_txt: str) -> str:
     """Setup alert for a valid measured calibration (SPEC-calibration-result-
     timeout.md S4.2): says so when CALIB_RESULT's per-point breakdown is missing."""
-    text = f"Calibration measured — {result.n_points} points, mean error {error_txt}, valid."
+    text = f"Calibration measured: {result.n_points} points, mean error {error_txt}, valid."
     if result.per_point:
         return text
     return (
-        text + " Per-point details were not received — if this repeats, close and "
+        text + " Per-point details were not received. If this repeats, close and "
         "reopen Gazepoint Control, then calibrate again."
     )
 
@@ -410,7 +411,7 @@ class SetupPage(QWidget):
         outer.setContentsMargins(24, 20, 24, 20)
         outer.setSpacing(16)
 
-        title = QLabel("1 · Setup")
+        title = QLabel("Setup")
         title.setObjectName("wtmhPageTitle")
         outer.addWidget(title)
 
@@ -553,6 +554,7 @@ class SetupPage(QWidget):
         # ancestor-scoped and directly-applied QSS, needing a QPalette
         # workaround that still didn't match the app's exact background).
         self.date_edit = QDateEdit(QDate.currentDate())
+        self.date_edit.setDisplayFormat("yyyy-MM-dd")  # one date format everywhere (H10)
         self.date_edit.dateChanged.connect(self._on_state_changed)
         # S14: QDateEdit is a QAbstractSpinBox subclass, so even with the
         # calendar popup removed it still paints its own native up/down
@@ -617,8 +619,8 @@ class SetupPage(QWidget):
             # visible at that boundary makes it one deliberate divider
             # instead of two borders sitting flush.
             popup_container.setStyleSheet(
-                f"background: {PANEL_BG}; border: 1px solid {BORDER}; "
-                f"border-top: none; border-radius: 8px;"
+                f"background: {PANEL}; border: 1px solid {BORDER_STRONG}; "
+                f"border-top: none; border-radius: {RADIUS}px;"
             )
         form.addRow("Sex", self.sex_combo)
 
@@ -763,7 +765,7 @@ class SetupPage(QWidget):
         self.calibration_alert.setObjectName("wtmhAlertWarning")
         alert_layout = QVBoxLayout(self.calibration_alert)
         self.calibration_alert_label = QLabel(
-            "No calibration yet for this subject — run Do Calibration or "
+            "No calibration yet for this subject. Run Do Calibration or "
             "Load Calibration File before continuing."
         )
         self.calibration_alert_label.setWordWrap(True)
@@ -788,6 +790,7 @@ class SetupPage(QWidget):
             ["Point", "Target (X, Y)", "Left eye (X, Y)", "Left valid", "Right eye (X, Y)", "Right valid", "Error (px)"]
         )
         self.calibration_details_table.verticalHeader().setVisible(False)
+        self.calibration_details_table.verticalHeader().setDefaultSectionSize(TABLE_ROW_HEIGHT)
         self.calibration_details_table.setEditTriggers(QTableWidget.EditTrigger.NoEditTriggers)
         self.calibration_details_table.setSelectionMode(QTableWidget.SelectionMode.NoSelection)
         self.calibration_details_table.horizontalHeader().setSectionResizeMode(QHeaderView.ResizeMode.Stretch)
@@ -811,7 +814,7 @@ class SetupPage(QWidget):
         alert_layout = QVBoxLayout(alert)
         label = QLabel(
             "Confirm in Gazepoint Control that Lens Focusing and Automatic "
-            "Gain Sweep are enabled. (Read-only reminder — neither setting "
+            "Gain Sweep are enabled. (Read-only reminder: neither setting "
             "can be checked or changed from this app; it does not gate "
             "Continue.)"
         )
@@ -985,7 +988,7 @@ class SetupPage(QWidget):
         self.refresh_subject_completer()
         self._set_calibration_alert(
             "success",
-            f"Calibration saved for {subject_id} as {target_path.name} — "
+            f"Calibration saved for {subject_id} as {target_path.name}. "
             "Load Calibration File will offer it next time.",
         )
 
@@ -1028,7 +1031,7 @@ class SetupPage(QWidget):
         self.calibration_details_section.setVisible(False)  # collapse any stale prior breakdown
         error_txt = f"{saved.result.mean_error_px:.0f}px" if saved.result.mean_error_px is not None else "n/a"
         self._set_calibration_alert(
-            "success", f"Calibration loaded — {saved.result.n_points} points, mean error {error_txt}, valid."
+            "success", f"Calibration loaded: {saved.result.n_points} points, mean error {error_txt}, valid."
         )
         self._on_state_changed()
 
@@ -1056,12 +1059,12 @@ class SetupPage(QWidget):
 
         def _eye_cell(eye: dict | None) -> tuple[str, str]:
             if eye is None:
-                return "—", "—"
+                return DASH, DASH
             return f"{eye['x']:.3f}, {eye['y']:.3f}", "Yes" if eye["valid"] else "No"
 
         def _error_cell(left_err: float | None, right_err: float | None) -> str:
             errs = [e for e in (left_err, right_err) if e is not None]
-            return f"{sum(errs) / len(errs):.1f}" if errs else "—"
+            return f"{sum(errs) / len(errs):.1f}" if errs else DASH
 
         table.setRowCount(len(rows))
         for i, row in enumerate(rows):
@@ -1172,8 +1175,8 @@ class SetupPage(QWidget):
             self.display_ack_checkbox.setChecked(False)
         warning_text = _format_display_warning(check)
         self.display_ok_label.setText(
-            f"Display: {check.width_px}×{check.height_px} at {check.scale_percent}% "
-            "scale — recommended standard."
+            f"Display {check.width_px}×{check.height_px} at {check.scale_percent} %: "
+            "the recommended standard."
         )
         self.display_ok_alert.setVisible(check.standard)
         self.display_warning_label.setText(warning_text)

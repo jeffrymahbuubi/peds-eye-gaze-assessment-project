@@ -17,7 +17,7 @@ steps 6 and 7).
   a changed Subject ID, no tracker) says why on the Start page and stays there, nav locked:
   the operator fixes the cause and presses Start or Practice again, or goes back.
 * **Run end** -- every file is already on disk when ``on_finished`` fires. The operator
-  chooses (``ask_run_end``: Test Complete! / Save partial / Discard), then
+  chooses (``ask_run_end``: Test complete / Save partial / Discard), then
   :func:`~src.engine.run_result.finish_run` carries it out. Save returns to the Test List
   with the test selected, Save and View Report opens its report, Discard leaves the test
   Not Done. If the store refuses (a locked test, a write error, a path the discard guard

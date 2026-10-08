@@ -1,5 +1,5 @@
-"""The HUD-less run screen (SPEC-compass-task-flow.md 4C.5, U5; AC7): ``RunBar``, the new
-``TaskRunView`` and ``TaskCanvas.set_paused``."""
+"""The HUD-less run screen (SPEC-compass-task-flow.md 4C.5, U5; AC7; SPEC-design-system-phase1.md H9):
+``RunBar``, the new ``TaskRunView`` and ``TaskCanvas.set_paused``."""
 
 from __future__ import annotations
 
@@ -13,7 +13,15 @@ from PySide6.QtCore import Qt
 from PySide6.QtGui import QColor
 from PySide6.QtWidgets import QApplication, QPushButton
 
+from src.engine.tracking_status import LEVEL_ERROR, LEVEL_OK, LEVEL_WARN, RunStatus, run_status
 from src.ui.canvas import TaskCanvas
+from src.ui.design_tokens import (
+    DANGER_TEXT,
+    SUCCESS_TEXT,
+    WARNING_CHIP,
+    WARNING_SUBTLE,
+    WARNING_TEXT,
+)
 from src.ui.main_window import MainWindow, TaskRunView
 from src.ui.run_bar import BAR_HEIGHT, RunBar
 
@@ -38,15 +46,17 @@ def view(qapp):
 # -- RunBar ------------------------------------------------------------------
 
 
-def test_the_bar_holds_pause_skip_quit_and_one_status_label(qapp):
+def test_the_bar_holds_pause_skip_quit_and_its_status_labels(qapp):
     bar = RunBar()
     assert [b.text() for b in bar.findChildren(QPushButton)] == [
         "Pause (Alt-P)",
         "Skip trial",
         "Quit (Alt-Q)",
     ]
-    assert bar.height() == BAR_HEIGHT == 44
+    assert bar.height() == BAR_HEIGHT == 48
     assert bar.status_text() == ""
+    labels = (bar.chip_label, bar.paused_label, bar.trial_label, bar.pointer_label, bar.tracking_label)
+    assert all(label.isHidden() for label in labels)  # nothing to say yet
 
 
 def test_the_buttons_stay_centred_whatever_the_status_says(qapp):
@@ -54,8 +64,11 @@ def test_the_buttons_stay_centred_whatever_the_status_says(qapp):
     bar.resize(1400, BAR_HEIGHT)
     bar.show()
     centres = []
-    for line in ("Trial 1/3", "PRACTICE (not recorded) · Trial 12/18 · no gaze for 12 s"):
-        bar.set_status(line)
+    for status in (
+        run_status(1, 3, ""),
+        run_status(12, 18, "No gaze for 12 s", LEVEL_WARN, practice=True, mouse=True),
+    ):
+        bar.set_status(status)
         qapp.processEvents()
         left = bar.pause_button.geometry().left()
         right = bar.quit_button.geometry().right()
@@ -103,24 +116,62 @@ def test_the_buttons_never_take_the_keyboard_focus(qapp):
     )
 
 
-def test_status_text_is_plain_and_the_tracking_part_is_coloured(qapp):
+def test_each_fact_of_the_status_is_its_own_label_and_the_tracking_state_has_its_level(qapp):
     bar = RunBar()
-    bar.set_status("Trial 4/18 · tracking OK", "tracking OK", "ok")
-    assert bar.status_text() == "Trial 4/18 · tracking OK"
-    html = bar.status_label.text()
-    assert "Trial 4/18 · " in html and "tracking OK" in html and "color:#1e7a53" in html
-    bar.set_status("Trial 4/18 · no gaze for 3 s", "no gaze for 3 s", "warn")
-    assert "color:#8a5a00" in bar.status_label.text()
-    bar.set_status("Trial 4/18 · tracker DISCONNECTED", "tracker DISCONNECTED", "error")
-    assert "color:#c0392b" in bar.status_label.text()
+    bar.set_status(run_status(4, 18, "Tracking OK", LEVEL_OK, practice=True, mouse=True))
+    assert bar.status_text() == "PRACTICE, Trial 4 of 18, Mouse pointer, Tracking OK"
+    shown = {
+        label.objectName(): label.text()
+        for label in (bar.chip_label, bar.paused_label, bar.trial_label, bar.pointer_label, bar.tracking_label)
+        if not label.isHidden()
+    }
+    assert shown == {
+        "runBarChip": "PRACTICE",
+        "runBarTrial": "Trial 4 of 18",
+        "runBarPointer": "Mouse pointer",
+        "runBarTracking": "Tracking OK",
+    }
+    assert bar.tracking_label.property("level") == LEVEL_OK
+    bar.set_status(run_status(4, 18, "No gaze for 3 s", LEVEL_WARN))
+    assert bar.tracking_label.property("level") == LEVEL_WARN and bar.chip_label.isHidden()
+    bar.set_status(run_status(4, 18, "Tracker disconnected", LEVEL_ERROR))
+    assert bar.tracking_label.property("level") == LEVEL_ERROR
+    assert bar.tracking_label.text() == "Tracker disconnected"
 
 
-def test_a_status_with_no_tracking_part_is_plain_and_escaped(qapp):
+def test_the_tracking_state_is_drawn_in_success_warning_and_danger_text_colours(qapp):
+    sheet = RunBar().styleSheet()
+    for level, colour in ((LEVEL_OK, SUCCESS_TEXT), (LEVEL_WARN, WARNING_TEXT), (LEVEL_ERROR, DANGER_TEXT)):
+        assert f'QLabel#runBarTracking[level="{level}"] {{ color: {colour}; }}' in sheet
+
+
+def test_the_chip_is_a_filled_warning_chip_and_the_practice_bar_is_warning_subtle(qapp):
+    sheet = RunBar().styleSheet()
+    assert f"background: {WARNING_CHIP}" in sheet and f'[practice="true"] {{ background: {WARNING_SUBTLE}' in sheet
+
+
+def test_a_pause_shows_the_marker_and_drops_the_pointer_and_the_tracking_state(qapp):
+    bar = RunBar("preview")
+    bar.set_status(run_status(2, 3, "Tracking OK", paused=True, preview=True))
+    assert bar.status_text() == "PREVIEW, Paused"
+    assert not bar.paused_label.isHidden() and bar.trial_label.isHidden() and bar.tracking_label.isHidden()
+    bar.set_status(run_status(2, 3, "Tracking OK", paused=True))
+    assert bar.status_text() == "Paused, Trial 2 of 3" and bar.chip_label.isHidden()
+
+
+def test_a_status_is_plain_text_never_markup(qapp):
     bar = RunBar()
-    bar.set_status("Paused · Trial 4/18")
-    assert bar.status_label.text() == "Paused · Trial 4/18" and "<span" not in bar.status_label.text()
-    bar.set_status("a <b> & c")
-    assert "&lt;b&gt;" in bar.status_label.text()  # never read as markup
+    bar.set_status(RunStatus(trial="a <b> & c"))
+    assert bar.trial_label.text() == "a <b> & c" and bar.trial_label.textFormat() == Qt.TextFormat.PlainText
+
+
+def test_the_run_bar_buttons_are_36_px_high(qapp):
+    bar = RunBar()
+    bar.resize(1400, BAR_HEIGHT)
+    bar.show()
+    qapp.processEvents()
+    assert {b.height() for b in bar.findChildren(QPushButton)} == {36}
+    bar.close()
 
 
 def test_practice_and_preview_turn_the_bar_amber_and_a_recorded_run_grey(qapp):

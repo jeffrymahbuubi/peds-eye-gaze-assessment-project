@@ -38,7 +38,7 @@ GAP_NAMES: dict[str, str] = {"standard": "Standard", "wide": "Wide", "extra_wide
 # (value stored in grid.gap, label). The dialog appends the px on the
 # operator's own monitor to the two angle presets.
 GAP_CHOICES: tuple[tuple[str, str], ...] = tuple(
-    (name, GAP_NAMES[name] if degrees is None else f"{GAP_NAMES[name]} — {degrees:g}°")
+    (name, GAP_NAMES[name] if degrees is None else f"{GAP_NAMES[name]} ({degrees:g}°)")
     for name, degrees in GAP_PRESETS_DEG.items()
 )
 # A non-standard gap never takes more than this fraction of the pitch's smaller

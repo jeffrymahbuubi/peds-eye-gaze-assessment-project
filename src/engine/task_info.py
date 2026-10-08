@@ -11,11 +11,11 @@ from __future__ import annotations
 # so the real UI matches the reviewed mockup, not re-worded independently.
 # The grid label has no "(3×3)": rows and columns are configurable.
 TASK_INFO: dict[str, tuple[str, str]] = {
-    "click_static": ("Static Click", "One still target on an empty field — baseline look-and-select."),
-    "click_grid": ("Grid Click", "One cell of a visible 3x3 board lights up — selection among candidates."),
+    "click_static": ("Static Click", "One still target on an empty field. Baseline look and select."),
+    "click_grid": ("Grid Click", "One cell of a visible board lights up. Selection among candidates."),
     "follow_moving": (
         "Follow the Target",
-        "The target travels; follow it — nothing to select — smooth pursuit.",
+        "The target travels across the screen. Follow it; nothing is selected. Smooth pursuit.",
     ),
-    "scanning": ("Scanning Search", "Find the cued shape in a 2D field of distractors — visual search."),
+    "scanning": ("Scanning Search", "Find the cued shape among other shapes. Visual search."),
 }
