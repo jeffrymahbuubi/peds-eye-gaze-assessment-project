@@ -16,6 +16,7 @@ from PySide6.QtGui import QColor, QImage, QPainter, QTextDocument, QTextTable
 from PySide6.QtWidgets import QApplication
 
 from src.data.report_cache import build_report
+from src.ui.design_tokens import MAP_PATH_DARK, MAP_SKIPPED
 from src.ui.map_legend import (
     FOLLOW_LEGEND_ENTRIES,
     LEGEND_ENTRIES,
@@ -235,7 +236,9 @@ def test_the_page_shows_the_metric_table_the_follow_legend_and_the_columns(qapp,
     assert "nothing is selected" in summary.task_label.text()
     detailed = page.detailed
     header = detailed.table
-    assert [header.horizontalHeaderItem(c).text() for c in range(header.columnCount())] == list(FOLLOW_TRIAL_COLUMNS)
+    # the headers are on two lines (a newline at a space), the words as the report's
+    shown = [header.horizontalHeaderItem(c).text() for c in range(header.columnCount())]
+    assert [label.replace("\n", " ") for label in shown] == list(FOLLOW_TRIAL_COLUMNS)
     assert [header.item(r, 2).text() for r in range(3)] == ["Followed", "Followed", "Not followed"]
     assert detailed.legend.entries() == list(POINTER_LEGEND_ENTRIES) and not detailed.legend.isHidden()
     assert "light where it was off it" in detailed.trial_legend.text()
@@ -285,16 +288,51 @@ def render_trial(report, trial: int | None) -> QImage:
     return widget.render_to_image(QSize(1600, round(1600 / widget.aspect)), {"targets": True})
 
 
+def run_midpoints(report, trial: int) -> dict[bool, list[tuple[float, float]]]:
+    """The canvas-normalized middle of every segment of the trial's pointer path, by whether the
+    pointer was on the target there (the off colour is a grey now, so it cannot be told from the
+    antialiasing of the ink marks by counting pixels: it is read where the path was drawn)."""
+    marks: dict[bool, list[tuple[float, float]]] = {True: [], False: []}
+    for run in report["follow"]["trials"][trial]["pointer_path"]:
+        pts = run["pts"]
+        for (x0, y0), (x1, y1) in zip(pts, pts[1:], strict=False):
+            marks[run["on"] is not False].append(((x0 + x1) / 2, (y0 + y1) / 2))
+    return marks
+
+
+def path_colours(report, trial: int) -> tuple[list[QColor], list[QColor]]:
+    """The pixel colours at the middle of the trial's on-target and off-target segments."""
+    widget = TargetMapWidget()
+    widget.set_report(report)
+    widget.set_trial(trial)
+    image = widget.render_to_image(QSize(1800, round(1800 / widget.aspect)), {"targets": True})
+    rect = widget.canvas_rect(QRectF(image.rect()))
+    marks = run_midpoints(report, trial)
+
+    def pixel(x: float, y: float) -> QColor:
+        return image.pixelColor(round(rect.left() + x * rect.width()), round(rect.top() + y * rect.height()))
+
+    return [pixel(*m) for m in marks[True]], [pixel(*m) for m in marks[False]]
+
+
+def is_colour(pixel: QColor, colour: str, tolerance: int = 12) -> bool:
+    want = QColor(colour)
+    return all(abs(a - b) <= tolerance for a, b in zip(pixel.getRgb()[:3], want.getRgb()[:3], strict=True))
+
+
 def test_a_trial_on_target_all_along_draws_only_the_dark_path(report):
-    on_all_along = render_trial(report, 0)
-    assert near(on_all_along, FOLLOW_ON) > 300
-    assert near(on_all_along, FOLLOW_OFF) == 0
+    on, off = path_colours(report, 0)
+    assert off == [] and len(on) > 3  # the report's own runs: all on target
+    assert sum(is_colour(c, FOLLOW_ON) for c in on) >= len(on) // 2
+    assert not any(is_colour(c, FOLLOW_OFF, 4) for c in on)
 
 
-def test_a_trial_that_left_the_target_draws_its_off_stretch_lighter(report):
-    left = render_trial(report, 2)
-    assert near(left, FOLLOW_ON) > 300
-    assert near(left, FOLLOW_OFF) > 150  # the stretch after the pointer moved away from the target
+def test_a_trial_that_left_the_target_draws_its_off_stretch_in_the_skipped_grey(report):
+    on, off = path_colours(report, 2)
+    assert len(on) > 1 and len(off) > 1  # the stretch after the pointer moved away from the target
+    assert any(is_colour(c, FOLLOW_ON) for c in on)
+    assert any(is_colour(c, FOLLOW_OFF) for c in off)
+    assert (FOLLOW_ON, FOLLOW_OFF) == (MAP_PATH_DARK, MAP_SKIPPED)  # the selection tasks' tokens (H4)
 
 
 def test_the_runs_the_map_draws_are_the_reports_own(report):
@@ -387,7 +425,8 @@ def test_the_pdf_prints_the_metric_table_the_follow_columns_and_the_follow_defin
     ]
     assert printed == follow_summary_rows(report)
     _doc, table = html_table(html, 14)
-    assert [table.cellAt(0, c).firstCursorPosition().block().text() for c in range(14)] == list(FOLLOW_TRIAL_COLUMNS)
+    header = [table.cellAt(0, c).firstCursorPosition().block().text() for c in range(14)]
+    assert [label.replace("\u2060", "") for label in header] == list(FOLLOW_TRIAL_COLUMNS)  # minus the word joiners
     for r, cells in enumerate(trial_rows(report), start=1):
         assert [table.cellAt(r, c).firstCursorPosition().block().text() for c in range(14)] == [c.text for c in cells]
     for text in FOLLOW_DEFINITIONS:

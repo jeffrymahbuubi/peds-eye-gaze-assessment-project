@@ -7,7 +7,9 @@ every figure is formatted by :mod:`report_format`. The header has the editable T
 Name and Evaluator, the left column the Test Configuration and the editable Notes
 (both views), and the right column either :class:`~src.ui.report_views.SummaryView`
 or :class:`~src.ui.report_views.DetailedView`. The run's own numbers are never
-editable.
+editable. Under the page title the test name stands at the heading step; the early-end and
+low-gaze-quality banner is a phase-2 warning :class:`~src.ui.alert_box.AlertBox`
+(SPEC-design-system-phase4.md H6).
 
 The page only **emits signals**: ``saved(name, evaluator, notes)`` (the host writes
 them to the test record and returns to the Test List) and ``cancelRequested`` (the
@@ -26,18 +28,19 @@ from typing import Any
 from PySide6.QtCore import QSize, Qt, Signal
 from PySide6.QtWidgets import (
     QFileDialog,
-    QFrame,
     QHBoxLayout,
     QLabel,
     QLineEdit,
     QPlainTextEdit,
     QPushButton,
+    QSizePolicy,
     QStackedWidget,
     QVBoxLayout,
     QWidget,
 )
 
 from ..engine.subject_test_record import validate_test_name
+from .alert_box import AlertBox
 from .report_format import NOT_RECORDED, banner_lines, pdf_default_name, started_text
 from .report_pdf import export_report_pdf
 from .report_tables import FitTable
@@ -54,6 +57,9 @@ _log = logging.getLogger(__name__)
 
 SUMMARY, DETAILED = "summary", "detailed"
 SIDEBAR_WIDTH = 460
+NAME_EDIT_WIDTH = 480  # Test Name; the Evaluator field is 320 (H6)
+EVALUATOR_EDIT_WIDTH = 320
+NOTES_HEIGHT = 84  # three lines
 PDF_MAP_WIDTH_PX = 1800
 
 
@@ -211,6 +217,13 @@ class ReportPage(QWidget):
         self.title_label = QLabel("Summary Results")
         self.title_label.setObjectName("wtmhPageTitle")
         outer.addWidget(self.title_label)
+        # The test's name at the heading step, under the title (it follows the Test Name field).
+        self.test_name_label = QLabel("")
+        self.test_name_label.setObjectName("wtmhSectionTitle")
+        self.test_name_label.setTextFormat(Qt.TextFormat.PlainText)  # typed by the operator
+        self.test_name_label.setSizePolicy(QSizePolicy.Policy.Ignored, QSizePolicy.Policy.Preferred)
+        self.test_name_label.setVisible(False)
+        outer.addWidget(self.test_name_label)
 
         header = QHBoxLayout()
         header.setSpacing(24)
@@ -218,9 +231,9 @@ class ReportPage(QWidget):
         name_box.setSpacing(4)
         name_box.addWidget(section_title("Test Name"))
         self.name_edit = QLineEdit()
-        self.name_edit.setMinimumWidth(360)
+        self.name_edit.setFixedWidth(NAME_EDIT_WIDTH)
         name_box.addWidget(self.name_edit)
-        header.addLayout(name_box, stretch=1)
+        header.addLayout(name_box)
         info = QVBoxLayout()
         info.setSpacing(4)
         facts = QHBoxLayout()
@@ -234,19 +247,15 @@ class ReportPage(QWidget):
         evaluator_row = QHBoxLayout()
         evaluator_row.addWidget(QLabel("Evaluator"))
         self.evaluator_edit = QLineEdit()
-        self.evaluator_edit.setMinimumWidth(240)
+        self.evaluator_edit.setFixedWidth(EVALUATOR_EDIT_WIDTH)
         evaluator_row.addWidget(self.evaluator_edit)
         info.addLayout(evaluator_row)
         header.addLayout(info)
+        header.addStretch(1)
         outer.addLayout(header)
 
-        self.banner = QFrame()
-        self.banner.setObjectName("wtmhAlertWarning")
-        banner_layout = QVBoxLayout(self.banner)
-        self.banner_label = QLabel("")
-        self.banner_label.setTextFormat(Qt.TextFormat.PlainText)
-        self.banner_label.setWordWrap(True)
-        banner_layout.addWidget(self.banner_label)
+        self.banner = AlertBox("warning")  # an early end, low gaze quality, a resized canvas
+        self.banner_label = self.banner.label
         self.banner.setVisible(False)
         outer.addWidget(self.banner)
 
@@ -289,7 +298,7 @@ class ReportPage(QWidget):
         self.notes_edit = QPlainTextEdit()
         self.notes_edit.setTabChangesFocus(True)  # Tab moves on, it does not type a tab (H13)
         self.notes_edit.setPlaceholderText("Notes about this test")
-        self.notes_edit.setMinimumHeight(110)
+        self.notes_edit.setFixedHeight(NOTES_HEIGHT)
         layout.addWidget(self.notes_edit)
         layout.addStretch(1)
         area = scroll_area(content)
@@ -297,6 +306,7 @@ class ReportPage(QWidget):
         return area
 
     def _connect(self) -> None:
+        self.name_edit.textChanged.connect(self._sync_name_label)
         for edit in (self.name_edit, self.evaluator_edit):
             edit.textChanged.connect(self._on_edited)
         self.notes_edit.textChanged.connect(self._on_edited)
@@ -306,6 +316,11 @@ class ReportPage(QWidget):
         self.cancel_button.clicked.connect(self.cancelRequested)
 
     # -- filling and view -----------------------------------------------------------
+
+    def _sync_name_label(self, *_args: object) -> None:
+        name = self.name_edit.text().strip()
+        self.test_name_label.setText(name)
+        self.test_name_label.setVisible(bool(name))
 
     def _fill_banner(self) -> None:
         lines = banner_lines(self._report)

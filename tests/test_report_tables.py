@@ -225,3 +225,34 @@ def test_a_follow_reports_summary_table_fits_on_the_page(qapp, tmp_path):
     assert_fits(page.summary.table)
     for table in report_tables(page).values():
         assert_fits(table)
+
+
+# -- fixed column widths (SPEC-design-system-phase4.md H6: the Eye Metrics table is 320 + 320) ------------
+
+
+def test_fixed_column_widths_make_the_table_as_wide_as_their_sum_and_still_as_tall_as_its_rows(qapp):
+    root = themed_root()
+    table = FitTable(["Metric", "Value"], stretch_column=1, column_widths=(320, 320))
+    root.layout().addWidget(table)
+    table.set_rows([[f"metric {i}", "x"] for i in range(10)])
+    show(root)
+    head = table.horizontalHeader()
+    assert (table.columnWidth(0), table.columnWidth(1)) == (320, 320)
+    assert head.sectionResizeMode(0) == head.ResizeMode.Fixed and head.sectionResizeMode(1) == head.ResizeMode.Fixed
+    assert table.width() == 640 + 2 * table.frameWidth()  # not stretched to the page, left in its place
+    assert table.pos().x() <= root.layout().contentsMargins().left() + 1
+    assert_fits(table)
+
+
+def test_without_column_widths_a_table_stays_as_it_was(qapp):
+    table = FitTable(["Metric", "Value"], stretch_column=1)
+    head = table.horizontalHeader()
+    assert head.sectionResizeMode(1) == head.ResizeMode.Stretch and head.sectionResizeMode(0) == head.ResizeMode.ResizeToContents
+    assert table.maximumWidth() > 10_000  # no width of its own
+
+
+def test_a_header_with_another_column_count_than_the_fixed_widths_is_left_to_its_contents(qapp):
+    table = FitTable(["Metric", "Value"], stretch_column=1, column_widths=(320, 320))
+    table.set_header(["a", "b", "c"], stretch_column=0)
+    head = table.horizontalHeader()
+    assert table.columnCount() == 3 and head.sectionResizeMode(0) == head.ResizeMode.Stretch

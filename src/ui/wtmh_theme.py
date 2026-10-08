@@ -2,8 +2,7 @@
 
 Every colour, size and radius comes from :mod:`~src.ui.design_tokens` (SPEC-design-system-
 phase1.md H1-H9; ``docs/design/fable-proposal.md`` 2.1-2.5): this module holds the QSS and
-no hex value of its own. The old module-level colour names are kept below as aliases of the
-new tokens for one release.
+no hex value of its own.
 
 Scoped to ``QWidget#wtmhDashboard`` and its descendants only, so it can
 never leak into ``TaskCanvas`` or an embedded ``TaskRunView`` -- Qt
@@ -302,21 +301,3 @@ QFrame#wtmhAlertSuccess QLabel, QFrame#wtmhAlertError QLabel {{
 """
 
 STYLESHEET = _DASHBOARD_STYLESHEET + CONTROLS_STYLESHEET
-
-# -- the old names, as aliases of the new tokens, for one release (H2) ----------------------------
-# ACCENT_GRADIENT_START / END and ACCENT_RGB went with the gradient and the translucent thumb.
-
-BACKGROUND = PAGE
-PANEL_BG = PANEL
-BORDER = BORDER_SUBTLE
-MUTED = TEXT_SECONDARY
-SOFT_ACCENT = ACCENT_SUBTLE
-SOFT_ACCENT_TEXT = ACCENT
-TITLEBAR_BG = TITLE_BAR
-TITLEBAR_TEXT = TITLE_BAR_TEXT
-NEUTRAL_BADGE_BG = HEADER
-DISABLED_BG, DISABLED_BORDER, DISABLED_TEXT = DISABLED_FILL, BORDER_STRONG, TEXT_DISABLED
-CONTROL_BORDER = BORDER_STRONG
-BANNER_BORDER = BORDER_STRONG
-WARNING_BG = PANEL
-WARNING_BORDER = WARNING

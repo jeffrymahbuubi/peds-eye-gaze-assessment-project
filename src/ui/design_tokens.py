@@ -4,15 +4,12 @@ fable-proposal.md`` 2.1-2.5, with the accent family of 2.2 in the WTMH lab blue)
 Every colour, type size, radius and control size the style sheets use is named here, so a
 sheet never holds a hex value of its own: :mod:`~src.ui.wtmh_theme` is the Qt style sheet
 built from these, and the other modules that style a widget import the same names.
-Qt-free, so the contrast test can read it headless.
-
-Map and data-viz colours (proposal 2.2, phase 4) are **not** here yet: the report map, its
-legend and the PDF keep today's colours in :data:`LEGACY_REPORT_COLOURS` until then.
+The report's Target Map, its legend and the PDF take the map and data-viz colours of
+proposal 2.2 from here too (SPEC-design-system-phase4.md H1). Qt-free, so the contrast test
+can read it headless.
 """
 
 from __future__ import annotations
-
-from typing import NamedTuple
 
 # -- colour: neutrals -------------------------------------------------------------------
 
@@ -49,6 +46,22 @@ WARNING = "#BA4E00"
 WARNING_TEXT = "#8A3800"
 WARNING_SUBTLE = "#FCF4D6"
 WARNING_CHIP = "#F1C21B"  # the filled PRACTICE / PREVIEW chip of the run bar
+
+# -- colour: report map and data-viz (proposal 2.2, SPEC-design-system-phase4.md H1) -------------
+# The heat ramp is not here: it stays the HSV ramp Gazepoint Analysis prints.
+
+MAP_HIT_FILL = "#A7F0BA"  # the hit circle's fill; its digits are ink (13.63:1)
+MAP_HIT_OUTLINE = "#198038"  # the hit circle's edge, the legend icon
+MAP_MISS = "#DA1E28"  # the missed target's X and ring (its digits stay ink, on a white pill)
+MAP_SKIPPED = "#6F6F6F"  # a skipped trial's dashed ring, the off-target stretch of a pointer path
+MAP_SLOT = "#8D8D8D"  # the faint layout circle
+MAP_PATH_DARK = "#1F669E"  # the selected trial's path at its start, the pointer on the target
+MAP_PATH_LIGHT = "#2D7EB3"  # ... and at its end
+MAP_FIXATION = "#1F669E"  # a fixation's ring and its number badge's outline
+MAP_OVERLAY = "#1F669E"  # the Summary's Scanpath overlay, one colour for every trial (X1) ...
+MAP_OVERLAY_ALPHA = 200  # ... at this alpha (of 255)
+MAP_OVERLAY_ON_PANEL = "#4F87B3"  # MAP_OVERLAY at MAP_OVERLAY_ALPHA over PANEL, for the contrast row
+MAP_SELECT = "#F2B705"  # the selection star (drawn with an ink outline)
 
 # (foreground, background, minimum ratio) for every row of proposal 2.2 that has a ratio:
 # 4.5 for text, 3 for a border or glyph; a disabled control only has to stay readable.
@@ -97,6 +110,17 @@ CONTRAST_PAIRS: tuple[tuple[str, str, float], ...] = (
     # disabled checked box (non-text, 3:1) and on the danger button's hover.
     (PANEL, BORDER_STRONG, 3.32),
     (PANEL, DANGER_TEXT, 7.79),
+    # Report map and data-viz (proposal 2.2): the digits on a hit, then the marks on white. The
+    # overlay is a non-text mark, which needs 3:1, as composited over the canvas.
+    (INK, MAP_HIT_FILL, 13.63),
+    (MAP_HIT_OUTLINE, PANEL, 5.02),
+    (MAP_MISS, PANEL, 5.00),
+    (MAP_SKIPPED, PANEL, 5.02),
+    (MAP_SLOT, PANEL, 3.32),
+    (MAP_PATH_DARK, PANEL, 6.08),
+    (MAP_PATH_LIGHT, PANEL, 4.42),
+    (MAP_FIXATION, PANEL, 6.08),
+    (MAP_OVERLAY_ON_PANEL, PANEL, 3.85),
 )
 
 # -- type scale (proposal 2.1): the only sizes a sheet may use -------------------------------
@@ -126,36 +150,3 @@ SLIDER_HANDLE_PX = 20
 RUN_BAR_HEIGHT = 48
 RUN_BAR_BUTTON_HEIGHT = 36
 
-
-# -- today's report colours, frozen until phase 4 ------------------------------------------
-
-
-class LegacyReportColours(NamedTuple):
-    """The teal-era values the report map, its legend and the PDF were drawn with."""
-
-    accent: str
-    border: str
-    danger: str
-    ink: str
-    muted: str
-    panel_bg: str
-    success: str
-    soft_accent: str
-    soft_accent_text: str
-    warning_bg: str
-
-
-# Phase 4 gives the map, the legend and the PDF the tokens above; until then the four
-# painters (map_legend, report_pdf, target_map_paint, target_map_follow) read these.
-LEGACY_REPORT_COLOURS = LegacyReportColours(
-    accent="#1F7A9C",
-    border="#DBE6EC",
-    danger="#E15353",
-    ink="#122B3A",
-    muted="#5C7684",
-    panel_bg="#FFFFFF",
-    success="#2F9E6E",
-    soft_accent="#DCF0F5",
-    soft_accent_text="#0F5670",
-    warning_bg="#FBF0DC",
-)

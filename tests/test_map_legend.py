@@ -1,5 +1,7 @@
-"""SPEC-compass-task-flow.md 7.1, V1: the Target Map's symbol legend box (on the page and in
-the PDF). Offscreen Qt; pixels are checked by colour class, never by size (no fonts offscreen)."""
+"""SPEC-compass-task-flow.md 7.1, V1; SPEC-design-system-phase4.md H5: the Target Map's symbol
+legend box (on the page and in the PDF): white with a light grey edge, caption text, the Scanpath
+line of the Summary. Offscreen Qt; pixels are checked by colour class, never by size (no fonts
+offscreen)."""
 
 from __future__ import annotations
 
@@ -13,11 +15,12 @@ from PySide6.QtCore import QRectF, QSize
 from PySide6.QtGui import QColor, QImage, QPainter, QTextDocument
 from PySide6.QtWidgets import QApplication, QLabel, QVBoxLayout, QWidget
 
-from src.ui.design_tokens import LEGACY_REPORT_COLOURS
+from src.ui.design_tokens import BORDER_SUBTLE, INK, PANEL, TYPE_CAPTION
 from src.ui.map_legend import (
     ICON_PX,
     LEGEND_ENTRIES,
     NUMBERS_NOTE,
+    SCANPATH_NOTE,
     LegendIcon,
     MapLegend,
     legend_html,
@@ -28,8 +31,6 @@ from src.ui.target_map import TargetMapWidget
 from src.ui.target_map_paint import LEGEND_KINDS, paint_symbol
 from src.ui.wtmh_theme import STYLESHEET
 
-# The legend keeps today's report colours until phase 4 (SPEC-design-system-phase1.md H2).
-INK, SOFT_ACCENT = LEGACY_REPORT_COLOURS.ink, LEGACY_REPORT_COLOURS.soft_accent
 from tests.report_ui_fixtures import folder_report, synthetic_map_report
 
 
@@ -100,23 +101,23 @@ def test_the_legend_does_not_depend_on_the_overlay_switches(qapp, tmp_path):
     assert len(view.legend.entries()) == 4
 
 
-# -- how it looks: a light tinted box, body size, dark text ---------------------------------------------
+# -- how it looks: a white box with a light grey edge, caption size, ink text (H5) --------------------------
 
 
-def test_the_box_is_a_light_tinted_frame_with_dark_body_text(qapp):
+def test_the_box_is_white_with_a_light_grey_edge_and_ink_caption_text(qapp):
     legend = MapLegend()
     host = themed(legend)
     try:
         assert legend.objectName() == "mapLegend"
-        assert SOFT_ACCENT.lower() in legend.styleSheet().lower()  # the light tint
+        sheet = legend.styleSheet().lower()
+        assert f"background: {PANEL}".lower() in sheet and f"1px solid {BORDER_SUBTLE}".lower() in sheet
         grabbed = legend.grab().toImage()
-        corner = grabbed.pixelColor(grabbed.width() // 2, 4)  # the box's own background
-        assert corner.name().lower() == SOFT_ACCENT.lower()
+        corner = grabbed.pixelColor(grabbed.width() // 2, 4)  # the box's own background: no tint
+        assert corner.name().lower() == PANEL.lower()
         for label in legend.labels + [legend.numbers_label]:
             assert label.palette().color(label.foregroundRole()).name().lower() == INK.lower()
-            assert label.font().pointSizeF() == pytest.approx(legend.font().pointSizeF())  # body text size
-            assert "font-size" not in label.styleSheet()
-        assert "font-size" not in legend.styleSheet()
+            assert label.font().pixelSize() == TYPE_CAPTION  # the type scale's caption step
+        assert f"font-size: {TYPE_CAPTION}px" in legend.styleSheet()
     finally:
         host.close()
 
@@ -194,11 +195,13 @@ def test_a_hit_icon_is_the_map_marks_colour(qapp):
 # -- the PDF's copy --------------------------------------------------------------------------------------
 
 
-def test_the_pdf_legend_has_the_same_entries_note_and_tint(qapp):
+def test_the_pdf_legend_has_the_same_entries_and_note_in_a_white_box_with_a_light_grey_edge(qapp):
     html = legend_html(600)
     for _kind, label in LEGEND_ENTRIES:
         assert label in html
-    assert NUMBERS_NOTE in html and SOFT_ACCENT in html
+    assert NUMBERS_NOTE in html and BORDER_SUBTLE in html
+    assert "bgcolor" not in html  # no tint
+    assert SCANPATH_NOTE not in html  # the PDF's map is Targets only: there is no scanpath to explain
     assert html.count("data:image/png;base64,") == 4  # one icon per entry
     assert 'width="600"' in html  # as wide as the map above it
 
@@ -221,6 +224,37 @@ def test_the_pdf_legend_is_laid_out_by_qt_with_every_entry(qapp):
     for _kind, label in LEGEND_ENTRIES:
         assert label in text
     assert NUMBERS_NOTE in text
+
+
+# -- the Scanpath line of the Summary (X1, H5) ---------------------------------------------------------------
+
+
+def test_the_summary_legend_says_what_the_scanpath_draws(qapp, tmp_path):
+    view = SummaryView()
+    view.set_report(folder_report(tmp_path))
+    assert SCANPATH_NOTE == "Scanpath: fixations joined in time order, all trials"
+    assert view.legend.overlay_label.text() == SCANPATH_NOTE and not view.legend.overlay_label.isHidden()
+    assert view.legend.numbers_label.text() == NUMBERS_NOTE
+    assert [kind for kind, _ in view.legend.entries()] == ["hit", "timeout", "skipped", "slot"]  # still four marks
+
+
+def test_the_scanpath_line_is_not_shown_for_a_test_with_no_gaze(qapp, tmp_path):
+    view = SummaryView()
+    report = folder_report(tmp_path)
+    report["session"]["gaze_recorded"] = False
+    view.set_report(report)
+    assert view.legend.overlay_label.isHidden()
+    view.set_report(folder_report(tmp_path / "b"))  # and it comes back with the next report
+    assert not view.legend.overlay_label.isHidden()
+
+
+def test_set_entries_without_an_overlay_note_hides_the_line(qapp):
+    legend = MapLegend()
+    assert legend.overlay_label.isHidden()  # the default box has none
+    legend.set_entries(LEGEND_ENTRIES, NUMBERS_NOTE, SCANPATH_NOTE)
+    assert legend.overlay_label.text() == SCANPATH_NOTE and not legend.overlay_label.isHidden()
+    legend.set_entries(LEGEND_ENTRIES)
+    assert legend.overlay_label.isHidden() and len(legend.findChildren(QLabel)) == 5  # 4 entries and the note; the hidden line is not in the box
 
 
 # -- the entries can be replaced (Follow the Target has its own, SPEC-input-selection-and-follow.md 4.5) ----

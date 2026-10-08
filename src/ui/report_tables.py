@@ -44,7 +44,10 @@ class FitTable(QTableWidget):
 
     ``stretch_column`` takes the spare width; the other columns fit their contents.
     With ``wrap`` the long cells of that column wrap, and the height follows the
-    width; ``compact`` halves the cell padding. The theme's ``QTableWidget`` rule gives it its look inside the dashboard.
+    width; ``compact`` halves the cell padding. ``column_widths`` (px) fixes every column
+    instead and makes the table as wide as their sum (the Summary's Eye Metrics table is
+    320 + 320, SPEC-design-system-phase4.md H6). The theme's ``QTableWidget`` rule gives it its
+    look inside the dashboard.
 
     The height is the header plus every row's real height plus the frame, measured when
     the rows are set and again whenever the style sheet, font or screen scale changes,
@@ -60,10 +63,12 @@ class FitTable(QTableWidget):
         stretch_column: int = 0,
         wrap: bool = False,
         compact: bool = False,
+        column_widths: Sequence[int] | None = None,
         parent: QWidget | None = None,
     ) -> None:
         super().__init__(0, len(header), parent)
         self._wrap = wrap
+        self._column_widths = tuple(column_widths) if column_widths else ()
         # The theme pads a header section by 6 px 8 px; the (hidden) vertical header takes the
         # same rule and would make every row 13 px taller than its text needs.
         style = "QHeaderView::section:vertical { padding: 0px; border: none; }"
@@ -93,7 +98,12 @@ class FitTable(QTableWidget):
         self.setColumnCount(len(header))
         self.setHorizontalHeaderLabels(list(header))
         head = self.horizontalHeader()
+        fixed = len(self._column_widths) == len(header)
         for column in range(len(header)):
+            if fixed:
+                head.setSectionResizeMode(column, QHeaderView.ResizeMode.Fixed)
+                head.resizeSection(column, self._column_widths[column])
+                continue
             head.setSectionResizeMode(
                 column,
                 QHeaderView.ResizeMode.Stretch
@@ -152,6 +162,10 @@ class FitTable(QTableWidget):
         height = header_height + rows_height + 2 * self.frameWidth()
         if self.maximumHeight() != height or self.minimumHeight() != height:
             self.setFixedHeight(height)
+        if len(self._column_widths) == self.columnCount():
+            width = sum(self._column_widths) + 2 * self.frameWidth()
+            if self.maximumWidth() != width or self.minimumWidth() != width:
+                self.setFixedWidth(width)
 
     def event(self, event) -> bool:
         handled = super().event(event)

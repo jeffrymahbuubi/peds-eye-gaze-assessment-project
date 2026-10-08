@@ -139,7 +139,8 @@ def test_the_header_left_column_and_footer_are_the_same_in_both_views(qapp, tmp_
 def test_the_trial_table_has_the_wireframe_columns_and_a_row_per_trial(qapp, tmp_path):
     page = make_page(tmp_path)
     table = page.detailed.table
-    assert [table.horizontalHeaderItem(c).text() for c in range(table.columnCount())] == list(TRIAL_COLUMNS)
+    shown = [table.horizontalHeaderItem(c).text() for c in range(table.columnCount())]
+    assert [label.replace("\n", " ") for label in shown] == list(TRIAL_COLUMNS)  # two-line headers (H7)
     assert table.rowCount() == 6 and shown_trials(page) == ["1", "2", "3", "4", "5", "6"]
     assert column(page, OUTCOME_COLUMN) == ["Hit", "Not selected", "Hit", "Skipped", "Hit", "Hit"]
 

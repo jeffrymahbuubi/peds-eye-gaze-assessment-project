@@ -151,3 +151,130 @@ def test_the_columns_can_be_replaced_and_only_the_first_stays_frozen(qapp):
     assert table.columnCount() == 4 and not table.frozen_view.isColumnHidden(0)
     assert all(table.frozen_view.isColumnHidden(c) for c in range(1, 4))
     assert table.frozen_view.columnWidth(0) == table.columnWidth(0)  # the overlay still covers column 0
+
+
+# -- phase 4 (SPEC-design-system-phase4.md H7): widths from the text, two-line headers, badges ---------------
+
+
+def test_fit_columns_sets_each_width_from_the_widest_cell_or_header_line_plus_room(qapp):
+    from PySide6.QtGui import QFontMetrics
+
+    from src.ui.frozen_table import MIN_COLUMN_PX, PADDING_PX, SORT_ARROW_PX
+
+    table = FrozenColumnTable(["Trial", "Reaction\nTime (s)", "Outcome"])
+    table.setRowCount(2)
+    for r, texts in enumerate((["1", "0.31", "Not selected"], ["12", "0.5", "Hit"])):
+        for c, text in enumerate(texts):
+            table.setItem(r, c, QTableWidgetItem(text))
+    table.fit_columns()
+    body, head = (QFontMetrics(font) for font in table.table_fonts())
+    longer_line = max(head.horizontalAdvance(line) for line in ("Reaction", "Time (s)"))
+    cells = max(body.horizontalAdvance(text) for text in ("0.31", "0.5")) + PADDING_PX
+    assert table.columnWidth(1) == max(MIN_COLUMN_PX, longer_line + PADDING_PX + SORT_ARROW_PX, cells)
+    assert table.columnWidth(2) == max(
+        head.horizontalAdvance("Outcome") + PADDING_PX + SORT_ARROW_PX, body.horizontalAdvance("Not selected") + PADDING_PX
+    )
+    assert table.columnWidth(0) >= MIN_COLUMN_PX and table.columns_width() == sum(table.columnWidth(c) for c in range(3))
+    assert table.frozen_view.columnWidth(0) == table.columnWidth(0)  # the overlay follows
+    first = table.columnWidth(1)
+    table.fit_columns()
+    assert table.columnWidth(1) == first  # and it is stable
+
+
+def test_a_two_line_header_is_as_wide_as_its_longer_line_not_its_whole_label(qapp):
+    from PySide6.QtGui import QFontMetrics
+
+    from src.ui.frozen_table import PADDING_PX, SORT_ARROW_PX
+
+    one = FrozenColumnTable(["Trial", "Reaction Time (s)"])
+    two = FrozenColumnTable(["Trial", "Reaction\nTime (s)"])
+    for table in (one, two):
+        table.fit_columns()
+    head = QFontMetrics(two.table_fonts()[1])
+    assert two.columnWidth(1) == max(head.horizontalAdvance(line) for line in ("Reaction", "Time (s)")) + PADDING_PX + SORT_ARROW_PX
+    assert two.columnWidth(1) < one.columnWidth(1)
+
+
+def test_the_header_of_the_frozen_column_is_as_high_as_a_two_line_header_beside_it(qapp):
+    table = FrozenColumnTable(["Trial", "Reaction\nTime (s)"])
+    table.setRowCount(1)
+    table.fit_columns()
+    table.show()
+    QCoreApplication.processEvents()
+    assert table.horizontalHeader().sizeHint().height() > table.frozen_view.horizontalHeader().sizeHint().height()
+    assert table.frozen_view.horizontalHeader().height() >= table.horizontalHeader().sizeHint().height()
+
+
+def test_a_badge_column_shows_a_status_badge_over_the_cell_text(qapp):
+    table = FrozenColumnTable(["Trial", "Outcome"])
+    table.setRowCount(2)
+    for r in range(2):
+        table.setItem(r, 0, QTableWidgetItem(str(r + 1)))
+        table.setItem(r, 1, QTableWidgetItem("Hit" if r == 0 else "Skipped"))
+    assert table.badge_column is None and table.badge_at(0) is None
+    table.set_badge(0, "done", "Hit")  # no badge column yet: nothing happens
+    assert table.badge_at(0) is None
+    table.set_badge_column(1)
+    table.set_badge(0, "done", "Hit", "tip")
+    table.set_badge(1, "skipped", "Skipped")
+    assert (table.badge_at(0).kind(), table.badge_at(0).text(), table.item(0, 1).toolTip()) == ("done", "Hit", "tip")
+    assert table.badge_at(1).kind() == "skipped"
+    assert table.item(0, 1).text() == "Hit"  # the item keeps the text, for the sort and for reading
+    assert table.cellWidget(0, 1) is None  # painted by the delegate: no widget in the cell
+    table.fit_columns()
+    assert table.columnWidth(1) >= table.badge_at(0).width()  # a badge counts as its width
+    table.clear_badges()
+    assert table.badge_at(0) is None and table.badge_at(1) is None
+    table.set_badge(0, "done", "Hit")
+    table.set_badge_column(None)  # a new column choice clears the old badges
+    assert table.badge_at(0) is None and table.badge_column is None
+
+
+def test_a_badge_of_a_kind_that_does_not_exist_is_refused_when_it_is_set(qapp):
+    table = FrozenColumnTable(["Trial", "Outcome"])
+    table.setRowCount(1)
+    table.setItem(0, 1, QTableWidgetItem("Hit"))
+    table.set_badge_column(1)
+    with pytest.raises(ValueError, match="Unknown badge kind"):
+        table.set_badge(0, "no_such_kind", "Hit")
+    assert table.badge_at(0) is None  # nothing was left on the cell for a paint to trip over
+
+
+def test_the_badge_is_painted_over_the_cell_in_its_own_colours_and_the_row_fill_shows_round_it(qapp):
+    from PySide6.QtGui import QColor
+
+    from src.ui.design_tokens import PANEL
+
+    table = FrozenColumnTable(["Trial", "Outcome", "Other"])
+    table.setRowCount(2)
+    for r in range(2):
+        for c, text in enumerate((str(r + 1), "Hit", "x")):
+            table.setItem(r, c, QTableWidgetItem(text))
+    table.set_badge_column(1)
+    table.set_badge(0, "done", "Hit")
+    table.fit_columns()
+    table.resize(table.columns_width() + 40, 200)
+    table.show()
+    QCoreApplication.processEvents()
+    look = table.badge_at(0).look()
+    image = table.viewport().grab().toImage()
+    cell = table.visualRect(table.model().index(0, 1))
+    middle = cell.center().y()
+    between_glyph_and_word = cell.left() + 8 + 8 + 12 + 3  # indent, pill padding, glyph, 3 px of the gap
+    assert QColor(image.pixelColor(between_glyph_and_word, middle)).name().lower() == look.fill.lower()
+    assert QColor(image.pixelColor(cell.left() + 2, middle)).name().lower() == PANEL.lower()  # left of the pill
+    other = table.visualRect(table.model().index(1, 1))  # a cell with no badge has none painted
+    assert QColor(image.pixelColor(between_glyph_and_word, other.center().y())).name().lower() == PANEL.lower()
+    table.close()
+
+
+def test_the_cells_are_14_px_with_tabular_figures_and_the_header_is_semibold(qapp):
+    from PySide6.QtGui import QFont
+
+    table = FrozenColumnTable(["Trial", "Size (deg)"])
+    body, header = table.table_fonts()
+    assert body.pixelSize() == 14 and header.pixelSize() == 14
+    assert header.weight() == QFont.Weight.DemiBold and body.weight() != header.weight()
+    assert table.font().pixelSize() == 14 and table.frozen_view.font().pixelSize() == 14
+    if hasattr(QFont, "Tag"):
+        assert body.featureValue(QFont.Tag("tnum")) == 1

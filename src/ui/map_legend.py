@@ -1,10 +1,11 @@
 """The Target Map's symbol legend (SPEC-compass-task-flow.md 7.1, V1).
 
-A light tinted box under the map: each mark the map uses drawn as a small icon next to a
-short label, then what its numbers mean. Body text size, dark text, so it reads without
-effort (the first version was one line of small grey text). The same four entries are in
-the PDF (:func:`legend_html`); the icons are drawn by the map's own code
-(:func:`~src.ui.target_map_paint.paint_symbol`), so a legend icon is the mark it names.
+A white box with a light grey edge under the map (no tint, SPEC-design-system-phase4.md H5):
+each mark the map uses drawn as a small icon next to a short label, then what the Scanpath
+overlay draws (the Summary's, in its one colour) and what the numbers mean. Caption size, ink
+text. The same four entries are in the PDF (:func:`legend_html`); the icons are drawn by the
+map's own code (:func:`~src.ui.target_map_paint.paint_symbol`), so a legend icon is the mark it
+names.
 """
 
 from __future__ import annotations
@@ -15,12 +16,8 @@ from PySide6.QtCore import QBuffer, QByteArray, QIODevice, QRectF, QSize, Qt
 from PySide6.QtGui import QColor, QImage, QPainter
 from PySide6.QtWidgets import QFrame, QGridLayout, QLabel, QWidget
 
-from .design_tokens import LEGACY_REPORT_COLOURS as _LEGACY
+from .design_tokens import BORDER_SUBTLE, INK, PANEL, RADIUS, TYPE_CAPTION
 from .target_map_paint import paint_symbol
-
-# Phase 4 gives the report map, its legend and the PDF the design tokens; until then they keep
-# today's colours (SPEC-design-system-phase1.md H2).
-BORDER, INK, SOFT_ACCENT = _LEGACY.border, _LEGACY.ink, _LEGACY.soft_accent
 
 # (kind of mark, label). The kinds are those of :func:`paint_symbol`.
 LEGEND_ENTRIES: tuple[tuple[str, str], ...] = (
@@ -30,6 +27,9 @@ LEGEND_ENTRIES: tuple[tuple[str, str], ...] = (
     ("slot", "Layout position (cell or icon)"),
 )
 NUMBERS_NOTE = "Numbers = trials shown at that place"
+# What the Summary's Scanpath overlay draws: one colour for every trial (X1). Only the on-screen
+# Summary legend has this line; the PDF's map is Targets only.
+SCANPATH_NOTE = "Scanpath: fixations joined in time order, all trials"
 # Follow the Target (SPEC-input-selection-and-follow.md 4.5): its marks say followed or not, it
 # has no layout positions, and its map draws the target's path. The selected trial's pointer path
 # is drawn dark where the pointer was on the target and light where it was off it, so the
@@ -52,11 +52,11 @@ COLUMNS = 2  # entries per row
 
 LEGEND_STYLE = f"""
 QFrame#mapLegend {{
-    background: {SOFT_ACCENT};
-    border: 1px solid {BORDER};
-    border-radius: 8px;
+    background: {PANEL};
+    border: 1px solid {BORDER_SUBTLE};
+    border-radius: {RADIUS}px;
 }}
-QFrame#mapLegend QLabel {{ color: {INK}; background: transparent; }}
+QFrame#mapLegend QLabel {{ color: {INK}; background: transparent; font-size: {TYPE_CAPTION}px; }}
 """
 
 
@@ -76,8 +76,9 @@ class LegendIcon(QWidget):
 
 
 class MapLegend(QFrame):
-    """The legend box: icon + label entries in a grid, then the numbers note. It shows the
-    selection tasks' four marks until :meth:`set_entries` gives it another set."""
+    """The legend box: icon + label entries in a grid, then the overlay line (if any) and the
+    numbers note. It shows the selection tasks' four marks until :meth:`set_entries` gives it
+    another set."""
 
     def __init__(self, parent: QWidget | None = None) -> None:
         super().__init__(parent)
@@ -90,16 +91,21 @@ class MapLegend(QFrame):
         self._grid.setVerticalSpacing(6)
         self.icons: list[LegendIcon] = []
         self.labels: list[QLabel] = []
+        self.overlay_label = QLabel("")
         self.numbers_label = QLabel(NUMBERS_NOTE)
         self.set_entries(LEGEND_ENTRIES)
 
     def set_entries(
-        self, entries: tuple[tuple[str, str], ...], numbers_note: str = NUMBERS_NOTE
+        self,
+        entries: tuple[tuple[str, str], ...],
+        numbers_note: str = NUMBERS_NOTE,
+        overlay_note: str = "",
     ) -> None:
-        """Show ``entries`` (``(kind, label)``, kinds as :func:`paint_symbol` draws them) and
-        ``numbers_note`` under them."""
+        """Show ``entries`` (``(kind, label)``, kinds as :func:`paint_symbol` draws them),
+        ``overlay_note`` (what the Scanpath overlay draws; none when empty) and ``numbers_note``
+        under them."""
         grid = self._grid
-        for widget in (*self.icons, *self.labels, self.numbers_label):
+        for widget in (*self.icons, *self.labels, self.overlay_label, self.numbers_label):
             grid.removeWidget(widget)
             widget.hide()  # deleteLater() waits for the event loop; it must not show meanwhile
             widget.setParent(None)
@@ -120,6 +126,12 @@ class MapLegend(QFrame):
             if column < COLUMNS - 1:
                 grid.setColumnMinimumWidth(column * 3 + 2, 18)  # a gap between the two columns
         rows = -(-len(entries) // COLUMNS)
+        self.overlay_label = QLabel(overlay_note)
+        self.overlay_label.setObjectName("legendOverlay")
+        self.overlay_label.setVisible(bool(overlay_note))
+        if overlay_note:
+            grid.addWidget(self.overlay_label, rows, 0, 1, COLUMNS * 3 - 1)
+            rows += 1
         self.numbers_label = QLabel(numbers_note)
         self.numbers_label.setObjectName("legendNumbers")
         grid.addWidget(self.numbers_label, rows, 0, 1, COLUMNS * 3 - 1)
@@ -159,7 +171,7 @@ def legend_html(
     icon_css_px: int = 20,
     entries: tuple[tuple[str, str], ...] = LEGEND_ENTRIES,
 ) -> str:
-    """The legend as HTML for the PDF: the same tinted, outlined box, the same icons and
+    """The legend as HTML for the PDF: the same white, outlined box, the same icons and
     labels (``entries``: the four marks unless a Follow the Target report gives its own), the
     same numbers note. ``width_css_px`` is the box's width in CSS px (1/96 inch;
     the map's width, so the two line up), the full text width when ``None``; ``icon_css_px``
@@ -171,20 +183,20 @@ def legend_html(
     for kind, text in entries:
         src = png_data_uri(symbol_image(kind))
         cells.append(
-            f'<td width="{icon_css_px + 8}" bgcolor="{SOFT_ACCENT}">'
+            f'<td width="{icon_css_px + 8}">'
             f'<img src="{src}" width="{icon_css_px}" height="{icon_css_px}"></td>'
-            f'<td bgcolor="{SOFT_ACCENT}">{text}</td>'
+            f"<td>{text}</td>"
         )
     rows = "".join(
         f"<tr>{''.join(cells[i:i + COLUMNS])}</tr>" for i in range(0, len(cells), COLUMNS)
     )
     inner = (
         f'<table width="100%" border="0" cellspacing="0" cellpadding="3">{rows}'
-        f'<tr><td colspan="{COLUMNS * 2}" bgcolor="{SOFT_ACCENT}">{NUMBERS_NOTE}</td></tr></table>'
+        f'<tr><td colspan="{COLUMNS * 2}">{NUMBERS_NOTE}</td></tr></table>'
     )
     width = f'"{width_css_px}"' if width_css_px else '"100%"'
     return (
         f'<table width={width} border="1" cellspacing="0" cellpadding="6" '
-        f'style="border-collapse:collapse; border-color:{BORDER}">'
-        f'<tr><td bgcolor="{SOFT_ACCENT}">{inner}</td></tr></table>'
+        f'style="border-collapse:collapse; border-color:{BORDER_SUBTLE}">'
+        f"<tr><td>{inner}</td></tr></table>"
     )

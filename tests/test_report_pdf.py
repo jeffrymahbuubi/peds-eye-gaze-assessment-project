@@ -1,7 +1,9 @@
 """Print Report: the per-test report as a PDF (SPEC-compass-task-flow.md 4D.8; G12, AD12).
 Offscreen Qt writing to ``tmp_path``; the page is read back with QtPdf where the
 claim is about the document (page size, page count), and the HTML is checked where
-the claim is about what it contains (offscreen has no fonts, so no text is extracted)."""
+the claim is about what it contains (offscreen has no fonts, so no text is extracted).
+The phase-4 layout (title and heading sizes, the page order, the header words) is in
+``test_report_pdf_phase4.py``."""
 
 from __future__ import annotations
 
@@ -19,7 +21,7 @@ from PySide6.QtGui import QTextDocument, QTextTable
 from PySide6.QtWidgets import QApplication
 
 import src.ui.report_pdf as report_pdf
-from src.ui.design_tokens import LEGACY_REPORT_COLOURS
+from src.ui.design_tokens import BORDER_SUBTLE
 from src.ui.map_legend import LEGEND_ENTRIES, NUMBERS_NOTE
 from src.ui.report_format import DEFINITIONS, TRIAL_COLUMNS, eye_rows, summary_table, trial_cells
 from src.ui.report_pdf import build_report_html, export_report_pdf
@@ -189,7 +191,7 @@ def test_text_from_the_operator_is_escaped_and_notes_keep_their_line_breaks(qapp
 def test_an_empty_evaluator_and_notes_print_as_not_recorded(qapp, tmp_path):
     html = build_report_html(folder_report(tmp_path / "data"), test_name="T", evaluator="", notes="", map_image=None)
     assert "Evaluator: <b>not recorded</b>" in html
-    assert '<h3 style="margin-bottom:2px">Notes</h3><p style="margin-top:0">not recorded</p>' in html
+    assert re.search(r'>Notes</p><p style="[^"]*">not recorded</p>', html)
 
 
 def test_a_legacy_folder_exports_without_error(qapp, tmp_path):
@@ -265,12 +267,13 @@ def test_the_map_fits_between_the_margins_of_a_portrait_page():
 # -- V3: one stacked column; V1: the legend; V5: seconds ---------------------------------------------
 
 
-def test_the_sections_are_stacked_in_the_order_configuration_summary_map_eye_metrics(qapp, tmp_path):
+def test_the_sections_are_stacked_in_the_order_configuration_summary_eye_metrics_map(qapp, tmp_path):
+    """Phase 4 H8: Eye Metrics moved up in front of the map, so page 1 is not 40 % blank."""
     report = folder_report(tmp_path / "data")
     html = build_report_html(report, test_name="T", evaluator="", notes="", map_image=map_image(report))
     order = [html.index(h) for h in (
-        "Test Configuration</h3>", "Summary of Results</h3>", "Target Map</h3>", "Eye Metrics</h3>",
-        "Trial-by-Trial Results</h3>", "Definitions</h3>",
+        ">Test Configuration</p>", ">Summary of Results</p>", ">Eye Metrics</p>", ">Target Map</p>",
+        ">Trial-by-Trial Results</p>", ">Definitions</p>",
     )]
     assert order == sorted(order)
     # one column: the old side-by-side layout table (a 38 % first cell) is gone
@@ -280,17 +283,19 @@ def test_the_sections_are_stacked_in_the_order_configuration_summary_map_eye_met
 def test_the_map_starts_a_new_page_so_it_is_never_split_from_its_legend(qapp, tmp_path):
     report = folder_report(tmp_path / "data")
     html = build_report_html(report, test_name="T", evaluator="", notes="", map_image=map_image(report))
-    assert 'page-break-before:always; margin-top:0; margin-bottom:2px">Target Map' in html
+    assert re.search(r'page-break-before:always;[^"]*">Target Map</p>', html)
+    assert html.count("page-break-before") == 1  # and nothing else breaks the page
+    assert html.index(">Eye Metrics</p>") < html.index("page-break-before")  # H10: page 1 ends with them
 
 
 def test_the_legend_is_under_the_map_with_its_four_entries_and_the_numbers_note(qapp, tmp_path):
     report = folder_report(tmp_path / "data")
     html = build_report_html(report, test_name="T", evaluator="", notes="", map_image=map_image(report))
-    assert html.index("data:image/png;base64,") < html.index(LEGEND_ENTRIES[0][1]) < html.index("Eye Metrics</h3>")
+    assert html.index("data:image/png;base64,") < html.index(LEGEND_ENTRIES[0][1]) < html.index(">Trial-by-Trial Results</p>")
     for _kind, label in LEGEND_ENTRIES:
         assert label in html
     assert NUMBERS_NOTE in html
-    assert LEGACY_REPORT_COLOURS.soft_accent in html  # the light tinted box (today's colour, phase 4)
+    assert BORDER_SUBTLE in html and "bgcolor" not in html.split("Target Map")[1].split("Trial-by-Trial")[0]
     assert f'width="{report_pdf.mm_to_css_px(report_pdf.MAP_WIDTH_MM)}"' in html  # as wide as the map
 
 

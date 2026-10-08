@@ -4,9 +4,10 @@ drawing code is :mod:`target_map_paint`, which calls this).
 The Summary map shows the target's path as a faint line with a mark where each trial ended, and
 the Scanpath overlay's fixation dots, like any moving-target map. The selected trial of the
 Detailed view shows the target's path plus the **pointer path** (gaze, or the mouse), split by the
-report where the pointer entered or left the target's area: the stretches on the target in a dark
-colour, the stretches off it lighter and thinner (a difference of lightness and width, not of hue
-alone, so it reads without colour). The legend's icons for these three lines are drawn here too.
+report where the pointer entered or left the target's area: the stretches on the target in the
+map's dark path blue, the stretches off it in its skipped grey and thinner (SPEC-design-system-
+phase4.md H4: the same tokens as the selection tasks' map). The legend's icons for these three
+lines are drawn here too.
 
 Pure drawing and reading of the report's own ``follow.trials[*].pointer_path``; nothing is computed.
 """
@@ -17,16 +18,14 @@ from collections.abc import Callable
 from typing import Any
 
 from PySide6.QtCore import QPointF, QRectF
-from PySide6.QtGui import QColor, QPainter, QPen, QPolygonF
+from PySide6.QtGui import QPainter, QPen, QPolygonF
 
-from .design_tokens import LEGACY_REPORT_COLOURS
+from .design_tokens import MAP_PATH_DARK, MAP_SKIPPED, MAP_SLOT
 from .report_format_follow import follow_block
 
-# Phase 4 gives the report map, its legend and the PDF the design tokens; until then they keep
-# today's colours (SPEC-design-system-phase1.md H2).
-MUTED = LEGACY_REPORT_COLOURS.muted
-FOLLOW_ON = "#0F3D52"  # the pointer on the target (the darkest end of the selection tasks' path)
-FOLLOW_OFF = "#6FA3BB"  # the pointer off the target: lighter, about 2.8:1 against the white canvas
+FOLLOW_ON = MAP_PATH_DARK  # the pointer on the target (the dark end of the selection tasks' path)
+FOLLOW_OFF = MAP_SKIPPED  # the pointer off the target
+TRACK = MAP_SLOT  # the path of the target itself
 ON_WIDTH, OFF_WIDTH = 3.0, 2.0  # design px: the off-target stretches are thinner too
 LINE_KINDS = ("track", "on", "off")  # the legend icons of the three lines
 
@@ -86,9 +85,7 @@ def paint_line_symbol(p: QPainter, rect: QRectF, kind: str, pen: PenFactory) -> 
     start, end = QPointF(rect.left() + 0.1 * rect.width(), y), QPointF(rect.right() - 0.1 * rect.width(), y)
     p.save()
     if kind == "track":
-        faint = QColor(MUTED)
-        faint.setAlpha(120)
-        p.setPen(pen(faint, 2 * unit))
+        p.setPen(pen(TRACK, 2 * unit))
     elif kind == "off":
         p.setPen(pen(FOLLOW_OFF, OFF_WIDTH * unit * 1.5))
     else:
