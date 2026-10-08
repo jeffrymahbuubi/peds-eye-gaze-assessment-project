@@ -41,7 +41,7 @@ class RunStatus(NamedTuple):
     chip: str = ""  # PRACTICE or PREVIEW; none in a recorded run
     paused: bool = False
     trial: str = ""  # "Trial 4 of 18"
-    pointer: str = ""  # "Mouse pointer" when the pointer is the mouse
+    pointer: str = ""  # "Mouse pointer" when the pointer is the mouse; a preview always names it
     tracking: str = ""  # the tracker's state, from :func:`tracking_status`
     level: str = LEVEL_OK  # how the tracking text is coloured
 
@@ -62,15 +62,19 @@ def run_status(
     paused: bool = False,
     preview: bool = False,
     mouse: bool = False,
+    tracker_not_ready: bool = False,
 ) -> RunStatus:
     """The bar's status: ``[PRACTICE|PREVIEW] Trial i of N [Mouse pointer] tracking``.
 
     ``trial_number`` is 1-based; before the first trial (the pre-roll) the task
     reports 0 or less, shown as trial 1. While paused the pointer and the tracking text
-    are dropped: ``Paused, Trial i of N``. A ``preview`` (the mouse-driven look at a
-    configuration, 4B.6) says so in its chip instead of naming the tracker (the chip means
-    nothing is recorded): ``PREVIEW, Trial i of N, Mouse pointer``, and just
-    ``PREVIEW, Paused`` while paused. A ``mouse`` run (Pointer = Mouse,
+    are dropped: ``Paused, Trial i of N``. A ``preview`` (the look at a configuration,
+    4B.6) says so in its chip (the chip means nothing is recorded) and always names its
+    pointer (SPEC-preview-gaze-pointer.md H4): ``PREVIEW, Trial i of N, Mouse pointer``
+    for the mouse, ``..., Mouse pointer (tracker not ready)`` when a Gaze test fell back
+    to it (``tracker_not_ready``), and ``..., Gaze pointer, <tracking>`` when the pointer
+    is the tracker's gaze (``mouse`` False), which keeps the tracker's state like any gaze
+    run. While paused it is just ``PREVIEW, Paused``. A ``mouse`` run (Pointer = Mouse,
     SPEC-input-selection-and-follow.md) names its pointer after the trial, and
     ``tracking_text`` may be empty (no tracker: nothing to report).
     """
@@ -79,7 +83,10 @@ def run_status(
     if preview:
         if paused:
             return RunStatus(chip, paused=True)
-        return RunStatus(chip, trial=trial, pointer="Mouse pointer")
+        if not mouse:
+            return RunStatus(chip, trial=trial, pointer="Gaze pointer", tracking=tracking_text, level=level)
+        pointer = "Mouse pointer (tracker not ready)" if tracker_not_ready else "Mouse pointer"
+        return RunStatus(chip, trial=trial, pointer=pointer)
     if paused:
         return RunStatus(chip, paused=True, trial=trial)
     return RunStatus(

@@ -410,6 +410,12 @@ class SetupPage(QWidget):
             for thread in (self._connect_thread, self._recheck_thread, self._calibration_thread)
         )
 
+    def device_busy(self) -> bool:
+        """Public :meth:`_busy`, for the pages that read the tracker from outside Setup: while a
+        Setup thread owns the device socket nothing else may use the client (Preview Test,
+        SPEC-preview-gaze-pointer.md H1)."""
+        return self._busy()
+
     def stop_threads(self) -> bool:
         """Before the window closes (H4): end the Setup threads, waiting for them (bounded), so
         Qt never destroys a running ``QThread``. A calibration is ended by closing the

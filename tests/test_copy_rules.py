@@ -94,7 +94,17 @@ def test_no_exclamation_status_word_is_left():
         assert "Test Complete!" not in path.read_text(encoding="utf-8"), path.name
 
 
-@pytest.mark.parametrize("flags", [{}, {"practice": True}, {"paused": True}, {"preview": True}, {"mouse": True}])
+@pytest.mark.parametrize(
+    "flags",
+    [
+        {},
+        {"practice": True},
+        {"paused": True},
+        {"preview": True},
+        {"mouse": True},
+        {"preview": True, "mouse": True, "tracker_not_ready": True},
+    ],
+)
 def test_the_run_bar_status_has_no_interpunct(flags):
     assert INTERPUNCT not in run_status(3, 9, "No gaze for 3 s", LEVEL_WARN, **flags).line
 

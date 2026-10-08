@@ -127,21 +127,31 @@ def test_glow_sits_in_feedback_after_the_rings_and_before_the_sounds(task_id):
 @pytest.mark.parametrize("task_id", TASKS)
 def test_the_greying_rules_of_4_1(task_id):
     greyed = {k: c.greyed_by for k, c in controls(task_id).items() if c.greyed_by}
+    # A Mouse pointer is never smoothed (SPEC-preview-gaze-pointer.md H7): both smoothing
+    # controls are greyed by it, on every page.
+    smoothing = {
+        "dwell.smoothing.enabled": ("input.pointer", "mouse"),
+        "dwell.smoothing.alpha": ("input.pointer", "mouse"),
+    }
     if task_id == "follow_moving":
         # No Selection to grey anything by, and no threshold or ring to grey: only the glow's
         # rule remains on the data, which names a control this page does not have, so it never
         # applies.
-        assert greyed == {"feedback.target_glow": ("input.selection", "dwell")}
+        assert greyed == {"feedback.target_glow": ("input.selection", "dwell"), **smoothing}
         assert "input.selection" not in controls(task_id)
         return
     assert greyed == {
         "dwell.threshold_ms": ("input.selection", "switch"),
         "dwell.progress_ring": ("input.selection", "switch"),
         "feedback.target_glow": ("input.selection", "dwell"),
+        **smoothing,
     }
     # Refractory and jitter tolerance stay active under Switch: the debounce and the
-    # hitbox apply to it too. And nothing is both greyed by a choice and by a check box.
-    assert not any(c.greyed_by and c.depends_on for c in controls(task_id).values())
+    # hitbox apply to it too. Only the smoothing alpha is both greyed by a choice (the
+    # Pointer) and by a check box (its own): the page combines the two (H7).
+    assert {k for k, c in controls(task_id).items() if c.greyed_by and c.depends_on} == {
+        "dwell.smoothing.alpha"
+    }
     for _key, (master, _value) in greyed.items():
         assert master in controls(task_id)
 
@@ -274,11 +284,15 @@ def test_greyed_controls_keep_their_values(qapp):
     assert page.collect_values()["live"]["dwell.progress_ring"] is True
 
 
-def test_pointer_mouse_greys_nothing(qapp):
+def test_pointer_mouse_greys_only_the_two_smoothing_controls(qapp):
     plain = page_for("click_grid")
     mouse = page_for("click_grid", input={"pointer": "mouse", "selection": "dwell"})
     state = lambda page: {k: w.isEnabled() for k, w in page._form.controls.items()}  # noqa: E731
-    assert state(mouse) == state(plain)
+    assert {k for k in state(plain) if state(plain)[k] != state(mouse)[k]} == {
+        "dwell.smoothing.enabled",
+        "dwell.smoothing.alpha",
+    }
+    assert not enabled(mouse, "dwell.smoothing.enabled") and not enabled(mouse, "dwell.smoothing.alpha")
 
 
 def test_follow_has_a_pointer_and_no_dwell_controls_and_its_glow_is_always_on_offer(qapp):

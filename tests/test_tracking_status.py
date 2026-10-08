@@ -89,6 +89,27 @@ def test_a_preview_says_so_in_its_chip_and_names_the_mouse():
     assert run_status(1, 3, "", preview=True, paused=True).line == "PREVIEW, Paused"
 
 
+def test_a_preview_names_its_pointer_in_all_three_cases():
+    """SPEC-preview-gaze-pointer.md H4: the real gaze keeps the tracker's state, the mouse
+    fallback of a Gaze test says why, a Mouse test just names the mouse."""
+    text, level = tracking_status(True, 0.1)
+    gaze = run_status(2, 3, text, level, preview=True)
+    assert gaze == RunStatus("PREVIEW", trial="Trial 2 of 3", pointer="Gaze pointer", tracking="Tracking OK")
+    assert gaze.line == "PREVIEW, Trial 2 of 3, Gaze pointer, Tracking OK"
+    lost = run_status(2, 3, *tracking_status(False, None), preview=True)
+    assert (lost.pointer, lost.tracking, lost.level) == ("Gaze pointer", "Tracker disconnected", LEVEL_ERROR)
+    fallback = run_status(2, 3, "", preview=True, mouse=True, tracker_not_ready=True)
+    assert fallback.line == "PREVIEW, Trial 2 of 3, Mouse pointer (tracker not ready)"
+    assert run_status(2, 3, "", preview=True, mouse=True).line == "PREVIEW, Trial 2 of 3, Mouse pointer"
+    for kwargs in ({}, {"mouse": True}, {"mouse": True, "tracker_not_ready": True}):
+        assert run_status(2, 3, "Tracking OK", preview=True, paused=True, **kwargs).line == "PREVIEW, Paused"
+
+
+def test_the_not_ready_reason_belongs_to_a_preview_only():
+    assert run_status(2, 3, "", mouse=True, tracker_not_ready=True).line == "Trial 2 of 3, Mouse pointer"
+    assert run_status(2, 3, "", practice=True, mouse=True, tracker_not_ready=True).pointer == "Mouse pointer"
+
+
 def test_a_mouse_run_names_its_pointer_after_the_trial_and_may_have_no_tracking_text():
     assert run_status(2, 18, "Tracking OK", mouse=True).line == "Trial 2 of 18, Mouse pointer, Tracking OK"
     assert run_status(2, 18, "", mouse=True).line == "Trial 2 of 18, Mouse pointer"  # no tracker
