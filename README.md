@@ -199,19 +199,18 @@ under `sessions/` (see `docs/DATA_SCHEMA.md` for the full tree):
 ```
 sessions/
   _system/                 diagnostics logs and headless replays (no child in them)
-  P001/                    the Subject ID, or S-0003 (Anonymous code, below)
+  P001/                    named after the Subject ID
     subject.json  calibrations/  settings/  tests/  reports/
     runs/click_grid/2026-10-07_1432/     one folder per recorded run
 ```
 
 A repeat of the same task by the same child is never overwritten (two runs in
 the same minute get `_2`); a discarded run leaves no folder. The Tests tab's
-**Open Subject Folder** button opens the child's folder in Explorer. On the Setup
-page a **new** Subject ID can choose **Folder name: Anonymous code**: the folder
-is then named `S-0001`, `S-0002` ... (never reused) so Explorer and zip file names
-do not show the ID. The files inside still contain the Subject ID, so this is not
-de-identification. Keep the program folder near the drive root: a run whose
-longest path would pass 240 characters is refused on the Start page.
+**Open Subject Folder** button opens the child's folder in Explorer. The folder
+is always named after the Subject ID and the files inside hold it too, so the
+Setup page asks for a study code, not the child's name. Keep the program folder
+near the drive root: a run whose longest path would pass 240 characters is
+refused on the Start page.
 
 **Old layout (v1.0.0 and the feature branch before this change):** not read and
 not migrated. Old-layout folders in `sessions/` are ignored; delete them by hand.

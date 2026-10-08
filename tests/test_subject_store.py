@@ -1,4 +1,4 @@
-"""SPEC-subject-data-layout.md H1, H5, H6, H8 (L3, L4, L5): one folder per subject."""
+"""SPEC-subject-data-layout.md H1, H5, H8, D4 revised (L3, L4, L5): one folder per subject."""
 
 from __future__ import annotations
 
@@ -13,7 +13,6 @@ from src.engine.run_paths import new_run_dir
 from src.engine.session_naming import safe_subject_dirname
 from src.engine.settings_profile import save_settings_profile
 from src.engine.subject_store import (
-    FOLDER_MODE_CODE,
     FOLDER_MODE_ID,
     MAX_FOLDER_ID_LEN,
     SUBJECT_FILENAME,
@@ -23,9 +22,7 @@ from src.engine.subject_store import (
     id_folder_name,
     known_subject_ids,
     list_subjects,
-    next_subject_code,
     output_root,
-    preview_folder_name,
 )
 from src.engine.subject_tests import create_test, list_tests
 
@@ -52,10 +49,10 @@ def test_output_root_without_a_config_is_the_default_configs():
 
 def test_a_new_subject_gets_a_folder_with_subject_json(tmp_path):
     folder = ensure_subject(tmp_path, "  P9REAL ")
-    assert folder.path == tmp_path / "P9REAL" and folder.mode == FOLDER_MODE_ID
+    assert folder.path == tmp_path / "P9REAL"
     assert folder.subject_id == "P9REAL"
     record = _record(folder)
-    assert record["subject_id"] == "P9REAL" and record["folder_mode"] == "id"
+    assert record["subject_id"] == "P9REAL" and record["folder_mode"] == FOLDER_MODE_ID == "id"
     assert re.match(r"\d{4}-\d{2}-\d{2}T", record["created_at"])
     assert set(record) == {"subject_id", "folder_mode", "created_at"}
 
@@ -73,17 +70,9 @@ def test_ana_then_ana_in_capitals_is_one_subject(tmp_path):
     assert find_subject(tmp_path, "aNa").path == first.path
 
 
-def test_an_existing_subject_keeps_the_mode_it_was_created_with(tmp_path):
-    first = ensure_subject(tmp_path, "Ana", FOLDER_MODE_CODE)
-    again = ensure_subject(tmp_path, "Ana", FOLDER_MODE_ID)
-    assert again.path == first.path and again.mode == FOLDER_MODE_CODE
-
-
-def test_a_blank_id_and_an_unknown_mode_are_refused(tmp_path):
+def test_a_blank_id_is_refused(tmp_path):
     with pytest.raises(ValueError):
         ensure_subject(tmp_path, "   ")
-    with pytest.raises(ValueError):
-        ensure_subject(tmp_path, "Ana", "pseudonym")
     assert list(tmp_path.iterdir()) == []
 
 
@@ -170,60 +159,50 @@ def test_known_subject_ids_ignores_loose_files(tmp_path):
     assert known_subject_ids(tmp_path) == ["S1"]
 
 
-# -- Anonymous code (H6, D4, L5) ------------------------------------------------------------------
+# -- the folder is always the Subject ID (D4 revised 2026-10-08, L5) ----------------------------------
 
 
-def test_codes_count_up_from_s_0001(tmp_path):
-    assert next_subject_code(tmp_path) == "S-0001"
-    first = ensure_subject(tmp_path, "Ana", FOLDER_MODE_CODE)
-    second = ensure_subject(tmp_path, "Bob", FOLDER_MODE_CODE)
-    assert (first.name, second.name) == ("S-0001", "S-0002")
-    assert next_subject_code(tmp_path) == "S-0003"
+def test_a_new_subjects_folder_is_its_subject_id_and_no_code_is_assigned(tmp_path):
+    folder = ensure_subject(tmp_path, "Maria Lopez")
+    assert folder.name == "Maria Lopez" == id_folder_name("Maria Lopez")
+    assert _record(folder)["folder_mode"] == "id"
+    assert [p.name for p in tmp_path.iterdir()] == ["Maria Lopez"]  # no S-000N, no _system
 
 
-def test_a_code_subject_is_found_by_the_id_it_was_typed_with(tmp_path):
-    folder = ensure_subject(tmp_path, "Ana Maria", FOLDER_MODE_CODE)
-    assert find_subject(tmp_path, "ANA MARIA").path == folder.path
+def test_the_first_save_of_anything_never_makes_a_code_folder(tmp_path):
+    create_test(tmp_path, "Maria Lopez", "click_grid")
+    save_settings_profile(tmp_path, "Ana", "click_grid", {"dwell.threshold_ms": 900})
+    new_run_dir(tmp_path, "Bob", "click_grid")
+    assert sorted(p.name for p in tmp_path.iterdir()) == ["Ana", "Bob", "Maria Lopez"]
+    assert list_tests(tmp_path, "maria lopez").tests  # found by the typed id
+
+
+def test_subject_codes_json_is_neither_read_nor_written(tmp_path):
+    counter = tmp_path / SYSTEM_DIRNAME / "subject_codes.json"
+    counter.parent.mkdir()
+    counter.write_text(json.dumps({"last": 7}), encoding="utf-8")
+    folder = ensure_subject(tmp_path, "Ana")
+    assert folder.name == "Ana"  # not S-0008
+    assert json.loads(counter.read_text(encoding="utf-8")) == {"last": 7}  # left as it was
+    other = tmp_path / "other"
+    ensure_subject(other, "Bob")
+    assert not (other / SYSTEM_DIRNAME).exists()
+
+
+def test_an_old_code_folder_is_still_found_by_the_id_it_was_typed_with(tmp_path):
+    # Left by a build that had the Anonymous code option: folder_mode "code" is ignored.
+    (tmp_path / "S-0001").mkdir()
+    (tmp_path / "S-0001" / SUBJECT_FILENAME).write_text(
+        json.dumps({"subject_id": "Ana Maria", "folder_mode": "code", "created_at": "x"}), encoding="utf-8"
+    )
+    assert find_subject(tmp_path, "ANA MARIA").name == "S-0001"
+    assert ensure_subject(tmp_path, "Ana Maria").name == "S-0001"
     assert known_subject_ids(tmp_path) == ["Ana Maria"]
-    assert folder.mode == FOLDER_MODE_CODE and folder.label() == "Folder: S-0001 (Anonymous code)"
+    assert ensure_subject(tmp_path, "Bob").name == "Bob"  # a new subject still gets its ID
 
 
-def test_a_code_is_never_reused_even_after_its_folder_is_deleted(tmp_path):
-    import shutil
-
-    ensure_subject(tmp_path, "Ana", FOLDER_MODE_CODE)
-    shutil.rmtree(tmp_path / "S-0001")
-    assert next_subject_code(tmp_path) == "S-0002"
-    assert ensure_subject(tmp_path, "Bob", FOLDER_MODE_CODE).name == "S-0002"
-
-
-def test_the_code_counter_lives_under_system_not_in_a_subject(tmp_path):
-    ensure_subject(tmp_path, "Ana", FOLDER_MODE_CODE)
-    assert (tmp_path / SYSTEM_DIRNAME / "subject_codes.json").is_file()
-    assert [s.name for s in list_subjects(tmp_path)] == ["S-0001"]
-
-
-def test_an_id_mode_subject_does_not_use_up_a_code(tmp_path):
-    ensure_subject(tmp_path, "Ana")
-    assert next_subject_code(tmp_path) == "S-0001"
-
-
-def test_a_subject_whose_id_is_a_code_name_does_not_clash_with_a_real_code(tmp_path):
-    ensure_subject(tmp_path, "S-0001")  # an ID that looks like a code, mode id
-    coded = ensure_subject(tmp_path, "Ana", FOLDER_MODE_CODE)
-    assert coded.name == "S-0002"  # S-0001 is taken, so the next free one
-
-
-def test_in_code_mode_no_name_under_the_root_contains_the_subject_id(tmp_path):
-    create_test(tmp_path, "Maria Lopez", "click_grid", folder_mode=FOLDER_MODE_CODE)
-    assert list_tests(tmp_path, "maria lopez").tests  # still found by the typed id
-    names = [p.relative_to(tmp_path).as_posix() for p in tmp_path.rglob("*")]
-    assert names and not any("maria" in n.casefold() or "lopez" in n.casefold() for n in names)
-
-
-def test_preview_folder_name_follows_the_choice(tmp_path):
-    assert preview_folder_name(tmp_path, "Ana", FOLDER_MODE_ID) == "Ana"
-    assert preview_folder_name(tmp_path, "Ana", FOLDER_MODE_CODE) == "S-0001"
+def test_a_subject_whose_id_looks_like_a_code_name_still_gets_that_name(tmp_path):
+    assert ensure_subject(tmp_path, "S-0001").name == "S-0001"
 
 
 # -- the stores write only inside the subject folder (L3, L8) -----------------------------------------

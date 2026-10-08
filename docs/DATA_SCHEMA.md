@@ -11,9 +11,8 @@ sessions/
   _system/
     diagnostics/calibration_timing.jsonl, gaze_dropouts.jsonl   # no subject in any line
     replay/                       # headless --replay output
-    subject_codes.json            # the highest Anonymous code issued, so a code is never reused
-  <subject folder>/               # P001, or S-0003 for an Anonymous-code subject
-    subject.json                  # {"subject_id", "folder_mode": "id" | "code", "created_at"}
+  <subject folder>/               # named after the Subject ID, e.g. P001
+    subject.json                  # {"subject_id", "folder_mode": "id", "created_at"}
     calibrations/calibration_<n>pt.json    # saved calibrations (Setup)
     settings/<task_id>/<date>_<time>.json  # saved named configurations
     tests/t_<10 hex>.json         # one file per planned test (the Test List)
@@ -25,14 +24,14 @@ sessions/
 A folder is a subject folder only if it holds `subject.json`. The app finds a
 subject by reading those files and matching `subject_id` ignoring case ("Ana"
 and "ANA" are one subject); it never works the folder name out from the ID.
-The folder name is chosen once, when the folder is first created: either the
-Subject ID made safe as a folder name (characters illegal on Windows replaced,
-cut at 40 characters; an ordinary ID such as `P001` is unchanged), or the next
-free `S-0001`, `S-0002` ... (**Anonymous code**, chosen on the Setup page for a
-new Subject ID). A code is never reused. The code hides the ID from folder and
-zip names only: the files inside (`subject.json`, `metadata.json`, the test
-records) still hold the Subject ID. `_system` is reserved: a subject typed
-`_system` gets a prefixed folder.
+The folder name is chosen once, when the folder is first created: the Subject ID
+made safe as a folder name (characters illegal on Windows replaced, cut at 40
+characters; an ordinary ID such as `P001` is unchanged). `folder_mode` is always
+`"id"`; it stays in the file so the schema does not change, and the reader
+ignores its value. The Subject ID is also inside the files (`subject.json`,
+`metadata.json`, the test records), so the Setup page asks for a study code, not
+the child's name. `_system` is reserved: a subject typed `_system` gets a
+prefixed folder.
 
 ## Run folder
 

@@ -45,7 +45,7 @@
 | Done | on | off | off | on | on | on |
 | Ended early | on | off | off | on | on | on |
 
-> **Open Subject Folder** (SPEC-subject-data-layout.md H6): opens this subject's folder (`sessions/P9REAL` or `sessions/S-0003`) in Explorer. On whenever a subject folder exists, whatever row is selected; off for a subject with nothing saved yet. Not part of the row matrix below.
+> **Open Subject Folder** (SPEC-subject-data-layout.md H6): opens this subject's folder (e.g. `sessions/P9REAL`) in Explorer. On whenever a subject folder exists, whatever row is selected; off for a subject with nothing saved yet. Not part of the row matrix below.
 
 > **Run Test is never disabled by Setup (R2).** It always opens the Start page, which lists anything still missing (tracker, calibration, ...) and disables Start/Practice there. View Report is off when the data folder is missing ("· data missing").
 

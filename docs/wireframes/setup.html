@@ -576,24 +576,9 @@ body.wmd-root {
   Subject ID
   <input type="text" class="wmd-input" required style="width: 29ch; max-width: 29ch;" />
 </div>
-<p class="wmd-paragraph">Folder name</p>
-<ul class="wmd-list">
-  <label class="wmd-radio">
-    <input type="radio" checked />
-    <span>Subject ID</span>
-  </label>
-  <label class="wmd-radio">
-    <input type="radio" />
-    <span>Anonymous code (S-0004)</span>
-  </label>
-</ul>
+<p class="wmd-paragraph">Use a study code, not the child&#039;s name.</p>
 <blockquote class="wmd-blockquote">
-  <p class="wmd-paragraph"><strong>Folder name choice</strong> (SPEC-subject-data-layout.md H6, D4): shown only while the typed Subject ID is <strong>new</strong>, i.e. no subject folder on this PC holds that ID (matched ignoring case, so "Ana" and "ANA" are one subject). Default = Subject ID. Anonymous code = the next free <code>S-000N</code>, never reused. The choice is fixed when the subject's folder is created (the first calibration, setting or test saved for it) and cannot be changed afterwards.
-<strong>Tooltip on "Anonymous code":</strong> "The folder is named S-0004 instead of the Subject ID, so Explorer and zip file names do not show it. The files inside still contain the Subject ID."</p>
-</blockquote>
-<p class="wmd-paragraph">Folder: S-0003 (Anonymous code)</p>
-<blockquote class="wmd-blockquote">
-  <p class="wmd-paragraph"><strong>Existing subject (illustrative, replaces the choice above):</strong> one read-only muted line under Subject ID, e.g. "Folder: S-0003 (Anonymous code)" or "Folder: P9REAL (Subject ID)". Only one of the two states is ever visible.</p>
+  <p class="wmd-paragraph"><strong>Hint under Subject ID</strong> (SPEC-subject-data-layout.md D4 revised 2026-10-08): one muted caption line, always shown. The subject's folder is always named after the Subject ID (matched ignoring case, so "Ana" and "ANA" are one subject), so there is no folder-name choice and no "Folder: ..." line.</p>
 </blockquote>
 <div class="wmd-container-form-group">
   Assessment Date

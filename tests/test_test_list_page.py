@@ -379,7 +379,7 @@ def test_date_complete_sorts_with_the_dash_first(qapp, root):
     assert {later.name, earlier.name} <= set(names(page))
 
 
-# -- Open Subject Folder (SPEC-subject-data-layout.md H6, wireframe W2, L5) ---------------------------------------------
+# -- Open Subject Folder (SPEC-subject-data-layout.md H6, wireframe W2) ---------------------------------------------
 
 
 def test_open_subject_folder_is_off_until_the_subject_has_a_folder(qapp, root):
@@ -416,13 +416,13 @@ def test_open_subject_folder_opens_the_subjects_own_folder(qapp, root):
     assert opened == [root / SUBJECT]
 
 
-def test_open_subject_folder_opens_the_code_folder_for_an_anonymous_subject(qapp, root):
-    create_test(root, "Maria Lopez", "click_grid", folder_mode="code")
+def test_open_subject_folder_finds_the_folder_by_the_typed_id_in_any_case(qapp, root):
+    create_test(root, "Maria Lopez", "click_grid")
     page = page_for(root, "maria lopez")
     opened = []
     page._open_folder = lambda path: opened.append(path) or True
     page.open_folder_button.click()
-    assert opened == [root / "S-0001"]
+    assert opened == [root / "Maria Lopez"]
 
 
 def test_open_subject_folder_says_so_when_the_desktop_refuses(qapp, root):
@@ -433,11 +433,10 @@ def test_open_subject_folder_says_so_when_the_desktop_refuses(qapp, root):
     assert "Could not open the folder" in page.message_label.text()
 
 
-def test_the_first_test_added_in_the_page_makes_the_folder_in_the_chosen_mode(qapp, root):
+def test_the_first_test_added_in_the_page_makes_the_folder_named_after_the_subject_id(qapp, root):
     page = page_for(root, "Ana")
-    page.set_subject("Ana", root, "code")
     page._choose_new_tests = lambda: ("click_grid", 1)
     page.add_button.click()
-    assert [p.name for p in root.iterdir() if p.name != "_system"] == ["S-0001"]
+    assert [p.name for p in root.iterdir() if p.name != "_system"] == ["Ana"]
     assert page.open_folder_button.isEnabled()
     assert names(page) == ["Grid Click 1"]
