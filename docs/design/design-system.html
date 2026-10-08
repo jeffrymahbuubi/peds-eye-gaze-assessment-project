@@ -347,7 +347,7 @@ table.doc td.num, table.doc th.num { text-align: right; font-variant-numeric: ta
   <header class="hdr">
     <div class="status-row">
       <span class="eyebrow">Design system v1</span>
-      <span class="tag warn">Proposal (Task B), not implemented</span>
+      <span class="tag warn">Proposal (Task B); phase 1 approved 2026-10-08, in implementation</span>
     </div>
     <h1>Gaze App Design System</h1>
     <p>The visual system proposed for the Pediatric Eye-Gaze Assessment desktop app (PySide6/Qt): the operator pages a clinician uses and the task canvas a child looks at. Every value on this page is taken from the proposal; nothing in the app changes until a SPEC written from it is approved.</p>
@@ -549,7 +549,7 @@ table.doc td.num, table.doc th.num { text-align: right; font-variant-numeric: ta
         <span class="ap-check"><span class="ind box on focus"><svg width="12" height="12" viewBox="0 0 12 12" aria-hidden="true"><path d="M2 6.5 4.8 9.2 10 3.5" fill="none" stroke="#FFF" stroke-width="2"/></svg></span>Glow on target</span>
         <span class="ap-check disabled"><span class="ind box on-dis"><svg width="12" height="12" viewBox="0 0 12 12" aria-hidden="true"><path d="M2 6.5 4.8 9.2 10 3.5" fill="none" stroke="#FFF" stroke-width="2"/></svg></span>Dwell ring (disabled, checked)</span>
       </div>
-      <div class="app-label">a greyed-in-place box never keeps the accent blue: <code>QCheckBox::indicator:disabled</code> checked = grey fill, white mark (the grey shade is not fixed in the proposal; border-strong shown)</div>
+      <div class="app-label">a greyed-in-place box never keeps the accent blue: <code>QCheckBox::indicator:disabled</code> checked = #8D8D8D (border-strong) fill, white mark (user decision 2026-10-08, SPEC-design-system-phase1 U4)</div>
     </div>
 
     <h3>Radio groups</h3>
@@ -892,7 +892,7 @@ table.doc td.num, table.doc th.num { text-align: right; font-variant-numeric: ta
   </section>
 
   <footer class="foot">
-    <p style="max-width:none">Limits stated by the proposal: no ratio was measured on a rendered frame (anti-aliasing and the gradient removal change edge pixels slightly); the PDF was judged from code; the Setup status badges exist only in the approved wireframe. Items this page marks <span class="open">open in the proposal</span>: the Large target's px diameter, the disabled-checked indicator grey, the Not calibrated and Skipped glyphs, the unselectable-target ratio, and the tiers of the Test List side buttons other than Run Test and Delete Test.</p>
+    <p style="max-width:none">Limits stated by the proposal: no ratio was measured on a rendered frame (anti-aliasing and the gradient removal change edge pixels slightly); the PDF was judged from code; the Setup status badges exist only in the approved wireframe. Closed 2026-10-08: the disabled-checked grey (#8D8D8D) and the empty-value word ("not recorded"), both in SPEC-design-system-phase1. Items this page marks <span class="open">open in the proposal</span>: the Large target's px diameter, the Not calibrated and Skipped glyphs, the unselectable-target ratio, and the tiers of the Test List side buttons other than Run Test and Delete Test.</p>
   </footer>
 </div>
 
@@ -1024,7 +1024,7 @@ table.doc td.num, table.doc th.num { text-align: right; font-variant-numeric: ta
     ['Run end', 'Test Complete!', 'Test complete'],
     ['Test List', '← Back to Setup / recalibrate', 'Back to Setup'],
     ['Date, report', 'Oct 7, 2026 5:09 PM', '2026-10-07 17:09'],
-    ['Empty value, screen and PDF', 'a lone em dash', '"none" in text cells; the em dash stays only inside numeric table cells']
+    ['Empty value, screen and PDF', 'a lone em dash', '"not recorded" in text cells (user decision 2026-10-08, replaces the proposal's "none"); the em dash stays only inside numeric table cells']
   ];
   var cp = document.getElementById('copy-pairs');
   cp.innerHTML = COPY.map(function (c) {
