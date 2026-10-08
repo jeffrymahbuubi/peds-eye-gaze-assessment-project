@@ -360,10 +360,13 @@ class ReportPage(QWidget):
 
     def _on_print(self) -> None:
         session = self._report.get("session", {})
-        name = pdf_default_name(
-            str(session.get("subject") or ""), self.name_edit.text().strip(), session.get("started_ns")
-        )
+        name = pdf_default_name(self.name_edit.text().strip(), session.get("started_ns"))
         default = str(Path(self._pdf_dir) / name) if self._pdf_dir else name
+        if self._pdf_dir:
+            try:  # the subject's reports/ folder is made when the first PDF is asked for
+                Path(self._pdf_dir).mkdir(parents=True, exist_ok=True)
+            except OSError:
+                pass  # the save dialog then opens elsewhere; the write reports its own error
         chosen = self.choose_pdf_path(default)
         if not chosen:
             return

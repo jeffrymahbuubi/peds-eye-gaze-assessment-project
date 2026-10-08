@@ -25,6 +25,7 @@ from ..tasks.scanning import ScanningTask
 from .config import load_task_config
 from .input_choice import resolve_input
 from .loop_rate import config_target_fps, resolve_target_fps
+from .subject_store import replay_dir
 from .target_size import (
     apply_grid_gap,
     apply_target_size,
@@ -87,6 +88,7 @@ def run_headless_replay(
 ) -> dict[str, Any]:
     """Run a full session from a gaze fixture and write session artifacts.
 
+    Writes to ``<output_root>/_system/replay/<session_id>`` (SPEC-subject-data-layout.md H11).
     Returns a dict with ``session_dir``, ``n_trials`` and summary counts.
     """
     config = load_task_config(task_id, config_root)
@@ -120,7 +122,8 @@ def run_headless_replay(
         grid_gap=gap_info,
     )
 
-    with SessionRecorder(metadata, output_root=output_root) as recorder:
+    replay_folder = replay_dir(output_root) / session_id  # a replay is not a subject's data (H11)
+    with SessionRecorder(metadata, session_dir=replay_folder) as recorder:
         task = build_task(task_id, config, recorder=recorder, feedback=feedback, seed=seed)
         recorder.log(f"Starting headless replay: task={task_id} fps={fps}")
         if size_info is not None:

@@ -22,6 +22,7 @@ from src.engine.subject_tests import (
     TestStoreError,
     create_test,
     list_tests,
+    run_folder_of,
     subject_tests_dir,
 )
 from src.ui.test_list_page import NO_TESTS_TEXT
@@ -176,7 +177,7 @@ def test_delete_asks_first_and_keep_is_the_default(qapp, root, monkeypatch):
     (call,) = calls
     assert call["title"] == "Delete Test"
     assert call["text"] == (
-        f"Delete '{test.name}' from this list? Its recorded data in the sessions folder is kept."
+        f"Delete '{test.name}' from this list? Its recorded data in the subject folder is kept."
     )
     assert [label for _key, label, _tier in call["buttons"]] == ["Delete", "Keep"]
     assert call["default"] == "keep" and call["on_close"] == "keep"
@@ -193,7 +194,7 @@ def test_a_not_done_test_is_asked_about_without_the_data_sentence(qapp, root, mo
 
 def test_delete_moves_the_record_and_never_touches_the_session_folder(qapp, root, monkeypatch):
     test = done_test(root)
-    folder = root / test.session_dir
+    folder = run_folder_of(root, test)
     marker = folder / "trials.csv"
     marker.write_text("a,b\n1,2\n", encoding="utf-8")
     page = page_for(root)
@@ -290,7 +291,7 @@ def test_a_done_test_can_be_renamed(qapp, root):
     assert editor.commit()
     stored = list_tests(root, SUBJECT).tests[0]
     assert stored.name == "Renamed after the run" and stored.status == STATUS_DONE
-    assert stored.session_dir == test.session_dir
+    assert stored.run_dir == test.run_dir
 
 
 def test_keeping_the_name_or_changing_only_its_case_is_allowed(qapp, root):
@@ -370,7 +371,7 @@ def test_enter_runs_a_not_done_test_and_reports_a_done_one(qapp, root):
 
 def test_enter_on_a_done_test_with_missing_data_does_nothing(qapp, root):
     done = done_test(root)
-    (root / done.session_dir).rmdir()
+    run_folder_of(root, done).rmdir()
     page = page_for(root)
     select(page, done.test_id)
     report = Recorder(page.reportRequested)

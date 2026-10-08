@@ -25,7 +25,6 @@ from PySide6.QtCore import Qt, Signal
 from PySide6.QtGui import QPixmap
 from PySide6.QtWidgets import QHBoxLayout, QLabel, QPushButton, QWidget
 
-from ..engine.config import load_default
 from ..engine.subject_tests import SubjectTest, list_tests
 
 SETUP_INDEX = 0
@@ -66,12 +65,6 @@ def find_test(window, test_id: str) -> SubjectTest | None:
         if test.test_id == test_id:
             return test
     return None
-
-
-def output_root_from_config() -> str:
-    """Where sessions, saved settings and the Test List live: ``recording.output_root``
-    of the default config, the same place the Setup page and every run read."""
-    return str(load_default().get("recording", {}).get("output_root", "sessions"))
 
 
 class TitleBar(QWidget):

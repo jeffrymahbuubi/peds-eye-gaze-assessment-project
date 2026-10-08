@@ -24,7 +24,6 @@ from collections.abc import Callable
 from pathlib import Path
 
 from PySide6.QtCore import Qt, Signal
-from PySide6.QtGui import QFont
 from PySide6.QtWidgets import (
     QAbstractItemView,
     QHBoxLayout,
@@ -36,6 +35,8 @@ from PySide6.QtWidgets import (
     QWidget,
 )
 
+from ..engine.run_paths import resolve_run_dir
+from ..engine.subject_store import find_subject
 from ..engine.subject_tests import (
     ACTION_ADD,
     ACTION_CONFIGURE,
@@ -54,18 +55,14 @@ from ..engine.subject_tests import (
     rename_test,
     subject_tests_dir,
 )
-from ..engine.task_info import TASK_INFO
 from .add_test_dialog import AddTestDialog
+from .folder_opener import open_folder
 from .rename_editor import RenameEditor
 from .run_dialogs import DANGER_TIER, PRIMARY, ask_choice
 from .test_list_table import (
     COL_NAME,
     HEADERS,
-    SortKeyItem,
     SubjectTestTable,
-    date_cells,
-    natural_key,
-    status_text,
 )
 
 NO_SUBJECT_TEXT = "Enter a Subject ID in Setup."
@@ -88,22 +85,29 @@ class SubjectTestListPage(QWidget):
         super().__init__(parent)
         self._subject_id = ""
         self._output_root = Path("sessions")
+        self._folder_mode = "id"  # how a new subject's folder is named (Setup's choice, H6)
+        self._subject_path: Path | None = None  # the typed subject's folder, as of the last reload
         self._tests: dict[str, SubjectTest] = {}
         self._sort: tuple[int, Qt.SortOrder] | None = None  # None = creation order
         self._editor: RenameEditor | None = None
         # The page's modal questions, replaceable so a test answers without a modal loop.
         self._choose_new_tests: Callable[[], tuple[str, int] | None] = lambda: AddTestDialog.ask(self)
+        # Opens a folder in Explorer; replaceable so a test opens nothing.
+        self._open_folder: Callable[[Path], bool] = open_folder
         self._confirm_delete: Callable[[SubjectTest], bool] = self._ask_delete
         self._build_ui()
         self.reload()
 
     # -- public API ---------------------------------------------------------------
 
-    def set_subject(self, subject_id: str, output_root: str | Path) -> None:
+    def set_subject(self, subject_id: str, output_root: str | Path, folder_mode: str = "id") -> None:
         """Show ``subject_id``'s tests, read from ``output_root`` now. A blank ID is the
-        "Enter a Subject ID in Setup." state: nothing is read, created or enabled."""
+        "Enter a Subject ID in Setup." state: nothing is read, created or enabled.
+        ``folder_mode`` is how Setup chose to name a **new** subject's folder; the first
+        test added creates it (SPEC-subject-data-layout.md H6)."""
         self._subject_id = subject_id.strip()
         self._output_root = Path(output_root)
+        self._folder_mode = folder_mode
         self.reload()
 
     def reload(self, select: str | None = None) -> None:
@@ -111,13 +115,15 @@ class SubjectTestListPage(QWidget):
         and the sort order are kept; a test that is gone is simply unselected."""
         keep = select or self._selected_id()
         self._close_editor()
+        subject = find_subject(self._output_root, self._subject_id) if self._subject_id else None
+        self._subject_path = subject.path if subject is not None else None
         unreadable: list[Path] = []
         tests: list[SubjectTest] = []
         if self._subject_id:
             loaded = list_tests(self._output_root, self._subject_id)
             tests, unreadable = loaded.tests, loaded.unreadable
         self._tests = {t.test_id: t for t in tests}
-        self._populate(tests)
+        self.table.populate(tests, self._data_missing)
         if self._sort is not None:
             self.table.sortItems(*self._sort)
         self.title_label.setText(
@@ -257,6 +263,9 @@ class SubjectTestListPage(QWidget):
         self.report_button = self._button("View Report", "wtmhGhost", column)
         self.copy_button = self._button("Copy Test", "wtmhGhost", column)
         self.delete_button = self._button("Delete Test", "wtmhGhost", column)
+        # Outside the row matrix: on whenever the subject has a folder (SPEC-subject-data-
+        # layout.md H6, wireframe W2), whichever row is selected.
+        self.open_folder_button = self._button("Open Subject Folder", "wtmhGhost", column)
         column.addStretch(1)
         body.addLayout(column)
 
@@ -278,6 +287,7 @@ class SubjectTestListPage(QWidget):
         self.report_button.clicked.connect(lambda: self._emit_for_selected(self.reportRequested))
         self.copy_button.clicked.connect(self._on_copy)
         self.delete_button.clicked.connect(self._on_delete)
+        self.open_folder_button.clicked.connect(self._on_open_folder)
         self.back_button.clicked.connect(self.backToSetupRequested)
         self.table.itemSelectionChanged.connect(self._on_selection_changed)
         self.table.cellDoubleClicked.connect(self._on_double_clicked)
@@ -298,41 +308,11 @@ class SubjectTestListPage(QWidget):
     # -- table contents ----------------------------------------------------------------
 
     def _data_missing(self, test: SubjectTest) -> bool:
-        """A run whose session folder is no longer on disk (4A.4)."""
+        """A run whose folder is no longer on disk (4A.4)."""
         if test.status == STATUS_NOT_DONE:
             return False
-        return not test.session_dir or not (self._output_root / test.session_dir).is_dir()
-
-    def _populate(self, tests: list[SubjectTest]) -> None:
-        table = self.table
-        table.blockSignals(True)
-        try:
-            table.clearContents()
-            table.setRowCount(len(tests))
-            for row, test in enumerate(tests):
-                date_text, date_tip = date_cells(test.completed_at)
-                task_name = TASK_INFO.get(test.task_id, (test.task_id, ""))[0]
-                status = status_text(test, self._data_missing(test))
-                cells = (
-                    (test.name, natural_key(test.name), ""),
-                    (task_name, task_name.casefold(), ""),
-                    (test.configuration["name"], test.configuration["name"].casefold(), ""),
-                    (status, status.casefold(), ""),
-                    (date_text, date_tip, date_tip),  # "" for no date sorts first
-                )
-                for column, (text, key, tip) in enumerate(cells):
-                    item = SortKeyItem(text, key)
-                    item.setData(Qt.ItemDataRole.UserRole, test.test_id)
-                    item.setFlags(Qt.ItemFlag.ItemIsEnabled | Qt.ItemFlag.ItemIsSelectable)
-                    item.setToolTip(tip)
-                    if test.status == STATUS_NOT_DONE:  # bold = not yet run (Compass)
-                        font = QFont(item.font())
-                        font.setBold(True)
-                        item.setFont(font)
-                    table.setItem(row, column, item)
-            table.clearSelection()
-        finally:
-            table.blockSignals(False)
+        folder = resolve_run_dir(self._subject_path, test.run_dir) if self._subject_path else None
+        return folder is None or not folder.is_dir()
 
     def _selected_id(self) -> str | None:
         rows = self.table.selectionModel().selectedRows() if self.table.selectionModel() else []
@@ -382,9 +362,17 @@ class SubjectTestListPage(QWidget):
         self.report_button.setEnabled(ACTION_REPORT in actions and not missing)
         self.copy_button.setEnabled(ACTION_COPY in actions)
         self.delete_button.setEnabled(ACTION_DELETE in actions)
+        self.open_folder_button.setEnabled(self._subject_path is not None)
         self.report_button.setToolTip(
-            "The recorded data for this test is missing from the sessions folder." if missing else ""
+            "The recorded data for this test is missing from the subject folder." if missing else ""
         )
+
+    def _on_open_folder(self) -> None:
+        folder = self._subject_path
+        if folder is None:
+            return
+        if not self._open_folder(folder):
+            self.show_message(f"Could not open the folder {folder}.")
 
     def _emit_for_selected(self, signal) -> None:
         test = self.selected_test()
@@ -425,7 +413,9 @@ class SubjectTestListPage(QWidget):
         created: list[SubjectTest] = []
         try:
             for _ in range(count):
-                created.append(create_test(self._output_root, self._subject_id, task_id))
+                created.append(
+                    create_test(self._output_root, self._subject_id, task_id, folder_mode=self._folder_mode)
+                )
         except (TestStoreError, ValueError) as exc:
             if not created:
                 self._failed("add the test", exc)
@@ -457,8 +447,8 @@ class SubjectTestListPage(QWidget):
 
     def _ask_delete(self, test: SubjectTest) -> bool:
         text = f"Delete '{test.name}' from this list?"
-        if test.session_dir:
-            text += " Its recorded data in the sessions folder is kept."
+        if test.run_dir:
+            text += " Its recorded data in the subject folder is kept."
         buttons = [("delete", "Delete", DANGER_TIER), ("keep", "Keep", PRIMARY)]
         return ask_choice(self, "Delete Test", text, buttons, "keep", "keep") == "delete"
 

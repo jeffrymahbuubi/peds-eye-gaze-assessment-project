@@ -14,10 +14,10 @@ os.environ.setdefault("QT_QPA_PLATFORM", "offscreen")
 from PySide6.QtWidgets import QApplication
 
 from src.app import AssessmentApp
-from src.data.recorder import SessionRecorder
 from src.data.schema import SessionMetadata
 from src.engine.display_check import DisplayCheck, check_display
 from src.ui.setup_page import SetupPage, _format_display_warning
+from tests.recorder_helpers import recorder_in
 
 
 @pytest.fixture(scope="module")
@@ -192,7 +192,7 @@ def test_record_geometry_nonstandard_acknowledged():
 def test_metadata_json_has_display_fields_and_standalone_ack_is_none(tmp_path):
     app = _fake_app(1920, 1080, 1.0, None)
     AssessmentApp._record_geometry(app)
-    with SessionRecorder(app.metadata, output_root=tmp_path):
+    with recorder_in(tmp_path, app.metadata):
         pass
     data = json.loads((tmp_path / "s" / "metadata.json").read_text(encoding="utf-8"))
     assert data["display_width_px"] == 1920

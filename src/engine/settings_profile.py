@@ -5,12 +5,14 @@ throwaway first run; those values must survive into the data-collection runs
 that follow, and be recoverable when the same child returns another day.
 
 Keyed **per subject and per task** rather than globally, mirroring the
-calibration precedent (``sessions/_calibrations/<subject_id>/``): one child's
+calibration precedent (``<subject folder>/calibrations/``): one child's
 tuning silently becoming the next child's starting point is a protocol hazard,
 not a convenience.
 
-Every save is its own file (S10.12): ``<subject>/<task_id>/<local date>_<local
-time>.json``. Nothing is ever overwritten, so a profile saved on one day is
+Every save is its own file (S10.12): ``<subject folder>/settings/<task_id>/<local
+date>_<local time>.json`` (the folder is found through ``subject.json``,
+:mod:`src.engine.subject_store`; SPEC-subject-data-layout.md H1). Nothing is ever
+overwritten, so a profile saved on one day is
 still there to choose after a different one is saved the next. The pre-S10.12
 flat ``<subject>/<task_id>.json`` is read as one more version and never
 rewritten. Timestamps are **local** time with their UTC offset -- the date is
@@ -37,15 +39,7 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
 
-from .session_naming import safe_subject_dirname
-
-SETTINGS_DIRNAME = "_settings"
-# Written by setup_page.py's "Save Calibration", not by this module -- named
-# here only so ``known_subject_ids`` can look there too.
-CALIBRATIONS_DIRNAME = "_calibrations"
-# Written by subject_tests.py (the per-subject Test List, SPEC-compass-task-
-# flow.md 4A.2) -- likewise named here only for ``known_subject_ids``.
-TESTS_DIRNAME = "_tests"
+from .subject_store import ensure_subject, find_subject
 
 # Bumped only if the on-disk shape changes incompatibly. Readers ignore keys
 # they do not know (see ``apply_live_values_to_config``), so adding a settings
@@ -61,21 +55,23 @@ CONFIG_NAME_MAX_LEN = 40
 _FILENAME_TIME_FORMAT = "%Y-%m-%d_%H-%M-%S"
 
 
-def subject_settings_dir(output_root: str | Path, subject_id: str) -> Path:
-    # The folder name is sanitised (SPEC-compass-task-flow.md 4A.9); an
-    # ordinary ID maps to itself, so existing folders still match.
-    return Path(output_root) / SETTINGS_DIRNAME / safe_subject_dirname(subject_id)
+def subject_settings_dir(output_root: str | Path, subject_id: str) -> Path | None:
+    """``<subject folder>/settings``, or ``None`` for a subject with no folder yet."""
+    folder = find_subject(output_root, subject_id)
+    return folder.settings if folder is not None else None
 
 
-def settings_profile_path(output_root: str | Path, subject_id: str, task_id: str) -> Path:
+def settings_profile_path(output_root: str | Path, subject_id: str, task_id: str) -> Path | None:
     """The pre-S10.12 single-file location. Still read, no longer written."""
-    return subject_settings_dir(output_root, subject_id) / f"{task_id}.json"
+    directory = subject_settings_dir(output_root, subject_id)
+    return directory / f"{task_id}.json" if directory is not None else None
 
 
-def settings_profile_dir(output_root: str | Path, subject_id: str, task_id: str) -> Path:
+def settings_profile_dir(output_root: str | Path, subject_id: str, task_id: str) -> Path | None:
     """Where this subject+task's saved versions live -- and where the Load
     Settings file dialog opens, so one folder holds exactly the choice."""
-    return subject_settings_dir(output_root, subject_id) / task_id
+    directory = subject_settings_dir(output_root, subject_id)
+    return directory / task_id if directory is not None else None
 
 
 def parse_saved_at(value: str) -> datetime | None:
@@ -138,38 +134,6 @@ def validate_config_name(name: str) -> str | None:
     return None
 
 
-def known_subject_ids(output_root: str | Path) -> list[str]:
-    """Every subject ID with something already saved under them, sorted.
-
-    Feeds the Setup page's Subject-ID completer (S10.7.3 B). Unions the
-    ``_settings``, ``_calibrations`` and ``_tests`` subject directories rather
-    than reading only the first: a subject routinely has a saved calibration
-    *before* they have a settings profile, and a completer that couldn't offer
-    them yet would miss the first -- and most likely -- chance to mistype the
-    ID. The names are folder names, so an ID with illegal characters shows in
-    its sanitised form (SPEC-compass-task-flow.md 4A.9).
-
-    Deliberately does not scan the dated run directories. Those are named
-    ``<date>_<subject>_<task>_run<N>``, so recovering the subject from them
-    means parsing a composite name, and any ID containing an underscore parses
-    wrong; the two dedicated directories are keyed by subject by construction.
-
-    Tolerant like the rest of this module: a missing or unreadable root is
-    simply "no known subjects".
-    """
-    names: set[str] = set()
-    for dirname in (SETTINGS_DIRNAME, CALIBRATIONS_DIRNAME, TESTS_DIRNAME):
-        directory = Path(output_root) / dirname
-        try:
-            entries = list(directory.iterdir())
-        except OSError:
-            continue
-        for entry in entries:
-            if entry.is_dir():
-                names.add(entry.name)
-    return sorted(names)
-
-
 def load_settings_profile_file(path: str | Path) -> dict[str, Any] | None:
     """Parse one saved version, or ``None`` if it isn't a usable profile.
 
@@ -218,12 +182,14 @@ def list_settings_profiles(
     """
     candidates: list[Path] = []
     directory = settings_profile_dir(output_root, subject_id, task_id)
+    if directory is None:
+        return []
     try:
         candidates.extend(p for p in directory.iterdir() if p.suffix == ".json")
     except OSError:
         pass
     legacy = settings_profile_path(output_root, subject_id, task_id)
-    if legacy.is_file():
+    if legacy is not None and legacy.is_file():
         candidates.append(legacy)
 
     dated: list[tuple[datetime, Path]] = []
@@ -331,6 +297,7 @@ def save_settings_profile(
     structural: dict[str, Any] | None = None,
     calibration: dict[str, Any] | None = None,
     name: str = "",
+    folder_mode: str | None = None,
 ) -> Path:
     """Write a **new** version for this subject+task; earlier ones are kept.
 
@@ -354,12 +321,15 @@ def save_settings_profile(
     calibration may be compensating for bad tracking rather than suiting the
     child, and re-applying them under a good calibration would be wrong;
     without this, nothing in the profile would say which case it was.
+
+    A subject's first save of anything creates the subject's folder; ``folder_mode``
+    (``"id"`` / ``"code"``, SPEC-subject-data-layout.md H6) applies only then.
     """
     name = name.strip()
     if name and (error := validate_config_name(name)):
         raise ValueError(error)
     now = datetime.now().astimezone()
-    directory = settings_profile_dir(output_root, subject_id, task_id)
+    directory = ensure_subject(output_root, subject_id, folder_mode).settings / task_id
     directory.mkdir(parents=True, exist_ok=True)
     stem = now.strftime(_FILENAME_TIME_FORMAT)
     path = directory / f"{stem}.json"

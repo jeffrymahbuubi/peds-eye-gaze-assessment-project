@@ -11,7 +11,7 @@ operator's choice at the dialog (``src/ui/run_dialogs.py``), and carried out her
   (``record_result``), then ``report.json`` is cached from the files on disk.
 * **Save and View Report**: the same, but the report is built on the spot
   (``load_or_build_report``) and handed back for the report page.
-* **Discard**: the session folder is deleted (guarded, ``discard_session``) and the
+* **Discard**: the run folder is deleted (guarded, ``discard_session``) and the
   test is left Not Done, so it can be configured and run again.
 
 ``report.json`` is built only after a Save, never for a run that is discarded
@@ -144,7 +144,7 @@ def finish_run(
     if action not in FINISH_ACTIONS:
         raise ValueError(f"action must be one of {FINISH_ACTIONS}, not {action!r}")
     if result.session_dir is None:
-        raise ValueError("a practice or preview run has no session folder to save or discard")
+        raise ValueError("a practice or preview run has no run folder to save or discard")
     if action == DISCARD:
         discard_session(result.session_dir, output_root)
         return FinishedRun(DISCARD)

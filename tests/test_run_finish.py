@@ -13,6 +13,7 @@ import pytest
 import src.engine.run_result as run_result
 from src.data.report_cache import REPORT_FILENAME, REPORT_VERSION
 from src.data.schema import TrialRecord
+from src.engine.run_paths import new_run_dir
 from src.engine.run_result import (
     DISCARD,
     SAVE,
@@ -51,7 +52,7 @@ def world(tmp_path):
     root = tmp_path / "sessions"
     root.mkdir()
     test = create_test(root, SUBJECT, "click_grid")
-    folder = write_session(root / "2026-10-06_P001_click_grid_run1", records3(), meta=dict(RIG_META))
+    folder = write_session(new_run_dir(root, SUBJECT, "click_grid"), records3(), meta=dict(RIG_META))
     return SimpleNamespace(root=root, test=test, folder=folder)
 
 
@@ -131,7 +132,8 @@ def test_save_locks_the_test_and_caches_the_report(world):
     assert out.action == SAVE and out.report is None
     test = stored(world)
     assert test.status == STATUS_DONE and out.test == test
-    assert (test.session_dir, test.planned_trials, test.completed_trials) == (world.folder.name, 3, 3)
+    assert test.run_dir == f"runs/click_grid/{world.folder.name}"
+    assert (test.planned_trials, test.completed_trials) == (3, 3)
     assert test.completed_at == FINISHED_AT
     report = json.loads((world.folder / REPORT_FILENAME).read_text(encoding="utf-8"))
     assert report["report_version"] == REPORT_VERSION and len(report["trials"]) == 3
@@ -150,7 +152,7 @@ def test_the_cached_report_is_exactly_a_rebuild(world):
 
 def test_a_saved_partial_run_gets_a_report_with_the_partial_banner(world, tmp_path):
     partial = write_session(
-        world.root / "2026-10-06_P001_click_grid_run2",
+        new_run_dir(world.root, SUBJECT, "click_grid"),
         records3()[:1],
         meta=dict(RIG_META, planned_trials=3, completed_trials=1, outcome="ended_early"),
     )
@@ -250,8 +252,8 @@ def test_a_discarded_run_never_builds_a_report(world, monkeypatch):
     assert not (world.folder / REPORT_FILENAME).exists()
 
 
-def test_discard_only_touches_a_session_folder_inside_the_root(world, tmp_path):
-    outside = write_session(tmp_path / "2026-10-06_P001_click_grid_run9", records3(), meta=dict(RIG_META))
+def test_discard_only_touches_a_run_folder_inside_the_root(world, tmp_path):
+    outside = write_session(new_run_dir(tmp_path / "other_root", SUBJECT, "click_grid"), records3(), meta=dict(RIG_META))
     bad = RunResult("record", "completed", "finished", 3, 3, 0, 2, outside, FINISHED_AT)
     with pytest.raises(SessionDiscardError):
         finish_run(bad, DISCARD, output_root=world.root, subject_id=SUBJECT, test_id=world.test.test_id)

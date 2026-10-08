@@ -19,9 +19,9 @@ from src.data.analysis_export import (
     read_all_gaze,
     rec_to_eye_geometry_row,
 )
-from src.data.recorder import SessionRecorder
 from src.data.schema import SessionMetadata
 from src.inputs.gazepoint_client import GazepointClient
+from tests.recorder_helpers import recorder_in
 
 from .test_gazepoint_client import _wait_until, fake_server  # noqa: F401  (fixture)
 
@@ -120,7 +120,7 @@ def test_existing_keys_behave_as_before(fake_server):  # noqa: F811
 
 def _record(tmp_path: Path, recs: list[dict[str, str]], *, all_gaze: bool = True) -> Path:
     meta = _metadata()
-    with SessionRecorder(meta, output_root=tmp_path) as rec:
+    with recorder_in(tmp_path, meta) as rec:
         if all_gaze:
             rec.open_all_gaze(media_name="click_static", tick_frequency=1000)
         rec.open_eye_geometry()
@@ -172,7 +172,7 @@ def test_eye_geometry_works_without_all_gaze(tmp_path: Path):
 
 def test_not_opened_means_no_file(tmp_path: Path):
     meta = _metadata()
-    with SessionRecorder(meta, output_root=tmp_path) as rec:
+    with recorder_in(tmp_path, meta) as rec:
         rec.open_all_gaze(media_name="x", tick_frequency=1)
         rec.record_raw(0, _rec(0, 1.0))
     assert not (tmp_path / meta.session_id / "eye_geometry.csv").exists()
@@ -247,7 +247,7 @@ def test_metadata_json_round_trips_new_fields(tmp_path: Path):
     meta.gazepoint_rate_hz = 150
     meta.gazepoint_bus = "USB3"
     meta.measured_eye_distance_mm_median = 640.0
-    with SessionRecorder(meta, output_root=tmp_path):
+    with recorder_in(tmp_path, meta):
         pass
     data = json.loads((tmp_path / meta.session_id / "metadata.json").read_text(encoding="utf-8"))
     assert data["gazepoint_rate_hz"] == 150
@@ -331,7 +331,7 @@ def test_clear_raw_drops_pre_run_records_from_both_files(fake_server, tmp_path: 
             fake_server.send_rec(x, 0.5)  # the run's records
         assert _wait_until(lambda: len(client._raw_queue) >= 2)
         meta = _metadata()
-        with SessionRecorder(meta, output_root=tmp_path) as rec:
+        with recorder_in(tmp_path, meta) as rec:
             rec.open_all_gaze(media_name="x", tick_frequency=1)
             rec.open_eye_geometry()
             for t_ns, attrs in client.drain_raw():

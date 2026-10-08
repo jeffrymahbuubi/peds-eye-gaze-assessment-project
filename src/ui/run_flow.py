@@ -37,6 +37,7 @@ from ..app import AssessmentApp
 from ..engine.config import load_task_config
 from ..engine.input_choice import resolve_input
 from ..engine.run_mode import PRACTICE, RECORD
+from ..engine.run_paths import path_budget_error
 from ..engine.run_result import DISCARD, SAVE_AND_VIEW, RunResult, finish_run
 from ..engine.session_files import SessionDiscardError
 from ..engine.subject_tests import (
@@ -98,6 +99,9 @@ class RunFlow:
         page = StartTestPage()
         page.set_blockers_provider(window.setup_page.run_blockers)
         page.set_test(test_name=test.name, task_id=test.task_id, cfg=self._config)
+        # H9: a recorded run must not write a path over 240 characters. Checked once, as the
+        # page opens; Start is off while it shows, Practice (which writes nothing) is not.
+        page.set_path_error(path_budget_error(window.output_root, test.subject_id, test.task_id))
         page.startRequested.connect(self._on_start)
         page.practiceRequested.connect(self._on_practice)
         page.cancelRequested.connect(lambda: self._leave())
@@ -286,7 +290,12 @@ class RunFlow:
     def _problem(
         action: str, test: SubjectTest, result: RunResult, exc: Exception
     ) -> tuple[str, str]:
-        folder = result.session_dir.name if result.session_dir is not None else "the sessions folder"
+        # <subject folder>/runs/<task>/<name>: the run folder alone would not say where it is.
+        folder = (
+            "/".join(result.session_dir.parts[-4:])
+            if result.session_dir is not None
+            else "the subject folder"
+        )
         reason = str(exc).rstrip(".")
         if action == DISCARD:
             return (

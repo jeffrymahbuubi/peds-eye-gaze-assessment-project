@@ -9,13 +9,16 @@ that turns Delete / F2 / Enter into signals.
 from __future__ import annotations
 
 import re
+from collections.abc import Callable
 from datetime import datetime
 from typing import Any
 
 from PySide6.QtCore import Qt, Signal
+from PySide6.QtGui import QFont
 from PySide6.QtWidgets import QTableWidget, QTableWidgetItem
 
 from ..engine.subject_tests import STATUS_ENDED_EARLY, STATUS_NOT_DONE, SubjectTest
+from ..engine.task_info import TASK_INFO
 
 COL_NAME, COL_TASK, COL_CONFIG, COL_STATUS, COL_DATE = range(5)
 HEADERS = ("Test Name", "Task", "Configuration", "Status", "Date Complete")
@@ -31,7 +34,7 @@ def natural_key(text: str) -> list[Any]:
 
 def status_text(test: SubjectTest, data_missing: bool = False) -> str:
     """``Not Done`` / ``Done`` / ``Ended early (7/12)``, plus ``· data missing`` when a
-    run's session folder is gone (4A.4)."""
+    run's folder is gone (4A.4)."""
     if test.status == STATUS_NOT_DONE:
         return "Not Done"
     if test.status == STATUS_ENDED_EARLY:
@@ -81,6 +84,38 @@ class SubjectTestTable(QTableWidget):
     deleteRequested = Signal()
     renameRequested = Signal()
     activateRequested = Signal()
+
+    def populate(self, tests: list[SubjectTest], data_missing: Callable[[SubjectTest], bool]) -> None:
+        """Fill the rows from ``tests`` (signals blocked, selection cleared). Every cell
+        carries the test id; a Not Done test is bold (Compass)."""
+        self.blockSignals(True)
+        try:
+            self.clearContents()
+            self.setRowCount(len(tests))
+            for row, test in enumerate(tests):
+                date_text, date_tip = date_cells(test.completed_at)
+                task_name = TASK_INFO.get(test.task_id, (test.task_id, ""))[0]
+                status = status_text(test, data_missing(test))
+                cells = (
+                    (test.name, natural_key(test.name), ""),
+                    (task_name, task_name.casefold(), ""),
+                    (test.configuration["name"], test.configuration["name"].casefold(), ""),
+                    (status, status.casefold(), ""),
+                    (date_text, date_tip, date_tip),  # "" for no date sorts first
+                )
+                for column, (text, key, tip) in enumerate(cells):
+                    item = SortKeyItem(text, key)
+                    item.setData(Qt.ItemDataRole.UserRole, test.test_id)
+                    item.setFlags(Qt.ItemFlag.ItemIsEnabled | Qt.ItemFlag.ItemIsSelectable)
+                    item.setToolTip(tip)
+                    if test.status == STATUS_NOT_DONE:  # bold = not yet run (Compass)
+                        font = QFont(item.font())
+                        font.setBold(True)
+                        item.setFont(font)
+                    self.setItem(row, column, item)
+            self.clearSelection()
+        finally:
+            self.blockSignals(False)
 
     def keyPressEvent(self, event) -> None:  # noqa: N802 (Qt naming)
         key = event.key()

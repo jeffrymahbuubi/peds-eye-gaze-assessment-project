@@ -19,6 +19,7 @@ from PySide6.QtWidgets import QApplication
 import src.ui.report_flow as report_flow_module
 from src.data.report_cache import REPORT_FILENAME, ReportError
 from src.engine import subject_tests as store
+from src.engine.run_paths import new_run_dir
 from src.ui.dashboard_flow import TESTS_INDEX, Flow
 from tests.dashboard_fixtures import new_test
 from tests.report_ui_fixtures import folder_report
@@ -42,8 +43,8 @@ def done_test(win, **edits):
     Returns ``(test, folder)``."""
     test = new_test(win)
     root = Path(win.output_root)
-    folder_report(root)  # writes <root>/run through the real pipeline
-    folder = root / "run"
+    folder = new_run_dir(root, SUBJECT, "click_grid")
+    folder_report(root, run_dir=folder)  # writes the run folder through the real pipeline
     store.record_result(
         win.output_root, SUBJECT, test.test_id, session_dir=folder, planned_trials=6, completed_trials=6
     )
@@ -90,16 +91,21 @@ def test_the_report_is_labelled_with_the_tests_subject_not_the_one_typed_in_setu
     assert "TESTING" in label and "P001" not in label  # not the report's own "P001" either
 
 
-def test_print_report_starts_in_the_runs_own_folder(rig):
+def test_print_report_starts_in_the_subjects_reports_folder(rig):
     win = rig
     test, folder = done_test(win)
     page = view_report(win, test)
+    reports = Path(win.output_root) / SUBJECT / "reports"
+    assert not reports.exists()  # opening a report writes nothing
     asked = []
     page.choose_pdf_path = lambda default: asked.append(default) or ""
     page.print_button.click()
     (default,) = asked
-    assert Path(default).parent == folder and default.endswith(".pdf")
-    assert "_Grid Click 1_" in Path(default).name  # <subject>_<test name>_<date>.pdf
+    assert Path(default).parent == reports and reports.is_dir() and default.endswith(".pdf")
+    name = Path(default).name  # <YYYY-MM-DD>_<test name>.pdf, no subject in it (SPEC-subject-data-layout H7)
+    assert name.endswith("_Grid Click 1.pdf") and "TESTING" not in name
+    assert name[:4].isdigit() and name[4] == "-"
+    assert folder not in Path(default).parents
 
 
 def test_the_existing_names_of_the_subject_are_given_for_the_name_check(rig):
@@ -133,7 +139,7 @@ def test_a_report_already_in_hand_is_used_without_reading_the_folder(rig, monkey
 def test_a_garbage_record_in_the_subjects_folder_does_not_stop_the_report(rig):
     win = rig
     test, _folder = done_test(win)
-    (Path(win.output_root) / "_tests" / SUBJECT / "t_deadbeef00.json").write_text("[1, 2", encoding="utf-8")
+    (Path(win.output_root) / SUBJECT / "tests" / "t_deadbeef00.json").write_text("[1, 2", encoding="utf-8")
     page = view_report(win, test)
     assert win.flow is Flow.REPORT and page is not None
 
@@ -159,7 +165,7 @@ def test_save_writes_name_evaluator_and_notes_and_returns_to_the_list(rig):
     page.save_button.click()
     saved = current(win, test.test_id)
     assert (saved.name, saved.evaluator, saved.notes) == ("Renamed test", "Dr. Chen", "Good attention")
-    assert saved.status == "done" and saved.session_dir == folder.name  # still locked, same run
+    assert saved.status == "done" and saved.run_dir == f"runs/click_grid/{folder.name}"  # still locked, same run
     assert win.flow is Flow.IDLE and win.stack.currentIndex() == TESTS_INDEX and win.stack.count() == 2
     assert win.report_flow.page is None and win.test_list_page.selected_test().test_id == test.test_id
     assert "Renamed test" in [row[0] for row in win.test_list_page.row_texts()]
@@ -264,7 +270,7 @@ def test_a_missing_data_folder_is_said_on_the_list(rig):
     assert not win.test_list_page.report_button.isEnabled()  # the list already says "data missing"
     win.report_flow.open(test.test_id)
     assert win.test_list_page.message_label.text() == (
-        "The recorded data for Grid Click 1 is missing from the sessions folder."
+        "The recorded data for Grid Click 1 is missing from the subject folder."
     )
     assert win.flow is Flow.IDLE
 

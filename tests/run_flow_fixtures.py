@@ -147,9 +147,9 @@ def finish_trials(app, pointing, count=None, seconds=10.0):
 
 
 def run_dirs(win):
-    """The recorded run folders under the window's output root."""
+    """The recorded run folders under the window's output root: ``<subject>/runs/<task>/<date_time>``."""
     root = Path(win.output_root)
-    return sorted(p for p in root.glob("*_run*") if p.is_dir()) if root.exists() else []
+    return sorted(p for p in root.glob("*/runs/*/*") if p.is_dir()) if root.exists() else []
 
 
 def stored_tests(win):

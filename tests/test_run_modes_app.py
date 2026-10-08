@@ -9,6 +9,7 @@ import copy
 import json
 import os
 import time
+from datetime import datetime
 from pathlib import Path
 
 import pytest
@@ -24,6 +25,7 @@ from src.data.analysis_export import read_all_gaze
 from src.data.recorder import NullRecorder, SessionRecorder
 from src.engine.calibration import CalibrationResult
 from src.engine.run_mode import PREVIEW_SEED
+from src.engine.run_paths import new_run_dir
 from src.inputs.gazepoint_client import DeviceInfo, GazepointClient
 from src.inputs.mouse_gaze import MouseGazeSource
 from src.tasks.base_task import Phase
@@ -132,7 +134,9 @@ def test_a_record_run_writes_run_mode_and_config_name(make_app):
     assert meta["config_name"] == "Custom 1"
     assert meta["settings"]["config_name"] == "Custom 1"  # R7: the configuration block names it too
     assert meta["seed"] == 4242 and make_app.seeds == [4242]  # the test's own seed
-    assert app.metadata.session_id.endswith("_run1") and app.recorder.session_dir.is_dir()
+    run = app.recorder.session_dir
+    assert run.is_dir() and run.parent == make_app.root / "P001" / "runs" / "click_static"
+    assert app.metadata.session_id == f"click_static_{run.name}"  # H3: task and time, no subject
 
 
 def test_a_standalone_record_run_has_no_config_name(make_app):
@@ -230,7 +234,10 @@ def test_the_dropout_diagnostic_is_for_recorded_runs_on_a_live_device(make_app):
         def is_live(self):
             return True
 
-    assert make_app(client=LiveFake())._dropout_log is not None
+    live = make_app(client=LiveFake())
+    assert live._dropout_log is not None
+    # L8: the shared diagnostics sit under _system/, not under a subject and not in an old _diagnostics.
+    assert live._dropout_log._path == make_app.root / "_system" / "diagnostics" / "gaze_dropouts.jsonl"
     assert make_app(client=LiveFake(), run_mode="practice", preset_calibration_result=VALID)._dropout_log is None
 
 
@@ -238,15 +245,14 @@ def test_the_dropout_diagnostic_is_for_recorded_runs_on_a_live_device(make_app):
 
 
 def seeded_world(root: Path) -> None:
-    """A sessions folder that already holds a finished run and the shared logs."""
-    run = root / "2026-10-05_P001_click_static_run1"
-    run.mkdir(parents=True)
+    """A sessions folder that already holds a finished run, a saved setting and the shared logs."""
+    run = new_run_dir(root, "P001", "click_static", now=datetime(2026, 10, 5, 12, 0))
     (run / "trials.csv").write_text("trial_id\n0\n", encoding="utf-8")
     (run / "calibration.json").write_text("{}", encoding="utf-8")
-    (root / "_diagnostics").mkdir()
-    (root / "_diagnostics" / "gaze_dropouts.jsonl").write_text("{}\n", encoding="utf-8")
-    (root / "_settings").mkdir()
-    (root / "_settings" / "keep.json").write_text("{}", encoding="utf-8")
+    (root / "_system" / "diagnostics").mkdir(parents=True)
+    (root / "_system" / "diagnostics" / "gaze_dropouts.jsonl").write_text("{}\n", encoding="utf-8")
+    (root / "P001" / "settings").mkdir()
+    (root / "P001" / "settings" / "keep.json").write_text("{}", encoding="utf-8")
 
 
 def test_practice_leaves_the_sessions_folder_byte_identical(make_app):
@@ -271,9 +277,9 @@ def test_practice_leaves_the_sessions_folder_byte_identical(make_app):
     app._tick()
     app._skip_trial()
     tick_until(app, lambda: bool(done))  # the other two time out; the task finishes by itself
-    assert snapshot(make_app.root) == before  # no folder, no file, no _diagnostics line
+    assert snapshot(make_app.root) == before  # no folder, no file, no diagnostics line
     assert list(make_app.root.glob("**/calibration.json")) == [
-        make_app.root / "2026-10-05_P001_click_static_run1" / "calibration.json"
+        make_app.root / "P001" / "runs" / "click_static" / "2026-10-05_1200" / "calibration.json"
     ]
     assert (structural, live) == (structural_before, live_before)  # the test's dicts untouched
     assert app.metadata.run_mode == "practice" and app.metadata.session_id == "practice"
@@ -521,3 +527,39 @@ def test_practice_and_preview_never_build_a_report(make_app, mode):
     app._tick()
     app._shutdown()
     assert list(make_app.root.glob("**/report.json")) == []
+
+
+# -- where a recorded run writes (SPEC-subject-data-layout.md H1, H2, L1) ------------------------------
+
+
+def test_two_runs_in_the_same_minute_get_two_folders_and_nothing_else_is_written(make_app):
+    first, second = make_app(), make_app()
+    assert first.recorder.session_dir != second.recorder.session_dir
+    assert first.recorder.session_dir.parent == second.recorder.session_dir.parent
+    root = make_app.root
+    for app in (first, second):
+        app._shutdown()
+    written = {p.relative_to(root).parts[:2] for p in root.rglob("*") if p.is_file()}
+    assert written == {("P001", "subject.json"), ("P001", "runs")}  # nothing outside the subject folder
+    runs = sorted(p.parent.name for p in root.rglob("metadata.json"))
+    assert len(runs) == 2 and runs[0].startswith(runs[1][:10])  # both named <date>_<HHMM>[_2]
+    for old in ("_tests", "_settings", "_calibrations", "_diagnostics"):
+        assert not (root / old).exists()
+
+
+def test_a_preset_calibration_and_the_recorder_share_one_run_folder(make_app):
+    app = make_app(preset_calibration_result=VALID, test_id="t_0123456789")
+    folder = app.recorder.session_dir
+    assert (folder / "calibration.json").is_file() and (folder / "metadata.json").parent == folder
+    assert len(list((make_app.root / "P001" / "runs" / "click_static").iterdir())) == 1  # not two
+    assert app.metadata.session_id == f"click_static_{folder.name}_t_0123456789"
+
+
+def test_a_run_that_cannot_reach_the_tracker_leaves_no_folder_behind(make_app, monkeypatch):
+    def refused(self, *args, **kwargs):
+        raise OSError("connection refused")
+
+    monkeypatch.setattr(GazepointClient, "connect", refused)
+    with pytest.raises(OSError, match="connection refused"):
+        make_app(replay=False)  # a live client, whose connect fails before any run folder is made
+    assert not make_app.root.exists()  # neither a subject folder nor a run folder

@@ -9,9 +9,9 @@ from types import SimpleNamespace
 import pytest
 
 from src.app import AssessmentApp
-from src.data.recorder import SessionRecorder
 from src.data.schema import SessionMetadata
 from src.tasks.base_task import canvas_geometry_physical
+from tests.recorder_helpers import recorder_in
 
 
 def test_helper_dpr_1_is_identity():
@@ -114,7 +114,7 @@ def test_record_geometry_replay_still_fills_canvas_fields():
 def test_metadata_json_canvas_units_and_old_metadata_still_loads(tmp_path):
     app = _fake_app(1.5, _info())
     AssessmentApp._record_geometry(app)
-    with SessionRecorder(app.metadata, output_root=tmp_path):
+    with recorder_in(tmp_path, app.metadata):
         pass
     data = json.loads((tmp_path / "s" / "metadata.json").read_text(encoding="utf-8"))
     assert data["canvas_units"] == "physical"

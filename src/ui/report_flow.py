@@ -12,24 +12,25 @@ answers the page's two signals:
   Test List with the test selected.
 * **Cancel** -- the edits are dropped; returns to the Test List.
 
-The report is of the test's own run folder (``Print Report`` starts in that folder) and
-carries the **test's** Subject ID, never whatever is typed in Setup now. A test that has
+The report is of the test's own run folder; ``Print Report`` starts in the subject's
+``reports/`` folder (SPEC-subject-data-layout.md H7). It carries the **test's** Subject ID, never whatever is typed in Setup now. A test that has
 no run, a run folder that is gone, or a folder no report can be built from is said so on
 the Test List, and no page is opened.
 """
 
 from __future__ import annotations
 
-from pathlib import Path
 from typing import TYPE_CHECKING, Any
 
 from ..data.report_cache import load_or_build_report
+from ..engine.subject_store import find_subject
 from ..engine.subject_tests import (
     STATUS_NOT_DONE,
     SubjectTest,
     TestStoreError,
     list_tests,
     rename_test,
+    run_folder_of,
     update_test,
 )
 from .dashboard_flow import Flow, find_test
@@ -58,15 +59,16 @@ class ReportFlow:
             listing.reload()
             listing.show_message("That test could not be found. The list was reloaded.")
             return
-        if test.status == STATUS_NOT_DONE or not test.session_dir:
+        if test.status == STATUS_NOT_DONE or not test.run_dir:
             listing.show_message(f"{test.name} has not been run, so it has no report.")
             return
-        folder = Path(window.output_root) / test.session_dir
-        if not folder.is_dir():
+        folder = run_folder_of(window.output_root, test)
+        if folder is None or not folder.is_dir():
             listing.show_message(
-                f"The recorded data for {test.name} is missing from the sessions folder."
+                f"The recorded data for {test.name} is missing from the subject folder."
             )
             return
+        subject = find_subject(window.output_root, test.subject_id)  # exists: the run is in it
         if report is None:
             try:
                 report = load_or_build_report(folder)
@@ -84,7 +86,7 @@ class ReportFlow:
         )
         page.set_context(
             existing_test_names=[t.name for t in list_tests(window.output_root, test.subject_id).tests],
-            pdf_dir=folder,  # Print Report starts in the run's own folder
+            pdf_dir=subject.reports if subject is not None else None,  # Print Report starts here (H7)
         )
         page.saved.connect(self._on_saved)
         page.cancelRequested.connect(self._close_page)

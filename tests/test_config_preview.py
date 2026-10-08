@@ -242,11 +242,11 @@ def test_preview_creates_nothing_under_sessions(win):
     app._tick()
     hover_target(app, pointing)
     tick_until(app, lambda: win.flow is Flow.CONFIGURE)
-    assert tree(root) == listing_before  # no run folder, no calibration.json, no _diagnostics, no _settings
+    assert tree(root) == listing_before  # no run folder, no calibration.json, no diagnostics, no settings
     assert {p: p.read_bytes() for p in root.rglob("*") if p.is_file()} == before
-    assert not (root / "_diagnostics").exists() and not (root / "_settings").exists()
+    assert not (root / "_system").exists() and not (root / "TESTING" / "settings").exists()
     assert stored(win, test.test_id).status == "not_done"  # no card or test status change
-    assert not any(root.glob("*_run*"))  # run numbering is untouched
+    assert not any(root.glob("*/runs/*/*"))  # no run folder, so no run name is taken
 
 
 def test_preview_works_with_no_tracker_and_no_calibration(win):

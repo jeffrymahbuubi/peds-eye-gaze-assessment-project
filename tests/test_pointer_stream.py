@@ -13,11 +13,11 @@ from src.data.recorder import (
     POINTER_STREAM_COLUMNS,
     POINTER_STREAM_FILENAME,
     NullRecorder,
-    SessionRecorder,
 )
 from src.data.schema import GazeSample, SessionMetadata, TrialRecord
 from src.engine.tracking_status import run_status_line
 from src.inputs.no_tracker import NoTracker
+from tests.recorder_helpers import recorder_in
 
 
 def meta(session_id="mouse_run"):
@@ -42,7 +42,7 @@ def test_the_stream_has_the_agreed_name_and_columns():
 
 
 def test_the_header_is_written_at_once_and_each_sample_is_a_row(tmp_path):
-    with SessionRecorder(meta(), output_root=tmp_path) as recorder:
+    with recorder_in(tmp_path, meta()) as recorder:
         recorder.open_pointer_stream()
         path = recorder.session_dir / POINTER_STREAM_FILENAME
         assert path.exists()  # even if no frame is ever recorded
@@ -56,7 +56,7 @@ def test_the_header_is_written_at_once_and_each_sample_is_a_row(tmp_path):
 
 
 def test_a_long_stream_is_flushed_as_it_goes(tmp_path):
-    recorder = SessionRecorder(meta(), output_root=tmp_path)
+    recorder = recorder_in(tmp_path, meta())
     recorder.open()
     recorder.open_pointer_stream()
     for i in range(130):
@@ -69,13 +69,13 @@ def test_a_long_stream_is_flushed_as_it_goes(tmp_path):
 
 
 def test_without_the_stream_opened_recording_a_pointer_does_nothing(tmp_path):
-    with SessionRecorder(meta(), output_root=tmp_path) as recorder:
+    with recorder_in(tmp_path, meta()) as recorder:
         recorder.record_pointer(sample(1))
     assert not (tmp_path / "mouse_run" / POINTER_STREAM_FILENAME).exists()
 
 
 def test_opening_the_stream_twice_keeps_one_file(tmp_path):
-    with SessionRecorder(meta(), output_root=tmp_path) as recorder:
+    with recorder_in(tmp_path, meta()) as recorder:
         recorder.open_pointer_stream()
         recorder.record_pointer(sample(1))
         recorder.open_pointer_stream()  # not reopened (which would empty it)
@@ -87,13 +87,13 @@ def test_opening_the_stream_twice_keeps_one_file(tmp_path):
 
 
 def test_the_gaze_stream_is_still_opened_by_default(tmp_path):
-    with SessionRecorder(meta(), output_root=tmp_path) as recorder:
+    with recorder_in(tmp_path, meta()) as recorder:
         recorder.record_gaze(sample(1))
     assert len(rows(tmp_path / "mouse_run" / "gaze_stream.csv")) == 1
 
 
 def test_a_run_with_no_tracker_creates_no_gaze_stream(tmp_path):
-    recorder = SessionRecorder(meta("none"), output_root=tmp_path)
+    recorder = recorder_in(tmp_path, meta("none"))
     recorder.open(gaze_stream=False)
     recorder.open_pointer_stream()
     recorder.record_pointer(sample(1))
@@ -119,7 +119,7 @@ def test_the_new_metadata_fields_default_to_none_and_are_written(tmp_path):
     m = meta()
     assert (m.input_pointer, m.input_selection, m.gaze_recorded) == (None, None, None)
     m.input_pointer, m.input_selection, m.gaze_recorded, m.input_mode = "mouse", None, False, "mouse_follow"
-    with SessionRecorder(m, output_root=tmp_path):
+    with recorder_in(tmp_path, m):
         pass
     written = json.loads((tmp_path / "mouse_run" / "metadata.json").read_text(encoding="utf-8"))
     assert (written["input_pointer"], written["input_selection"], written["gaze_recorded"]) == (

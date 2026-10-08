@@ -1,18 +1,20 @@
 """Per-session data recorder.
 
-Writes one directory per session::
+Writes one directory per recorded run, under the subject's own folder
+(SPEC-subject-data-layout.md H1, H2)::
 
     sessions/
-      2026-07-15_P001_S1/
-        metadata.json      # subject, calibration error, schema version
-        session.log        # human-readable timeline
-        gaze_stream.csv    # per-frame gaze samples
-        all_gaze.csv       # every raw <REC>, Gazepoint Analysis export layout (optional)
-        eye_geometry.csv   # 3D eye position + per-eye POG per raw <REC> (optional)
-        trials.csv         # one row per trial
-        target_track.csv   # moving target's position at ~20 Hz (follow_moving only)
-        pointer_stream.csv # the mouse pointer per frame (a Mouse run only)
-        events.jsonl       # discrete events (DWELL_START, TARGET_SHOWN, ...)
+      P001/                                # the subject's folder (subject.json inside)
+        runs/click_grid/2026-07-15_1432/   # runs/<task_id>/<YYYY-MM-DD_HHMM>[_2]
+          metadata.json      # subject, calibration error, schema version
+          session.log        # human-readable timeline
+          gaze_stream.csv    # per-frame gaze samples
+          all_gaze.csv       # every raw <REC>, Gazepoint Analysis export layout (optional)
+          eye_geometry.csv   # 3D eye position + per-eye POG per raw <REC> (optional)
+          trials.csv         # one row per trial
+          target_track.csv   # moving target's position at ~20 Hz (follow_moving only)
+          pointer_stream.csv # the mouse pointer per frame (a Mouse run only)
+          events.jsonl       # discrete events (DWELL_START, TARGET_SHOWN, ...)
 
 The recorder is deliberately GUI-free and streams to disk incrementally so a
 crash mid-session still leaves usable partial data.
@@ -26,6 +28,7 @@ from datetime import datetime
 from pathlib import Path
 from typing import Any, TextIO
 
+from ..engine.run_paths import new_run_dir
 from .analysis_export import (
     ALL_GAZE_FILENAME,
     EYE_GEOMETRY_COLUMNS,
@@ -64,9 +67,21 @@ POINTER_STREAM_COLUMNS = ["t_ns", "x", "y", "valid"]
 class SessionRecorder:
     """Streams gaze samples, trials and events to a session directory."""
 
-    def __init__(self, metadata: SessionMetadata, output_root: str | Path = "sessions") -> None:
+    def __init__(
+        self,
+        metadata: SessionMetadata,
+        output_root: str | Path = "sessions",
+        session_dir: str | Path | None = None,
+    ) -> None:
+        """``session_dir`` is the run folder, already made by :func:`~src.engine.run_paths.
+        new_run_dir` (``AssessmentApp`` needs it before the recorder exists) or any folder
+        the caller owns (a headless replay). Without one, this makes the run folder
+        itself, ``<output_root>/<subject folder>/runs/<task_id>/<YYYY-MM-DD_HHMM>``."""
         self.metadata = metadata
-        self.session_dir = Path(output_root) / metadata.session_id
+        if session_dir is None:
+            task_id = metadata.tasks[0] if metadata.tasks else "session"
+            session_dir = new_run_dir(output_root, metadata.subject_id, task_id)
+        self.session_dir = Path(session_dir)
         self.session_dir.mkdir(parents=True, exist_ok=True)
 
         self._gaze_file: TextIO | None = None

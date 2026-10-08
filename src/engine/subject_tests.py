@@ -2,10 +2,11 @@
 
 A *test* is one planned instance of a task for one subject: a name, the task,
 a configuration snapshot, a random seed, and -- once it has run -- a link to
-its session folder. The Tests tab lists them like Compass's Test List and
+its run folder. The Tests tab lists them like Compass's Test List and
 they survive across days and restarts.
 
-One JSON file per test (``<output_root>/_tests/<subject_dirname>/<test_id>.json``)
+One JSON file per test (``<output_root>/<subject folder>/tests/<test_id>.json``, the
+folder found through its ``subject.json``, :mod:`src.engine.subject_store`)
 so one bad file loses one test, and there is no read-modify-write race on a
 shared list. Disk is the source of truth: every action writes first. The
 reader is tolerant in the :mod:`src.engine.settings_profile` way -- a bad file
@@ -26,14 +27,19 @@ import os
 import random
 import re
 import secrets
-import time
 from dataclasses import dataclass, replace
 from datetime import datetime, timedelta
 from pathlib import Path
 from typing import Any
 
-from .session_naming import safe_subject_dirname
-from .settings_profile import TESTS_DIRNAME
+from .run_paths import relative_run_dir, resolve_run_dir
+from .subject_store import (
+    REPLACE_RETRIES,
+    ensure_subject,
+    find_subject,
+    replace_with_retry,
+    same_subject,
+)
 from .subject_test_record import (  # noqa: F401  (re-exported)
     MAX_NAME_LEN,
     MAX_SEED,
@@ -66,9 +72,8 @@ ACTION_REPORT = "report"
 ACTION_COPY = "copy"
 ACTION_DELETE = "delete"
 
-# Antivirus / OneDrive can hold a freshly written file for a moment on Windows.
-_REPLACE_RETRIES = 5
-_REPLACE_DELAY_S = 0.04
+_REPLACE_RETRIES = REPLACE_RETRIES  # retries on PermissionError, see subject_store.replace_with_retry
+_replace_with_retry = replace_with_retry
 
 _TEST_ID_RE = re.compile(r"t_[0-9a-f]{10}")
 
@@ -98,8 +103,10 @@ class TestListLoad:
 # -- paths and disk ----------------------------------------------------------
 
 
-def subject_tests_dir(output_root: str | Path, subject_id: str) -> Path:
-    return Path(output_root) / TESTS_DIRNAME / safe_subject_dirname(subject_id.strip())
+def subject_tests_dir(output_root: str | Path, subject_id: str) -> Path | None:
+    """``<subject folder>/tests``, or ``None`` for a subject with no folder yet."""
+    folder = find_subject(output_root, subject_id)
+    return folder.tests if folder is not None else None
 
 
 def _discard(path: Path) -> None:
@@ -107,19 +114,6 @@ def _discard(path: Path) -> None:
         path.unlink(missing_ok=True)
     except OSError:
         pass
-
-
-def _replace_with_retry(src: Path, dst: Path) -> None:
-    """``os.replace`` with a few short retries on ``PermissionError`` (4A.2)."""
-    attempts = 1 + _REPLACE_RETRIES
-    for attempt in range(attempts):
-        try:
-            os.replace(src, dst)
-            return
-        except PermissionError:
-            if attempt == attempts - 1:
-                raise
-            time.sleep(_REPLACE_DELAY_S)
 
 
 def _atomic_write_json(path: Path, payload: dict[str, Any]) -> None:
@@ -173,20 +167,18 @@ def _new_seed(avoid: int | None = None) -> int:
     return seed
 
 
-def _new_test_id(directory: Path) -> str:
+def _new_test_id(directory: Path | None) -> str:
     while True:
         test_id = "t_" + secrets.token_hex(5)
-        taken = (directory / f"{test_id}.json").exists()
-        taken = taken or (directory / DELETED_DIRNAME / f"{test_id}.json").exists()
+        taken = directory is not None and (
+            (directory / f"{test_id}.json").exists()
+            or (directory / DELETED_DIRNAME / f"{test_id}.json").exists()
+        )
         if not taken:
             return test_id
 
 
 # -- reading -----------------------------------------------------------------
-
-
-def _same_subject(a: str, b: str) -> bool:
-    return a.strip().casefold() == b.strip().casefold()
 
 
 def list_tests(output_root: str | Path, subject_id: str) -> TestListLoad:
@@ -197,11 +189,14 @@ def list_tests(output_root: str | Path, subject_id: str) -> TestListLoad:
     ``test_id`` that differs from the file name, or a ``task_id`` not in
     ``TASK_REGISTRY``. Skipped silently: a record whose subject differs
     (casefold) from ``subject_id``, so two folders that sanitise to the same
-    name can never mix. A missing folder is simply "no tests".
+    name can never mix. A subject with no folder (or no ``tests`` folder yet) is simply
+    "no tests".
     """
     directory = subject_tests_dir(output_root, subject_id)
     tests: list[SubjectTest] = []
     unreadable: list[Path] = []
+    if directory is None:
+        return TestListLoad([], [])
     try:
         paths = sorted(p for p in directory.glob("t_*.json") if p.is_file())
     except OSError:
@@ -215,7 +210,7 @@ def list_tests(output_root: str | Path, subject_id: str) -> TestListLoad:
         test = parse_record(data, path.stem)
         if test is None:
             unreadable.append(path)
-        elif _same_subject(test.subject_id, subject_id):
+        elif same_subject(test.subject_id, subject_id):
             tests.append(test)
     tests.sort(key=lambda t: (t.created_at, t.test_id))
     return TestListLoad(tests, unreadable)
@@ -224,7 +219,10 @@ def list_tests(output_root: str | Path, subject_id: str) -> TestListLoad:
 def _load(output_root: str | Path, subject_id: str, test_id: str) -> SubjectTest:
     if not isinstance(test_id, str) or not _TEST_ID_RE.fullmatch(test_id):
         raise TestStoreError(f"Unknown test id {test_id!r}.")
-    path = subject_tests_dir(output_root, subject_id) / f"{test_id}.json"
+    directory = subject_tests_dir(output_root, subject_id)
+    if directory is None:
+        raise TestStoreError(f"Test {test_id} was not found for this subject.")
+    path = directory / f"{test_id}.json"
     try:
         data = json.loads(path.read_text(encoding="utf-8"))
     except FileNotFoundError as exc:
@@ -232,14 +230,19 @@ def _load(output_root: str | Path, subject_id: str, test_id: str) -> SubjectTest
     except (json.JSONDecodeError, OSError, UnicodeDecodeError) as exc:
         raise TestStoreError(f"Test {test_id} could not be read: {exc}") from exc
     test = parse_record(data, test_id)
-    if test is None or not _same_subject(test.subject_id, subject_id):
+    if test is None or not same_subject(test.subject_id, subject_id):
         raise TestStoreError(f"Test {test_id} was not found for this subject.")
     return test
 
 
-def _save(output_root: str | Path, test: SubjectTest) -> None:
-    path = subject_tests_dir(output_root, test.subject_id) / f"{test.test_id}.json"
-    _atomic_write_json(path, test.to_record())
+def _save(output_root: str | Path, test: SubjectTest, folder_mode: str | None = None) -> None:
+    """Write the record under the subject's folder, which is made (with its
+    ``subject.json``, in ``folder_mode``) if this is the subject's first save."""
+    try:
+        folder = ensure_subject(output_root, test.subject_id, folder_mode)
+    except OSError as exc:
+        raise TestStoreError(f"Could not save {test.test_id}.json: {exc.strerror or exc}") from exc
+    _atomic_write_json(folder.tests / f"{test.test_id}.json", test.to_record())
 
 
 def _names(output_root: str | Path, subject_id: str) -> list[str]:
@@ -263,8 +266,13 @@ def create_test(
     *,
     name: str | None = None,
     configuration: dict[str, Any] | None = None,
+    folder_mode: str | None = None,
 ) -> SubjectTest:
-    """Add a Not Done test: default name, Standard configuration, a fresh seed."""
+    """Add a Not Done test: default name, Standard configuration, a fresh seed.
+
+    A subject's first test creates the subject's folder; ``folder_mode`` (``"id"`` or
+    ``"code"``, SPEC-subject-data-layout.md H6) is the Setup page's choice and applies
+    only then. ``None`` means ``"id"``."""
     subject_id = subject_id.strip()
     if not subject_id:
         raise ValueError("A Subject ID is required to add a test.")
@@ -287,7 +295,7 @@ def create_test(
         configuration=_configuration_arg(configuration),
         seed=_new_seed(),
     )
-    _save(output_root, test)
+    _save(output_root, test, folder_mode)
     return test
 
 
@@ -353,9 +361,11 @@ def update_test(
 
 
 def delete_test(output_root: str | Path, subject_id: str, test_id: str) -> None:
-    """Soft delete: move the record to ``_deleted/``. Session folders are never touched."""
+    """Soft delete: move the record to ``tests/_deleted/``. Run folders are never touched."""
     test = _load(output_root, subject_id, test_id)
     directory = subject_tests_dir(output_root, test.subject_id)
+    if directory is None:  # cannot happen: _load found it there
+        raise TestStoreError(f"Test {test_id} was not found for this subject.")
     target = directory / DELETED_DIRNAME / f"{test_id}.json"
     try:
         target.parent.mkdir(parents=True, exist_ok=True)
@@ -378,8 +388,9 @@ def record_result(
 
     ``status`` / ``outcome`` become ``done`` / ``completed`` when
     ``completed_trials >= planned_trials``, else ``ended_early``. A second call
-    raises :class:`TestLockedError`. ``session_dir`` must be a folder directly
-    inside ``output_root`` and is stored by name only.
+    raises :class:`TestLockedError`. ``session_dir`` must be the run folder
+    ``<subject folder>/runs/<task_id>/<YYYY-MM-DD_HHMM>`` of this subject; the record
+    stores it as ``run_dir``, relative to the subject folder (SPEC-subject-data-layout.md H4).
     """
     test = _load(output_root, subject_id, test_id)
     if test.status != STATUS_NOT_DONE:
@@ -387,9 +398,10 @@ def record_result(
     for label, count in (("planned_trials", planned_trials), ("completed_trials", completed_trials)):
         if not isinstance(count, int) or isinstance(count, bool) or count < 0:
             raise ValueError(f"{label} must be a non-negative integer, got {count!r}.")
-    folder = Path(session_dir)
-    if not folder.name or folder.parent.resolve() != Path(output_root).resolve():
-        raise ValueError(f"The session folder must be directly inside {output_root}: {session_dir}")
+    subject = find_subject(output_root, test.subject_id)
+    if subject is None:  # cannot happen: _load found the test in it
+        raise TestStoreError(f"Test {test_id} was not found for this subject.")
+    run_dir = relative_run_dir(subject.path, session_dir)  # ValueError unless under <subject>/runs/
     finished = completed_trials >= planned_trials
     test = replace(
         test,
@@ -398,10 +410,20 @@ def record_result(
         completed_at=completed_at or datetime.now().astimezone().isoformat(timespec="seconds"),
         planned_trials=planned_trials,
         completed_trials=completed_trials,
-        session_dir=folder.name,
+        run_dir=run_dir,
     )
     _save(output_root, test)
     return test
+
+
+def run_folder_of(output_root: str | Path, test: SubjectTest) -> Path | None:
+    """The run folder a test's ``run_dir`` points at (it may no longer exist), or ``None``
+    for a test with no run or a ``run_dir`` that is not a plain ``runs/<task>/<name>``."""
+    subject = find_subject(output_root, test.subject_id)
+    if subject is None:
+        return None
+    return resolve_run_dir(subject.path, test.run_dir)
+
 
 
 def allowed_actions(test: SubjectTest | None) -> frozenset[str]:

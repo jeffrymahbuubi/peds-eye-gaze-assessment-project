@@ -8,6 +8,7 @@ from __future__ import annotations
 import copy
 import json
 import os
+import re
 from pathlib import Path
 
 import pytest
@@ -18,6 +19,7 @@ from PySide6.QtWidgets import QApplication
 
 import src.ui.run_flow as run_flow_module
 from src.engine.run_mode import PRACTICE_SEED_BASE
+from src.engine.run_paths import new_run_dir
 from src.engine.subject_tests import STATUS_DONE, create_test, record_result
 from src.ui.dashboard_flow import SETUP_INDEX, TESTS_INDEX, Flow
 from tests.dashboard_fixtures import new_test, tree
@@ -152,8 +154,7 @@ def test_the_nav_is_locked_on_the_start_page_in_practice_and_in_a_run(rig):
 def test_a_done_test_cannot_be_run(rig):
     win, _mouse, _pointing = rig
     test = new_test(win)
-    folder = Path(win.output_root) / "2026-10-07_TESTING_click_grid_run1"
-    folder.mkdir(parents=True)
+    folder = new_run_dir(win.output_root, SUBJECT, "click_grid")
     record_result(win.output_root, SUBJECT, test.test_id, session_dir=folder, planned_trials=6, completed_trials=6)
     win.run_flow.open(test.test_id)
     assert win.flow is Flow.IDLE and "already been run" in win.test_list_page.message_label.text()
@@ -267,7 +268,7 @@ def test_a_quit_practice_returns_at_once_with_no_line(rig):
     assert page.practice_label.isHidden()  # a quit practice says nothing
 
 
-def test_practice_writes_nothing_under_sessions(rig):
+def test_practice_writes_nothing_under_the_output_root(rig):
     win, mouse, pointing = rig
     test = new_test(win)
     configure_fast(win, test, trials=2)
@@ -276,15 +277,15 @@ def test_practice_writes_nothing_under_sessions(rig):
     open_start(win, test)
     app = start_run(win, mouse, "practice_button")
     finish_trials(app, pointing)
-    assert files_under(root) == before and tree(root) == listing  # no folder, calibration.json or _diagnostics
-    assert not (root / "_diagnostics").exists() and not any(root.glob("*_run*"))
+    assert files_under(root) == before and tree(root) == listing  # no run folder, calibration.json or diagnostics
+    assert not (root / "_system").exists() and not run_dirs(win)
     assert only_test(win).status == "not_done"
 
 
 def test_practice_uses_another_seed_so_its_targets_differ_from_the_recorded_run(rig):
     win, mouse, _pointing = rig
     test = new_test(win)
-    record = Path(win.output_root) / "_tests" / SUBJECT / f"{test.test_id}.json"
+    record = Path(win.output_root) / SUBJECT / "tests" / f"{test.test_id}.json"
     data = json.loads(record.read_text(encoding="utf-8"))
     data["seed"] = 7  # a fixed seed, so the comparison below cannot be a coincidence
     record.write_text(json.dumps(data), encoding="utf-8")
@@ -316,7 +317,10 @@ def test_start_builds_a_recorded_run_from_the_test_record(rig):
     assert app._live_values["dwell.threshold_ms"] == 300
     assert app.client is mouse and app._owns_client is False  # the Setup tab's tracker, never stopped
     assert meta.calibration_points == 5 and meta.calibration_error_px == 10.0
-    assert app.recorder.session_dir.is_dir() and app.recorder.session_dir.parent == Path(win.output_root)
+    run = app.recorder.session_dir  # L1: <root>/<subject folder>/runs/<task_id>/<YYYY-MM-DD_HHMM>
+    assert run.is_dir() and run.parent == Path(win.output_root) / SUBJECT / "runs" / "click_grid"
+    assert re.fullmatch(r"\d{4}-\d{2}-\d{2}_\d{4}(_\d+)?", run.name)
+    assert meta.session_id == f"click_grid_{run.name}_{test.test_id}"  # H3: no subject in it
 
 
 def test_the_recorded_run_hides_the_title_bar_and_locks_the_nav(rig):
@@ -376,12 +380,11 @@ def test_start_is_refused_when_the_test_has_run_since(rig):
     win, _mouse, _pointing = rig
     test = new_test(win)
     page = open_start(win, test)
-    folder = Path(win.output_root) / "2026-10-07_TESTING_click_grid_run1"
-    folder.mkdir(parents=True)
+    folder = new_run_dir(win.output_root, SUBJECT, "click_grid")
     record_result(win.output_root, SUBJECT, test.test_id, session_dir=folder, planned_trials=6, completed_trials=6)
     page.start_button.click()
     assert_still_on_the_start_page(win, page, "Could not start Grid Click 1: this test has already been run.")
-    assert only_test(win).status == STATUS_DONE and len(list(Path(win.output_root).glob("*_run*"))) == 1
+    assert only_test(win).status == STATUS_DONE and len(run_dirs(win)) == 1
 
 
 def test_a_run_that_cannot_start_says_so_on_the_start_page_and_can_be_retried(rig, monkeypatch):
@@ -476,10 +479,10 @@ def test_the_launch_arguments_come_from_the_record_not_from_shared_dicts(rig, mo
 def test_nothing_changes_on_disk_between_open_and_the_first_trial(rig):
     win, mouse, _pointing = rig
     test = new_test(win)
-    before = files_under(Path(win.output_root) / "_tests")
+    before = files_under(Path(win.output_root) / SUBJECT / "tests")
     open_start(win, test)
     start_run(win, mouse)
-    assert files_under(Path(win.output_root) / "_tests") == before  # only the run folder is new
+    assert files_under(Path(win.output_root) / SUBJECT / "tests") == before  # only the run folder is new
     assert only_test(win).status == "not_done"
 
 
@@ -497,7 +500,7 @@ def test_a_garbage_record_in_the_subjects_folder_does_not_stop_a_run(rig):
     # AA14 through the flow: the unreadable file is skipped (the list says so), the rest works.
     win, mouse, _pointing = rig
     test = new_test(win)
-    (Path(win.output_root) / "_tests" / SUBJECT / "t_deadbeef00.json").write_text("{not json", encoding="utf-8")
+    (Path(win.output_root) / SUBJECT / "tests" / "t_deadbeef00.json").write_text("{not json", encoding="utf-8")
     open_start(win, test)
     app = start_run(win, mouse)
     assert app.metadata.test_id == test.test_id and win.flow is Flow.RUN

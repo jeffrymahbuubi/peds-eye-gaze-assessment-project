@@ -1,17 +1,17 @@
-"""Deleting a recorded session's folder (SPEC-compass-task-flow.md 4C.8, HC6, U14).
+"""Deleting a recorded session's folder (SPEC-compass-task-flow.md 4C.8, HC6, U14;
+SPEC-subject-data-layout.md H10).
 
 "Discard Results" removes the run's folder for good, so the one function that does
-it is deliberately paranoid: it refuses anything that is not a plain session folder
-directly inside the output root. Qt-free.
+it is deliberately paranoid: it refuses anything that is not a plain run folder at
+``<output root>/<subject folder>/runs/<task_id>/<YYYY-MM-DD_HHMM>``. Qt-free.
 """
 
 from __future__ import annotations
 
-import re
 from pathlib import Path
 
-# ``<date>_<subject>_<task>_run<N>``, as :func:`~src.engine.session_naming.next_session_id` makes it.
-_SESSION_NAME = re.compile(r"^\d{4}-\d{2}-\d{2}_.+_run\d+$")
+from .run_paths import RUN_NAME_RE, TASK_DIR_RE
+from .subject_store import RUNS_DIRNAME, SUBJECT_FILENAME, SYSTEM_DIRNAME
 
 
 class SessionDiscardError(ValueError):
@@ -25,15 +25,15 @@ def _is_link(path: Path) -> bool:
 
 
 def discard_session(session_dir: str | Path, output_root: str | Path) -> int:
-    """Delete one recorded session folder; return how many files it held.
+    """Delete one recorded run folder; return how many files it held.
 
     Refuses (``SessionDiscardError``, nothing deleted) unless **all** hold:
 
     * ``session_dir`` exists and is a directory, not a symlink or junction;
-    * its parent is exactly ``output_root`` (both resolved, so ``..`` and nested
-      paths are no way round it);
-    * its name looks like a session (``<date>_<subject>_<task>_run<N>``) and does
-      not start with ``_`` (``_settings``, ``_tests``, ``_diagnostics`` ...);
+    * it lies at ``<output_root>/<subject>/runs/<task_id>/<name>`` (both resolved, so
+      ``..`` and nested paths are no way round it), where ``<subject>`` is a subject
+      folder (it holds ``subject.json``; ``_system`` is not one) and ``<name>`` is the
+      ``YYYY-MM-DD_HHMM`` pattern (``_2``, ``_3`` on a collision);
     * every entry in it is a regular file: any subdirectory or link aborts the
       whole thing before the first file is removed.
 
@@ -50,11 +50,23 @@ def discard_session(session_dir: str | Path, output_root: str | Path) -> int:
         raise SessionDiscardError(f"{folder} or the output root does not exist: {exc}") from exc
     if not resolved.is_dir():
         raise SessionDiscardError(f"{resolved} is not a folder")
-    if resolved.parent != root:
-        raise SessionDiscardError(f"{resolved} is not directly inside {root}")
+    try:
+        parts = resolved.relative_to(root).parts
+    except ValueError as exc:
+        raise SessionDiscardError(f"{resolved} is not inside {root}") from exc
     name = resolved.name
-    if name.startswith("_") or not _SESSION_NAME.match(name):
-        raise SessionDiscardError(f"{name!r} is not a session folder name")
+    if (
+        len(parts) != 4
+        or parts[0].casefold() == SYSTEM_DIRNAME
+        or parts[1] != RUNS_DIRNAME
+        or not TASK_DIR_RE.fullmatch(parts[2])
+        or not RUN_NAME_RE.fullmatch(name)
+    ):
+        raise SessionDiscardError(
+            f"{name!r} is not a run folder (<subject>/{RUNS_DIRNAME}/<task>/<date_time>) of {root}"
+        )
+    if not (root / parts[0] / SUBJECT_FILENAME).is_file():
+        raise SessionDiscardError(f"{parts[0]!r} is not a subject folder of {root}")
     entries = list(resolved.iterdir())
     for entry in entries:
         if _is_link(entry) or not entry.is_file():

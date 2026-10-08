@@ -129,5 +129,5 @@ def test_writing_never_raises_when_the_path_is_unusable(tmp_path):
 def test_log_path_is_shared_across_runs_and_subjects():
     a = gaze_dropout_log_path("sessions")
     assert a.name == "gaze_dropouts.jsonl"
-    assert a.parent.name == "_diagnostics"
+    assert a.parent.as_posix() == "sessions/_system/diagnostics"
     assert gaze_dropout_log_path("sessions") == a

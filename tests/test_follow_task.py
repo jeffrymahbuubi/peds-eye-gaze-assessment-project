@@ -10,7 +10,6 @@ import csv
 
 import pytest
 
-from src.data.recorder import SessionRecorder
 from src.data.schema import SessionMetadata, TrialRecord
 from src.engine.config import load_task_config
 from src.engine.feedback import NullFeedback
@@ -18,6 +17,7 @@ from src.engine.task_runner import build_task
 from src.inputs.base import Pointer
 from src.tasks.base_task import BaseTask, Phase
 from src.tasks.follow_moving import FOLLOWED_PCT, MAX_FRAME_MS, FollowMovingTask
+from tests.recorder_helpers import recorder_in
 
 FRAME_NS = 16_666_667  # 60 Hz
 MS = 1_000_000
@@ -370,7 +370,7 @@ def test_the_follow_columns_reach_trials_csv(tmp_path):
     task, _spy, _fb = make(trials=2)
     run(task, on_then_off(0.75))
     meta = SessionMetadata(subject_id="P001", session_id="follow", started_ns=0)
-    with SessionRecorder(meta, output_root=tmp_path) as recorder:
+    with recorder_in(tmp_path, meta) as recorder:
         path = recorder.write_trials(task.trials)
     with path.open(encoding="utf-8") as fh:
         rows = list(csv.DictReader(fh))

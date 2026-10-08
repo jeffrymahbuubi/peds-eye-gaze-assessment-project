@@ -613,7 +613,7 @@ def test_timing_log_records_a_calib_result_that_arrived_inside_the_grace_window(
     ACK-vs-CALIB_RESULT race actually resolved, and how large the gap was --
     that measured gap across point counts is what decides whether 0.75s is the
     right grace window, instead of guessing at a new constant."""
-    log_path = tmp_path / "_diagnostics" / "calibration_timing.jsonl"
+    log_path = tmp_path / "_system" / "diagnostics" / "calibration_timing.jsonl"
     script = [
         (0.05, '<ACK ID="CALIBRATE_RESULT_SUMMARY" AVE_ERROR="19.43" VALID_POINTS="2" />\r\n'),
         (
@@ -648,7 +648,7 @@ def test_timing_log_records_a_calib_result_that_never_arrived(tmp_path):
     """The 'never arrived' case must be recorded too -- a log of only the
     successes would make the grace window look adequate no matter how often it
     actually times out."""
-    log_path = tmp_path / "_diagnostics" / "calibration_timing.jsonl"
+    log_path = tmp_path / "_system" / "diagnostics" / "calibration_timing.jsonl"
     script = [(0.05, '<ACK ID="CALIBRATE_RESULT_SUMMARY" AVE_ERROR="19.43" VALID_POINTS="5" />\r\n')]
     server = _ScriptedServer(script)
     try:
@@ -672,7 +672,7 @@ def test_timing_log_appends_across_runs_and_is_off_by_default(tmp_path):
     answerable across many runs), and no path means no file is written at
     all -- the diagnostic must not create files for callers that never asked
     for it."""
-    log_path = tmp_path / "_diagnostics" / "calibration_timing.jsonl"
+    log_path = tmp_path / "_system" / "diagnostics" / "calibration_timing.jsonl"
     script = [(0.05, '<ACK ID="CALIBRATE_RESULT_SUMMARY" AVE_ERROR="10.0" VALID_POINTS="4" />\r\n')]
     for _ in range(2):
         server = _ScriptedServer(script)
@@ -699,7 +699,7 @@ def test_calibration_timing_log_path_is_shared_not_per_session(tmp_path):
     """Both callers (the dashboard's Setup page and app.py's own CLI launch
     path) must resolve to the same file, or the point counts get split across
     files and can't be compared."""
-    assert calibration_timing_log_path(tmp_path) == tmp_path / "_diagnostics" / "calibration_timing.jsonl"
+    assert calibration_timing_log_path(tmp_path) == tmp_path / "_system" / "diagnostics" / "calibration_timing.jsonl"
 
 
 # -- S9 stale-result bug (leftover replies from a previous calibration) ---

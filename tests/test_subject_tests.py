@@ -13,7 +13,10 @@ from pathlib import Path
 
 import pytest
 
+from src.engine import subject_store
 from src.engine import subject_tests as store
+from src.engine.run_paths import new_run_dir
+from src.engine.subject_store import ensure_subject
 from src.engine.subject_tests import (
     copy_test,
     create_test,
@@ -31,13 +34,13 @@ SUBJECT = "TESTING"
 RECORD_KEYS = {
     "schema_version", "test_id", "subject_id", "name", "task_id", "created_at", "origin",
     "configuration", "notes", "evaluator", "seed", "status", "completed_at", "planned_trials",
-    "completed_trials", "outcome", "session_dir",
+    "completed_trials", "outcome", "run_dir",
 }  # fmt: skip
 
 
 @pytest.fixture(autouse=True)
 def _no_sleep(monkeypatch):
-    monkeypatch.setattr(store.time, "sleep", lambda _s: None)
+    monkeypatch.setattr(subject_store.time, "sleep", lambda _s: None)
 
 
 @pytest.fixture
@@ -45,9 +48,9 @@ def root(tmp_path) -> Path:
     return tmp_path / "sessions"
 
 
-def _session_folder(root: Path, name: str = "2026-10-06_TESTING_click_grid_run1") -> Path:
-    folder = root / name
-    folder.mkdir(parents=True, exist_ok=True)
+def _session_folder(root: Path, subject: str = SUBJECT) -> Path:
+    """A new run folder of ``subject`` (``<subject>/runs/click_grid/<date_time>``) with a file in it."""
+    folder = new_run_dir(root, subject, "click_grid")
     (folder / "trials.csv").write_text("trial_id\n0\n", encoding="utf-8")
     return folder
 
@@ -71,10 +74,10 @@ def _files(directory: Path) -> list[Path]:
 
 def test_create_writes_one_record_with_every_field(root):
     test = create_test(root, SUBJECT, "click_grid")
-    path = root / "_tests" / SUBJECT / f"{test.test_id}.json"
+    path = root / SUBJECT / "tests" / f"{test.test_id}.json"
     data = json.loads(path.read_text(encoding="utf-8"))
     assert set(data) == RECORD_KEYS
-    assert data["schema_version"] == 1
+    assert data["schema_version"] == 2
     assert data["test_id"].startswith("t_") and len(data["test_id"]) == 12
     assert data["subject_id"] == SUBJECT
     assert data["name"] == "Grid Click 1"
@@ -83,7 +86,7 @@ def test_create_writes_one_record_with_every_field(root):
     assert data["configuration"] == {"name": "Standard", "structural": {}, "live": {}}
     assert (data["notes"], data["evaluator"]) == ("", "")
     assert data["status"] == "not_done"
-    assert data["completed_at"] is None and data["session_dir"] is None
+    assert data["completed_at"] is None and data["run_dir"] is None
     assert data["planned_trials"] is None and data["completed_trials"] is None
     assert data["outcome"] is None
     assert datetime.fromisoformat(data["created_at"]).utcoffset() is not None  # local time + offset
@@ -119,7 +122,7 @@ def test_create_rejects_blank_subject_unknown_task_and_bad_name(root):
         create_test(root, SUBJECT, "click_grid", name="   ")
     with pytest.raises(ValueError):
         create_test(root, SUBJECT, "click_grid", configuration=["not", "a", "dict"])
-    assert not (root / "_tests").exists()  # nothing was written
+    assert not root.exists()  # nothing was written: not even the subject's folder
 
 
 def test_new_test_ids_never_collide(root):
@@ -191,6 +194,7 @@ def test_failed_replace_leaves_the_old_file_untouched(root, monkeypatch):
 
 
 def test_failed_first_write_creates_no_test_and_no_tmp(root, monkeypatch):
+    ensure_subject(root, SUBJECT)  # the subject's own folder is not what is under test here
     monkeypatch.setattr(store.os, "replace", lambda s, d: (_ for _ in ()).throw(OSError("nope")))
     with pytest.raises(store.TestStoreError):
         create_test(root, SUBJECT, "click_grid")
@@ -201,6 +205,7 @@ def test_failed_first_write_creates_no_test_and_no_tmp(root, monkeypatch):
 
 
 def test_permission_error_on_the_first_two_attempts_still_succeeds(root, monkeypatch):
+    ensure_subject(root, SUBJECT)
     real_replace = store.os.replace
     calls = []
 
@@ -218,6 +223,7 @@ def test_permission_error_on_the_first_two_attempts_still_succeeds(root, monkeyp
 
 
 def test_permission_error_that_never_clears_raises_the_store_error(root, monkeypatch):
+    ensure_subject(root, SUBJECT)
     calls = []
 
     def stuck(src, dst):
@@ -228,7 +234,7 @@ def test_permission_error_that_never_clears_raises_the_store_error(root, monkeyp
     with pytest.raises(store.TestStoreError, match="locked"):
         create_test(root, SUBJECT, "click_grid")
     monkeypatch.undo()
-    assert len(calls) == 1 + store._REPLACE_RETRIES
+    assert len(calls) == 1 + subject_store.REPLACE_RETRIES
     assert not list(subject_tests_dir(root, SUBJECT).glob("*.tmp"))
 
 
@@ -294,3 +300,69 @@ def test_rename_blank_and_too_long_are_rejected(root):
         with pytest.raises(ValueError):
             rename_test(root, SUBJECT, test.test_id, bad)
     assert list_tests(root, SUBJECT).tests[0].name == "Grid Click 1"
+
+
+# -- the subject's folder (SPEC-subject-data-layout.md H1, H5, H6) -----------------------------------
+
+
+def test_the_first_test_makes_the_subjects_folder_and_the_next_ones_reuse_it(root):
+    assert subject_tests_dir(root, SUBJECT) is None  # nothing yet
+    first = create_test(root, SUBJECT, "click_grid")
+    folder = root / SUBJECT
+    assert (folder / "subject.json").is_file() and subject_tests_dir(root, SUBJECT) == folder / "tests"
+    second = create_test(root, "testing", "click_grid")  # the same subject, typed in another case
+    assert sorted(p.name for p in root.iterdir()) == [SUBJECT]
+    assert [t.test_id for t in list_tests(root, SUBJECT).tests] == [first.test_id, second.test_id]
+
+
+def test_the_first_test_can_make_an_anonymous_code_folder(root):
+    test = create_test(root, "Maria Lopez", "click_grid", folder_mode="code")
+    assert [p.name for p in root.iterdir() if p.name != "_system"] == ["S-0001"]
+    assert (root / "S-0001" / "tests" / f"{test.test_id}.json").is_file()
+    # The mode is fixed at creation: a later test with another choice lands in the same folder.
+    again = create_test(root, "maria lopez", "scanning", folder_mode="id")
+    assert (root / "S-0001" / "tests" / f"{again.test_id}.json").is_file()
+    assert sorted(p.name for p in root.iterdir() if p.name != "_system") == ["S-0001"]
+
+
+def test_a_failed_subject_write_leaves_no_folder_and_no_test(root, monkeypatch):
+    monkeypatch.setattr(store.os, "replace", lambda s, d: (_ for _ in ()).throw(OSError("nope")))
+    with pytest.raises(store.TestStoreError, match="nope"):
+        create_test(root, SUBJECT, "click_grid")
+    monkeypatch.undo()
+    assert not any(root.rglob("*.json")) and not any(root.rglob("*.tmp"))
+    assert list_tests(root, SUBJECT).tests == []
+    assert create_test(root, SUBJECT, "click_grid").name == "Grid Click 1"  # and it can be tried again
+
+
+def test_record_result_links_by_a_path_relative_to_the_subject_folder(root):
+    test = create_test(root, SUBJECT, "click_grid")
+    run = _session_folder(root)
+    done = record_result(root, SUBJECT, test.test_id, session_dir=run, planned_trials=6, completed_trials=6)
+    assert done.run_dir == f"runs/click_grid/{run.name}" and "\\" not in done.run_dir
+    assert store.run_folder_of(root, done) == run
+    assert list_tests(root, SUBJECT).tests[0].run_dir == done.run_dir
+
+
+def test_record_result_refuses_a_run_that_is_not_under_the_subjects_runs(root, tmp_path):
+    test = create_test(root, SUBJECT, "click_grid")
+    other = create_test(root, "OTHER", "click_grid")
+    foreign = _session_folder(root, "OTHER")  # a real run folder, but another subject's
+    flat = root / "2026-10-06_TESTING_click_grid_run1"  # the old flat layout
+    flat.mkdir()
+    elsewhere = tmp_path / "elsewhere" / "runs" / "click_grid" / "2026-10-06_1200"
+    elsewhere.mkdir(parents=True)
+    for bad in (foreign, flat, elsewhere, root / SUBJECT, root / SUBJECT / "runs"):
+        with pytest.raises(ValueError):
+            record_result(root, SUBJECT, test.test_id, session_dir=bad, planned_trials=1, completed_trials=1)
+    assert list_tests(root, SUBJECT).tests[0].status == "not_done"
+    assert other.status == "not_done"
+
+
+def test_run_folder_of_is_none_for_a_test_without_a_usable_link(root):
+    test = create_test(root, SUBJECT, "click_grid")
+    assert store.run_folder_of(root, test) is None
+    from dataclasses import replace
+
+    for bad in ("", "../x", "runs/click_grid/../../../x", "C:/x", "runs/click_grid"):
+        assert store.run_folder_of(root, replace(test, run_dir=bad)) is None

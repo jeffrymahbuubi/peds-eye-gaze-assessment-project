@@ -1,22 +1,23 @@
-"""SPEC-compass-task-flow.md 4A.9 / AA13: a Subject ID can never escape its folder."""
+"""SPEC-compass-task-flow.md 4A.9 / AA13: a Subject ID can never escape its folder.
+SPEC-subject-data-layout.md H5: the folder is the subject's own, capped at 40 characters."""
 
 from __future__ import annotations
 
 import os
 import re
-from pathlib import Path
 
 import pytest
 
 os.environ.setdefault("QT_QPA_PLATFORM", "offscreen")
 
-from src.engine.session_naming import next_run_number, next_session_id, safe_subject_dirname
+from src.engine.run_paths import new_run_dir
+from src.engine.session_naming import safe_subject_dirname
 from src.engine.settings_profile import (
-    known_subject_ids,
     save_settings_profile,
     settings_profile_dir,
     subject_settings_dir,
 )
+from src.engine.subject_store import find_subject, id_folder_name
 from src.engine.subject_tests import create_test, subject_tests_dir
 from src.ui.setup_page import _subject_calibration_dir
 
@@ -61,19 +62,20 @@ def test_hostile_ids_map_to_one_safe_folder_name(subject_id):
     assert len(name) <= 88  # 80 + "_" prefix + "~" + 6 hex
 
 
-@pytest.mark.parametrize("subject_id", HOSTILE_IDS)
-def test_hostile_ids_stay_inside_the_tests_folder(tmp_path, subject_id):
-    directory = subject_tests_dir(tmp_path, subject_id)
-    assert directory.parent == tmp_path / "_tests"
-    assert (tmp_path / "_tests").resolve() in directory.resolve().parents
+@pytest.mark.parametrize("subject_id", [i for i in HOSTILE_IDS if i.strip()])
+def test_hostile_ids_stay_inside_their_own_subject_folder(tmp_path, subject_id):
+    create_test(tmp_path, subject_id, "click_static")
+    folder = find_subject(tmp_path, subject_id)
+    assert folder.path.parent == tmp_path
+    assert folder.path.resolve() in subject_tests_dir(tmp_path, subject_id).resolve().parents
+    assert len(folder.name) <= 47  # 40 + "_" prefix + "~" + 6 hex
 
 
-def test_hostile_ids_really_create_one_folder_inside_the_tests_folder(tmp_path):
+def test_hostile_ids_really_create_one_folder_each_directly_under_the_root(tmp_path):
     for subject_id in ("..\\x", "A/B", "CON", "x.", "a" * 200):
         create_test(tmp_path, subject_id, "click_static")
-    created = sorted(p.name for p in (tmp_path / "_tests").iterdir())
-    assert len(created) == 5  # one folder each, nothing nested, nothing outside
-    assert [p.name for p in tmp_path.iterdir()] == ["_tests"]
+    assert len(list(tmp_path.iterdir())) == 5  # one folder each, nothing nested, nothing outside
+    assert all((p / "subject.json").is_file() and (p / "tests").is_dir() for p in tmp_path.iterdir())
 
 
 @pytest.mark.parametrize("subject_id", ORDINARY_IDS)
@@ -81,15 +83,46 @@ def test_ordinary_ids_come_back_unchanged(subject_id):
     assert safe_subject_dirname(subject_id) == subject_id
 
 
-def test_existing_settings_and_calibration_folders_still_match(tmp_path):
-    assert subject_settings_dir(tmp_path, "TESTING") == tmp_path / "_settings" / "TESTING"
-    assert settings_profile_dir(tmp_path, "TESTING", "click_grid") == (
-        tmp_path / "_settings" / "TESTING" / "click_grid"
-    )
-    assert _subject_calibration_dir(tmp_path, "TESTING") == tmp_path / "_calibrations" / "TESTING"
-    assert next_session_id(tmp_path, "TESTING", "click_grid", date_str="2026-10-06") == (
-        "2026-10-06_TESTING_click_grid_run1"
-    )
+def test_the_cap_is_a_parameter_and_a_subject_folder_uses_40():
+    assert safe_subject_dirname("x" * 50, 40).startswith("x" * 40 + "~")
+    assert safe_subject_dirname("x" * 40, 40) == "x" * 40
+    assert id_folder_name("x" * 80) == safe_subject_dirname("x" * 80, 40)
+    assert id_folder_name("  P001  ") == "P001"
+
+
+def test_the_stores_sit_inside_the_subject_folder(tmp_path):
+    create_test(tmp_path, "TESTING", "click_grid")
+    save_settings_profile(tmp_path, "TESTING", "click_grid", {"dwell.threshold_ms": 900})
+    folder = tmp_path / "TESTING"
+    assert subject_tests_dir(tmp_path, "TESTING") == folder / "tests"
+    assert subject_settings_dir(tmp_path, "TESTING") == folder / "settings"
+    assert settings_profile_dir(tmp_path, "TESTING", "click_grid") == folder / "settings" / "click_grid"
+    assert _subject_calibration_dir(tmp_path, "TESTING") == folder / "calibrations"
+
+
+def test_a_subject_with_no_folder_has_no_store_paths(tmp_path):
+    assert subject_tests_dir(tmp_path, "NOBODY") is None
+    assert subject_settings_dir(tmp_path, "NOBODY") is None
+    assert settings_profile_dir(tmp_path, "NOBODY", "click_grid") is None
+    assert _subject_calibration_dir(tmp_path, "NOBODY") is None
+
+
+def test_all_the_stores_find_the_same_folder_for_a_hostile_id(tmp_path):
+    subject_id = "A/B"
+    create_test(tmp_path, subject_id, "click_static")
+    safe = id_folder_name(subject_id)
+    assert subject_tests_dir(tmp_path, subject_id) == tmp_path / safe / "tests"
+    assert subject_settings_dir(tmp_path, subject_id) == tmp_path / safe / "settings"
+    assert _subject_calibration_dir(tmp_path, subject_id) == tmp_path / safe / "calibrations"
+    run = new_run_dir(tmp_path, subject_id, "click_static")
+    assert run.parent.parent == tmp_path / safe / "runs"
+
+
+def test_settings_profile_for_a_hostile_id_lands_in_its_own_folder(tmp_path):
+    path = save_settings_profile(tmp_path, "..\\x", "click_static", {"dwell.threshold_ms": 900})
+    folder = find_subject(tmp_path, "..\\x").path
+    assert path.parent.parent.parent == folder  # <subject>/settings/<task>/<file>
+    assert folder.resolve() in path.resolve().parents
 
 
 def test_slash_and_underscore_do_not_share_a_folder():
@@ -100,9 +133,9 @@ def test_slash_and_underscore_do_not_share_a_folder():
 
 
 def test_unicode_is_nfc_normalised():
-    decomposed = "é"
-    assert safe_subject_dirname("é") == "é"
-    assert safe_subject_dirname(decomposed).startswith("é~")
+    composed, decomposed = "é", "é"
+    assert safe_subject_dirname(composed) == composed
+    assert safe_subject_dirname(decomposed).startswith(composed + "~")
 
 
 def test_device_names_get_a_prefix():
@@ -110,28 +143,3 @@ def test_device_names_get_a_prefix():
     assert safe_subject_dirname("com3.txt").startswith("_com3.txt~")
     assert safe_subject_dirname("CONSOLE") == "CONSOLE"  # not a device name
     assert safe_subject_dirname("COM10") == "COM10"
-
-
-def test_all_four_call_sites_use_the_safe_name(tmp_path):
-    subject_id = "A/B"
-    safe = safe_subject_dirname(subject_id)
-    assert subject_tests_dir(tmp_path, subject_id) == tmp_path / "_tests" / safe
-    assert subject_settings_dir(tmp_path, subject_id) == tmp_path / "_settings" / safe
-    assert _subject_calibration_dir(tmp_path, subject_id) == tmp_path / "_calibrations" / safe
-
-    (tmp_path / f"2026-10-06_{safe}_click_static_run1").mkdir()
-    assert next_run_number(tmp_path, subject_id, "click_static", date_str="2026-10-06") == 2
-    session_id = next_session_id(tmp_path, subject_id, "click_static", date_str="2026-10-06")
-    assert session_id == f"2026-10-06_{safe}_click_static_run2"
-    assert Path(tmp_path / session_id).parent == tmp_path
-
-
-def test_settings_profile_for_a_hostile_id_lands_in_its_own_folder(tmp_path):
-    path = save_settings_profile(tmp_path, "..\\x", "click_static", {"dwell.threshold_ms": 900})
-    assert path.parent.parent.parent == tmp_path / "_settings"
-    assert (tmp_path / "_settings").resolve() in path.resolve().parents
-
-
-def test_known_subject_ids_also_lists_subjects_that_only_have_tests(tmp_path):
-    create_test(tmp_path, "ONLY_TESTS", "click_static")
-    assert known_subject_ids(tmp_path) == ["ONLY_TESTS"]

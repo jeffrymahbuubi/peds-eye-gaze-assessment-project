@@ -185,8 +185,9 @@ def test_print_report_asks_for_a_path_starting_from_the_default_name_and_writes_
     page.choose_pdf_path = choose
     page.pdfExported.connect(exported.append)
     page.print_button.click()
-    expected = pdf_default_name("P001", "Grid Click 1", page._report["session"]["started_ns"])
+    expected = pdf_default_name("Grid Click 1", page._report["session"]["started_ns"])
     assert asked == [str(tmp_path / "subject" / expected)]
+    assert (tmp_path / "subject").is_dir()  # the reports folder is made when a PDF is first asked for
     assert target.read_bytes().startswith(b"%PDF")
     assert exported == [str(target)]
     assert str(target) in page.footer_message.text()
@@ -197,7 +198,7 @@ def test_print_report_without_a_folder_offers_just_the_file_name(qapp, tmp_path)
     asked = []
     page.choose_pdf_path = lambda default: asked.append(default) or ""
     page.print_button.click()
-    assert asked == [pdf_default_name("P001", "Grid Click 1", page._report["session"]["started_ns"])]
+    assert asked == [pdf_default_name("Grid Click 1", page._report["session"]["started_ns"])]
 
 
 def test_the_file_name_uses_the_name_typed_on_the_page(qapp, tmp_path):
@@ -206,7 +207,7 @@ def test_the_file_name_uses_the_name_typed_on_the_page(qapp, tmp_path):
     page.choose_pdf_path = lambda default: asked.append(default) or ""
     page.name_edit.setText("My renamed test")
     page.print_button.click()
-    assert asked[0].startswith("P001_My renamed test_")
+    assert asked[0].endswith("_My renamed test.pdf") and "P001" not in asked[0]
 
 
 def test_cancelling_the_file_chooser_writes_nothing(qapp, tmp_path):

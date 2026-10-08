@@ -6,6 +6,7 @@ from __future__ import annotations
 
 from pathlib import Path
 
+from src.engine.run_paths import new_run_dir
 from src.engine.subject_tests import create_test, record_result
 from src.ui.test_list_page import SubjectTestListPage
 from src.ui.test_list_table import COL_NAME
@@ -13,15 +14,14 @@ from src.ui.test_list_table import COL_NAME
 SUBJECT = "TESTING"
 
 
-def make_run_folder(root: Path, name: str = "2026-10-06_TESTING_click_grid_run1") -> Path:
-    folder = root / name
-    folder.mkdir(parents=True, exist_ok=True)
-    return folder
+def make_run_folder(root: Path, task: str = "click_grid", subject: str = SUBJECT) -> Path:
+    """A new, empty run folder: ``<root>/<subject>/runs/<task>/<date_time>``."""
+    return new_run_dir(root, subject, task)
 
 
 def done_test(root, task="click_grid", name=None, *, planned=18, completed=18, folder=None, when=None):
     test = create_test(root, SUBJECT, task, name=name)
-    folder = folder or make_run_folder(root, f"2026-10-06_TESTING_{task}_{test.test_id}")
+    folder = folder or make_run_folder(root, task)
     return record_result(
         root,
         SUBJECT,

@@ -100,7 +100,10 @@ def write_build_info(app_dir: Path) -> None:
         "Run: PedsEyeGaze.exe (opens the dashboard). Command-line modes:",
         "  PedsEyeGaze.exe --task click_static --gui",
         "  PedsEyeGaze.exe --task click_static --replay <fixture.jsonl>",
-        "Data: sessions/ next to the exe. Logs: logs/. Config: configs/*.yaml.",
+        "Data: sessions/ next to the exe, one folder per subject (sessions/<subject>/runs/<task>/<date_time>/,",
+        "  plus calibrations/, settings/, tests/, reports/); sessions/_system/ holds diagnostics and replays.",
+        "  Do not point a v1.0.0 exe at a data folder made by this version (the layout changed).",
+        "Logs: logs/. Config: configs/*.yaml.",
     ]
     (app_dir / "BUILD_INFO.txt").write_text("\n".join(lines) + "\n", encoding="utf-8")
     print("+ BUILD_INFO.txt:", " | ".join(lines[1:5]), flush=True)

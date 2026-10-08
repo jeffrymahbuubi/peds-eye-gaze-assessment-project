@@ -193,15 +193,28 @@ def test_the_test_date_is_local_time_in_the_wireframes_form():
     assert started_text(None) == DASH and started_text("x") == DASH
 
 
-def test_the_pdf_file_name_is_subject_test_name_and_the_tests_date():
+def test_the_pdf_file_name_is_the_tests_date_then_the_test_name_and_no_subject():
     ns = int(datetime(2026, 10, 6, 14, 6).timestamp() * 1e9)
-    assert pdf_default_name("TESTING", "Grid Click 1", ns) == "TESTING_Grid Click 1_2026-10-06.pdf"
+    assert pdf_default_name("Grid Click 1", ns) == "2026-10-06_Grid Click 1.pdf"
     # Characters a file name cannot hold are replaced, so the path is always valid.
-    name = pdf_default_name("P/1", 'a:b*c?"d', ns)
-    assert name.endswith("_2026-10-06.pdf")
+    name = pdf_default_name('a:b*c?"d', ns)
+    assert name.startswith("2026-10-06_") and name.endswith(".pdf")
     assert not any(ch in name for ch in '/\\:*?"<>|')
-    assert pdf_default_name("", "", None).endswith("_undated.pdf")
+    assert pdf_default_name("", None) == "undated_report.pdf"
+
+
+def test_the_pdf_name_part_is_cut_at_50_characters_hash_included():
+    ns = int(datetime(2026, 10, 6, 14, 6).timestamp() * 1e9)
+    exact = "n" * 50
+    assert pdf_default_name(exact, ns) == f"2026-10-06_{exact}.pdf"  # fits: untouched
+    long = pdf_default_name("n" * 60, ns)  # a test name can have 60 characters
+    part = long.removeprefix("2026-10-06_").removesuffix(".pdf")
+    assert len(part) == 50 and part.startswith("n" * 43 + "~")
+    assert pdf_default_name("n" * 60, ns) == long  # stable
+    assert pdf_default_name("n" * 59 + "m", ns) != long  # and two long names stay apart
+    illegal = pdf_default_name("x" * 46 + "/", ns).removeprefix("2026-10-06_").removesuffix(".pdf")
+    assert len(illegal) <= 50
 
 
 def test_the_date_of_a_run_uses_started_ns_not_today():
-    assert pdf_default_name("S", "T", T0).endswith(f"_{datetime.fromtimestamp(T0 / 1e9):%Y-%m-%d}.pdf")
+    assert pdf_default_name("T", T0).startswith(f"{datetime.fromtimestamp(T0 / 1e9):%Y-%m-%d}_")

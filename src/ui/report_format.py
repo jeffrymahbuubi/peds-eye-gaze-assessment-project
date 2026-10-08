@@ -14,6 +14,7 @@ from datetime import datetime
 from typing import Any, NamedTuple
 
 from ..data.report_util import ms_to_seconds, seconds_text
+from ..engine.run_paths import PDF_NAME_MAX
 from ..engine.session_naming import safe_subject_dirname
 
 DASH = "—"
@@ -349,10 +350,15 @@ def started_text(started_ns: Any) -> str:
     return f"{moment:%b} {moment.day}, {moment.year} {hour}:{moment:%M} {'AM' if moment.hour < 12 else 'PM'}"
 
 
-def pdf_default_name(subject: str, test_name: str, started_ns: Any) -> str:
-    """``<Subject>_<Test name>_<YYYY-MM-DD>.pdf`` (4D.8); the date is the test's own."""
+def pdf_default_name(test_name: str, started_ns: Any) -> str:
+    """``<YYYY-MM-DD>_<Test name>.pdf`` (SPEC-subject-data-layout.md H7); the date is the
+    test's own, the name is sanitised and cut at 50 characters. No subject: the file sits
+    in that subject's ``reports/`` folder, and a child's name must not travel in a name."""
     try:
         day = f"{datetime.fromtimestamp(started_ns / 1e9):%Y-%m-%d}"
     except (TypeError, OverflowError, OSError, ValueError):
         day = "undated"
-    return f"{safe_subject_dirname(subject or 'subject')}_{safe_subject_dirname(test_name or 'report')}_{day}.pdf"
+    name = safe_subject_dirname(test_name or "report", PDF_NAME_MAX)
+    if len(name) > PDF_NAME_MAX:  # cut and hashed: cut shorter, so the hash fits in the 50
+        name = safe_subject_dirname(test_name, PDF_NAME_MAX - 7)
+    return f"{day}_{name}.pdf"

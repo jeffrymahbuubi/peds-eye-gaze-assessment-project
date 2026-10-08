@@ -19,6 +19,7 @@ from PySide6.QtWidgets import QApplication
 import src.ui.config_flow as flow_module
 from src.engine.calibration import CalibrationResult
 from src.engine.config import load_task_config
+from src.engine.run_paths import new_run_dir
 from src.engine.settings_profile import (
     PROFILE_SCHEMA_VERSION,
     list_named_configurations,
@@ -119,8 +120,7 @@ def test_another_subjects_configuration_is_never_offered(win):
 
 def test_a_locked_test_cannot_be_configured(win):
     test = new_test(win)
-    folder = Path(win.output_root) / "2026-10-06_TESTING_click_grid_run1"
-    folder.mkdir(parents=True)
+    folder = new_run_dir(win.output_root, SUBJECT, "click_grid")
     record_result(win.output_root, SUBJECT, test.test_id, session_dir=folder, planned_trials=3, completed_trials=3)
     win.config_flow.open(test.test_id)
     assert win.flow is Flow.IDLE and win.config_flow.page is None
@@ -155,7 +155,7 @@ def test_saving_standard_untouched_stores_the_complete_snapshot_and_writes_no_pr
     expected = complete_settings("click_grid", config)
     saved = stored(win, test.test_id)
     assert saved.configuration == {"name": "Standard", **expected}
-    assert not (Path(win.output_root) / "_settings").exists()  # no file for Standard
+    assert not (Path(win.output_root) / SUBJECT / "settings").exists()  # no file for Standard
     assert win.test_list_page.selected_test().test_id == test.test_id
 
 
@@ -190,7 +190,7 @@ def test_saving_keeps_the_seed_and_the_status(win):
     page = open_page(win, test)
     page.save_button.click()
     saved = stored(win, test.test_id)
-    assert saved.seed == test.seed and saved.status == "not_done" and saved.session_dir is None
+    assert saved.seed == test.seed and saved.status == "not_done" and saved.run_dir is None
 
 
 # -- AB8: Standard + changed values ----------------------------------------------------------------------------------------------
@@ -371,8 +371,7 @@ def test_cancel_in_the_update_question_stays_on_the_page(win):
 def test_saving_a_test_that_has_run_since_writes_nothing_and_says_so(win):
     test = new_test(win)
     page = open_page(win, test)
-    folder = Path(win.output_root) / "2026-10-06_TESTING_click_grid_run1"
-    folder.mkdir(parents=True)
+    folder = new_run_dir(win.output_root, SUBJECT, "click_grid")
     record_result(win.output_root, SUBJECT, test.test_id, session_dir=folder, planned_trials=3, completed_trials=3)
     control(page, "dwell.threshold_ms").setValue(1500)
     page._form.config_combo.setEditText("Late edit")
@@ -481,7 +480,7 @@ def test_json_of_a_saved_test_has_the_name_and_the_complete_values(win):
     page._form.config_combo.setEditText("Check the file")
     control(page, "grid.rows").setValue(4)
     page.save_button.click()
-    path = Path(win.output_root) / "_tests" / SUBJECT / f"{test.test_id}.json"
+    path = Path(win.output_root) / SUBJECT / "tests" / f"{test.test_id}.json"
     record = json.loads(path.read_text(encoding="utf-8"))
     assert record["configuration"]["name"] == "Check the file"
     assert record["configuration"]["structural"]["grid"]["rows"] == 4

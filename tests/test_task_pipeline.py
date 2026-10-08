@@ -13,6 +13,7 @@ from src.engine.feedback import NullFeedback
 from src.engine.task_runner import TASK_REGISTRY, build_task, run_headless_replay
 from src.inputs.base import Pointer
 from src.tasks.base_task import BaseTask, TargetSpec
+from tests.recorder_helpers import recorder_in
 
 FIXTURE = Path(__file__).parent / "fixtures" / "gaze_replay_click_static.jsonl"
 
@@ -470,14 +471,13 @@ def _run_click_static_trial_with_visits(tmp_path: Path, visits: list[tuple[int, 
     each ``(start_ms, end_ms)`` span, elsewhere otherwise, one frame per 10 ms.
     Returns its ``trials.csv`` row, read back from disk."""
     from src.data.exporter import load_trials_rows
-    from src.data.recorder import SessionRecorder
     from src.data.schema import SessionMetadata
 
     cfg = load_task_config("click_static")
     cfg["input"] = {"mode": "eye"}
     cfg["dwell"] = {**cfg.get("dwell", {}), "threshold_ms": 400, "refractory_ms": 0}
     meta = SessionMetadata(subject_id="P001", session_id="entries", started_ns=0)
-    with SessionRecorder(meta, output_root=tmp_path) as recorder:
+    with recorder_in(tmp_path, meta) as recorder:
         task = build_task("click_static", cfg, recorder=recorder, feedback=NullFeedback())
         target = task.targets[0]
         on = Pointer(x=target.x_norm, y=target.y_norm, valid=True, clicked=False)

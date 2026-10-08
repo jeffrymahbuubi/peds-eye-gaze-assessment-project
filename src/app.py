@@ -54,8 +54,9 @@ from .engine.run_mode import (
     run_seed,
     validate_run_mode,
 )
+from .engine.run_paths import make_session_id, new_run_dir
 from .engine.run_result import RunResult, run_result_from_task
-from .engine.session_naming import next_session_id
+from .engine.subject_store import output_root as resolve_output_root
 from .engine.target_size import (
     DEFAULT_SIZE,
     apply_grid_gap,
@@ -311,20 +312,22 @@ class AssessmentApp:
         self._is_switch = self.input_choice.is_switch
         self._pointer_is_mouse = self.input_choice.is_mouse or self.run_mode == PREVIEW
 
-        # A run-index suffix (SPEC-ui-setup-task-selection.md S3.1.8) so a
-        # same-day re-run of the same task for the same subject -- which the
-        # dashboard's embed-in-place Run explicitly supports -- gets its own
-        # directory instead of silently reusing (and overwriting) a prior
-        # run's (SessionRecorder creates its directory with exist_ok=True).
-        # Computed up front (not after calibration, as before) because an
-        # auto-saved calibration.json needs the session dir to already be
-        # known before Calibration.run() executes.
-        output_root = self.config.get("recording", {}).get("output_root", "sessions")
+        # A recorded run's folder is ``<output root>/<subject folder>/runs/<task_id>/
+        # <YYYY-MM-DD_HHMM>`` (SPEC-subject-data-layout.md H1, H2), made by
+        # ``new_run_dir`` with an atomic mkdir, so a same-minute re-run gets its own
+        # folder (``_2``) and never overwrites a prior run. ``run_dir()`` makes it at
+        # the first thing that needs it -- an auto-saved calibration.json (which is
+        # written before the recorder exists), else the recorder -- so a run that
+        # fails to start leaves no empty folder behind. A practice or preview run has
+        # no folder: its "session id" is a sentinel and ``run_dir`` is never called.
+        output_root = resolve_output_root(self.config)
         self._output_root = output_root
-        # A practice or preview run has no folder: its "session id" is a sentinel
-        # and the run-number scan is never made.
-        session_id = next_session_id(output_root, subject_id, task_id) if recorded else self.run_mode
-        session_dir = Path(output_root) / session_id if recorded else None
+        self._run_dir: Path | None = None
+
+        def run_dir() -> Path:
+            if self._run_dir is None:
+                self._run_dir = new_run_dir(output_root, subject_id, task_id)
+            return self._run_dir
 
         # A --calibration-file is loaded and subject-checked before touching
         # the device at all, so a bad path or subject mismatch fails fast
@@ -389,8 +392,7 @@ class AssessmentApp:
             # against any individual run's folder later. (Not for a practice or
             # preview, which has no folder.)
             if recorded:
-                session_dir.mkdir(parents=True, exist_ok=True)
-                save_calibration_result(session_dir / "calibration.json", subject_id, cal)
+                save_calibration_result(run_dir() / "calibration.json", subject_id, cal)
         else:
             calibration = Calibration(
                 self.client,
@@ -408,8 +410,7 @@ class AssessmentApp:
                 # stub) -- auto-save it so a later launch can reuse it via
                 # --calibration-file. No separate save flag, per the user's
                 # 2026-09-04 design decision.
-                session_dir.mkdir(parents=True, exist_ok=True)
-                save_calibration_result(session_dir / "calibration.json", subject_id, cal)
+                save_calibration_result(run_dir() / "calibration.json", subject_id, cal)
 
         self.client.start_streaming()  # idempotent (GazepointClient no-ops if already streaming)
 
@@ -478,6 +479,8 @@ class AssessmentApp:
         self._hide_cursor = self._is_switch and not self._pointer_is_mouse
         self._cursor_pending = self._hide_cursor
 
+        # H3: ``<task_id>_<YYYY-MM-DD_HHMM>_<test_id>`` -- no subject in it.
+        session_id = make_session_id(task_id, run_dir(), test_id) if recorded else self.run_mode
         self.metadata = SessionMetadata(
             subject_id=subject_id,
             session_id=session_id,
@@ -509,7 +512,7 @@ class AssessmentApp:
             settings=run_settings(task_id, self.config, config_name),
         )
         self.recorder = (
-            SessionRecorder(self.metadata, output_root=output_root)
+            SessionRecorder(self.metadata, session_dir=run_dir())
             if recorded
             else NullRecorder(self.metadata)
         )

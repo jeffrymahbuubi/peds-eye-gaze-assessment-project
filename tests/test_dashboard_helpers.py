@@ -1,48 +1,11 @@
-"""Unit tests for the dashboard's Qt-free helpers (SPEC-ui-setup-task-selection.md)."""
+"""Unit tests for the dashboard's Qt-free helpers (SPEC-ui-setup-task-selection.md).
+
+The run-number helpers (``next_run_number``, ``next_session_id``) are gone: a run's folder is
+made by ``new_run_dir`` (SPEC-subject-data-layout.md H2), tested in ``test_run_paths.py``."""
 
 from __future__ import annotations
 
 from src.engine.local_state import load_local_state, save_local_state
-from src.engine.session_naming import next_run_number, next_session_id
-
-
-def test_next_run_number_first_run_is_one(tmp_path):
-    assert next_run_number(tmp_path, "P001", "click_static", date_str="2026-09-09") == 1
-
-
-def test_next_run_number_increments_past_existing_runs(tmp_path):
-    (tmp_path / "2026-09-09_P001_click_static_run1").mkdir()
-    (tmp_path / "2026-09-09_P001_click_static_run2").mkdir()
-    assert next_run_number(tmp_path, "P001", "click_static", date_str="2026-09-09") == 3
-
-
-def test_next_run_number_agrees_with_next_session_id(tmp_path):
-    (tmp_path / "2026-09-09_P001_click_static_run1").mkdir()
-    n = next_run_number(tmp_path, "P001", "click_static", date_str="2026-09-09")
-    session_id = next_session_id(tmp_path, "P001", "click_static", date_str="2026-09-09")
-    assert session_id == f"2026-09-09_P001_click_static_run{n}"
-
-
-def test_next_session_id_first_run_has_no_collision(tmp_path):
-    session_id = next_session_id(tmp_path, "P001", "click_static", date_str="2026-09-09")
-    assert session_id == "2026-09-09_P001_click_static_run1"
-
-
-def test_next_session_id_increments_past_existing_runs(tmp_path):
-    (tmp_path / "2026-09-09_P001_click_static_run1").mkdir()
-    (tmp_path / "2026-09-09_P001_click_static_run2").mkdir()
-    session_id = next_session_id(tmp_path, "P001", "click_static", date_str="2026-09-09")
-    assert session_id == "2026-09-09_P001_click_static_run3"
-
-
-def test_next_session_id_independent_per_subject_and_task(tmp_path):
-    (tmp_path / "2026-09-09_P001_click_static_run1").mkdir()
-    assert next_session_id(tmp_path, "P002", "click_static", date_str="2026-09-09") == (
-        "2026-09-09_P002_click_static_run1"
-    )
-    assert next_session_id(tmp_path, "P001", "scanning", date_str="2026-09-09") == (
-        "2026-09-09_P001_scanning_run1"
-    )
 
 
 def test_local_state_roundtrip(tmp_path):

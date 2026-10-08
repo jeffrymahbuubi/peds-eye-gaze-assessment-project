@@ -8,7 +8,7 @@ to be set from this data rather than guessed -- the precedent is
 live-tested and still wrong, and only measurement produced the right value.
 
 Deliberately mirrors ``src/engine/calibration.py``'s timing diagnostic: one
-shared append-only JSONL under ``sessions/_diagnostics/``, across every run and
+shared append-only JSONL under ``sessions/_system/diagnostics/``, across every run and
 subject, with every filesystem error swallowed. A diagnostic must never be able
 to break a session a child is sitting through.
 """
@@ -21,13 +21,14 @@ from pathlib import Path
 from typing import Any, Callable
 
 from ..inputs.base import outside_distance
+from .subject_store import diagnostics_dir
 
 
 def gaze_dropout_log_path(output_root: str | Path) -> Path:
     """Where dropout records accumulate. Shared across runs and subjects, for
     the same reason the calibration timing log is: the questions it answers
     ("how often, how long, how far") are only answerable in aggregate."""
-    return Path(output_root) / "_diagnostics" / "gaze_dropouts.jsonl"
+    return diagnostics_dir(output_root) / "gaze_dropouts.jsonl"
 
 
 def _append_record(path: str | Path, record: dict[str, Any]) -> None:

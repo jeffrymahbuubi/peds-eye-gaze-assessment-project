@@ -34,13 +34,13 @@ from PySide6.QtWidgets import (
 
 from .. import __version__
 from ..engine.config import CONFIG_ROOT
+from ..engine.subject_store import output_root
 from .config_flow import ConfigFlow
 from .dashboard_flow import (
     SETUP_INDEX,
     TESTS_INDEX,
     Flow,
     TitleBar,
-    output_root_from_config,
 )
 from .report_flow import ReportFlow
 from .run_flow import RunFlow
@@ -64,7 +64,7 @@ class DashboardWindow(QMainWindow):
         self.flow = Flow.IDLE
         # Where tests, sessions and saved settings live; the Test List and every flow
         # read it from here (a test can point it at a scratch folder).
-        self.output_root = output_root_from_config()
+        self.output_root = output_root()
 
         central = QWidget(self)
         central.setObjectName("wtmhDashboard")
@@ -126,7 +126,9 @@ class DashboardWindow(QMainWindow):
 
     def _reload_tests(self) -> None:
         """Read the typed Subject ID's tests from disk (4A.8: never kept in memory)."""
-        self.test_list_page.set_subject(self.setup_page.subject_id(), self.output_root)
+        self.test_list_page.set_subject(
+            self.setup_page.subject_id(), self.output_root, self.setup_page.folder_mode()
+        )
 
     def show_tests(self, select: str | None = None) -> None:
         """Back to the Tests tab after a flow ends: flow ``IDLE``, the list reloaded
