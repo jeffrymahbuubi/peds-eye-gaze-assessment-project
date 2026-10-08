@@ -133,6 +133,15 @@ design page that belong here (§3.1).
   status cells are badges and sorting still works; `_CARDS` column order; the "Changed from" line
   keeps its height when empty; Start blocker lists one item per line. Existing tests updated, never
   deleted.
+- **H13 Phase-1 carry-overs (added 2026-10-08, user: "commit phase 1 as is, fix later").** Three
+  bugs from the phase-1 live check: (1) a button with a white fill (Load Calibration File, the
+  secondary/ghost tier) draws the native Windows focus rectangle inside its 2 px focus border when
+  reached by Tab: `wtmh_theme.button_rule` gets `outline: 0` (as `dialog_theme` already has), and
+  every other QSS-styled focusable control in the operator sheets is checked for the same; (2) Tab
+  inside the Setup Notes `QTextEdit` types a tab character instead of moving focus:
+  `setTabChangesFocus(True)` on it (and on any other multi-line edit in the operator pages); (3)
+  the run bar's PRACTICE / PREVIEW chip has `min-height: 24px` and no maximum, so it stretches to
+  the bar height: a fixed 24 px pill, centred vertically in the bar.
 
 ## 4. Design
 
@@ -142,10 +151,10 @@ List, Setup cards, run bar).
 
 ## 5. Scope
 
-**In:** H1-H12; proposal §2.3 widths and spacing for the operator pages, §2.5 badges, alerts,
+**In:** H1-H13; proposal §2.3 widths and spacing for the operator pages, §2.5 badges, alerts,
 SliderSpinRow length, §3.1 S2-S6, §3.2 T1, T2, T4-T6, §3.3 A2 (focus already phase 1), §3.4 C1, C3-C5,
 C7, §3.5 P1-P5, §3.6 R2.
-**Out:** tokens, type, focus, disabled styling, copy strings (phase 1); canvas, themes, full screen
+**Out:** tokens, type, focus, disabled styling, copy strings (phase 1; except the H13 fixes); canvas, themes, full screen
 (phase 3); report Summary / Detailed / PDF incl. the Outcome badge (phase 4, which reuses
 `StatusBadge`); `task_settings_dialog.py` (phase 5); any new gate or feature.
 
@@ -164,6 +173,7 @@ C7, §3.5 P1-P5, §3.6 R2.
 - **Q7** Setup shows the caption "Needs: ..." exactly when Continue is disabled, with the
   `continue_blockers()` items.
 - **Q8** Full pytest green (except the known skip-worktree alpha checks); live check passes (§7).
+- **Q9** H13: Tab onto a white-fill button shows only the 2 px focus border (no inner native rectangle, window capture); Tab in Setup Notes moves to the next control; the PRACTICE chip is 24 px high and centred in the run bar.
 
 ## 7. Plan
 
@@ -171,7 +181,7 @@ C7, §3.5 P1-P5, §3.6 R2.
 |---|---|---|
 | 0 | Phase 1 implemented and reviewed (live check may be shared with this one) | — |
 | 1 | Wireframes: setup, test-list, task-config, start-test, run, run-end (H11) — **DONE 2026-10-08, user-approved** | **WF gate** |
-| 2 | spec-implementer in a worktree based on the phase-1 result: H1-H10, H12 | — |
+| 2 | spec-implementer in a worktree based on the phase-1 result: H1-H10, H12, H13 | — |
 | 3 | Hub review + full pytest; §9 questions | — |
 | 4 | Live check, maximized 1920x1080: every page captured; Setup badges with `tools/fake_gazepoint_server.py` (connected, calibrated) and with no tracker; one Practice run for the run bar badge. Needs the user only for the final look, not as a gaze subject | user |
 | 5 | Commit on the user's OK | user |
@@ -194,3 +204,4 @@ C7, §3.5 P1-P5, §3.6 R2.
   (2026-10-07); H4 lists only `continue_blockers()`.
 - **2026-10-08** — The user approved H1-H12 as written. SPEC committed on `feature/compass-task-flow`. Next: after the phase-1 review, /spec-run this SPEC from step 1 (wireframes).
 - **2026-10-08** — Step 1: wireframes setup, test-list, task-config, start-test, run, run-end updated to V1-V4 and H1-H12 and rendered; the user approved them as drawn. Wireframe tool limits noted: alert kinds render as a teal label (no glyph tile), and the wireframe palette is the old one; the app colours come from phase 1. Next: step 2 after the phase-1 review.
+- **2026-10-08** - H13 added (user decision after the phase-1 live check: commit phase 1 as is, fix its three live-check bugs here): white-fill button focus shows the native focus rectangle, Tab trapped in Setup Notes, PRACTICE chip stretched to the bar height. Scope, Q9 and step 2 updated. Phase 1 is committed on branch design-phase1; step 2 starts from the merged result.

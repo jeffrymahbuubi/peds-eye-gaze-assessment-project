@@ -81,6 +81,11 @@ The user asked for this SPEC on 2026-10-08.
   header, configuration, summary, Eye Metrics on page 1; the forced break moves to before the Target
   Map, which starts page 2 with its legend. Title "Summary Results, <test name>"; date
   `yyyy-MM-dd HH:mm` (phase 1); a missing text value prints "not recorded" (phase-1 U5).
+  **Added 2026-10-08 (user, after the phase-1 live check):** the title prints at 12 pt and the
+  section headings (Test Configuration, Notes, Summary of Results, Target Map, Eye Metrics,
+  Trial-by-Trial Results, Definitions) at 11 pt, all 600 weight; today they print at about 5 pt.
+  A table header never breaks inside a word (today "Entries" prints as "Entrie / s"): the header
+  wraps only at spaces, and a column is at least as wide as its longest header word.
 - **H9 Labels.** The PDF's configuration labels equal the configuration page's (phase 1 already
   aligns them in `report_config`); a string test over `report_config.build_config_rows` holds it.
 - **H10 Tests.** Ratios of the map tokens (P1-style); mark colours by pixel sample on an offscreen
@@ -111,6 +116,8 @@ cache format; operator pages (phases 1-2); canvas (phase 3); the standalone `--t
 - **M-4** Outcome cells are badges with glyph + word; the selected row is shown by fill.
 - **M-5** PDF page 1 holds header, configuration, summary and Eye Metrics; the map starts page 2.
 - **M-6** PDF labels equal the configuration page's (string test); no lone em dash in a text field.
+- **M-6b** The PDF HTML gives the title 12 pt and every section heading 11 pt; in a printed PDF
+  no table header word is split across lines (the trial table's "Entries" read whole).
 - **M-7** Full pytest green (except the known skip-worktree alpha checks); live check: one report
   of each task opened, Summary + Detailed captured, one PDF printed and read.
 
@@ -143,3 +150,4 @@ cache format; operator pages (phases 1-2); canvas (phase 3); the standalone `--t
 - **2026-10-08** — The user approved H1-H10 as written. SPEC committed on `feature/compass-task-flow`.
 - **2026-10-08** — The user dropped the optional proposal phase 5 (standalone dialog parity): phase 4 is the last design-system phase. Step 1 wireframes (report-summary, report-detailed) drafted and rendered, awaiting the WF gate.
 - **2026-10-08** - Step 1: the user approved the report-summary and report-detailed wireframes as drawn.
+- **2026-10-08** - H8 extended and M-6b added (user decision after the phase-1 live check, PDF of a real Grid Click run): section headings print at about 5 pt and the trial table's "Entries" header splits as "Entrie / s"; neither comes from phase 1 (it changed only the PDF's wording). Title 12 pt, section headings 11 pt, header words never split.
