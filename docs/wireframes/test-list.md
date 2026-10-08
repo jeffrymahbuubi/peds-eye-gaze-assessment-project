@@ -10,11 +10,11 @@
 
 | Test Name | Task | Configuration | Status | Date Complete |
 |---|---|---|---|---|
-| **Grid Click 1** | **Grid Click** | **Standard** | **Not Done** | **—** |
-| Static Click 1 | Static Click | Standard | Done | 2026-10-06 |
-| Follow & Click 1 | Follow & Click | Slow path | Ended early (4/6) | 2026-10-06 |
-| Scanning Search 1 | Scanning Search | Standard | Done · data missing | 2026-10-05 |
-| **Grid Click 2** | **Grid Click** | **Large targets** | **Not Done** | **—** |
+| Grid Click 1 | Grid Click | Standard | ○ Not done | — |
+| Static Click 1 | Static Click | Standard | ● Done | 2026-10-06 |
+| Follow the Target 1 | Follow the Target | Slow path | ◐ Ended early 4/6 | 2026-10-06 |
+| Scanning Search 1 | Scanning Search | Standard | ▲ Data missing | 2026-10-05 |
+| Grid Click 2 | Grid Click | Large targets | ○ Not done | — |
 
 ### {.right}
 
@@ -24,17 +24,19 @@
 
 [Run Test]*
 
-[View Report]{state:disabled}
+[View Report]{.outline state:disabled}
 
 [Copy Test]{.outline}
 
-[Delete Test]{.outline}
+[■ Delete Test]{.outline}
 
 [Open Subject Folder]{.outline}
 
 :::
 
-> **Selected row:** "Grid Click 1" (Not Done). The buttons on the right follow the matrix below. Disabled buttons stay visible and grey, never hidden.
+> **Design system phase 2** (SPEC-design-system-phase2.md H5, V1, V2): the table is at most 1200 px (Test Name 420, Task 180, Configuration 200, Status 180, Date 140); the button column sits 24 px to its right, top-aligned. **Run Test is the only primary (filled) button**; Add New Test, Configure Test, View Report, Copy Test and Open Subject Folder are secondary (outlined); Delete Test is secondary with a red ■ glyph (its dialog's Delete keeps the red fill). The Status column holds a status badge (glyph + word): ○ Not done (grey), ● Done (green), ◐ Ended early 4/6 (amber), ▲ Data missing (amber). Bold no longer marks anything; the selected row is a blue fill (#CFE2F1), distinct from the grey header.
+
+> **Selected row:** "Grid Click 1" (Not done). The buttons on the right follow the matrix below. Disabled buttons stay visible and grey, never hidden.
 
 | Selected | Add New Test | Configure Test | Run Test | View Report | Copy Test | Delete Test |
 |---|---|---|---|---|---|---|
@@ -48,7 +50,7 @@
 > **Run Test is never disabled by Setup (R2).** It always opens the Start page, which lists anything still missing (tracker, calibration, ...) and disables Start/Practice there. View Report is off when the data folder is missing ("· data missing").
 
 > **Table rules:**
-> - Bold = not yet run.
+> - The Status badge shows the state; no bold, no tint.
 > - Clicking a header sorts the table. Test Name sorts naturally, so "Grid Click 2" comes before "Grid Click 10".
 > - The selection follows the test through a sort or reload.
 
@@ -59,7 +61,9 @@
 
 ---
 
-[← Back to Setup / recalibrate](#)
+[Back to Setup](#)
+
+> Tertiary button (text only, blue), no arrow; recalibration is on the Setup page.
 
 Changes are saved automatically.
 
@@ -83,6 +87,8 @@ Enter a Subject ID in Setup.
 
 No tests yet. Choose Add New Test.
 
+> Shown as one line inside the empty table frame, with Add New Test beside it.
+
 :::
 
 ::: card
@@ -104,16 +110,16 @@ No tests yet. Choose Add New Test.
 ## Add New Test
 
 **Static Click**
-One still target on an empty field — baseline look-and-select.
+One still target on an empty field. Baseline look and select.
 
 **Grid Click**
-One cell of a visible board lights up — selection among candidates.
+One cell of a visible board lights up. Selection among candidates.
 
-**Follow & Click**
-The target travels; select it while it moves — smooth pursuit.
+**Follow the Target**
+The target travels across the screen. Smooth pursuit.
 
 **Scanning Search**
-Find the cued shape in a field of distractors — visual search.
+Find the cued shape among other shapes. Visual search.
 
 > Rows are spaced apart (8 px); the list takes the dialog's spare height and shows a vertical scroll bar only when more task types exist than fit (6 rows).
 

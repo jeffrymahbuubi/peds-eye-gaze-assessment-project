@@ -1,13 +1,15 @@
 ![[_nav.md]]
 
-## Run end — Test Complete, Quit, Discard
+## Run end: Test complete, Quit, Discard
+
+> **Design system phase 1** (SPEC-design-system-phase1.md, proposal R5): the dialog heading reads "Test complete" (no exclamation mark) at 20 px; danger buttons keep the red fill; nothing else changes.
 
 > SPEC-compass-task-flow.md 4C.6 and 4C.8 (U8, U14). All dialogs are modal over the frozen canvas. Every file is already written to disk before any dialog appears, so a crash at a dialog loses nothing (the test then simply stays Not Done). Compass reference: `docs/compass/screenshots/07b-*.png`.
 
 ### Flow
 
 ```
-Recorded run finishes ──→ [Test Complete!] ──Save──────────────→ Test List (row "Done", locked)
+Recorded run finishes ──→ [Test complete] ──Save──────────────→ Test List (row "Done", locked)
                               │──Save and View Report──→ Report (Summary)
                               └──Discard Results──→ [Discard confirm] ──Discard──→ Test List (row stays Not Done)
 
@@ -25,9 +27,9 @@ Quit / Alt-Q / Esc ──→ [Quit the test?] ──Keep going──→ run resu
 
 ::: modal
 
-## Test Complete
+## Test complete
 
-Test Complete!
+Test complete
 
 [Save]{.outline} [Save and View Report]* [Discard Results]{variant:danger}
 

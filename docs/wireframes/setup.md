@@ -1,12 +1,8 @@
 ![[_nav.md]]
 
-::: row {.right}
-Session |1|{.primary}   Tracker |not connected|{.error}   Calibration |none|{.warning}
-:::
+## Setup
 
-## 1 · Setup
-
-> **Design note:** status badges above reflect a fresh session (just opened, nothing connected yet). After Connect + a completed/loaded calibration, Tracker reads |connected|{.success} and Calibration reads |fresh|{.success} — see the Tasks page for that state.
+> **Design system phase 2** (SPEC-design-system-phase2.md H4, V3): the old badge row at the top is gone; each status badge sits in its own card beside its buttons (Tracker, Calibration). Page title 28 px, no "1 ·". Content column at most 1200 px, left-aligned. Field widths by content: Subject ID 320, date 200, Sex 240, Control Address 320, Control Port 120, Point Count 100 px. Every banner is an alert box with a glyph tile (no left stripe, no tint) and never sits inside a card.
 
 ---
 
@@ -51,7 +47,11 @@ Control Port
 [4242_________________________]{required}
 :::
 
-[Connect]* [Test Connection]{.outline}
+::: row
+[Connect]* [Test Connection]{.outline} |■ Disconnected|{.error}
+:::
+
+> **Tracker badge** (phase 2 H4): a status badge beside the buttons, glyph + word. Before Connect: ■ Disconnected (danger). After Connect: ● Connected (success). Replaces the plain "Not connected." line.
 
 > **Design note:** Control Address is pre-filled from the last address that connected successfully *on this machine* (saved locally, never committed to git). A brand-new machine with no history defaults to `127.0.0.1`. There is no protocol-level auto-discovery — confirmed via the vendor API corpus, nothing to poll or broadcast for.
 
@@ -60,7 +60,7 @@ Control Port
 ### Display
 
 ::: alert success
-Display: 1920×1080 at 100% scale — recommended standard.
+● Display 1920x1080 at 100 %: the recommended standard.
 :::
 
 > **State A — standard (shown above):** one green line, no checkbox. Continue to Tests is gated only by the usual inputs. (SPEC-display-standard-check.md §4.2)
@@ -72,7 +72,7 @@ Display: 1920×1080 at 100% scale — recommended standard.
 > **Design note:** the same card as above, shown in its other state. Only one of the two states is ever visible.
 
 ::: alert warning
-This display is 1920×1080 at 150% scale. The recommended standard for data collection is 1920×1080 at 100%. Other settings can make the task screens lay out incorrectly (for example squeezed task cards at 150%), and sessions recorded on different displays are not directly comparable.
+▲ Warning: This display is 1920×1080 at 150% scale. The recommended standard for data collection is 1920×1080 at 100%. Other settings can make the task screens lay out incorrectly (for example squeezed task cards at 150%), and sessions recorded on different displays are not directly comparable.
 
 To change it: Windows Settings → System → Display, set Display resolution to 1920×1080 and Scale to 100%. This card updates automatically.
 :::
@@ -94,11 +94,13 @@ Point Count (1–9)
 - [x] Show calibration window to the subject
 
 ::: row
-[Do Calibration]* [Load Calibration File]{.outline} [View Calibration Details]{.outline state:disabled}
+[Do Calibration]* [Load Calibration File]{.outline} [View Calibration Details]{.outline state:disabled} |▲ Not calibrated|{.warning}
 :::
 
+> **Calibration badge** (phase 2 H4, V1): ▲ Not calibrated (warning triangle) until a calibration exists; then ● Calibrated, 5 points, 1.8° (success, the measured mean error). Do Calibration keeps the primary tier even while disabled.
+
 ::: alert warning
-No calibration yet for this subject — run Do Calibration or Load Calibration File before continuing.
+▲ Warning: No calibration yet for this subject. Run Do Calibration or Load Calibration File before continuing.
 :::
 
 > **Do Calibration:** runs a fresh calibration against the connected tracker using the point count/show-window controls above.
@@ -113,7 +115,7 @@ No calibration yet for this subject — run Do Calibration or Load Calibration F
 > **Design note:** hidden by default; shown here expanded purely to illustrate what "View Calibration Details" reveals. In the real page this content lives *inside* the Calibration card above, appearing only after the button is clicked, and collapses again on a second click.
 
 ::: alert success
-Calibration measured — 5 points, mean error 8px, valid.
+● Calibration measured: 5 points, mean error 8 px, valid.
 :::
 
 Per-point breakdown
@@ -134,13 +136,20 @@ Per-point breakdown
 ### Before You Start
 
 ::: alert info
-Confirm in Gazepoint Control that Lens Focusing and Automatic Gain Sweep are enabled.
+ⓘ Note: Confirm in Gazepoint Control that Lens Focusing and Automatic Gain Sweep are enabled.
 :::
 
 > **Design note:** this is a read-only reminder, not a checkbox and not a gate — neither setting can be checked or changed from this app. Gazepoint Control's own Settings dialog is the only place either one lives; the OpenGaze API has no command for either (confirmed against the vendor corpus).
 
 ---
 
+::: row {.right}
 [Continue to Tests →]*{state:disabled}
+:::
 
-> **Design note:** disabled until Tracker shows |connected|{.success} **and** a calibration result exists (via either path above) **and** Subject ID, Assessment Date, and Sex are filled **and** the Display card is standard or its "Continue with this display anyway" box is ticked. Notes is optional. The "Before You Start" reminder above does **not** factor into this gate.
+::: row {.right}
+Needs: Sex, display acknowledgement
+:::
+
+> **Footer** (phase 2 H4, V3): Continue to Tests is 240 px, right-aligned, in a 64 px footer. While it is disabled, a caption under it lists what still blocks it ("Needs: " + the short names of `continue_blockers()`). The tooltip stays.
+> **Gate (current, 2026-10-07):** Continue needs Subject ID, Assessment Date and Sex, and a standard display or its ticked acknowledgement. It does **not** wait for the tracker or the calibration: a Mouse test needs neither, and a Gaze test is held back on its own Start page. So the caption never lists the tracker or the calibration. Notes is optional; the "Before You Start" reminder is not part of the gate.

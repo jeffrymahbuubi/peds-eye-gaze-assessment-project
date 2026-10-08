@@ -4,7 +4,7 @@ title: Design system v1, phase 2: status badges, alerts with glyphs, and page la
 status: approved 2026-10-08 (V1-V4 user decisions, H1-H12 hub decisions approved by the user)
 created: 2026-10-08
 last_updated: 2026-10-08
-next_step: /spec-run step 1 (wireframes, gate) once phase 1 is reviewed
+next_step: /spec-run step 2 (spec-implementer) once phase 1 is reviewed; wireframes approved 2026-10-08
 related:
   - docs/design/fable-proposal.md (source: §2.3 spacing and widths, §2.5 components, §3.1-§3.6 per-page changes, §5.2 phase 2)
   - SPEC-design-system-phase1.md (tokens, type, component QSS, copy; this phase builds on it and needs its tokens)
@@ -170,7 +170,7 @@ C7, §3.5 P1-P5, §3.6 R2.
 | Step | Content | Gate |
 |---|---|---|
 | 0 | Phase 1 implemented and reviewed (live check may be shared with this one) | — |
-| 1 | Wireframes: setup, test-list, task-config, start-test, run, run-end (H11) | **WF gate** |
+| 1 | Wireframes: setup, test-list, task-config, start-test, run, run-end (H11) — **DONE 2026-10-08, user-approved** | **WF gate** |
 | 2 | spec-implementer in a worktree based on the phase-1 result: H1-H10, H12 | — |
 | 3 | Hub review + full pytest; §9 questions | — |
 | 4 | Live check, maximized 1920x1080: every page captured; Setup badges with `tools/fake_gazepoint_server.py` (connected, calibrated) and with no tracker; one Practice run for the run bar badge. Needs the user only for the final look, not as a gaze subject | user |
@@ -193,3 +193,4 @@ C7, §3.5 P1-P5, §3.6 R2.
   proposal's Setup caption example lists tracker and calibration, which no longer block Continue
   (2026-10-07); H4 lists only `continue_blockers()`.
 - **2026-10-08** — The user approved H1-H12 as written. SPEC committed on `feature/compass-task-flow`. Next: after the phase-1 review, /spec-run this SPEC from step 1 (wireframes).
+- **2026-10-08** — Step 1: wireframes setup, test-list, task-config, start-test, run, run-end updated to V1-V4 and H1-H12 and rendered; the user approved them as drawn. Wireframe tool limits noted: alert kinds render as a teal label (no glyph tile), and the wireframe palette is the old one; the app colours come from phase 1. Next: step 2 after the phase-1 review.

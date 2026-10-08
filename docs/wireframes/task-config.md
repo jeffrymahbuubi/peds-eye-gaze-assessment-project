@@ -2,11 +2,11 @@
 
 ## Grid Click 1 Configuration
 
-Grid Click · Subject TESTING
+Grid Click, subject TESTING
 
 > SPEC-compass-task-flow.md 4B. A full page opened by Configure Test on the Test List. It replaces the Settings dialog inside the dashboard (the old dialog stays only for standalone `--task X --gui`, see `task-settings.md`). Shown: Grid Click in its Standard state. Compass reference: `docs/compass/screenshots/06-*.png`. The nav is locked while this page is open.
 
-> Three columns of cards. **Column A:** Test, Feedback. **Column B:** Target, the task card (here Grid Layout), Timing. **Column C:** Input, Dwell, Gaze Smoothing. Every number is a slider plus a spin box (the existing SliderSpinRow), shown here as a number box.
+> Three columns of cards, ordered by clinical weight (SPEC-design-system-phase2.md H6, V4). **Column A:** Test, Input, Target (Icons for Scanning Search). **Column B:** the task card (here Grid Layout; Motion for Follow the Target; none for Static Click), Timing, Feedback. **Column C, under the quieter title "Advanced" (20 px, grey):** Dwell, Gaze Smoothing. Every number is a slider plus a spin box (the existing SliderSpinRow), shown here as a number box.
 
 > SPEC-input-selection-and-follow.md 4.1 (added 2026-10-07): the **Input** card (Pointer + Selection), the card "Selection (Dwell)" renamed **Dwell**, and "Glow on target" in Feedback. Shown: Gaze + Dwell, the default.
 
@@ -23,7 +23,7 @@ Configuration Name
 - Large targets
 - Saved 10/05 14:12
 
-Modified from "Standard"
+Changed from Standard
 
 [Reset to defaults]{.outline}
 
@@ -32,39 +32,6 @@ Number of Trials
 
 Notes
 [Child tired after lunch...]{rows:3}
-
-### B · Target
-
-- ( ) Small — 3° (≈123 px)
-- (*) Medium — 5° (≈205 px)
-- ( ) Large — 8° (≈328 px)
-
-### C · Input
-
-Pointer (what moves the pointer)
-- (*) Gaze
-- ( ) Mouse
-
-Selection (how a target is selected)
-- (*) Dwell — keep looking at the target
-- ( ) Switch — look at the target, then press the switch
-
-Pointer is on every task. Selection is on Static Click, Grid Click and Scanning Search; Follow the Target has none.
-
-:::
-
-::: grid-3 card
-
-### A · Feedback
-
-- [x] Show gaze cursor
-- [x] Show dwell progress ring
-- [x] Show instant on-target ring
-- [x] Glow on target
-- [x] Play hit sound
-- [x] Play miss sound
-
-"Show dwell progress ring" is greyed while Selection = Switch. "Glow on target" (default on) is greyed while Selection = Dwell, as here.
 
 ### B · Grid Layout
 
@@ -76,12 +43,12 @@ Grid cols
 
 Cell gap
 - (*) Standard
-- ( ) Wide — 1° (≈41 px)
-- ( ) Extra wide — 2° (≈82 px)
+- ( ) Wide (1°, about 41 px)
+- ( ) Extra wide (2°, about 82 px)
 
-Amber hint when it does not fit: "Targets will be shrunk to about 180 px to fit a 3x3 grid with this gap."
+Warning alert (▲ glyph, no tint) when it does not fit: "Targets will be shrunk to about 180 px to fit a 3x3 grid with this gap."
 
-### C · Dwell
+### C · Advanced: Dwell
 
 Dwell threshold (s)
 [0.8___]{type:number}
@@ -98,9 +65,17 @@ While Selection = Switch only "Dwell threshold" is greyed. Refractory and jitter
 
 ::: grid-3 card
 
-### (column A ends)
+### A · Input
 
-—
+Pointer (what moves the pointer)
+- (*) Gaze
+- ( ) Mouse
+
+Selection (how a target is selected)
+- (*) Dwell: keep looking at the target
+- ( ) Switch: look at the target, then press the switch
+
+Pointer is on every task. Selection is on Static Click, Grid Click and Scanning Search; Follow the Target has none.
 
 ### B · Timing
 
@@ -110,7 +85,7 @@ Trial timeout (s)
 Inter-trial interval (s)
 [0.8___]{type:number}
 
-### C · Gaze Smoothing
+### C · Advanced: Gaze Smoothing
 
 - [x] Smoothing enabled
 
@@ -121,6 +96,31 @@ Greyed (not hidden) while Smoothing enabled is off: the only dependent control.
 
 :::
 
+::: grid-3 card
+
+### A · Target
+
+- ( ) Small (3°, about 123 px)
+- (*) Medium (5°, about 205 px)
+- ( ) Large (8°, about 328 px)
+
+### B · Feedback
+
+- [x] Show gaze cursor
+- [x] Show dwell progress ring
+- [x] Show instant on-target ring
+- [x] Glow on target
+- [x] Play hit sound
+- [x] Play miss sound
+
+"Show dwell progress ring" is greyed while Selection = Switch. "Glow on target" (default on) is greyed while Selection = Dwell, as here.
+
+### (column C ends)
+
+-
+
+:::
+
 > **State: Selection = Switch** (same page, nothing moves or disappears): the Input card shows "(*) Switch"; in Feedback "Show dwell progress ring" is greyed and "Glow on target" is active; in Dwell only the threshold is greyed.
 
 > **State: Pointer = Mouse:** nothing extra is greyed. Dwell with the mouse = hover dwell. With Selection = Switch, the mouse's own left button is the switch.
@@ -128,7 +128,7 @@ Greyed (not hidden) while Smoothing enabled is off: the only dependent control.
 ---
 
 ::: row
-[Preview Test]{.outline} [Save & Continue]* [Cancel]{.outline}   Test Name is already used by another test of this subject.
+[Preview Test]{.outline} [Save & Continue]* [Cancel]{.secondary}   Test Name is already used by another test of this subject.
 :::
 
 > **Footer** (pinned under the scroll area, always visible):
@@ -137,10 +137,13 @@ Greyed (not hidden) while Smoothing enabled is off: the only dependent control.
 > - **Cancel** asks first if there are edits.
 > - Enter never saves.
 
-> **Layout:**
-> - Column A: Test, then Feedback.
-> - Column B: Target, then the task card (Grid Layout / Motion / Icons), then Timing.
-> - Column C: Input, then Dwell, then Gaze Smoothing.
+> **Layout** (phase 2 H6):
+> - Column A: Test, then Input, then Target (Icons for Scanning Search, one card with size and count).
+> - Column B: the task card (Grid Layout / Motion), then Timing, then Feedback.
+> - Column C, titled "Advanced": Dwell, then Gaze Smoothing (Follow the Target has no Dwell card).
+> - The "Changed from Standard" caption line under Configuration Name is always there (empty when unmodified), so the page never shifts when it appears.
+> - Sliders: 240 px when the range has 10 steps or fewer (with ticks: trials, icons, rows, cols), 360 px otherwise; spin boxes 88 px.
+> - The footer row is centred under the three columns. The grid stays 1500 px wide.
 > - At 1920x1080 @ 100 % nothing scrolls. At larger scaling the cards scroll and the footer stays visible.
 
 ### Task-specific cards
@@ -153,13 +156,13 @@ Target card only (no task card). Defaults: 32 trials, timeout 8000, interval 800
 
 ### Follow the Target — Motion
 
-Movement path: Circular (selected) / Horizontal / Vertical / Diagonal ↘ / Diagonal ↙ · Target speed (frac/s) 0.20.
+Movement path: Circular (selected) / Horizontal / Vertical / Diagonal, top-left to bottom-right / Diagonal, top-right to bottom-left. Target speed (frac/s) 0.20.
 
 Input card: Pointer only, no Selection radio. No Dwell card. Feedback: gaze cursor, "Glow on target", hit sound (plays at the end of a followed trial); no dwell progress ring, no miss sound. Timing card: "Trial duration (s) 10" (3–30, step 0.5) and the inter-trial interval; no selection window.
 
 ### Scanning Search — Icons
 
-Icon size Small / (*) Medium / Large · Number of icons 4 · amber hint "Icons will be shrunk to ≈ N px to fit K icons" when needed.
+Icon size Small / (*) Medium / Large. Number of icons 4. Warning alert "Icons will be shrunk to ≈ N px to fit K icons" when needed.
 
 :::
 
@@ -177,7 +180,7 @@ Icon size Small / (*) Medium / Large · Number of icons 4 · amber hint "Icons w
 |                                     o  smoothed gaze dot follows the mouse           |
 |                                                                                      |
 +--------------------------------------------------------------------------------------+
-| PREVIEW · Trial 2/3 · mouse pointer · nothing is recorded                            |
+| [PREVIEW]  Trial 2 of 3   Mouse pointer                                              |
 |                   [ Pause (Alt-P) ]   [ Skip trial ]   [ Quit (Alt-Q) ]              |
 +--------------------------------------------------------------------------------------+
 ```
