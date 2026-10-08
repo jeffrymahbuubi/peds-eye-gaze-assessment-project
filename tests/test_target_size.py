@@ -14,7 +14,6 @@ from types import SimpleNamespace
 import pytest
 
 from src.app import AssessmentApp
-from src.data.recorder import SessionRecorder
 from src.data.schema import SessionMetadata
 from src.engine.config import deep_merge, load_task_config
 from src.engine.target_size import (
@@ -33,6 +32,7 @@ from src.engine.target_size import (
 )
 from src.engine.task_runner import build_task, run_headless_replay
 from src.inputs.base import Pointer, circle_contains
+from tests.recorder_helpers import recorder_in
 
 FIXTURE = Path(__file__).parent / "fixtures" / "gaze_replay_click_static.jsonl"
 LAB = ScaleInfo(REFERENCE_MM_PER_PX, "edid", 531.4, 298.9)  # 24" 1080p, EDID
@@ -353,7 +353,7 @@ def test_resized_canvas_does_not_repeat_the_shrunk_event():
 def test_metadata_json_and_trials_csv_and_events_for_a_real_session(tmp_path):
     info = apply_target_size({"target": {"size": "large"}}, LAB, 650.0)
     meta = SessionMetadata(subject_id="P001", session_id="s", started_ns=0, target_size=info)
-    with SessionRecorder(meta, output_root=tmp_path) as recorder:
+    with recorder_in(tmp_path, meta) as recorder:
         task = _grid_task(6, 6, "large", recorder=recorder)
         _play(task, 2)
         recorder.write_trials(task.trials)

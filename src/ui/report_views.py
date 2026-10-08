@@ -28,6 +28,7 @@ from PySide6.QtWidgets import (
     QWidget,
 )
 
+from .design_tokens import TEXT_SECONDARY
 from .frozen_table import FrozenColumnTable
 from .map_legend import (
     FOLLOW_LEGEND_ENTRIES,
@@ -60,7 +61,6 @@ from .report_layout import (
 )
 from .report_tables import FitTable
 from .target_map import TargetMapWidget
-from .wtmh_theme import MUTED
 
 MAP_MAX_WIDTH = 880  # the Summary's map, so a wide window does not make it enormous
 
@@ -223,7 +223,7 @@ class DetailedView(QScrollArea):
 
     Rows are selected one at a time (the first when a report is set); the map and the
     line under it follow. A click on a column header sorts by it (again to reverse), a
-    column's "—" cells always last; the selected trial stays selected wherever it moves.
+    column's dash cells always last; the selected trial stays selected wherever it moves.
     """
 
     def __init__(self, parent: QWidget | None = None) -> None:
@@ -302,7 +302,7 @@ class DetailedView(QScrollArea):
                     item.setFlags(Qt.ItemFlag.ItemIsEnabled | Qt.ItemFlag.ItemIsSelectable)
                     item.setTextAlignment(_ALIGN[self._aligns[c]] | Qt.AlignmentFlag.AlignVCenter)
                     if skipped:
-                        item.setForeground(QColor(MUTED))
+                        item.setForeground(QColor(TEXT_SECONDARY))
                     table.setItem(r, c, item)
             table.resizeColumnsToContents()
             target = self._indexes.index(select) if select in self._indexes else -1
@@ -324,7 +324,7 @@ class DetailedView(QScrollArea):
             return
         trial = trials[index]
         self.map.set_trial(index)
-        self.selected_title.setText(f"Selected trial — Trial {trial.get('trial', '')}")
+        self.selected_title.setText(f"Selected trial: Trial {trial.get('trial', '')}")
         self.line_label.setText(trial_line(trial, gaze_was_recorded(self._report)))
 
     def _on_sort(self, column: int) -> None:

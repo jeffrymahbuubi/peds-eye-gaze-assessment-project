@@ -12,10 +12,13 @@ Originally compiled 2026-09-02 while triaging physician feedback; see
 `docs/specs/SPEC-2026-09-02.md` in the top-level project (not this repo) for
 the full triage context this was extracted from.
 
-## Session folder layout
+## Run folder layout
+
+One folder per recorded run, inside that child's own folder
+(`docs/DATA_SCHEMA.md` has the whole per-subject tree):
 
 ```
-sessions/2026-07-15_P001_click_static/
+sessions/P001/runs/click_static/2026-07-15_1432/
   metadata.json      # subject + session + calibration + schema_version
   session.log        # human-readable timeline
   gaze_stream.csv    # per-frame gaze samples

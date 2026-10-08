@@ -4,7 +4,7 @@ title: Per-subject data folders — one folder per child holding calibrations, s
 status: approved 2026-10-07 (D1-D6, H1-H13)
 created: 2026-10-07
 last_updated: 2026-10-08
-next_step: step 2+3 (engine + UI) with the spec-implementer; wireframes approved 2026-10-08
+next_step: step 5 live check DONE 2026-10-08. Next: step 6 (remove the Anonymous code option, D4 revised), then on the user's OK delete the old-layout folders in sessions/ (no backup), merge into feature/compass-task-flow and push (user pushes)
 related:
   - SPEC-compass-task-flow.md (Test List store 4A, run end / Discard 4C.6, report + PDF 4D; branch feature/compass-task-flow, U17)
   - SPEC-input-selection-and-follow.md (adds pointer_stream.csv inside a run folder; built first)
@@ -84,8 +84,8 @@ condensed in §2 and §3.2.
 | D1 | **Layout A**, the user's tree refined: per subject `calibrations/`, `settings/`, `tests/`, `runs/<task>/<run>/`, plus `reports/` for the PDFs. Tests and run data stay in separate trees (not one folder per test). |
 | D2 | **Diagnostics stay machine-wide**, in `sessions/_system/diagnostics/`, not per subject (the logs carry no subject and are analysed across all runs). |
 | D3 | The Subject ID may be a pseudonym code **or** a child's real name; the app must not assume either. |
-| D4 | An **"Anonymous code" folder option**: a subject's folder can be named `S-0001` instead of the Subject ID, so Explorer and zips never show the name. |
-| D5 | **Migration:** a one-time script moves today's runs (P9REAL, P9TEST, tesst) and their records/settings/calibrations; every old subject with no run (DIKI, DISP150, DPI100, DPI150, HUDTEST, **TESTING incl. its 2 Not Done tests**) is deleted. No legacy-layout reading code stays in the app. Data written by the v1.0.0 exe (`compiled/PedsEyeGaze-1.0.0/sessions/`, other PCs) is **ignored**: not migrated. |
+| D4 | ~~An "Anonymous code" folder option~~ **Revised 2026-10-08 (user, after the live check): no Anonymous code option.** A folder named `S-0001` while every page says the Subject ID would confuse clinicians. The subject folder is always the Subject ID. Setup shows a hint under Subject ID: "Use a study code, not the child's name." Privacy rests on the study's own codes. (Original D4: a subject's folder could be named `S-0001` instead of the Subject ID.) See step 6. |
+| D5 | ~~Migration~~ **Revised 2026-10-08 (user): no migration.** All data in `sessions/` is test data. The old-layout folders (the 9 runs, `_calibrations`, `_settings`, `_tests`, `_diagnostics`) are deleted, **without a backup**, when this SPEC lands. No legacy-layout reading code stays in the app. Data written by the v1.0.0 exe is ignored. (Original D5: a one-time script moved the 9 runs of P9REAL, P9TEST and tesst and deleted the subjects with no run.) |
 | D6 | Built **after** SPEC-input-selection-and-follow.md, **before** the v2.0.0 merge (both touch `recorder.py` / `app.py`). |
 
 ### 3.2 Research notes (agents, 2026-10-07)
@@ -160,18 +160,12 @@ condensed in §2 and §3.2.
   `tests/_deleted/`; the run data stays.
 - **H11 Diagnostics and replay** move to `_system/diagnostics/` and `_system/replay/` (D2); log
   lines stay without a subject.
-- **H12 Migration script** `tools/migrate_layout_v2.py <sessions>`: dry run by default (prints
-  every move and delete), `--apply` to execute; first writes a zip backup of `sessions/` beside it.
-  Per D5: the 9 runs move to `<S>/runs/<task>/<date_HHMM>` (time from `metadata.started_ns`,
-  `_2` on collisions); records rewritten `session_dir` to `run_dir` + schema bump; settings and
-  calibrations moved; the P9REAL PDF moved to `reports/` without the subject prefix; `subject.json`
-  written (mode `id`); `_diagnostics` to `_system/diagnostics`; the old subjects with no run
-  deleted. Run files are not rewritten (migrated runs keep their old `session_id` string, display
-  only). Any unreadable metadata aborts before anything moves. The script is committed, run once
-  on the user's OK, and removed in the next commit (git history keeps it).
+- **H12 ~~Migration script~~ Dropped 2026-10-08 (D5 revised).** `tools/migrate_layout_v2.py` and
+  `tests/test_migrate_layout.py` were written and rehearsed (§8), then deleted before the commit;
+  the old-layout folders are deleted by hand instead.
 - **H13 Docs.** README, `docs/DATA_SCHEMA.md` (layout section), the recorder/session_files
   docstrings, the "sessions folder" UI texts and `build_exe.py` BUILD_INFO describe the new tree.
-  A v2.0.0 release note: do not point a v1.0.0 exe at a migrated folder.
+  A v2.0.0 release note: the old layout is neither read nor migrated.
 
 ## 4. Design
 
@@ -197,8 +191,8 @@ Wireframe-gate details (user OK 2026-10-08, `docs/wireframes/setup.md`, `test-li
 
 ## 5. Scope
 
-**In:** H1-H13; tests re-anchored to the new layout; the one-time migration of today's data.
-**Out:** BIDS export; de-identified export tool; per-subject diagnostics; migrating v1.0.0 exe
+**In:** H1-H11, H13; tests re-anchored to the new layout.
+**Out:** any migration of old-layout data (D5 revised); BIDS export; de-identified export tool; per-subject diagnostics; migrating v1.0.0 exe
 data; renaming run files; changing what a run folder contains; network/OneDrive detection.
 
 ## 6. Acceptance criteria
@@ -215,9 +209,7 @@ data; renaming run files; changing what a run folder contains; network/OneDrive 
 - **L6** PDF default = `<subject>/reports/<date>_<test name>.pdf`, no subject in the name.
 - **L7** A root deep enough to push a run path over 240 characters blocks Start with the H9 text.
 - **L8** Diagnostics append to `_system/diagnostics/`; Practice/Preview still write nothing.
-- **L9** Migration dry run on a copy of today's `sessions/` lists exactly the 9 runs, 3 subjects
-  kept, 6 subjects deleted; `--apply` on the copy gives a tree that the app opens with every
-  P9REAL/P9TEST/tesst test and report intact.
+- **L9** ~~Migration dry run~~ Dropped with H12 (D5 revised 2026-10-08).
 - **L10** Full pytest green; README / DATA_SCHEMA updated.
 
 ## 7. Plan
@@ -228,12 +220,97 @@ data; renaming run files; changing what a run folder contains; network/OneDrive 
 | 1 | Wireframes: `setup` (folder-name choice), `test-list` (Open Subject Folder), `start-test` (path blocker) — **DONE 2026-10-08** | **WF gate** |
 | 2 | Engine: `output_root()`, subject resolver + `subject.json`, `new_run_dir`, `run_dir` link, stores re-anchored, discard guard, diagnostics/replay paths, path budget | — |
 | 3 | UI: Setup choice, Test List button, PDF default, Start blocker, texts | — |
-| 4 | Migration script (dry run on a copy, then `--apply` on the real `sessions/` only on the user's OK) | user |
-| 5 | Review + live check (new subject in both modes, one recorded run, report + PDF, Discard); commit on the user's OK | user |
+| 4 | ~~Migration script~~ **Dropped 2026-10-08** (D5 revised); on the user's OK after step 5, delete the old-layout folders in `sessions/` (no backup) | user |
+| 5 | Review + live check (new subject in both modes, one recorded run, report + PDF, Discard); commit on the user's OK — **DONE 2026-10-08** (live check passed, shared with design-system phase 1) | user |
+| 6 | **Remove the Anonymous code option (D4 revised 2026-10-08).** Setup: drop the "Folder name" radio pair and the read-only "Folder: …" line (W1); add the muted hint "Use a study code, not the child's name." under Subject ID. Engine: the subject folder is always the sanitised Subject ID; no new `S-000N` code is assigned and `sessions/_system/subject_codes.json` is no longer written; `subject.json` keeps `folder_mode` (always `"id"`) so the schema does not change; `folder_mode=` plumbing to `create_test` / Save Calibration goes. The Test List's Open Subject Folder (W2) stays. L5 is replaced by: a new subject's folder is its Subject ID, and Setup shows the hint. Existing tests for code mode are updated or removed with the feature, the rest stay. | — |
 
 ## 8. Impl log
 
-(empty)
+- **2026-10-08 — plan steps 2, 3 and the script of step 4 (spec-implementer, model `claude-sonnet-5-5`;
+  worktree fast-forwarded to `f980939`; nothing committed or staged).**
+  *pytest:* `5 failed, 2669 passed, 2 skipped in 416.00s (0:06:55)`. The 5 failures are the pre-existing "smoothing-alpha 0.22" checks
+  (`test_task_config_page` x4, `test_config_flow::test_a_new_test_opens_at_standard_with_the_task_defaults`):
+  this worktree has the committed `configs/default.yaml` (alpha 0.35), the lab machine's skip-worktree
+  file is the one that agrees; they fail identically on `f980939` before any change here. The lab-machine
+  baseline failure `test_config_merges_task_over_default` passes in this worktree.
+  *New engine modules:* `src/engine/subject_store.py` (`output_root(config=None)`, `SubjectFolder`,
+  `find_subject` / `list_subjects` / `ensure_subject`, `known_subject_ids` (moved here from
+  `settings_profile`), `id_folder_name`, `next_subject_code`, `replace_with_retry`),
+  `src/engine/run_paths.py` (`new_run_dir`, `make_session_id`, `relative_run_dir` / `resolve_run_dir`,
+  `longest_run_path` / `path_budget_error`). UI: `src/ui/subject_folder_row.py` (W1),
+  `src/ui/folder_opener.py` (W2: `QDesktopServices.openUrl(QUrl.fromLocalFile(...))`, both verified with
+  qt-docs). Tool: `tools/migrate_layout_v2.py`.
+  *Changed:* `session_naming.py` (`safe_subject_dirname(id, max_len=80)`; `next_run_number` /
+  `next_session_id` removed), `session_files.py` (H10 guard), `subject_test_record.py` / `subject_tests.py`
+  (`run_dir`, schema 2, `record_result` check, `run_folder_of`, `folder_mode=`), `settings_profile.py`,
+  `calibration.py` / `gaze_diagnostics.py` (`_system/diagnostics`), `task_runner.py` (replay to
+  `_system/replay`), `data/recorder.py` (`SessionRecorder(metadata, output_root, session_dir=None)`),
+  `app.py`, `main.py` (help text), `run_result.py` (wording), UI: `setup_page.py`, `test_list_page.py`
+  (+ `test_list_table.py`: the row filling moved into `SubjectTestTable.populate` to stay under 500 lines),
+  `start_test_page.py`, `run_flow.py`, `report_flow.py`, `report_format.py`, `report_page.py`,
+  `dashboard_flow.py` (`output_root_from_config` removed), `dashboard_window.py`. Docs: `README.md`,
+  `docs/DATA_SCHEMA.md`, `docs/CLINICAL_DATA_REFERENCE.md`, recorder / session_files docstrings,
+  `analysis/analyze_session.py` usage line, `tools/pyinstaller/build_exe.py` BUILD_INFO.
+  *Tests:* 5 new files (`test_subject_store.py`, `test_run_paths.py`, `test_migrate_layout.py`,
+  `test_setup_folder_row.py`, `test_start_path_blocker.py`: 116 tests) plus `tests/recorder_helpers.py`;
+  new cases in `test_recorder`, `test_subject_tests`, `test_test_list_page`, `test_run_modes_app`,
+  `test_report_format`, `test_dashboard_e2e`; about 40 existing files re-anchored to the new layout
+  (`recorder_in(tmp_path, meta)` for the tests of what the recorder writes; `new_run_dir` for run folders;
+  `run_dir` for `session_dir`; `test_session_files.py`, `test_safe_subject_dirname.py` rewritten for H10 / H5;
+  the `next_run_number` / `next_session_id` tests went with the functions, the local-state tests of
+  `test_dashboard_helpers.py` stay).
+  *Design choices inside the spec (none changes a decision):*
+  (1) A subject's store paths are `Path | None`: `subject_tests_dir`, `subject_settings_dir`,
+  `settings_profile_dir` / `settings_profile_path` return `None` for a subject with no folder yet, and the
+  list / load functions read that as "nothing". Writes (`create_test`, `save_settings_profile`, Save
+  Calibration, `new_run_dir`) call `ensure_subject`, which makes the folder and `subject.json`. The folder
+  name choice reaches it as `folder_mode=` (Setup radio -> `DashboardWindow._reload_tests` ->
+  `SubjectTestListPage.set_subject(..., folder_mode)` -> `create_test`; Save Calibration passes it
+  itself); an existing subject keeps its own mode whatever is passed.
+  (2) "Never reused" (H6): besides scanning for `S-NNNN` folders, `ensure_subject` records the highest code
+  issued in `_system/subject_codes.json`, so deleting `S-0003` by hand does not free the number.
+  (3) `find_subject` always scans the `subject.json` files (a first version that tried the ID-named folder
+  first returned the *typed* case on NTFS, `ANA` for `Ana`; a test caught it and the shortcut is gone).
+  `SubjectTestListPage` looks the subject up once per reload.
+  (4) `AssessmentApp` makes the run folder lazily (`run_dir()` closure): at the first thing that needs it
+  (an auto-saved `calibration.json`, else the recorder), so a run that fails to start (e.g. the tracker
+  refuses) leaves nothing behind, as before. `session_id` is built from it (H3); a practice / preview
+  keeps its sentinel.
+  (5) `record_result` accepts only `<subject>/runs/<task_id>/<YYYY-MM-DD_HHMM[_N]>` of that subject (the
+  same shape H10's guard demands); `resolve_run_dir` returns `None` for any other `run_dir` text (no
+  `..`, no drive, no extra depth), so a hand-edited record cannot point outside the subject folder.
+  (6) `reports/` is made when Print Report first asks for a path (opening a report writes nothing).
+  The PDF name part is cut so that name + `~hash` fits in 50 characters (`PDF_NAME_MAX`), which keeps the
+  H9 PDF worst case (~222 with a 100-character root) true.
+  (7) H9 numbers: worst case = max(run file, PDF) with the run name `YYYY-MM-DD_HHMM_9` (17), the longest
+  run file `session_metrics.json` (a test pins it against every file the app writes), the real folder name of
+  an existing subject or the ID-mode name of a new one, `os.path.abspath` of the root. 100-character root:
+  206 for run files, 222 for the PDF, as in the spec. The Start page gets `set_path_error()`; Start is off,
+  Practice is not; `RunFlow.open` sets it when the page opens.
+  (8) `subject.json` and test-record writes retry a `PermissionError` a few times (`replace_with_retry`,
+  moved from `subject_tests`), the same rule the record writes always had.
+  (9) The legacy flat `settings/<task>.json` reader and the pre-S8 `calibration.json` name stay (file-name
+  formats inside the new tree, not a legacy layout); the migration moves them untouched.
+  *Migration script (`tools/migrate_layout_v2.py <sessions> [--apply]`):* dry run by default; `--apply`
+  writes `<sessions>_backup_<stamp>.zip` beside the folder, verifies it (`testzip`, entry count), then
+  moves. Aborts before anything moves on: unreadable / unusable `metadata.json` of any run, an unreadable
+  test record of a *kept* subject, a name clash, a tree that already has `subject.json` next to old parts.
+  Also handled: `replay_*` folders to `_system/replay`, a report PDF left in a run folder to
+  `reports/<date>_<name>.pdf` (subject prefix dropped), a Done test whose run folder is gone gets
+  `run_dir: null` and a warning, a deleted subject that ran tests gets a warning, unknown top-level
+  entries are left and listed, a second `--apply` says "Nothing to migrate".
+  *L9, rehearsed twice on a copy of the real `sessions/` (copied to a temp dir outside both repos; the
+  real folder was only read, 141 files before and after):* the dry run lists **9 runs, 3 subjects kept
+  (P9REAL, P9TEST, tesst), 6 deleted (DIKI, DISP150, DPI100, DPI150, HUDTEST, TESTING)**; `--apply` gives
+  `P9REAL/`, `P9TEST/`, `tesst/`, `_system/diagnostics/` (141 - 13 deleted + 3 `subject.json` = 131
+  files). The app engine then opens it: 16 tests (4 + 5 + 7, none unreadable), all 9 Done / Ended-early
+  tests resolve their run folder and `load_or_build_report` returns their report, the 4 saved
+  configurations of `tesst` and the 1 of `P9TEST` are listed, the P9REAL PDF sits in
+  `P9REAL/reports/2026-10-07_Follow & Click 1.pdf`. **L9 holds.** The real `sessions/` has not been
+  migrated: step 4's `--apply` is for the user's OK.
+  *Deviations:* none. *Not done:* step 5 (live check, user OK, commit); BIDS, de-identified export,
+  per-subject diagnostics (out of scope); no GUI launch, no device, no live test. The README's pytest
+  line was updated to the clean-checkout count.
 
 ## 9. Implementer open questions
 
@@ -248,3 +325,6 @@ data; renaming run files; changing what a run folder contains; network/OneDrive 
   H1-H13 proposed, awaiting approval.
 - **2026-10-07** — The user approved H1-H13 as written. SPEC committed on `feature/compass-task-flow`. Next: after the input-selection SPEC, /spec-run this SPEC from step 1 (wireframes).
 - **2026-10-08** — Step 1: wireframes `setup`, `test-list`, `start-test` updated (folder-name choice, Open Subject Folder, path blocker). The user approved them as drawn, incl. two hub choices: Practice stays enabled under the path blocker, and Open Subject Folder sits in the button column outside the row matrix (§4 W1-W3). Next: steps 2-3 with the spec-implementer.
+- **2026-10-08** — Steps 2-4 implemented by the spec-implementer (§8), no §9 questions, no deviations. Hub review: scope matches H1-H13 and W1-W3, no legacy-layout reader left; L1-L8 and L10 covered by tests, L9 rehearsed on a copy only. Hub pytest in the worktree: 2669 passed, 5 failed, 2 skipped (2676); the 5 are the smoothing-alpha 0.22 checks, which fail because the worktree carries the committed `configs/default.yaml` (alpha 0.35) instead of the user's skip-worktree copy (0.22); not caused by this change. (`pyproject` addopts `-q` plus a second `-q` hides the count line: count from the progress output.) The user was not ready to be the subject; parked before step 4 `--apply` and the step 5 live check. Nothing committed.
+- **2026-10-08** — **User: no migration** (all `sessions/` data is test data). D5 revised, H12 / L9 / step 4 dropped: `tools/migrate_layout_v2.py` and `tests/test_migrate_layout.py` deleted, README and DATA_SCHEMA no longer mention a migration. The old-layout folders are deleted without a backup when this SPEC lands. Ordering (user): steps 2-3 committed on the worktree branch (not merged, not pushed); design-system phase 1 is built on top of that commit, and the step 5 live check covers both.
+- **2026-10-08** - Step 5 live check, shared with design-system phase 1, the user as subject on the real GP3 HD, app launched from worktree design-phase1 (phase 1 stacked on `1d38819`). Subject LIVECHK1 (Subject ID mode): `sessions/LIVECHK1/{subject.json, calibrations/calibration_5pt.json, settings/click_grid/, tests/, runs/click_grid/2026-10-08_1552/, reports/}`; the run folder holds all 11 files; `subject.json` folder_mode "id"; test record schema 2. One recorded Grid Click run (6 trials), report + PDF opened. Discard after a mid-run stop left no run folder. Subject TSET in Anonymous code mode got folder `S-0001` (`_system/subject_codes.json` written). Diagnostics stayed in `_system/diagnostics/`. **User decision after the check: remove the Anonymous code option** (a folder named S-0001 while every page shows the Subject ID would confuse clinicians); D4 revised, step 6 added. Not checked live: a path-budget blocker, Open Subject Folder.

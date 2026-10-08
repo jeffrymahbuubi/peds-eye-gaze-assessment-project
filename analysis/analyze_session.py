@@ -7,7 +7,7 @@ falls back to a numpy-based text heatmap so the script is always useful.
 
 Usage::
 
-    python analysis/analyze_session.py sessions/2026-07-15_P001_click_static
+    python analysis/analyze_session.py sessions/P001/runs/click_static/2026-07-15_1432
 """
 
 from __future__ import annotations

@@ -35,8 +35,8 @@ from PySide6.QtWidgets import (
 
 from ..engine.task_info import TASK_INFO
 from ..engine.task_runner import TASK_REGISTRY
+from .design_tokens import TEXT_SECONDARY
 from .dialog_theme import apply_dialog_theme
-from .wtmh_theme import MUTED
 
 MAX_COUNT = 10
 SPACING = 8  # px of space around each task row: the rows no longer sit tight against each other
@@ -122,7 +122,7 @@ class AddTestDialog(QDialog):
             item = QListWidgetItem()
             item.setData(Qt.ItemDataRole.UserRole, task_id)
             self.task_list.addItem(item)
-            label = _TaskRow(f"<b>{name}</b><br><span style='color:{MUTED}'>{description}</span>")
+            label = _TaskRow(f"<b>{name}</b><br><span style='color:{TEXT_SECONDARY}'>{description}</span>")
             self.task_list.setItemWidget(item, label)
             label.remeasure.connect(self.fit_items)
             self._rows.append((item, label))

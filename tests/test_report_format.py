@@ -10,6 +10,7 @@ import pytest
 from src.ui.report_format import (
     DASH,
     DEFAULT_HIT_TOLERANCE_PX,
+    NOT_RECORDED,
     SUMMARY_COLUMNS,
     TRIAL_COLUMNS,
     banner_lines,
@@ -138,11 +139,11 @@ def test_the_sort_key_of_a_number_is_the_number_and_of_a_dash_is_none(tmp_path):
 
 def test_the_line_under_the_selected_trial_map(tmp_path):
     trial = {"saccades": {"scanpath_deg": 12.34, "count": 6}, "fixations": {"count": 7}}
-    assert trial_line(trial) == "Scan path 12.3 deg · 7 fixations · 6 saccades"
+    assert trial_line(trial) == "Scan path 12.3°, 7 fixations, 6 saccades"
     one = {"saccades": {"scanpath_deg": 0.0, "count": 1}, "fixations": {"count": 1}}
-    assert trial_line(one) == "Scan path 0.0 deg · 1 fixation · 1 saccade"
+    assert trial_line(one) == "Scan path 0.0°, 1 fixation, 1 saccade"
     none = {"saccades": {"scanpath_deg": None, "count": None}, "fixations": {"count": None}}
-    assert trial_line(none) == "Scan path — · — fixations · — saccades"
+    assert trial_line(none) == "Scan path not recorded, fixations not recorded, saccades not recorded"
 
 
 # -- banner, footnote, date, file name ---------------------------------------------------
@@ -150,7 +151,7 @@ def test_the_line_under_the_selected_trial_map(tmp_path):
 
 def test_the_banner_says_ended_early_with_the_counts(tmp_path):
     lines = banner_lines(folder_report(tmp_path, planned=18))
-    assert lines == ["Ended early — 6 of 18 trials"]
+    assert lines == ["Ended early: 6 of 18 trials"]
 
 
 def test_the_banner_says_the_gaze_data_is_low_quality():
@@ -185,23 +186,36 @@ def test_the_hit_tolerance_is_forty_pixels_unless_the_report_says_otherwise():
     assert "60 px tolerance ring" in summary_footnote({"map": {"hit_tolerance_px": 60}})
 
 
-def test_the_test_date_is_local_time_in_the_wireframes_form():
+def test_the_test_date_is_local_time_as_an_iso_date_and_a_24_hour_time():
     ns = int(datetime(2026, 10, 6, 14, 6).timestamp() * 1e9)
-    assert started_text(ns) == "Oct 6, 2026 2:06 PM"
-    assert started_text(int(datetime(2026, 1, 2, 0, 5).timestamp() * 1e9)) == "Jan 2, 2026 12:05 AM"
-    assert started_text(int(datetime(2026, 1, 2, 12, 0).timestamp() * 1e9)) == "Jan 2, 2026 12:00 PM"
-    assert started_text(None) == DASH and started_text("x") == DASH
+    assert started_text(ns) == "2026-10-06 14:06"
+    assert started_text(int(datetime(2026, 1, 2, 0, 5).timestamp() * 1e9)) == "2026-01-02 00:05"
+    assert started_text(int(datetime(2026, 1, 2, 12, 0).timestamp() * 1e9)) == "2026-01-02 12:00"
+    assert started_text(None) == NOT_RECORDED and started_text("x") == NOT_RECORDED  # a text, not a figure
 
 
-def test_the_pdf_file_name_is_subject_test_name_and_the_tests_date():
+def test_the_pdf_file_name_is_the_tests_date_then_the_test_name_and_no_subject():
     ns = int(datetime(2026, 10, 6, 14, 6).timestamp() * 1e9)
-    assert pdf_default_name("TESTING", "Grid Click 1", ns) == "TESTING_Grid Click 1_2026-10-06.pdf"
+    assert pdf_default_name("Grid Click 1", ns) == "2026-10-06_Grid Click 1.pdf"
     # Characters a file name cannot hold are replaced, so the path is always valid.
-    name = pdf_default_name("P/1", 'a:b*c?"d', ns)
-    assert name.endswith("_2026-10-06.pdf")
+    name = pdf_default_name('a:b*c?"d', ns)
+    assert name.startswith("2026-10-06_") and name.endswith(".pdf")
     assert not any(ch in name for ch in '/\\:*?"<>|')
-    assert pdf_default_name("", "", None).endswith("_undated.pdf")
+    assert pdf_default_name("", None) == "undated_report.pdf"
+
+
+def test_the_pdf_name_part_is_cut_at_50_characters_hash_included():
+    ns = int(datetime(2026, 10, 6, 14, 6).timestamp() * 1e9)
+    exact = "n" * 50
+    assert pdf_default_name(exact, ns) == f"2026-10-06_{exact}.pdf"  # fits: untouched
+    long = pdf_default_name("n" * 60, ns)  # a test name can have 60 characters
+    part = long.removeprefix("2026-10-06_").removesuffix(".pdf")
+    assert len(part) == 50 and part.startswith("n" * 43 + "~")
+    assert pdf_default_name("n" * 60, ns) == long  # stable
+    assert pdf_default_name("n" * 59 + "m", ns) != long  # and two long names stay apart
+    illegal = pdf_default_name("x" * 46 + "/", ns).removeprefix("2026-10-06_").removesuffix(".pdf")
+    assert len(illegal) <= 50
 
 
 def test_the_date_of_a_run_uses_started_ns_not_today():
-    assert pdf_default_name("S", "T", T0).endswith(f"_{datetime.fromtimestamp(T0 / 1e9):%Y-%m-%d}.pdf")
+    assert pdf_default_name("T", T0).startswith(f"{datetime.fromtimestamp(T0 / 1e9):%Y-%m-%d}_")

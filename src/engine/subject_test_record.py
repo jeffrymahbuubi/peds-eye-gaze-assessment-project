@@ -16,7 +16,7 @@ from typing import Any
 from .task_info import TASK_INFO
 from .task_runner import TASK_REGISTRY
 
-SCHEMA_VERSION = 1
+SCHEMA_VERSION = 2  # 2: run_dir (relative to the subject folder) replaced session_dir
 MAX_NAME_LEN = 60  # R10; the Configuration Name keeps its own 40-character limit (4B)
 MAX_SEED = 999_999  # R3; practice (1_000_000 + k) and preview use seeds above this range
 STANDARD_CONFIGURATION_NAME = "Standard"
@@ -56,7 +56,7 @@ class SubjectTest:
     planned_trials: int | None = None
     completed_trials: int | None = None
     outcome: str | None = None
-    session_dir: str | None = None  # folder NAME under output_root, never an absolute path
+    run_dir: str | None = None  # "runs/<task>/<name>", relative to the subject folder (H4)
     schema_version: int = SCHEMA_VERSION
 
     def to_record(self) -> dict[str, Any]:
@@ -77,7 +77,7 @@ class SubjectTest:
             "planned_trials": self.planned_trials,
             "completed_trials": self.completed_trials,
             "outcome": self.outcome,
-            "session_dir": self.session_dir,
+            "run_dir": self.run_dir,
         }
 
 
@@ -118,7 +118,7 @@ def parse_record(data: Any, stem: str) -> SubjectTest | None:
     Required: string ``test_id`` (equal to the file name ``stem``), ``subject_id``,
     ``name`` and a ``task_id`` in ``TASK_REGISTRY``. Everything else is optional
     and falls back to a default; an unknown ``status`` reads as done if the
-    record has a ``session_dir``, else not done (4A.2).
+    record has a ``run_dir``, else not done (4A.2).
     """
     if not isinstance(data, dict):
         return None
@@ -127,10 +127,10 @@ def parse_record(data: Any, stem: str) -> SubjectTest | None:
         return None
     if test_id != stem or task_id not in TASK_REGISTRY:
         return None
-    session_dir = _opt_str(data.get("session_dir"))
+    run_dir = _opt_str(data.get("run_dir"))
     status = data.get("status")
     if status not in _STATUSES:
-        status = STATUS_DONE if session_dir else STATUS_NOT_DONE
+        status = STATUS_DONE if run_dir else STATUS_NOT_DONE
     outcome = data.get("outcome")
     if status == STATUS_NOT_DONE:
         outcome = None
@@ -153,7 +153,7 @@ def parse_record(data: Any, stem: str) -> SubjectTest | None:
         planned_trials=_opt_int(data.get("planned_trials")),
         completed_trials=_opt_int(data.get("completed_trials")),
         outcome=outcome,
-        session_dir=session_dir,
+        run_dir=run_dir,
     )
 
 

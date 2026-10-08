@@ -13,6 +13,11 @@ The page only emits signals; the dashboard (P8) builds a new
 default button, so Enter starts nothing, and Esc is Cancel. The wording of the
 instructions comes from :func:`~src.ui.task_instructions.build_instructions` and is
 read aloud to children, so it needs a clinician's review before release.
+
+A second, separate line is the path blocker (SPEC-subject-data-layout.md H9, wireframe
+W3): :meth:`StartTestPage.set_path_error` shows an error alert when the run would write a
+path over 240 characters. It disables **Start only**; Practice writes nothing, so it stays
+on. The host sets it when the page opens: a path cannot change while the page is up.
 """
 
 from __future__ import annotations
@@ -34,16 +39,17 @@ from PySide6.QtWidgets import (
 
 from ..engine.input_choice import drop_gaze_only_blockers, resolve_input
 from ..engine.run_result import RunResult, practice_result_text
+from .design_tokens import TYPE_BODY, TYPE_BODY_LARGE, TYPE_HEADING
 from .task_instructions import Instructions, build_instructions
 
 BLOCKER_REFRESH_MS = 1000
 
 # The line of a test with Pointer = Mouse (SPEC-input-selection-and-follow.md H5, I7): it
 # needs no tracker and no calibration, but says what happens to the eye data.
-MOUSE_NOTE_ALONGSIDE = "Mouse test — eye data will be recorded alongside."
-MOUSE_NOTE_NO_TRACKER = "Mouse test — the tracker is not connected, so no eye data will be recorded."
+MOUSE_NOTE_ALONGSIDE = "Mouse test. Eye data will be recorded alongside."
+MOUSE_NOTE_NO_TRACKER = "Mouse test. The tracker is not connected, so no eye data will be recorded."
 MOUSE_NOTE_NOT_CALIBRATED = (
-    "Mouse test — the tracker is not calibrated, so no eye data will be recorded."
+    "Mouse test. The tracker is not calibrated, so no eye data will be recorded."
 )
 
 HELP_TEXT = (
@@ -68,6 +74,7 @@ class StartTestPage(QWidget):
         self._blockers_provider: Callable[[], list[str]] | None = None
         self._blockers: list[str] = []
         self._mouse_test = False  # Pointer = Mouse: no tracker or calibration needed (H5)
+        self._path_error = ""  # the H9 text while a recorded run would write too long a path
         self._practice_count = 0
         self.instructions: Instructions | None = None
         self._build_ui()
@@ -130,6 +137,14 @@ class StartTestPage(QWidget):
         """The reasons as of the last check."""
         return list(self._blockers)
 
+    def set_path_error(self, text: str | None) -> None:
+        """Show (or, with ``None`` / "", hide) the path-too-long alert. While it shows,
+        Start is off and Practice is untouched (W3)."""
+        self._path_error = text or ""
+        self.path_alert_label.setText(self._path_error)
+        self.path_alert.setVisible(bool(self._path_error))
+        self.refresh_blockers()
+
     def refresh_blockers(self) -> list[str]:
         """Read the blockers now; show or hide the banner and enable or disable Start
         and Practice. Returns them.
@@ -153,7 +168,7 @@ class StartTestPage(QWidget):
             self.banner_label.setText(
                 "Still needed before you can start: " + " · ".join(self._blockers)
             )
-        self.start_button.setEnabled(not blocked)
+        self.start_button.setEnabled(not blocked and not self._path_error)
         self.practice_button.setEnabled(not blocked)
         return self.blockers()
 
@@ -186,6 +201,16 @@ class StartTestPage(QWidget):
         banner_row.addWidget(self.go_to_setup_button)
         self.banner.hide()
         outer.addWidget(self.banner)
+
+        # The H9 path blocker: an error line of its own, not part of the banner above.
+        self.path_alert = QFrame()
+        self.path_alert.setObjectName("wtmhAlertError")
+        path_row = QVBoxLayout(self.path_alert)
+        self.path_alert_label = QLabel("")
+        self.path_alert_label.setWordWrap(True)
+        path_row.addWidget(self.path_alert_label)
+        self.path_alert.hide()
+        outer.addWidget(self.path_alert)
 
         # Only for a test with Pointer = Mouse (H5), in place of the tracker blockers.
         self.mouse_note = QFrame()
@@ -270,14 +295,14 @@ class StartTestPage(QWidget):
         aloud_title.setObjectName("wtmhSectionTitle")
         layout.addWidget(aloud_title)
         self.heading_label = QLabel("")
-        self.heading_label.setStyleSheet("font-size: 17px; font-weight: 600;")
+        self.heading_label.setStyleSheet(f"font-size: {TYPE_HEADING}px; font-weight: 600;")
         layout.addWidget(self.heading_label)
         self.steps_layout = QVBoxLayout()
         self.steps_layout.setSpacing(6)
         layout.addLayout(self.steps_layout)
         self.note_label = QLabel("")
         self.note_label.setWordWrap(True)
-        self.note_label.setStyleSheet("font-size: 15px; font-weight: 600;")
+        self.note_label.setStyleSheet(f"font-size: {TYPE_BODY_LARGE}px; font-weight: 600;")
         layout.addWidget(self.note_label)
 
         rule = QFrame()
@@ -295,10 +320,10 @@ class StartTestPage(QWidget):
 
     def _show_instructions(self, text: Instructions) -> None:
         self.heading_label.setText(text.heading)
-        self._fill(self.steps_layout, [f"{i}. {step}" for i, step in enumerate(text.steps, 1)], 15)
+        self._fill(self.steps_layout, [f"{i}. {step}" for i, step in enumerate(text.steps, 1)], TYPE_BODY_LARGE)
         self.note_label.setText(text.note)
         self.note_label.setVisible(bool(text.note))  # Follow the Target has no NOTE line
-        self._fill(self.clinician_layout, list(text.clinician), 13)
+        self._fill(self.clinician_layout, list(text.clinician), TYPE_BODY)
 
     @staticmethod
     def _fill(layout: QVBoxLayout, lines: list[str], pixel_size: int) -> None:
@@ -318,7 +343,7 @@ class StartTestPage(QWidget):
 
     def _on_start(self) -> None:
         self.show_note("")
-        if self.refresh_blockers():
+        if self.refresh_blockers() or self._path_error:
             return  # a stale enabled button still cannot launch
         self.startRequested.emit()
 

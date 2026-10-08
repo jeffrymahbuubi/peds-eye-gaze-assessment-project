@@ -27,8 +27,8 @@ from src.data.analysis_export import (
     saccade_mag_dir,
 )
 from src.data.exporter import write_session_metrics
-from src.data.recorder import SessionRecorder
 from src.data.schema import SessionMetadata
+from tests.recorder_helpers import recorder_in
 
 SAMPLE_DIR = Path(__file__).parent / "fixtures" / "gazepoint_analysis_sample"
 # The monitor the sample was recorded on -- fitted to 0.0002 px over every
@@ -149,7 +149,7 @@ def _record_two_fixations(tmp_path: Path) -> Path:
     record Analysis would ignore. Device TIME starts at 100 s to prove the
     recording-relative origin."""
     meta = _metadata()
-    with SessionRecorder(meta, output_root=tmp_path) as rec:
+    with recorder_in(tmp_path, meta) as rec:
         rec.open_all_gaze(media_name="click_static", tick_frequency=1000)
         recs = [
             _rec(0, 100.00, 0.2, 0.5, 1, 0.0),
@@ -180,7 +180,7 @@ def test_recorder_writes_all_gaze_with_recording_relative_time(tmp_path: Path):
 
 def test_recorder_without_all_gaze_writes_nothing_extra(tmp_path: Path):
     meta = _metadata()
-    with SessionRecorder(meta, output_root=tmp_path) as rec:
+    with recorder_in(tmp_path, meta) as rec:
         rec.record_raw(0, _rec(0, 0.0, 0.5, 0.5, 1, 0.0))  # no-op when not opened
         rec.write_trials([])
     assert not (tmp_path / meta.session_id / "all_gaze.csv").exists()
@@ -205,7 +205,7 @@ def test_finalize_fills_saccades_and_writes_fixations(tmp_path: Path):
 
 def test_finalize_is_a_no_op_without_all_gaze(tmp_path: Path):
     meta = _metadata()
-    with SessionRecorder(meta, output_root=tmp_path) as rec:
+    with recorder_in(tmp_path, meta) as rec:
         rec.write_trials([])
     assert finalize_all_gaze(tmp_path / meta.session_id, 1920, 1080) is None
 

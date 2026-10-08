@@ -1,12 +1,49 @@
 # Data Schema
 
-Each recorded run writes one folder under the output root (default
-`sessions/`), named `<date>_<subject>_<task>_run<N>` (`N` counts that subject's
-runs of that task on that day). Practice and preview runs write nothing:
-only `run_mode: "record"` reaches disk.
+## Layout: one folder per subject
+
+Everything about one child lives in that child's folder under the output root
+(default `sessions/`; SPEC-subject-data-layout.md). Machine-wide files that
+belong to no child sit in `_system/`.
 
 ```
-sessions/2026-07-15_P001_click_static_run1/
+sessions/
+  _system/
+    diagnostics/calibration_timing.jsonl, gaze_dropouts.jsonl   # no subject in any line
+    replay/                       # headless --replay output
+    subject_codes.json            # the highest Anonymous code issued, so a code is never reused
+  <subject folder>/               # P001, or S-0003 for an Anonymous-code subject
+    subject.json                  # {"subject_id", "folder_mode": "id" | "code", "created_at"}
+    calibrations/calibration_<n>pt.json    # saved calibrations (Setup)
+    settings/<task_id>/<date>_<time>.json  # saved named configurations
+    tests/t_<10 hex>.json         # one file per planned test (the Test List)
+    tests/_deleted/t_<10 hex>.json         # a deleted test's record is moved here
+    runs/<task_id>/<YYYY-MM-DD_HHMM>/      # one folder per recorded run (below)
+    reports/<YYYY-MM-DD>_<test name>.pdf   # Print Report's default place and name
+```
+
+A folder is a subject folder only if it holds `subject.json`. The app finds a
+subject by reading those files and matching `subject_id` ignoring case ("Ana"
+and "ANA" are one subject); it never works the folder name out from the ID.
+The folder name is chosen once, when the folder is first created: either the
+Subject ID made safe as a folder name (characters illegal on Windows replaced,
+cut at 40 characters; an ordinary ID such as `P001` is unchanged), or the next
+free `S-0001`, `S-0002` ... (**Anonymous code**, chosen on the Setup page for a
+new Subject ID). A code is never reused. The code hides the ID from folder and
+zip names only: the files inside (`subject.json`, `metadata.json`, the test
+records) still hold the Subject ID. `_system` is reserved: a subject typed
+`_system` gets a prefixed folder.
+
+## Run folder
+
+Each recorded run writes one folder, `runs/<task_id>/<YYYY-MM-DD_HHMM>/` (local
+time at the start of the run; `_2`, `_3` if two runs of one task start in the
+same minute). The name holds no subject and no test name, so a rename can never
+make it stale. Practice and preview runs write nothing: only `run_mode:
+"record"` reaches disk.
+
+```
+sessions/P001/runs/click_static/2026-07-15_1432/
   metadata.json      # subject + session + calibration + settings + outcome + schema_version
   session.log        # human-readable timeline
   gaze_stream.csv    # per-frame gaze samples (not written by a Mouse run with no tracker)
@@ -21,18 +58,12 @@ sessions/2026-07-15_P001_click_static_run1/
   report.json        # cache of the per-test report, written when the run is saved
 ```
 
-Beside the run folders the output root holds the per-subject stores below.
-`<subject>` is the Subject ID made safe as a folder name (characters illegal
-on Windows replaced; an ordinary ID such as `P001` is unchanged); the verbatim
-ID stays in `metadata.json` and in every test record.
+The verbatim Subject ID stays in `subject.json`, `metadata.json` and every test
+record.
 
-```
-sessions/
-  _tests/<subject>/t_<10 hex>.json            # one file per planned test (the Test List)
-  _tests/<subject>/_deleted/t_<10 hex>.json   # a deleted test's record is moved here
-  _settings/<subject>/<task>/<date>_<time>.json   # saved named configurations
-  _calibrations/<subject>/                    # saved calibrations (Setup)
-```
+A path longer than 240 characters is refused before a run starts (Windows
+Explorer, zip and OneDrive fail near 260): the Start page then says "The data
+folder path is too long". Keep the program folder close to the drive root.
 
 All timestamps are **nanoseconds** (`time.time_ns()` domain, UTC-based). Divide
 by `1e6` for milliseconds. Coordinates are **normalized** (0–1, origin
@@ -43,7 +74,7 @@ top-left) unless the field name ends in `_px`.
 | field | type | notes |
 |-------|------|-------|
 | `subject_id` | str | subject identifier |
-| `session_id` | str | folder name |
+| `session_id` | str | `<task_id>_<YYYY-MM-DD_HHMM>_<test_id>` (no subject in it) |
 | `started_ns` | int | session start |
 | `schema_version` | int | currently `1`; loaders should tolerate change |
 | `gazepoint_model` | str | e.g. `GP3HD` |
@@ -335,14 +366,14 @@ the existing detector falling inside the trial's valid gaze.
 ## Test store
 
 The Tests tab keeps one JSON file per planned test, in
-`sessions/_tests/<subject>/t_<10 hex>.json` (SPEC-compass-task-flow.md 4A.2).
+`<subject folder>/tests/t_<10 hex>.json` (SPEC-compass-task-flow.md 4A.2).
 One file per test means one bad file loses one test; the reader skips a file it
-cannot parse. Delete is soft: the record is moved to `_deleted/`, and the run
-folders are never touched. A record holds:
+cannot parse. Delete is soft: the record is moved to `tests/_deleted/`, and the
+run folders are never touched. A record holds:
 
 | field | type | notes |
 |-------|------|-------|
-| `schema_version` | int | currently `1` |
+| `schema_version` | int | currently `2` (2: `run_dir` replaced `session_dir`) |
 | `test_id` | str | `t_` + 10 hex, equal to the file name |
 | `subject_id` | str | the verbatim Subject ID (the folder name is only a locator) |
 | `name` | str | Test Name, 1-60 characters, unique per subject (case-insensitive) |
@@ -356,9 +387,9 @@ folders are never touched. A record holds:
 | `completed_at` | str\|null | when the saved run finished |
 | `planned_trials`, `completed_trials` | int\|null | copied from the saved run |
 | `outcome` | str\|null | `"completed"` or `"ended_early"`; null while not done |
-| `session_dir` | str\|null | the run folder's **name** under the output root, never an absolute path |
+| `run_dir` | str\|null | the run folder, **relative to the subject folder** (`runs/click_grid/2026-10-07_1432`), never an absolute path; null until the run is saved |
 
-Saved named configurations live in `sessions/_settings/<subject>/<task>/`, one
+Saved named configurations live in `<subject folder>/settings/<task>/`, one
 file per save (`<date>_<time>.json`, never overwritten): `schema_version` (`2`),
 `subject_id`, `task_id`, `name` (empty for an unnamed save), `saved_at`, `live`,
 `structural` and `calibration` (the calibration the values were tuned under,

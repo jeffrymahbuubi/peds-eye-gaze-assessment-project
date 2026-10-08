@@ -28,6 +28,7 @@ from pathlib import Path
 from typing import Any
 
 from ..inputs.gazepoint_client import parse_attrs
+from .subject_store import diagnostics_dir
 
 _CALIB_RESULT_POINT_RE = re.compile(r"^CALX(\d+)$")
 
@@ -269,9 +270,10 @@ def calibration_timing_log_path(output_root: str | Path) -> Path:
     S7). One shared append-only JSONL across every run and subject, since the
     question it answers ("how long after the summary ACK does CALIB_RESULT
     actually arrive, by point count?") is only answerable across many runs.
-    Deliberately outside any single session folder, and not per-subject.
+    Deliberately outside any run or subject folder (``_system/diagnostics/``,
+    SPEC-subject-data-layout.md D2, H11), and not per-subject.
     """
-    return Path(output_root) / "_diagnostics" / "calibration_timing.jsonl"
+    return diagnostics_dir(output_root) / "calibration_timing.jsonl"
 
 
 def _append_timing_record(path: str | Path, record: dict[str, Any]) -> None:

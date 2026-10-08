@@ -99,7 +99,7 @@ def test_follow_moving_has_a_movement_path_choice_and_only_it():
 def test_choice_values_match_the_spec():
     assert [v for v, _label in TARGET_SIZE_CHOICES] == ["small", "medium", "large"]
     assert [label for _v, label in TARGET_SIZE_CHOICES] == [
-        "Small — 3°", "Medium — 5°", "Large — 8°",
+        "Small (3°)", "Medium (5°)", "Large (8°)",
     ]
     assert [v for v, _label in MOTION_PATH_CHOICES] == [
         "circular", "horizontal", "vertical", "diagonal_tlbr", "diagonal_trbl",
@@ -137,9 +137,9 @@ def test_size_items_show_degrees_and_the_diameter_on_this_monitor(qapp, lab_scre
     combo = dialog._controls["target.size"]
     labels = [combo.itemText(i) for i in range(combo.count())]
     assert labels == [
-        "Small — 3° (≈123 px)",
-        "Medium — 5° (≈205 px)",
-        "Large — 8° (≈328 px)",
+        "Small (3°, about 123 px)",
+        "Medium (5°, about 205 px)",
+        "Large (8°, about 328 px)",
     ]
     assert [combo.itemData(i) for i in range(combo.count())] == ["small", "medium", "large"]
 
@@ -215,7 +215,7 @@ def test_follow_moving_dialog_shows_a_path_combo_and_a_size_combo_not_a_px_slide
     assert isinstance(combo, QComboBox)
     assert [combo.itemData(i) for i in range(combo.count())] == [v for v, _l in MOTION_PATH_CHOICES]
     assert combo.itemText(0) == "Circular"
-    assert combo.itemText(4) == "Diagonal ↙ (top-right ↔ bottom-left)"
+    assert combo.itemText(4) == "Diagonal, top-right to bottom-left"
     assert combo.currentData() == "circular"
     assert isinstance(d._controls["target.size"], QComboBox)
     assert "target.radius_px" not in d._controls

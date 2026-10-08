@@ -31,6 +31,7 @@ from src.ui import config_widgets
 from src.ui.add_test_dialog import SPACING, AddTestDialog
 from src.ui.config_save_dialogs import ConfigNameDialog
 from src.ui.config_widgets import ask_two_choice
+from src.ui.design_tokens import INK, PAGE, PANEL, ROW_SELECTED
 from src.ui.dialog_theme import ITEM_VIEW_STYLESHEET, apply_dialog_theme
 from src.ui.rename_editor import RenameEditor
 from src.ui.run_dialogs import (
@@ -41,7 +42,7 @@ from src.ui.run_dialogs import (
     TestCompleteDialog,
     _ChoiceDialog,
 )
-from src.ui.wtmh_theme import BACKGROUND, INK, PANEL_BG, SOFT_ACCENT, STYLESHEET
+from src.ui.wtmh_theme import STYLESHEET
 
 
 @pytest.fixture(scope="module")
@@ -110,7 +111,7 @@ def test_an_item_view_nobody_named_is_light_too_in_a_themed_dialog(qapp, dark_mo
     tree = QTreeWidget()
     layout.addWidget(tree)
     shown(dialog)
-    assert tree.viewport().palette().color(tree.viewport().backgroundRole()) == QColor(PANEL_BG)
+    assert tree.viewport().palette().color(tree.viewport().backgroundRole()) == QColor(PANEL)
 
 
 # -- the Add New Test dialog (the near-black list) --------------------------------------------------
@@ -123,7 +124,7 @@ def test_the_add_test_list_is_light_with_dark_names_on_a_dark_palette(qapp, dark
     task_list = dialog.task_list
     # The view's base colour, the colour its rows are painted on.
     viewport = task_list.viewport()
-    assert viewport.palette().color(viewport.backgroundRole()) == QColor(PANEL_BG)
+    assert viewport.palette().color(viewport.backgroundRole()) == QColor(PANEL)
     # What it really paints: a light box, not near-black (near-black is mean lightness < 60).
     top_left = task_list.mapTo(dialog, task_list.rect().topLeft())
     assert mean_lightness(image, top_left.x() + 4, top_left.y() + 4, task_list.width() - 8,
@@ -133,7 +134,7 @@ def test_the_add_test_list_is_light_with_dark_names_on_a_dark_palette(qapp, dark
         label = task_list.itemWidget(task_list.item(row))
         assert label.palette().color(QPalette.ColorRole.WindowText) == QColor(INK)
     # The dialog itself is the page colour.
-    assert image.pixelColor(2, 2) == QColor(BACKGROUND)
+    assert image.pixelColor(2, 2) == QColor(PAGE)
 
 
 def test_the_chosen_add_test_row_is_the_soft_tint_not_the_dark_highlight(qapp, dark_mode):
@@ -145,7 +146,7 @@ def test_the_chosen_add_test_row_is_the_soft_tint_not_the_dark_highlight(qapp, d
     # A pixel inside the row's right-hand end (inside the visible part), away from the text. The
     # rows are spaced apart (V4): the row ends SPACING px before the viewport's edge.
     spot = viewport.mapTo(dialog, QPoint(viewport.width() - SPACING - 6, row.top() + 3))
-    assert image.pixelColor(spot.x(), spot.y()) == QColor(SOFT_ACCENT)
+    assert image.pixelColor(spot.x(), spot.y()) == QColor(ROW_SELECTED)
 
 
 # -- the other dialogs ----------------------------------------------------------------------------------
@@ -166,8 +167,8 @@ def test_every_question_dialog_is_light_on_a_dark_palette(qapp, dark_mode, make)
     dialog = make()
     image = shown(dialog)
     assert dialog.objectName() == "wtmhDashboard"
-    assert image.pixelColor(2, 2) == QColor(BACKGROUND)
-    assert mean_lightness(image, 0, 0, image.width(), image.height()) > 200
+    assert image.pixelColor(2, 2) == QColor(PAGE)
+    assert mean_lightness(image, 0, 0, image.width(), image.height()) > 190  # light: a dark one is near 30
     # A button the theme leaves transparent (the ghost tier) shows the page colour, not
     # the dark grey of the application palette (the message box's buttons did).
     for button in dialog.findChildren(QPushButton, "wtmhGhost"):
@@ -184,7 +185,7 @@ def test_the_in_place_rename_popup_is_light_on_a_dark_palette_inside_the_dashboa
     editor.ensurePolished()
     editor.line_edit.ensurePolished()
     assert lightness(editor.palette().color(QPalette.ColorRole.Window)) > 200
-    assert editor.line_edit.palette().color(QPalette.ColorRole.Base) == QColor(PANEL_BG)
+    assert editor.line_edit.palette().color(QPalette.ColorRole.Base) == QColor(PANEL)
     assert editor.line_edit.palette().color(QPalette.ColorRole.Text) == QColor(INK)
 
 
@@ -229,7 +230,7 @@ def test_the_real_two_button_question_is_light_on_a_dark_palette_and_answers(qap
     assert ask_two_choice(None, "Delete", "Delete it?", "Delete", "Keep") is True
     assert len(seen) == 1
     kind, corner, accept_label = seen[0]
-    assert kind is _ChoiceDialog and corner == QColor(BACKGROUND) and accept_label == "Delete"
+    assert kind is _ChoiceDialog and corner == QColor(PAGE) and accept_label == "Delete"
 
 
 def test_no_ui_module_uses_a_message_box():

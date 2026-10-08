@@ -26,8 +26,9 @@ from typing import Any
 from PySide6.QtCore import QMarginsF, QSizeF
 from PySide6.QtGui import QImage, QPageLayout, QPageSize, QPdfWriter, QTextDocument
 
+from .design_tokens import LEGACY_REPORT_COLOURS as _LEGACY
 from .map_legend import FOLLOW_LEGEND_ENTRIES, LEGEND_ENTRIES, legend_html, png_data_uri
-from .report_format import DASH, banner_lines, eye_rows, started_text, task_sentence
+from .report_format import NOT_RECORDED, banner_lines, eye_rows, started_text, task_sentence
 from .report_layout import (
     FOLLOW,
     definition_lines,
@@ -41,7 +42,17 @@ from .report_layout import (
     trial_columns,
     trial_rows,
 )
-from .wtmh_theme import BORDER, INK, MUTED, SOFT_ACCENT, SOFT_ACCENT_TEXT, WARNING_BG
+
+# Phase 4 gives the report map, its legend and the PDF the design tokens; until then they keep
+# today's colours (SPEC-design-system-phase1.md H2).
+BORDER, INK, MUTED, SOFT_ACCENT, SOFT_ACCENT_TEXT, WARNING_BG = (
+    _LEGACY.border,
+    _LEGACY.ink,
+    _LEGACY.muted,
+    _LEGACY.soft_accent,
+    _LEGACY.soft_accent_text,
+    _LEGACY.warning_bg,
+)
 
 PDF_RESOLUTION = 300  # dpi of the writer
 MARGIN_MM = 10.0
@@ -113,13 +124,14 @@ def build_report_html(
     """The report as the HTML :class:`QTextDocument` prints. ``test_name``,
     ``evaluator`` and ``notes`` are the page's (edited) values, not the stored ones."""
     session = report.get("session", {})
-    config_name = session.get("config_name") or DASH
+    config_name = session.get("config_name") or NOT_RECORDED
 
+    title = f"Summary Results, {test_name}" if test_name else "Summary Results"
     header = (
-        f'<h2 style="margin:0">Summary Results: {_e(test_name or DASH)}</h2>'
-        f'<p style="margin-top:3px">Subject: <b>{_e(session.get("subject") or DASH)}</b>'
-        f' &nbsp;·&nbsp; Test Date: <b>{_e(started_text(session.get("started_ns")))}</b>'
-        f' &nbsp;·&nbsp; Evaluator: <b>{_e(evaluator or DASH)}</b></p>'
+        f'<h2 style="margin:0">{_e(title)}</h2>'
+        f'<p style="margin-top:3px">Subject: <b>{_e(session.get("subject") or NOT_RECORDED)}</b>'
+        f', Test Date: <b>{_e(started_text(session.get("started_ns")))}</b>'
+        f', Evaluator: <b>{_e(evaluator or NOT_RECORDED)}</b></p>'
     )
     banner = "".join(
         f'<p style="background-color:{WARNING_BG}; margin-top:2px; margin-bottom:8px">{_e(line)}</p>'
@@ -133,7 +145,7 @@ def build_report_html(
         first_width=CONFIG_LABEL_WIDTH,
     )
     notes_block = (
-        f'<h3 style="margin-bottom:2px">Notes</h3><p style="margin-top:0">{_e(notes).replace(chr(10), "<br>") or DASH}</p>'
+        f'<h3 style="margin-bottom:2px">Notes</h3><p style="margin-top:0">{_e(notes).replace(chr(10), "<br>") or NOT_RECORDED}</p>'
     )
     configuration = (
         f'<h3 style="margin-top:0; margin-bottom:2px">Test Configuration</h3>'

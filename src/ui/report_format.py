@@ -4,7 +4,7 @@
 
 The numbers are read from ``report.json`` (:mod:`src.data.report_cache`) exactly as
 built; nothing is computed here beyond rounding for display. A figure the report
-could not give (``None``) is "—", never 0 (4D.9). Shared by :class:`ReportPage` and
+could not give (``None``) is a dash in a figure and "not recorded" in a text, never 0 (4D.9). Shared by :class:`ReportPage` and
 the PDF so the two can never disagree about a label or a rounding.
 """
 
@@ -13,11 +13,12 @@ from __future__ import annotations
 from datetime import datetime
 from typing import Any, NamedTuple
 
-from ..data.report_util import ms_to_seconds, seconds_text
+from ..data.report_util import DASH, NOT_RECORDED, ms_to_seconds, seconds_text
+from ..engine.run_paths import PDF_NAME_MAX
 from ..engine.session_naming import safe_subject_dirname
 
-DASH = "—"
-NOT_RECORDED = "not recorded"  # what the eye sections say of a Mouse test with no tracker
+# DASH and NOT_RECORDED live in report_util; NOT_RECORDED is also what the eye sections say of
+# a Mouse test with no tracker.
 DEFAULT_HIT_TOLERANCE_PX = 40.0  # dwell.jitter_tolerance_px's default: the hitbox margin
 
 OUTCOME_LABELS = {
@@ -68,7 +69,7 @@ SWITCH_WINDOW_MS = 150  # a press with no valid pointer looks this far back (I5c
 
 EYE_NOTE = (
     "Peak saccade velocity is a smoothed value. Compare it only between children measured on "
-    "the same device and sample rate. Old sessions without the new fields show \"—\"."
+    f"the same device and sample rate. Old sessions without the new fields show \"{DASH}\"."
 )
 
 # The PDF's footnotes (4D.8): what each measure means, so a printed page stands alone.
@@ -111,7 +112,7 @@ def definitions(report: dict[str, Any]) -> tuple[str, ...]:
 
 
 def num(value: Any, digits: int = 1, *, signed: bool = False) -> str:
-    """A number to ``digits`` decimals ("—" for ``None`` or anything not a number)."""
+    """A number to ``digits`` decimals (a dash for ``None`` or anything not a number)."""
     if value is None or isinstance(value, bool):
         return DASH
     try:
@@ -128,14 +129,14 @@ def whole(value: Any) -> str:
 
 def seconds_figure(ms: Any, digits: int = 2) -> str:
     """A stored millisecond figure as seconds to ``digits`` decimals, no unit ("0.23"): for
-    table cells whose column says "(s)". "—" for ``None`` or anything not a number. The data
+    table cells whose column says "(s)". A dash for ``None`` or anything not a number. The data
     files keep milliseconds; every text a person reads shows seconds (V5)."""
     return num(ms_to_seconds(ms), digits)
 
 
 def percent_text(row: dict[str, Any]) -> str:
     """``61% (11/18)``: the share rounded to a whole percent (the wireframe's form),
-    "—" when the row's count is unknown, ``0% (0/N)`` for an empty row."""
+    a dash when the row's count is unknown, ``0% (0/N)`` for an empty row."""
     n, total = row.get("n"), row.get("N") or 0
     if n is None:
         return DASH
@@ -245,7 +246,7 @@ def trial_cells(
     "not recorded" in the six eye cells of a trial that was presented (a skipped one has
     nothing, and says so with a dash)."""
     fix, sac, pup = trial.get("fixations", {}), trial.get("saccades", {}), trial.get("pupil", {})
-    outcome = OUTCOME_LABELS.get(str(trial.get("outcome")), DASH)
+    outcome = OUTCOME_LABELS.get(str(trial.get("outcome")), NOT_RECORDED)
 
     def number(value: Any, digits: int, *, signed: bool = False) -> Cell:
         return Cell(num(value, digits, signed=signed), None if value is None else float(value))
@@ -265,7 +266,7 @@ def trial_cells(
         Cell(str(trial.get("trial", "")), float(trial.get("trial") or 0)),
         number(trial.get("size_deg"), 1),
         number(trial.get("distance_deg"), 1),
-        Cell(outcome, None if outcome == DASH else outcome),
+        Cell(outcome, None if outcome == NOT_RECORDED else outcome),
         number(trial.get("trial_time_s"), 2),
         number(trial.get("reaction_time_s"), 2),
         number(trial.get("entries"), 0),
@@ -276,7 +277,7 @@ def trial_cells(
 
 def _count(value: Any, noun: str) -> str:
     if value is None:
-        return f"{DASH} {noun}s"
+        return f"{noun}s {NOT_RECORDED}"
     return f"{value} {noun}" if value == 1 else f"{value} {noun}s"
 
 
@@ -287,8 +288,8 @@ def trial_line(trial: dict[str, Any], gaze_recorded: bool = True) -> str:
         return "Eye data not recorded."
     sac, fix = trial.get("saccades", {}), trial.get("fixations", {})
     path = sac.get("scanpath_deg")
-    path_text = f"Scan path {num(path, 1)} deg" if path is not None else f"Scan path {DASH}"
-    return " · ".join([path_text, _count(fix.get("count"), "fixation"), _count(sac.get("count"), "saccade")])
+    path_text = f"Scan path {num(path, 1)}°" if path is not None else f"Scan path {NOT_RECORDED}"
+    return ", ".join([path_text, _count(fix.get("count"), "fixation"), _count(sac.get("count"), "saccade")])
 
 
 def banner_lines(report: dict[str, Any]) -> list[str]:
@@ -338,21 +339,26 @@ def summary_footnote(report: dict[str, Any]) -> str:
 
 
 def started_text(started_ns: Any) -> str:
-    """``Oct 6, 2026 2:06 PM`` in local time ("—" when the run has no start time)."""
+    """``2026-10-06 14:06`` in local time, 24 hour ("not recorded" when the run has no start
+    time)."""
     if not isinstance(started_ns, int) or isinstance(started_ns, bool):
-        return DASH
+        return NOT_RECORDED
     try:
         moment = datetime.fromtimestamp(started_ns / 1e9)
     except (OverflowError, OSError, ValueError):
-        return DASH
-    hour = moment.hour % 12 or 12
-    return f"{moment:%b} {moment.day}, {moment.year} {hour}:{moment:%M} {'AM' if moment.hour < 12 else 'PM'}"
+        return NOT_RECORDED
+    return f"{moment:%Y-%m-%d %H:%M}"
 
 
-def pdf_default_name(subject: str, test_name: str, started_ns: Any) -> str:
-    """``<Subject>_<Test name>_<YYYY-MM-DD>.pdf`` (4D.8); the date is the test's own."""
+def pdf_default_name(test_name: str, started_ns: Any) -> str:
+    """``<YYYY-MM-DD>_<Test name>.pdf`` (SPEC-subject-data-layout.md H7); the date is the
+    test's own, the name is sanitised and cut at 50 characters. No subject: the file sits
+    in that subject's ``reports/`` folder, and a child's name must not travel in a name."""
     try:
         day = f"{datetime.fromtimestamp(started_ns / 1e9):%Y-%m-%d}"
     except (TypeError, OverflowError, OSError, ValueError):
         day = "undated"
-    return f"{safe_subject_dirname(subject or 'subject')}_{safe_subject_dirname(test_name or 'report')}_{day}.pdf"
+    name = safe_subject_dirname(test_name or "report", PDF_NAME_MAX)
+    if len(name) > PDF_NAME_MAX:  # cut and hashed: cut shorter, so the hash fits in the 50
+        name = safe_subject_dirname(test_name, PDF_NAME_MAX - 7)
+    return f"{day}_{name}.pdf"

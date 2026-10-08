@@ -147,5 +147,7 @@ def test_the_pdf_prints_not_recorded_in_the_same_cells(tmp_path):
     html = build_report_html(report, test_name="T", evaluator="", notes="", map_image=None)
     presented = len(report["trials"]) - 1
     assert html.count(f">{NOT_RECORDED}<") >= 6 * presented + 10  # six per trial and the ten Eye Metrics
-    with_gaze = build_report_html(folder_report(tmp_path / "gaze"), test_name="T", evaluator="", notes="", map_image=None)
+    with_gaze = build_report_html(
+        folder_report(tmp_path / "gaze"), test_name="T", evaluator="Dr. Lin", notes="Fine", map_image=None
+    )
     assert NOT_RECORDED not in with_gaze

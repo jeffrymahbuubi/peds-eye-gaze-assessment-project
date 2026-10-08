@@ -57,11 +57,13 @@ def folder_report(
     planned: int | None = 6,
     events=None,
     presses: list[tuple[int, int]] | None = None,
+    run_dir: Path | None = None,
     **meta_extra: Any,
 ) -> dict[str, Any]:
     """``build_report`` of a synthetic run folder (``legacy``: no new columns, no
     ``all_gaze.csv``, no geometry, as an old folder). ``presses`` are the switch presses of each
-    trial, ``(clicks, click_errors)`` (a Switch test: pass ``**SWITCH_META`` too)."""
+    trial, ``(clicks, click_errors)`` (a Switch test: pass ``**SWITCH_META`` too). The folder is
+    ``tmp_path / "run"`` unless ``run_dir`` names one."""
     if legacy:
         meta: dict[str, Any] = {
             "subject_id": "OLD", "session_id": "2026-09-11_OLD_click_grid_run1", "started_ns": T0,
@@ -85,7 +87,7 @@ def folder_report(
     for rec, (clicks, errors) in zip(records, presses or [], strict=False):
         rec.clicks, rec.click_errors = clicks, errors
     folder = write_session(
-        tmp_path / "run",
+        run_dir or tmp_path / "run",
         records,
         meta=meta,
         frames=sorted(frames, key=lambda f: f.t_ns),

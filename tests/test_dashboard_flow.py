@@ -17,6 +17,8 @@ from PySide6.QtCore import Qt
 from PySide6.QtGui import QColor
 from PySide6.QtWidgets import QApplication
 
+from src.engine.run_paths import new_run_dir
+from src.engine.subject_store import output_root
 from src.engine.subject_tests import create_test, list_tests, record_result
 from src.ui.dashboard_flow import (
     NAV_LABELS,
@@ -24,7 +26,6 @@ from src.ui.dashboard_flow import (
     TESTS_INDEX,
     Flow,
     TitleBar,
-    output_root_from_config,
 )
 from src.ui.dashboard_window import DashboardWindow
 from src.ui.test_list_page import SubjectTestListPage
@@ -58,8 +59,8 @@ def active(win) -> list[bool]:
 
 def test_the_nav_reads_setup_and_tests_only(win):
     # R11: the per-test report replaced the old "3 · Results" tab.
-    assert [b.text() for b in win.title_bar.buttons] == ["1 · Setup", "2 · Tests"]
-    assert NAV_LABELS == ("1 · Setup", "2 · Tests")
+    assert [b.text() for b in win.title_bar.buttons] == ["Setup", "Tests"]
+    assert NAV_LABELS == ("Setup", "Tests")
     assert win.setup_nav_button is win.title_bar.setup_button
     assert win.tests_nav_button is win.title_bar.tests_button
     assert not hasattr(win, "results_nav_button") and not hasattr(win.title_bar, "results_button")
@@ -152,7 +153,7 @@ def test_the_title_bar_alone_has_the_styled_background_attribute(qapp):
 
 
 def test_the_output_root_is_the_default_configs(qapp):
-    assert output_root_from_config() == "sessions"
+    assert output_root() == "sessions"
 
 
 # -- AA10: nothing about a subject or a task lives in the window -------------------------------------------
@@ -276,8 +277,7 @@ def test_without_a_tracker_add_configure_copy_delete_and_report_work(win, monkey
     page.delete_button.click()
     assert names(win) == ["Grid Click 1", "Grid Click 2"]
     done = create_test(win.output_root, "TESTING", "scanning")
-    folder = os.path.join(win.output_root, "2026-10-06_TESTING_scanning_run1")
-    os.makedirs(folder)
+    folder = new_run_dir(win.output_root, "TESTING", "scanning")
     record_result(win.output_root, "TESTING", done.test_id, session_dir=folder,
                   planned_trials=6, completed_trials=6)
     page.reload()

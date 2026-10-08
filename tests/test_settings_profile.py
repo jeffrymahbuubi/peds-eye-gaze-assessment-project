@@ -18,7 +18,6 @@ from src.engine.settings_profile import (
     NamedConfig,
     effective_config_name,
     format_saved_at,
-    known_subject_ids,
     list_named_configurations,
     list_settings_profiles,
     load_settings_profile,
@@ -30,7 +29,21 @@ from src.engine.settings_profile import (
     task_live_values,
     validate_config_name,
 )
+from src.engine.subject_store import ensure_subject
 from src.ui.settings_registry import apply_live_values_to_config, initial_live_values
+
+
+def settings_dir(root, subject, task):
+    """The folder of a subject's saved versions; the subject's folder is made if need be, so
+    a test can write a file straight into it (a subject has none until something is saved)."""
+    ensure_subject(root, subject)
+    return settings_profile_dir(root, subject, task)
+
+
+def legacy_file(root, subject, task):
+    ensure_subject(root, subject)
+    return settings_profile_path(root, subject, task)
+
 
 LIVE = {"dwell.smoothing.alpha": 0.05, "dwell.jitter_tolerance_px": 100, "task.timeout_ms": 9000}
 
@@ -58,14 +71,14 @@ def test_missing_profile_returns_none(tmp_path):
 
 def test_malformed_profile_degrades_to_none_instead_of_raising(tmp_path):
     """A corrupt profile must not be able to block a session."""
-    path = settings_profile_path(tmp_path, "S1", "click_grid")
+    path = legacy_file(tmp_path, "S1", "click_grid")
     path.parent.mkdir(parents=True, exist_ok=True)
     path.write_text("{not json at all", encoding="utf-8")
     assert load_settings_profile(tmp_path, "S1", "click_grid") is None
 
 
 def test_profile_of_the_wrong_shape_degrades_to_none(tmp_path):
-    path = settings_profile_path(tmp_path, "S1", "click_grid")
+    path = legacy_file(tmp_path, "S1", "click_grid")
     path.parent.mkdir(parents=True, exist_ok=True)
     path.write_text(json.dumps(["not", "a", "dict"]), encoding="utf-8")
     assert load_settings_profile(tmp_path, "S1", "click_grid") is None
@@ -77,7 +90,7 @@ def test_newest_save_wins_on_load_and_earlier_saves_are_kept(tmp_path):
     second = save_settings_profile(tmp_path, "S1", "click_grid", {"dwell.smoothing.alpha": 0.1})
     assert first != second
     assert first.is_file() and second.is_file()
-    assert first.parent == second.parent == settings_profile_dir(tmp_path, "S1", "click_grid")
+    assert first.parent == second.parent == settings_dir(tmp_path, "S1", "click_grid")
     got = load_settings_profile(tmp_path, "S1", "click_grid")
     assert got["live"] == {"dwell.smoothing.alpha": 0.1}
     assert got["path"] == str(second)
@@ -104,7 +117,7 @@ def _write_version(directory, name, saved_at, alpha, subject="S1", task="click_g
 
 
 def test_versions_are_ordered_by_saved_at_not_filename(tmp_path):
-    d = settings_profile_dir(tmp_path, "S1", "click_grid")
+    d = settings_dir(tmp_path, "S1", "click_grid")
     older = _write_version(d, "zzz.json", "2026-09-17T10:00:00+08:00", 0.1)
     newer = _write_version(d, "aaa.json", "2026-09-18T10:00:00+08:00", 0.3)
     assert list_settings_profiles(tmp_path, "S1", "click_grid") == [newer, older]
@@ -114,9 +127,9 @@ def test_versions_are_ordered_by_saved_at_not_filename(tmp_path):
 def test_legacy_flat_file_is_one_more_version_and_never_rewritten(tmp_path):
     """Profiles saved before S10.12 live at <subject>/<task>.json; they must
     stay loadable, sort by their own timestamp, and stop being the write target."""
-    legacy = settings_profile_path(tmp_path, "S1", "click_grid")
+    legacy = legacy_file(tmp_path, "S1", "click_grid")
     _write_version(legacy.parent, legacy.name, "2026-09-11T10:00:00+00:00", 0.7)
-    d = settings_profile_dir(tmp_path, "S1", "click_grid")
+    d = settings_dir(tmp_path, "S1", "click_grid")
     older = _write_version(d, "2026-09-10_10-00-00.json", "2026-09-10T10:00:00+08:00", 0.1)
     assert list_settings_profiles(tmp_path, "S1", "click_grid") == [legacy, older]
     before = legacy.read_text(encoding="utf-8")
@@ -127,7 +140,7 @@ def test_legacy_flat_file_is_one_more_version_and_never_rewritten(tmp_path):
 
 
 def test_unreadable_versions_are_skipped_not_fatal(tmp_path):
-    d = settings_profile_dir(tmp_path, "S1", "click_grid")
+    d = settings_dir(tmp_path, "S1", "click_grid")
     good = _write_version(d, "2026-09-17_10-00-00.json", "2026-09-17T10:00:00+08:00", 0.1)
     d.joinpath("broken.json").write_text("{not json", encoding="utf-8")
     d.joinpath("notes.txt").write_text("ignored", encoding="utf-8")
@@ -166,7 +179,7 @@ def test_saved_at_is_local_time_with_offset(tmp_path):
 
 
 def test_loaded_file_carries_identity_for_refusal_checks(tmp_path):
-    d = settings_profile_dir(tmp_path, "OTHER", "scanning")
+    d = settings_dir(tmp_path, "OTHER", "scanning")
     path = _write_version(d, "v.json", "2026-09-17T10:00:00+08:00", 0.1, subject="OTHER", task="scanning")
     got = load_settings_profile_file(path)
     assert got["subject_id"] == "OTHER"
@@ -250,37 +263,12 @@ def test_calibration_is_stored_and_returned(tmp_path):
 
 def test_profile_without_calibration_loads_with_an_empty_block(tmp_path):
     """A profile written before S10.5.5 must still load cleanly."""
-    path = settings_profile_path(tmp_path, "S1", "click_grid")
+    path = legacy_file(tmp_path, "S1", "click_grid")
     path.parent.mkdir(parents=True, exist_ok=True)
     path.write_text(json.dumps({"live": LIVE, "saved_at": "2026-09-10"}), encoding="utf-8")
     got = load_settings_profile(tmp_path, "S1", "click_grid")
     assert got["calibration"] == {}
     assert got["live"] == LIVE
-
-
-# -- known subject IDs, for the Subject-ID completer (S10.7.3 B) --------------
-
-
-def test_known_subject_ids_unions_settings_and_calibrations(tmp_path):
-    """A subject usually has a saved calibration before a settings profile, so
-    reading only _settings would miss the first chance to mistype the ID."""
-    save_settings_profile(tmp_path, "TUNED", "click_grid", LIVE)
-    (tmp_path / "_calibrations" / "CALIBRATED_ONLY").mkdir(parents=True)
-    (tmp_path / "_calibrations" / "TUNED").mkdir(parents=True)
-    assert known_subject_ids(tmp_path) == ["CALIBRATED_ONLY", "TUNED"]
-
-
-def test_known_subject_ids_is_empty_when_nothing_is_saved(tmp_path):
-    assert known_subject_ids(tmp_path) == []
-    assert known_subject_ids(tmp_path / "does" / "not" / "exist") == []
-
-
-def test_known_subject_ids_ignores_loose_files(tmp_path):
-    """Only directories are subjects; a stray file next to them is not one."""
-    (tmp_path / "_settings").mkdir()
-    (tmp_path / "_settings" / "S1").mkdir()
-    (tmp_path / "_settings" / "notes.txt").write_text("x", encoding="utf-8")
-    assert known_subject_ids(tmp_path) == ["S1"]
 
 
 # -- named configurations, schema v2 (SPEC-compass-task-flow.md 4B.4, AB8-AB10 data) ----------
@@ -330,7 +318,7 @@ def test_a_save_without_a_name_has_an_empty_one(tmp_path):
 
 def test_a_schema_v1_file_has_no_name_and_still_loads(tmp_path):
     """AB10, data part: ``name == ""`` for v1, the name for v2."""
-    d = settings_profile_dir(tmp_path, "S1", "click_grid")
+    d = settings_dir(tmp_path, "S1", "click_grid")
     v1 = _write_named(d, "old.json", "2026-09-17T10:00:00+08:00", None, schema=1)
     v2 = _write_named(d, "new.json", "2026-09-18T10:00:00+08:00", "Window seat")
     got = load_settings_profile_file(v1)
@@ -342,7 +330,7 @@ def test_a_schema_v1_file_has_no_name_and_still_loads(tmp_path):
 
 
 def test_a_non_string_name_in_a_file_reads_as_no_name(tmp_path):
-    d = settings_profile_dir(tmp_path, "S1", "click_grid")
+    d = settings_dir(tmp_path, "S1", "click_grid")
     path = _write_named(d, "odd.json", "2026-09-17T10:00:00+08:00", None)
     data = json.loads(path.read_text(encoding="utf-8"))
     data["name"] = ["not", "a", "string"]
@@ -357,7 +345,7 @@ def test_a_non_string_name_in_a_file_reads_as_no_name(tmp_path):
 def test_a_name_that_cannot_be_stored_is_refused_and_nothing_is_written(tmp_path, bad):
     with pytest.raises(ValueError):
         save_settings_profile(tmp_path, "S1", "click_grid", LIVE, name=bad)
-    assert not settings_profile_dir(tmp_path, "S1", "click_grid").exists()
+    assert not settings_dir(tmp_path, "S1", "click_grid").exists()
 
 
 def test_validate_config_name_rules():
@@ -410,7 +398,7 @@ def test_the_structural_block_is_stored_exactly_as_given(tmp_path):
 def test_listing_gives_one_entry_per_name_newest_first_and_the_newest_values(tmp_path):
     """AB9, data part: Update adds a version, the old file stays, the list shows
     one entry for the name with the newest values."""
-    d = settings_profile_dir(tmp_path, "S1", "click_grid")
+    d = settings_dir(tmp_path, "S1", "click_grid")
     old_calm = _write_named(d, "a.json", "2026-09-15T10:00:00+08:00", "Calm", alpha=0.1)
     seat = _write_named(d, "b.json", "2026-09-16T10:00:00+08:00", "Window seat", alpha=0.2)
     new_calm = _write_named(d, "c.json", "2026-09-17T10:00:00+08:00", "Calm", alpha=0.3)
@@ -439,7 +427,7 @@ def test_updating_a_name_through_the_writer_keeps_the_old_file(tmp_path):
 
 
 def test_names_compare_case_insensitively_and_keep_the_newest_spelling(tmp_path):
-    d = settings_profile_dir(tmp_path, "S1", "click_grid")
+    d = settings_dir(tmp_path, "S1", "click_grid")
     _write_named(d, "a.json", "2026-09-15T10:00:00+08:00", "Calm")
     _write_named(d, "b.json", "2026-09-16T10:00:00+08:00", "calm")
     (entry,) = list_named_configurations(tmp_path, "S1", "click_grid")
@@ -448,7 +436,7 @@ def test_names_compare_case_insensitively_and_keep_the_newest_spelling(tmp_path)
 
 def test_a_v1_profile_is_listed_as_saved_mm_dd_hh_mm_and_loads(tmp_path):
     """AB10: ``Saved MM/DD HH:MM`` in local time, so every old profile stays reachable."""
-    d = settings_profile_dir(tmp_path, "S1", "click_grid")
+    d = settings_dir(tmp_path, "S1", "click_grid")
     saved_at = "2026-09-17T10:00:00+08:00"
     v1 = _write_named(d, "2026-09-17_10-00-00.json", saved_at, None, schema=1,
                       structural={"trials": 12})
@@ -461,7 +449,7 @@ def test_a_v1_profile_is_listed_as_saved_mm_dd_hh_mm_and_loads(tmp_path):
 
 
 def test_the_pre_s10_12_flat_file_is_listed_too(tmp_path):
-    legacy = settings_profile_path(tmp_path, "S1", "click_grid")
+    legacy = legacy_file(tmp_path, "S1", "click_grid")
     _write_named(legacy.parent, legacy.name, "2026-09-11T10:00:00+00:00", None, schema=1)
     (entry,) = list_named_configurations(tmp_path, "S1", "click_grid")
     assert entry.name == f"Saved {format_saved_at('2026-09-11T10:00:00+00:00')}"
@@ -477,14 +465,14 @@ def test_an_unnamed_v2_save_is_listed_like_a_v1_file(tmp_path):
 def test_a_stored_name_that_could_not_be_chosen_today_falls_back_to_the_label(tmp_path):
     """"Standard" is the computed defaults and never stored; a hand-edited file
     must not shadow it in the combo, yet must stay reachable."""
-    d = settings_profile_dir(tmp_path, "S1", "click_grid")
+    d = settings_dir(tmp_path, "S1", "click_grid")
     _write_named(d, "x.json", "2026-09-17T10:00:00+08:00", "Standard")
     (entry,) = list_named_configurations(tmp_path, "S1", "click_grid")
     assert entry.name.startswith("Saved ")
 
 
 def test_an_unparseable_timestamp_is_labelled_with_the_file_name(tmp_path):
-    d = settings_profile_dir(tmp_path, "S1", "click_grid")
+    d = settings_dir(tmp_path, "S1", "click_grid")
     _write_named(d, "mystery.json", "not a date", None, schema=1)
     (entry,) = list_named_configurations(tmp_path, "S1", "click_grid")
     assert entry.name == "Saved mystery"
@@ -502,7 +490,7 @@ def test_the_listing_is_per_subject_and_per_task_and_skips_unreadable_files(tmp_
     save_settings_profile(tmp_path, "S1", "click_grid", LIVE, name="Calm")
     assert list_named_configurations(tmp_path, "S2", "click_grid") == []
     assert list_named_configurations(tmp_path, "S1", "scanning") == []
-    d = settings_profile_dir(tmp_path, "S1", "click_grid")
+    d = settings_dir(tmp_path, "S1", "click_grid")
     d.joinpath("broken.json").write_text("{not json", encoding="utf-8")
     assert [c.name for c in list_named_configurations(tmp_path, "S1", "click_grid")] == ["Calm"]
     assert list_named_configurations(tmp_path / "nowhere", "S1", "click_grid") == []

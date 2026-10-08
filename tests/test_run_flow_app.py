@@ -146,36 +146,36 @@ def test_a_hud_hidden_argument_no_longer_exists(make_app):
 # -- the status line (4C.5, AC8) -----------------------------------------------------
 
 
-def test_the_status_line_reads_trial_i_of_n_and_tracking(make_app):
+def test_the_status_reads_trial_i_of_n_and_tracking(make_app):
     app = make_app(structural_overrides={"trials": 12})
     now = time.time_ns()
     app._last_valid_ns = now
     app._update_run_bar(now)
-    assert app.view.run_bar.status_text() == "Trial 1/12 · tracking OK"
+    assert app.view.run_bar.status_text() == "Trial 1 of 12, Tracking OK"
     app._last_valid_ns = now - 3_200_000_000
     app._update_run_bar(now)
-    assert app.view.run_bar.status_text() == "Trial 1/12 · no gaze for 3 s"
+    assert app.view.run_bar.status_text() == "Trial 1 of 12, No gaze for 3 s"
     app._last_valid_ns = None
     app._update_run_bar(now)
-    assert app.view.run_bar.status_text() == "Trial 1/12 · waiting for gaze"
+    assert app.view.run_bar.status_text() == "Trial 1 of 12, Waiting for gaze"
     app.client.is_connected = lambda: False
     app._update_run_bar(now)
-    assert app.view.run_bar.status_text() == "Trial 1/12 · tracker DISCONNECTED"
+    assert app.view.run_bar.status_text() == "Trial 1 of 12, Tracker disconnected"
 
 
 def test_the_status_counts_trials_as_the_run_goes_on(make_app):
     app = make_app(structural_overrides={"trials": 4}, live_overrides={**FAST, "task.timeout_ms": 600_000})
     to_wait_input(app)
-    assert app.view.run_bar.status_text().startswith("Trial 1/4 · ")
+    assert app.view.run_bar.status_text().startswith("Trial 1 of 4, ")
     app._skip_trial()
     tick_until(app, lambda: app.task.phase is Phase.WAIT_INPUT)
-    assert app.view.run_bar.status_text().startswith("Trial 2/4 · ")
+    assert app.view.run_bar.status_text().startswith("Trial 2 of 4, ")
 
 
 def test_practice_marks_the_status_and_turns_the_bar_amber(make_app):
     app = make_app(run_mode="practice", structural_overrides={"trials": 3})
     app._tick()
-    assert app.view.run_bar.status_text().startswith("PRACTICE (not recorded) · Trial 1/3 · ")
+    assert app.view.run_bar.status_text().startswith("PRACTICE, Trial 1 of 3, ")
     assert app.view.run_bar.property("practice") is True
     record = make_app(structural_overrides={"trials": 3})
     record._tick()
@@ -183,14 +183,14 @@ def test_practice_marks_the_status_and_turns_the_bar_amber(make_app):
     assert record.view.run_bar.property("practice") is False
 
 
-def test_a_preview_names_the_mouse_and_says_nothing_is_recorded(make_app):
+def test_a_preview_names_the_mouse_and_its_chip_says_nothing_is_recorded(make_app):
     mouse = MouseGazeSource()
     app = make_app(run_mode="preview", client=mouse, replay=False, structural_overrides={"trials": 3})
     mouse.bind_canvas(app.canvas)
     app._tick()
-    assert app.view.run_bar.status_text() == "PREVIEW · Trial 1/3 · mouse pointer · nothing is recorded"
+    assert app.view.run_bar.status_text() == "PREVIEW, Trial 1 of 3, Mouse pointer"
     app.view.run_bar.pause_button.click()
-    assert app.view.run_bar.status_text() == "PREVIEW · Paused"
+    assert app.view.run_bar.status_text() == "PREVIEW, Paused"
 
 
 # -- Pause (4C.6, AC9) -----------------------------------------------------------------
@@ -203,7 +203,7 @@ def test_pause_drops_the_trial_in_flight_and_shows_the_paused_screen(make_app):
     app.view.run_bar.pause_button.click()
     assert app._paused and app.canvas.paused
     assert app.view.run_bar.pause_button.text() == "Resume (Alt-P)"
-    assert app.view.run_bar.status_text() == f"Paused · Trial 1/{len(app.task.targets)}"
+    assert app.view.run_bar.status_text() == f"Paused, Trial 1 of {len(app.task.targets)}"
     assert app.task.trials == []  # the interrupted attempt is not a row
     assert not app.view.run_bar.skip_button.isEnabled()
     app.view.run_bar.pause_button.click()
@@ -254,7 +254,7 @@ def test_pausing_in_the_iti_interrupts_nothing(make_app):
     assert app.task.phase is Phase.ITI
     app._set_paused(True)
     assert app.task.interrupted_trials == 0 and not app._pause_interrupted
-    assert app.view.run_bar.status_text() == f"Paused · Trial 1/{len(app.task.targets)}"
+    assert app.view.run_bar.status_text() == f"Paused, Trial 1 of {len(app.task.targets)}"
     app._set_paused(False)
     assert app.task.phase is Phase.ITI
 

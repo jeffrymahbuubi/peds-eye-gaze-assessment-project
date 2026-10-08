@@ -54,10 +54,16 @@ from ..engine.input_choice import (
     gaze_only_note,
 )
 from ..engine.local_state import load_local_state, save_local_state
-from ..engine.session_naming import safe_subject_dirname
-from ..engine.settings_profile import known_subject_ids
+from ..engine.subject_store import (
+    ensure_subject,
+    find_subject,
+    known_subject_ids,
+    output_root,
+)
 from ..inputs.gazepoint_client import DeviceInfo, GazepointClient
-from .wtmh_theme import BORDER, PANEL_BG
+from .design_tokens import BORDER_STRONG, PANEL, RADIUS, TABLE_ROW_HEIGHT
+from .report_format import DASH
+from .subject_folder_row import SubjectFolderRow
 
 _SEX_OPTIONS = ["Select", "Female", "Male", "Other / Prefer not to say"]
 
@@ -89,9 +95,9 @@ def _format_device_info(info: DeviceInfo | None) -> str:
 
     lines = []
     if identity_parts:
-        lines.append("Device: " + " · ".join(identity_parts))
+        lines.append("Device: " + ", ".join(identity_parts))
     if detail_parts:
-        lines.append("Camera: " + " · ".join(detail_parts))
+        lines.append("Camera: " + ", ".join(detail_parts))
     return "\n".join(lines)
 
 
@@ -106,7 +112,7 @@ def _format_rate_warning(info: DeviceInfo | None) -> str:
     bus_text = f" over {info.bus}" if info.bus else ""
     return (
         f"Tracker is running at {info.rate_hz} Hz{bus_text}. The GP3 HD only "
-        "reaches 150 Hz on a USB 3.0 connection — move the data cable to a "
+        "reaches 150 Hz on a USB 3.0 connection. Move the data cable to a "
         "USB 3.0 port and reconnect for full-rate data."
     )
 
@@ -134,38 +140,34 @@ def _format_display_warning(check: DisplayCheck) -> str:
 def calibration_measured_alert_text(result, error_txt: str) -> str:
     """Setup alert for a valid measured calibration (SPEC-calibration-result-
     timeout.md S4.2): says so when CALIB_RESULT's per-point breakdown is missing."""
-    text = f"Calibration measured — {result.n_points} points, mean error {error_txt}, valid."
+    text = f"Calibration measured: {result.n_points} points, mean error {error_txt}, valid."
     if result.per_point:
         return text
     return (
-        text + " Per-point details were not received — if this repeats, close and "
+        text + " Per-point details were not received. If this repeats, close and "
         "reopen Gazepoint Control, then calibrate again."
     )
 
 
-def _subject_calibration_dir(output_root: str | Path, subject_id: str) -> Path:
+def _subject_calibration_dir(output_root: str | Path, subject_id: str) -> Path | None:
     """Canonical per-subject saved-calibration folder (SPEC-gui-audit-
-    2026-09-10.md item 2b). Distinct from a run's own auto-saved
-    ``calibration.json`` (``src/app.py``, one per session folder) -- this is
-    a single, explicitly-saved record per subject that "Save Calibration"
-    writes to and "Load Calibration File" defaults its file picker to, so a
-    calibration can be reused across sessions without hunting through dated
-    run folders. Doesn't create the directory -- callers create it on save,
-    or just check existence before using it as a browse-to default.
+    2026-09-10.md item 2b): ``<subject folder>/calibrations`` (SPEC-subject-data-
+    layout.md H1), or ``None`` for a subject with no folder yet. Distinct from a
+    run's own auto-saved ``calibration.json`` (``src/app.py``, one per run folder)
+    -- this is a single, explicitly-saved record per subject and point count that
+    "Save Calibration" writes to and "Load Calibration File" defaults its file
+    picker to, so a calibration can be reused across sessions without hunting
+    through run folders. Doesn't create anything -- "Save Calibration" makes the
+    subject's folder on its first save (``ensure_subject``).
+
+    One saved calibration file per point count per subject (SPEC-gui-audit-
+    2026-09-10.md S8): ``calibration_<n>pt.json``. The point count is in the
+    filename so it's readable without opening the file, and saving a 9-point
+    calibration no longer overwrites the same subject's 5-point one -- both stay
+    available to load.
     """
-    return Path(output_root) / "_calibrations" / safe_subject_dirname(subject_id)
-
-
-def _subject_calibration_path(output_root: str | Path, subject_id: str, n_points: int) -> Path:
-    """One saved calibration file per point count per subject (SPEC-gui-audit-
-    2026-09-10.md S8).
-
-    The point count is in the filename so it's readable without opening the
-    file. Because it's part of the name rather than a fixed ``calibration.json``,
-    saving a 9-point calibration no longer overwrites the same subject's
-    5-point one -- both stay available to load.
-    """
-    return _subject_calibration_dir(output_root, subject_id) / f"calibration_{int(n_points)}pt.json"
+    folder = find_subject(output_root, subject_id)
+    return folder.calibrations if folder is not None else None
 
 
 def _latest_subject_calibration(output_root: str | Path, subject_id: str) -> Path | None:
@@ -180,7 +182,7 @@ def _latest_subject_calibration(output_root: str | Path, subject_id: str) -> Pat
     calibrations saved before this change are still offered.
     """
     directory = _subject_calibration_dir(output_root, subject_id)
-    if not directory.is_dir():
+    if directory is None or not directory.is_dir():
         return None
     candidates = [p for p in directory.glob("calibration_*pt.json") if p.is_file()]
     legacy = directory / "calibration.json"
@@ -293,6 +295,9 @@ class SetupPage(QWidget):
         self._recheck_thread: _DeviceInfoRefreshThread | None = None
         self._calibration_thread: _CalibrationThread | None = None
         self._defaults = load_default()
+        # The one output root (SPEC-subject-data-layout.md H8): the window reads it the
+        # same way, so Setup and the Tests tab always look at the same subject folders.
+        self.output_root = output_root(self._defaults)
         # Display standard check (SPEC-display-standard-check.md S4.4): the
         # last reading, the screen/window whose change signals are connected.
         self._display_check: DisplayCheck | None = None
@@ -322,6 +327,12 @@ class SetupPage(QWidget):
     def subject_id(self) -> str:
         return self.subject_id_edit.text().strip()
 
+    def folder_mode(self) -> str:
+        """``"id"`` or ``"code"``: how the typed subject's folder is (or will be) named
+        (SPEC-subject-data-layout.md H6). An existing subject keeps its own; the store
+        ignores this for it."""
+        return self.folder_row.folder_mode()
+
     def assessment_date(self) -> str:
         return self.date_edit.date().toString("yyyy-MM-dd")
 
@@ -338,10 +349,11 @@ class SetupPage(QWidget):
         Called at build time and again whenever something is written under a
         subject during this sitting (a saved calibration, a saved settings
         profile), so a subject entered today is offered for the rest of the
-        session without needing a restart.
+        session without needing a restart. The folder line under the field follows:
+        a subject saved now has a folder, so the choice becomes "Folder: ...".
         """
-        output_root = self._defaults.get("recording", {}).get("output_root", "sessions")
-        self._subject_completer_model.setStringList(known_subject_ids(output_root))
+        self._subject_completer_model.setStringList(known_subject_ids(self.output_root))
+        self.folder_row.update_for(self.output_root, self.subject_id())
 
     def display_acknowledged(self) -> bool:
         """True only when the display is non-standard and the operator
@@ -399,7 +411,7 @@ class SetupPage(QWidget):
         outer.setContentsMargins(24, 20, 24, 20)
         outer.setSpacing(16)
 
-        title = QLabel("1 · Setup")
+        title = QLabel("Setup")
         title.setObjectName("wtmhPageTitle")
         outer.addWidget(title)
 
@@ -505,15 +517,21 @@ class SetupPage(QWidget):
         form = QFormLayout()
         form.setVerticalSpacing(10)
         self.subject_id_edit = QLineEdit()
+        # The folder-name choice under the field (SPEC-subject-data-layout.md H6, wireframe
+        # W1); built before the completer refresh below, which updates it.
+        self.folder_row = SubjectFolderRow()
         self.subject_id_edit.textChanged.connect(self._on_state_changed)
         self.subject_id_edit.textChanged.connect(self.subjectIdChanged)
+        self.subject_id_edit.textChanged.connect(
+            lambda _text: self.folder_row.update_for(self.output_root, self.subject_id())
+        )
         # Autocomplete over subjects already on disk (SPEC-live-settings-
         # panel.md S10.7.3 B). Without it a mistyped ID is silently a *new*
         # subject: no profile and no calibration are found, the run proceeds on
         # task defaults, and nothing anywhere says so. That has already
-        # happened in real use -- ``sessions/_settings/tseting/`` is a profile
-        # and a run stored under a typo. Case-insensitive because the Windows
-        # filesystem already treats ``jeffry`` and ``JEFFRY`` as one directory,
+        # happened in real use -- a folder ``tseting`` holding a profile
+        # and a run stored under a typo. Case-insensitive, as the subject lookup is
+        # (``jeffry`` and ``JEFFRY`` are one subject, SPEC-subject-data-layout.md H5),
         # so offering them as one entry matches what actually resolves.
         self._subject_completer_model = QStringListModel(self)
         completer = QCompleter(self._subject_completer_model, self)
@@ -523,6 +541,7 @@ class SetupPage(QWidget):
         self.subject_id_edit.setCompleter(completer)
         self.refresh_subject_completer()
         form.addRow("Subject ID", self.subject_id_edit)
+        form.addRow(self.folder_row)
 
         # No calendar popup (SPEC-ui-setup-task-selection.md S13, user
         # feedback): a physician recording an assessment isn't "booking" a
@@ -535,6 +554,7 @@ class SetupPage(QWidget):
         # ancestor-scoped and directly-applied QSS, needing a QPalette
         # workaround that still didn't match the app's exact background).
         self.date_edit = QDateEdit(QDate.currentDate())
+        self.date_edit.setDisplayFormat("yyyy-MM-dd")  # one date format everywhere (H10)
         self.date_edit.dateChanged.connect(self._on_state_changed)
         # S14: QDateEdit is a QAbstractSpinBox subclass, so even with the
         # calendar popup removed it still paints its own native up/down
@@ -599,8 +619,8 @@ class SetupPage(QWidget):
             # visible at that boundary makes it one deliberate divider
             # instead of two borders sitting flush.
             popup_container.setStyleSheet(
-                f"background: {PANEL_BG}; border: 1px solid {BORDER}; "
-                f"border-top: none; border-radius: 8px;"
+                f"background: {PANEL}; border: 1px solid {BORDER_STRONG}; "
+                f"border-top: none; border-radius: {RADIUS}px;"
             )
         form.addRow("Sex", self.sex_combo)
 
@@ -745,7 +765,7 @@ class SetupPage(QWidget):
         self.calibration_alert.setObjectName("wtmhAlertWarning")
         alert_layout = QVBoxLayout(self.calibration_alert)
         self.calibration_alert_label = QLabel(
-            "No calibration yet for this subject — run Do Calibration or "
+            "No calibration yet for this subject. Run Do Calibration or "
             "Load Calibration File before continuing."
         )
         self.calibration_alert_label.setWordWrap(True)
@@ -770,6 +790,7 @@ class SetupPage(QWidget):
             ["Point", "Target (X, Y)", "Left eye (X, Y)", "Left valid", "Right eye (X, Y)", "Right valid", "Error (px)"]
         )
         self.calibration_details_table.verticalHeader().setVisible(False)
+        self.calibration_details_table.verticalHeader().setDefaultSectionSize(TABLE_ROW_HEIGHT)
         self.calibration_details_table.setEditTriggers(QTableWidget.EditTrigger.NoEditTriggers)
         self.calibration_details_table.setSelectionMode(QTableWidget.SelectionMode.NoSelection)
         self.calibration_details_table.horizontalHeader().setSectionResizeMode(QHeaderView.ResizeMode.Stretch)
@@ -793,7 +814,7 @@ class SetupPage(QWidget):
         alert_layout = QVBoxLayout(alert)
         label = QLabel(
             "Confirm in Gazepoint Control that Lens Focusing and Automatic "
-            "Gain Sweep are enabled. (Read-only reminder — neither setting "
+            "Gain Sweep are enabled. (Read-only reminder: neither setting "
             "can be checked or changed from this app; it does not gate "
             "Continue.)"
         )
@@ -918,7 +939,7 @@ class SetupPage(QWidget):
             self._client,
             self.point_count_spin.value(),
             self.show_calibration_checkbox.isChecked(),
-            self._defaults.get("recording", {}).get("output_root", "sessions"),
+            self.output_root,
             parent=self,
         )
         self._calibration_thread = thread
@@ -951,32 +972,37 @@ class SetupPage(QWidget):
         subject_id = self.subject_id()
         if not subject_id:
             return  # button is disabled in this state; guard against a stray signal anyway
-        output_root = self._defaults.get("recording", {}).get("output_root", "sessions")
         n_points = self._calibration_result.n_points
-        target_path = _subject_calibration_path(output_root, subject_id, n_points)
-        target_path.parent.mkdir(parents=True, exist_ok=True)
-        save_calibration_result(target_path, subject_id, self._calibration_result)
-        # This subject now has a directory on disk, so offer them for the rest
+        try:
+            # The subject's first save of anything makes their folder, named as the
+            # operator chose under Subject ID (an existing subject keeps theirs).
+            folder = ensure_subject(self.output_root, subject_id, self.folder_mode())
+            target_path = folder.calibrations / f"calibration_{int(n_points)}pt.json"
+            target_path.parent.mkdir(parents=True, exist_ok=True)
+            save_calibration_result(target_path, subject_id, self._calibration_result)
+        except OSError as exc:
+            self._set_calibration_alert("error", f"Could not save the calibration: {exc}")
+            return
+        # This subject now has a folder on disk, so offer them for the rest
         # of the sitting rather than only after a restart.
         self.refresh_subject_completer()
         self._set_calibration_alert(
             "success",
-            f"Calibration saved for {subject_id} as {target_path.name} — "
+            f"Calibration saved for {subject_id} as {target_path.name}. "
             "Load Calibration File will offer it next time.",
         )
 
     def _on_load_calibration_clicked(self) -> None:
-        output_root = self._defaults.get("recording", {}).get("output_root", "sessions")
         # Default to this subject's own saved calibration (SPEC-gui-audit-
         # 2026-09-10.md item 2b) when one exists, instead of always starting
         # the browse at output_root -- QFileDialog pre-selects the file
         # itself when given a full path, not just a directory. With one file
         # per point count (S8) a subject can have several; the most recently
         # saved one is pre-selected and the rest are listed beside it.
-        default_path = Path(output_root)
+        default_path = Path(self.output_root)
         subject_id = self.subject_id()
         if subject_id:
-            candidate = _latest_subject_calibration(output_root, subject_id)
+            candidate = _latest_subject_calibration(self.output_root, subject_id)
             if candidate is not None:
                 default_path = candidate
         path, _ = QFileDialog.getOpenFileName(
@@ -1005,7 +1031,7 @@ class SetupPage(QWidget):
         self.calibration_details_section.setVisible(False)  # collapse any stale prior breakdown
         error_txt = f"{saved.result.mean_error_px:.0f}px" if saved.result.mean_error_px is not None else "n/a"
         self._set_calibration_alert(
-            "success", f"Calibration loaded — {saved.result.n_points} points, mean error {error_txt}, valid."
+            "success", f"Calibration loaded: {saved.result.n_points} points, mean error {error_txt}, valid."
         )
         self._on_state_changed()
 
@@ -1033,12 +1059,12 @@ class SetupPage(QWidget):
 
         def _eye_cell(eye: dict | None) -> tuple[str, str]:
             if eye is None:
-                return "—", "—"
+                return DASH, DASH
             return f"{eye['x']:.3f}, {eye['y']:.3f}", "Yes" if eye["valid"] else "No"
 
         def _error_cell(left_err: float | None, right_err: float | None) -> str:
             errs = [e for e in (left_err, right_err) if e is not None]
-            return f"{sum(errs) / len(errs):.1f}" if errs else "—"
+            return f"{sum(errs) / len(errs):.1f}" if errs else DASH
 
         table.setRowCount(len(rows))
         for i, row in enumerate(rows):
@@ -1149,8 +1175,8 @@ class SetupPage(QWidget):
             self.display_ack_checkbox.setChecked(False)
         warning_text = _format_display_warning(check)
         self.display_ok_label.setText(
-            f"Display: {check.width_px}×{check.height_px} at {check.scale_percent}% "
-            "scale — recommended standard."
+            f"Display {check.width_px}×{check.height_px} at {check.scale_percent} %: "
+            "the recommended standard."
         )
         self.display_ok_alert.setVisible(check.standard)
         self.display_warning_label.setText(warning_text)

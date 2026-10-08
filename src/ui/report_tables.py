@@ -22,6 +22,8 @@ from PySide6.QtWidgets import (
     QWidget,
 )
 
+from .design_tokens import TABLE_ROW_HEIGHT
+
 # What changes the size a row or the header needs: the style sheet it ends up under (a table
 # is filled before the page is put in the dashboard, so the theme's cell padding arrives
 # later), the font, the screen's scale.
@@ -75,6 +77,9 @@ class FitTable(QTableWidget):
         self.setWordWrap(wrap)
         self.setShowGrid(True)
         self.verticalHeader().hide()
+        if not compact:  # a compact table keeps its short rows (it is the long one)
+            self.verticalHeader().setMinimumSectionSize(TABLE_ROW_HEIGHT)
+            self.verticalHeader().setDefaultSectionSize(TABLE_ROW_HEIGHT)
         head = self.horizontalHeader()
         head.setSectionsClickable(False)
         head.setHighlightSections(False)

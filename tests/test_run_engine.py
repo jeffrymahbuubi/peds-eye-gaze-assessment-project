@@ -11,11 +11,11 @@ from pathlib import Path
 import pytest
 
 from src.data.exporter import load_trials_rows, summarize
-from src.data.recorder import SessionRecorder
 from src.data.schema import SessionMetadata, TrialRecord
 from src.engine.feedback import NullFeedback
 from src.inputs.base import Pointer
 from src.tasks.base_task import BaseTask, Phase, TargetSpec
+from tests.recorder_helpers import recorder_in
 
 MS = 1_000_000
 
@@ -326,7 +326,7 @@ def test_a_pause_during_the_preroll_does_not_eat_it():
 
 def _write_trials(tmp_path: Path, trials: list[TrialRecord]) -> Path:
     meta = SessionMetadata(subject_id="P001", session_id="s_skip", started_ns=0)
-    with SessionRecorder(meta, output_root=tmp_path) as rec:
+    with recorder_in(tmp_path, meta) as rec:
         rec.write_trials(trials)
     return tmp_path / "s_skip"
 

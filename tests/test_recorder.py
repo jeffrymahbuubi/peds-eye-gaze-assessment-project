@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+from datetime import datetime
 from pathlib import Path
 
 from src.data.exporter import (
@@ -13,6 +14,8 @@ from src.data.exporter import (
 )
 from src.data.recorder import SessionRecorder
 from src.data.schema import GazeSample, SessionMetadata, TrialRecord
+from src.engine.run_paths import new_run_dir
+from tests.recorder_helpers import recorder_in
 
 
 def make_metadata() -> SessionMetadata:
@@ -27,7 +30,7 @@ def make_metadata() -> SessionMetadata:
 
 def test_recorder_writes_all_artifacts(tmp_path: Path):
     meta = make_metadata()
-    with SessionRecorder(meta, output_root=tmp_path) as rec:
+    with recorder_in(tmp_path, meta) as rec:
         rec.record_gaze(GazeSample(t_ns=0, x=0.5, y=0.5, valid=True, fixation_id=1))
         rec.record_event("TARGET_SHOWN", t_ns=0, trial=0, x=0.5, y=0.5)
         rec.log("started")
@@ -76,7 +79,7 @@ def test_exporter_roundtrip_and_summary(tmp_path: Path):
         TrialRecord(0, "t", 0.5, 0.5, 90, 0, t_click_ns=800_000_000, is_hit=True, attempts=1),
         TrialRecord(1, "t", 0.5, 0.5, 90, 0, is_timeout=True),
     ]
-    with SessionRecorder(meta, output_root=tmp_path) as rec:
+    with recorder_in(tmp_path, meta) as rec:
         rec.write_trials(trials)
 
     session_dir = tmp_path / meta.session_id
@@ -99,7 +102,7 @@ def test_exporter_roundtrip_and_summary(tmp_path: Path):
 
 
 def test_recorder_raises_if_not_open(tmp_path: Path):
-    rec = SessionRecorder(make_metadata(), output_root=tmp_path)
+    rec = recorder_in(tmp_path, make_metadata())
     try:
         import pytest
 
@@ -112,7 +115,7 @@ def test_recorder_raises_if_not_open(tmp_path: Path):
 def _make_two_fixation_session(tmp_path: Path) -> Path:
     """One trial spanning two fixations (0-0.4s, 0.5-0.9s) with pupil data."""
     meta = make_metadata()
-    with SessionRecorder(meta, output_root=tmp_path) as rec:
+    with recorder_in(tmp_path, meta) as rec:
         for i in range(5):
             rec.record_gaze(
                 GazeSample(
@@ -181,7 +184,7 @@ def test_compute_fixation_saccade_metrics_off_screen_sample(tmp_path: Path):
     not valid_ratio -- they measure different things (tracker confidence vs.
     whether the estimate landed on the physical screen)."""
     meta = make_metadata()
-    with SessionRecorder(meta, output_root=tmp_path) as rec:
+    with recorder_in(tmp_path, meta) as rec:
         rec.record_gaze(GazeSample(t_ns=0, x=0.5, y=0.5, valid=True))
         rec.record_gaze(GazeSample(t_ns=100_000_000, x=1.4, y=0.5, valid=True))
         rec.write_trials([])
@@ -192,7 +195,7 @@ def test_compute_fixation_saccade_metrics_off_screen_sample(tmp_path: Path):
 
 def test_compute_fixation_saccade_metrics_empty_session(tmp_path: Path):
     meta = make_metadata()
-    with SessionRecorder(meta, output_root=tmp_path):
+    with recorder_in(tmp_path, meta):
         pass
     fix = compute_fixation_saccade_metrics(tmp_path / meta.session_id)
     assert fix["n_samples"] == 0
@@ -207,3 +210,38 @@ def test_compute_trial_fixation_counts(tmp_path: Path):
     session_dir = _make_two_fixation_session(tmp_path)
     counts = compute_trial_fixation_counts(session_dir)
     assert counts == {0: 2}
+
+
+# -- where the run folder is (SPEC-subject-data-layout.md H2, L1) ----------------------------------
+
+
+def test_without_a_folder_the_recorder_makes_the_run_folder_under_the_subject(tmp_path: Path):
+    meta = make_metadata()
+    with SessionRecorder(meta, output_root=tmp_path) as rec:
+        folder = rec.session_dir
+    assert folder.parent == tmp_path / "P001" / "runs" / "click_static"
+    assert folder.name.startswith(f"{datetime.now():%Y-%m-%d}_")  # date, then HHMM
+    assert (tmp_path / "P001" / "subject.json").is_file()
+    assert (folder / "metadata.json").is_file()
+    assert [p.name for p in tmp_path.iterdir()] == ["P001"]  # nothing is written elsewhere
+
+
+def test_two_recorders_in_the_same_minute_get_two_folders(tmp_path: Path):
+    meta = make_metadata()
+    with SessionRecorder(meta, output_root=tmp_path) as a, SessionRecorder(meta, output_root=tmp_path) as b:
+        assert a.session_dir != b.session_dir
+        assert a.session_dir.parent == b.session_dir.parent
+
+
+def test_a_metadata_with_no_task_still_gets_a_folder(tmp_path: Path):
+    meta = SessionMetadata(subject_id="P001", session_id="s", started_ns=0)
+    with SessionRecorder(meta, output_root=tmp_path) as rec:
+        assert rec.session_dir.parent == tmp_path / "P001" / "runs" / "session"
+
+
+def test_a_run_folder_given_by_the_caller_is_used_as_it_is(tmp_path: Path):
+    folder = new_run_dir(tmp_path, "P001", "click_static")
+    with SessionRecorder(make_metadata(), session_dir=folder) as rec:
+        assert rec.session_dir == folder
+    assert (folder / "metadata.json").is_file()
+    assert len(list((tmp_path / "P001" / "runs" / "click_static").iterdir())) == 1  # no second folder

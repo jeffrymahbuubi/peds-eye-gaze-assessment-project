@@ -60,6 +60,7 @@ from ..engine.target_size import (
     screen_scale,
     viewing_distance_mm,
 )
+from ..engine.task_info import TASK_INFO
 from ..tasks.scanning import scanning_layout_slots
 from .config_widgets import choice_label, estimated_canvas_px, style_combo_popup
 from .settings_registry import (
@@ -75,7 +76,8 @@ from .wtmh_theme import STYLESHEET
 class TaskSettingsDialog(QDialog):
     def __init__(self, task_id: str, config: dict[str, Any], parent=None) -> None:
         super().__init__(parent)
-        self.setWindowTitle(f"Task settings — {task_id}")
+        title_text = f"Task settings: {TASK_INFO[task_id][0] if task_id in TASK_INFO else task_id}"
+        self.setWindowTitle(title_text)
         self.setObjectName("wtmhDashboard")
         self.setStyleSheet(STYLESHEET)
         self._settings = structural_settings_for_task(task_id)
@@ -114,7 +116,7 @@ class TaskSettingsDialog(QDialog):
         card_layout.setContentsMargins(20, 18, 20, 18)
         card_layout.setSpacing(12)
 
-        title = QLabel(f"Task settings — {task_id}")
+        title = QLabel(title_text)
         title.setObjectName("wtmhSectionTitle")
         card_layout.addWidget(title)
 

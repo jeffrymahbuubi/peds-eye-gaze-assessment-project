@@ -7,7 +7,6 @@ from __future__ import annotations
 
 import json
 import os
-from pathlib import Path
 
 import pytest
 
@@ -20,6 +19,7 @@ import src.ui.report_flow as report_flow_module
 import src.ui.run_flow as run_flow_module
 from src.data.report_cache import REPORT_FILENAME, ReportError
 from src.engine import subject_tests as store  # by module: pytest would try to collect Test* names
+from src.engine.run_paths import new_run_dir
 from src.engine.run_result import DISCARD, SAVE, SAVE_AND_VIEW
 from src.engine.session_files import SessionDiscardError
 from src.ui.dashboard_flow import Flow
@@ -86,7 +86,7 @@ def test_save_links_the_run_locks_the_test_and_returns_to_the_list(rig):
     finish_trials(app, pointing)
     saved = only_test(win)
     assert saved.status == "done" and saved.outcome == "completed"
-    assert saved.session_dir == folder.name and saved.completed_trials == saved.planned_trials == 1
+    assert saved.run_dir == f"runs/click_grid/{folder.name}" and saved.completed_trials == saved.planned_trials == 1
     assert win.flow is Flow.IDLE and win.stack.currentIndex() == 1 and win.stack.count() == 2
     assert win.run_flow.app is None and win.run_flow.page is None
     assert win.test_list_page.selected_test().test_id == test.test_id
@@ -114,7 +114,8 @@ def test_the_saved_runs_metadata_names_the_test_and_how_it_ended(rig):
     assert meta["config_name"] == "Fast hover" and meta["settings"]["config_name"] == "Fast hover"
     assert meta["outcome"] == "completed" and meta["ended_by"] == "finished"
     assert meta["planned_trials"] == meta["completed_trials"] == 1 == saved.completed_trials
-    assert saved.session_dir == folder.name == meta["session_id"]
+    assert saved.run_dir == f"runs/click_grid/{folder.name}"
+    assert meta["session_id"] == f"click_grid_{folder.name}_{test.test_id}"  # H3: no subject in it
 
 
 def test_save_caches_the_report_in_the_run_folder(rig):
@@ -182,12 +183,12 @@ def test_discard_deletes_the_folder_and_leaves_the_test_not_done_and_runnable(ri
     finish_trials(app, pointing)
     assert not folder.exists() and run_dirs(win) == []
     after = only_test(win)
-    assert after.status == "not_done" and after.session_dir is None and after.completed_at is None
+    assert after.status == "not_done" and after.run_dir is None and after.completed_at is None
     assert win.flow is Flow.IDLE and win.test_list_page.selected_test().test_id == test.test_id
     assert win.test_list_page.run_button.isEnabled() and win.test_list_page.configure_button.isEnabled()
-    # The run number is free again.
+    # The minute is free again: the next run does not need a collision suffix.
     open_start(win, after)
-    assert start_run(win, mouse).metadata.session_id.endswith("_run1")
+    assert not start_run(win, mouse).recorder.session_dir.name.endswith("_2")
 
 
 def test_the_report_is_built_only_for_a_saved_run_never_for_a_discarded_one(rig, monkeypatch):
@@ -314,12 +315,11 @@ def test_a_real_locked_test_at_save_time_is_reported_not_raised(rig):
     answers.install(win.run_flow)
     test, app = begin(win, mouse)
     folder = app.recorder.session_dir
-    other = Path(win.output_root) / "2026-10-07_TESTING_click_grid_run9"
-    other.mkdir()
+    other = new_run_dir(win.output_root, SUBJECT, "click_grid")
     store.record_result(win.output_root, SUBJECT, test.test_id, session_dir=other, planned_trials=1, completed_trials=1)
     finish_trials(app, pointing)  # the test was saved from elsewhere meanwhile
     assert folder.is_dir()
-    assert only_test(win).session_dir == other.name  # the earlier link is untouched
+    assert only_test(win).run_dir == f"runs/click_grid/{other.name}"  # the earlier link is untouched
     ((title, text),) = answers.told
     assert title == "Results not saved" and "already has a result" in text
 

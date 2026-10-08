@@ -9,7 +9,6 @@ import csv
 
 import pytest
 
-from src.data.recorder import SessionRecorder
 from src.data.schema import SessionMetadata
 from src.engine.feedback import NullFeedback
 from src.inputs.base import Pointer
@@ -17,6 +16,7 @@ from src.inputs.eye_input import DwellConfig, DwellSelector
 from src.inputs.switch_input import SwitchInput
 from src.tasks.base_task import BaseTask, Phase, TargetSpec
 from src.tasks.switch_select import SWITCH_FALLBACK_MS, PointerTrace
+from tests.recorder_helpers import recorder_in
 
 MS = 1_000_000
 
@@ -459,7 +459,7 @@ def test_the_click_counts_reach_trials_csv(tmp_path):
     task.update(20 * MS, at(OFF, clicked=True))
     task.update(40 * MS, at(ON, clicked=True))
     meta = SessionMetadata(subject_id="P001", session_id="switch_rows", started_ns=0)
-    with SessionRecorder(meta, output_root=tmp_path) as recorder:
+    with recorder_in(tmp_path, meta) as recorder:
         path = recorder.write_trials(task.trials)
     with path.open(encoding="utf-8") as fh:
         (row,) = list(csv.DictReader(fh))

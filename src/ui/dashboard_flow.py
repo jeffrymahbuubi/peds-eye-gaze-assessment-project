@@ -7,8 +7,8 @@ locked (R11: configure, start, practice, run, finishing, report) and, while a ca
 on screen (Preview, Practice, a recorded run and its end dialogs), the title bar is
 hidden so the canvas fills the window above the run bar (HC8).
 
-:class:`TitleBar` is the brand strip with the nav buttons ``1 · Setup`` / ``2 · Tests``
-(R11: the per-test report replaced the old ``3 · Results`` tab). It has one lock,
+:class:`TitleBar` is the brand strip with the nav buttons ``Setup`` / ``Tests``
+(R11: the per-test report replaced the old ``Results`` tab). It has one lock,
 :meth:`TitleBar.set_locked`, which :meth:`DashboardWindow._set_nav_locked` calls, and one
 signal, ``navRequested(index)``; the window decides whether to honour it.
 
@@ -25,13 +25,12 @@ from PySide6.QtCore import Qt, Signal
 from PySide6.QtGui import QPixmap
 from PySide6.QtWidgets import QHBoxLayout, QLabel, QPushButton, QWidget
 
-from ..engine.config import load_default
 from ..engine.subject_tests import SubjectTest, list_tests
 
 SETUP_INDEX = 0
 TESTS_INDEX = 1
 
-NAV_LABELS = ("1 · Setup", "2 · Tests")
+NAV_LABELS = ("Setup", "Tests")
 
 
 class Flow(Enum):
@@ -66,12 +65,6 @@ def find_test(window, test_id: str) -> SubjectTest | None:
         if test.test_id == test_id:
             return test
     return None
-
-
-def output_root_from_config() -> str:
-    """Where sessions, saved settings and the Test List live: ``recording.output_root``
-    of the default config, the same place the Setup page and every run read."""
-    return str(load_default().get("recording", {}).get("output_root", "sessions"))
 
 
 class TitleBar(QWidget):

@@ -64,10 +64,10 @@ def test_measured_alert_text_says_when_per_point_details_are_missing():
     from src.ui.setup_page import calibration_measured_alert_text
 
     assert calibration_measured_alert_text(VALID, "12px") == (
-        "Calibration measured — 5 points, mean error 12px, valid."
+        "Calibration measured: 5 points, mean error 12px, valid."
     )
     assert calibration_measured_alert_text(VALID_NO_POINTS, "12px") == (
-        "Calibration measured — 5 points, mean error 12px, valid. Per-point details were not received — if this repeats, close and reopen Gazepoint Control, then calibrate again."
+        "Calibration measured: 5 points, mean error 12px, valid. Per-point details were not received. If this repeats, close and reopen Gazepoint Control, then calibrate again."
     )
 
 

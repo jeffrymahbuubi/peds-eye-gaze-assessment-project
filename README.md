@@ -21,8 +21,8 @@ See `../303bfbea-eye_gaze_assessment_v1_plan.md` for the full design plan.
   import PySide6.
 - **Therapist-editable YAML config** for target size, trial count, timeout,
   dwell threshold, theme (plan US-02).
-- **Structured output** per session: `metadata.json`, `trials.csv`,
-  `gaze_stream.csv`, `events.jsonl` (plan §5.7).
+- **Structured output** per run: `metadata.json`, `trials.csv`,
+  `gaze_stream.csv`, `events.jsonl` (plan §5.7), in one folder per child (below).
 - **Pointer and Selection per test** (`docs/specs/SPEC-input-selection-and-follow.md`):
   the pointer is the child's **Gaze** or the **Mouse**; a target is selected by **Dwell** or
   by a **Switch**. The switch is a left mouse press on the canvas (the USB switch the lab uses
@@ -58,7 +58,7 @@ Presentation (PySide6)         src/ui/, src/app.py         [gui extra only]
         │
 Task Engine ── Input Manager   src/tasks/, src/engine/, src/inputs/
         │
-Data Recorder ── Storage       src/data/  → sessions/<id>/
+Data Recorder ── Storage       src/data/  → sessions/<subject>/runs/<task>/<date_time>/
 ```
 
 Full detail in [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md) and the data
@@ -110,7 +110,7 @@ python tools/make_replay_fixture.py --task follow_moving      # -> tests/fixture
 # run a full "calibrate → task → export" loop against the fixture
 python -m src.main --task click_static --replay tests/fixtures/gaze_replay_click_static.jsonl
 
-# → sessions/replay_click_static_REPLAY/{trials.csv, gaze_stream.csv, ...}
+# → sessions/_system/replay/replay_click_static_REPLAY/{trials.csv, gaze_stream.csv, ...}
 ```
 
 Any of the four tasks works: `--task click_grid|follow_moving|scanning` — use
@@ -166,7 +166,7 @@ are reused across every test in the session.
 1. **Setup.** Enter the Subject ID, connect to the tracker and calibrate once;
    **Continue to Tests** opens the Tests tab.
 2. **Tests.** Each subject has their own Test List, saved on disk
-   (`sessions/_tests/<subject>/`), so it is still there after a restart and
+   (`sessions/<subject folder>/tests/`), so it is still there after a restart and
    whenever the same Subject ID is typed again. **Add New Test** (a task, 1-10
    copies), **Configure Test**, **Run Test**, **View Report**, **Copy Test**
    (an unrun copy with a new random target order) and **Delete Test**. A test
@@ -190,12 +190,33 @@ are reused across every test in the session.
    a symbol legend, fixation scanpath and heat map, eye metrics, trial-by-trial
    table whose selected trial shows the gaze path smoothed like the on-screen
    cursor). Times read in seconds. **Print Report** writes an A4 portrait PDF, by
-   default into the run's own folder. The Test Name, Evaluator and Notes are
-   edited here.
+   default into the subject's `reports/` folder as `<date>_<test name>.pdf`. The
+   Test Name, Evaluator and Notes are edited here.
 
-Each recorded run is its own `<date>_<subject>_<task>_run<N>` folder under
-`sessions/`, so a repeat of the same task by the same subject on the same day is
-never overwritten; a discarded run leaves no folder. This is an additional
+**One folder per child.** Everything about one child sits in that child's folder
+under `sessions/` (see `docs/DATA_SCHEMA.md` for the full tree):
+
+```
+sessions/
+  _system/                 diagnostics logs and headless replays (no child in them)
+  P001/                    the Subject ID, or S-0003 (Anonymous code, below)
+    subject.json  calibrations/  settings/  tests/  reports/
+    runs/click_grid/2026-10-07_1432/     one folder per recorded run
+```
+
+A repeat of the same task by the same child is never overwritten (two runs in
+the same minute get `_2`); a discarded run leaves no folder. The Tests tab's
+**Open Subject Folder** button opens the child's folder in Explorer. On the Setup
+page a **new** Subject ID can choose **Folder name: Anonymous code**: the folder
+is then named `S-0001`, `S-0002` ... (never reused) so Explorer and zip file names
+do not show the ID. The files inside still contain the Subject ID, so this is not
+de-identification. Keep the program folder near the drive root: a run whose
+longest path would pass 240 characters is refused on the Start page.
+
+**Old layout (v1.0.0 and the feature branch before this change):** not read and
+not migrated. Old-layout folders in `sessions/` are ignored; delete them by hand.
+
+The dashboard is an additional
 entry point alongside `--task ... --gui` above, not a replacement — the two
 don't interact.
 
@@ -206,7 +227,7 @@ fresh machine defaults to `127.0.0.1`).
 ## Testing `--calibration-file` without a device
 
 `--calibration-file PATH` skips a fresh calibration and reuses a previously
-saved `calibration.json` (auto-written to `<session_dir>/calibration.json`
+saved `calibration.json` (auto-written to `<run folder>/calibration.json`
 whenever a real calibration actually runs — see SPEC-2026-09-02.md item 7).
 There are two things to test here, and only one needs a stand-in for the
 device:
@@ -240,11 +261,11 @@ python tools/fake_gazepoint_server.py
 # terminal 2 — temporarily point gazepoint.host at 127.0.0.1 first (see the
 # skip-worktree section below), then run WITHOUT --replay:
 python -m src.main --task click_static --gui --subject DEMO01
-# → sessions/<date>_DEMO01_click_static/calibration.json should now exist
+# → sessions/DEMO01/runs/click_static/<date_time>/calibration.json should now exist
 
 # reuse it on a later launch:
 python -m src.main --task click_static --gui --subject DEMO01 \
-  --calibration-file sessions/<date>_DEMO01_click_static/calibration.json
+  --calibration-file sessions/DEMO01/runs/click_static/<date_time>/calibration.json
 ```
 
 Point `gazepoint.host` back at the real device's address when done. The fake
@@ -335,8 +356,8 @@ re-run the task to feel the new pacing. Full diagnosis behind these settings:
 ## Tests & lint
 
 ```bash
-pytest        # 2545 passed, 2 skipped, all headless (offscreen Qt, no device) on the lab machine
-              # (2540 passed in a clean checkout); the few tests that read the lab's own
+pytest        # 2669 passed, 2 skipped in a clean checkout, all headless (offscreen Qt, no
+              # device); the few tests that read the lab's own
               # skip-worktree configs/default.yaml (e.g.
               # test_config_merges_task_over_default, the smoothing-alpha 0.22 checks in
               # test_task_config_page / test_config_flow) only agree on the machine whose file

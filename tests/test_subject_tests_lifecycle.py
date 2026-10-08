@@ -9,12 +9,13 @@ from __future__ import annotations
 
 import inspect
 import json
-import sys
 from pathlib import Path
 
 import pytest
 
+from src.engine import subject_store
 from src.engine import subject_tests as store
+from src.engine.run_paths import new_run_dir
 from src.engine.subject_tests import (
     ACTION_ADD,
     ACTION_CONFIGURE,
@@ -37,13 +38,13 @@ SUBJECT = "TESTING"
 RECORD_KEYS = {
     "schema_version", "test_id", "subject_id", "name", "task_id", "created_at", "origin",
     "configuration", "notes", "evaluator", "seed", "status", "completed_at", "planned_trials",
-    "completed_trials", "outcome", "session_dir",
+    "completed_trials", "outcome", "run_dir",
 }  # fmt: skip
 
 
 @pytest.fixture(autouse=True)
 def _no_sleep(monkeypatch):
-    monkeypatch.setattr(store.time, "sleep", lambda _s: None)
+    monkeypatch.setattr(subject_store.time, "sleep", lambda _s: None)
 
 
 @pytest.fixture
@@ -51,9 +52,9 @@ def root(tmp_path) -> Path:
     return tmp_path / "sessions"
 
 
-def _session_folder(root: Path, name: str = "2026-10-06_TESTING_click_grid_run1") -> Path:
-    folder = root / name
-    folder.mkdir(parents=True, exist_ok=True)
+def _session_folder(root: Path) -> Path:
+    """A new run folder of ``SUBJECT`` (``<subject>/runs/click_grid/<date_time>``) with a file in it."""
+    folder = new_run_dir(root, SUBJECT, "click_grid")
     (folder / "trials.csv").write_text("trial_id\n0\n", encoding="utf-8")
     return folder
 
@@ -83,7 +84,6 @@ def test_tests_of_one_subject_never_appear_for_another(root):
     assert list_tests(root, "C").tests == []
 
 
-@pytest.mark.skipif(sys.platform != "win32", reason="relies on a case-insensitive filesystem")
 def test_ids_differing_only_in_case_share_one_list(root):
     create_test(root, "jeffry", "click_grid")
     create_test(root, "JEFFRY", "click_grid")
@@ -114,7 +114,7 @@ def test_a_run_test_is_locked_but_name_notes_evaluator_stay_editable(root, plann
         update_test(root, SUBJECT, test.test_id, configuration={"name": "X", "structural": {}, "live": {}})
     with pytest.raises(store.TestLockedError):
         record_result(
-            root, SUBJECT, test.test_id, session_dir=_session_folder(root, "other_run2"),
+            root, SUBJECT, test.test_id, session_dir=_session_folder(root),
             planned_trials=3, completed_trials=3,
         )  # fmt: skip
     assert rename_test(root, SUBJECT, test.test_id, "Renamed").name == "Renamed"
@@ -122,7 +122,7 @@ def test_a_run_test_is_locked_but_name_notes_evaluator_stay_editable(root, plann
     locked = list_tests(root, SUBJECT).tests[0]
     assert locked.configuration["name"] == "Wide"  # unchanged by the refused update
     assert (locked.name, locked.notes, locked.evaluator) == ("Renamed", "n", "e")
-    assert locked.session_dir == "2026-10-06_TESTING_click_grid_run1"  # unchanged by the refused result
+    assert locked.run_dir == test.run_dir  # unchanged by the refused result
 
 
 def test_a_not_done_test_can_be_reconfigured(root):
@@ -134,7 +134,7 @@ def test_a_not_done_test_can_be_reconfigured(root):
     assert update_test(root, SUBJECT, test.test_id).configuration == new  # no change requested
 
 
-def test_record_result_sets_status_outcome_counts_date_and_folder_name(root):
+def test_record_result_sets_status_outcome_counts_date_and_run_link(root):
     test = create_test(root, SUBJECT, "click_grid")
     folder = _session_folder(root)
     done = record_result(
@@ -142,7 +142,7 @@ def test_record_result_sets_status_outcome_counts_date_and_folder_name(root):
     )
     assert (done.status, done.outcome) == ("done", "completed")
     assert (done.planned_trials, done.completed_trials) == (6, 6)
-    assert done.session_dir == folder.name  # the NAME, never a path
+    assert done.run_dir == f"runs/click_grid/{folder.name}"  # relative to the subject folder, never absolute
     assert done.completed_at and done.completed_at[:4].isdigit()
     assert list_tests(root, SUBJECT).tests == [done]
 
@@ -156,7 +156,7 @@ def test_record_result_sets_status_outcome_counts_date_and_folder_name(root):
     )  # fmt: skip
 
 
-def test_record_result_refuses_a_folder_outside_the_output_root(root, tmp_path):
+def test_record_result_refuses_a_folder_that_is_not_one_of_the_subjects_runs(root, tmp_path):
     test = create_test(root, SUBJECT, "click_grid")
     outside = tmp_path / "elsewhere" / "run1"
     outside.mkdir(parents=True)
@@ -189,7 +189,7 @@ def test_copy_of_a_done_test_is_an_unrun_copy(root):
     assert copied.test_id != original.test_id
     assert copied.name == "Grid Click 2" and copied.origin == "copied"
     assert copied.status == "not_done" and copied.outcome is None
-    assert copied.session_dir is None and copied.completed_at is None
+    assert copied.run_dir is None and copied.completed_at is None
     assert copied.planned_trials is None and copied.completed_trials is None
     assert copied.notes == ""
     assert copied.evaluator == "Dr. Lin"  # 4A.6 lists notes, not the evaluator, among the cleared
@@ -223,7 +223,7 @@ def test_copy_names(root):
 
 def test_delete_moves_the_record_and_never_touches_session_data(root):
     test = _done_test(root)
-    folder = root / test.session_dir
+    folder = store.run_folder_of(root, test)
     folder_before = {p.name: p.read_bytes() for p in folder.iterdir()}
     keep = create_test(root, SUBJECT, "scanning")
 
@@ -303,15 +303,16 @@ def test_garbage_files_are_skipped_counted_and_never_raise(root):
     assert sorted(p.name for p in load.unreadable) == sorted([*bad, "t_2222222222.json"])
 
 
-def test_unknown_status_reads_as_done_with_a_session_else_not_done(root):
+def test_unknown_status_reads_as_done_with_a_run_else_not_done(root):
     test = create_test(root, SUBJECT, "click_grid")
     path = subject_tests_dir(root, SUBJECT) / f"{test.test_id}.json"
     data = json.loads(path.read_text("utf-8"))
     path.write_text(json.dumps({**data, "status": "mystery"}), encoding="utf-8")
     assert list_tests(root, SUBJECT).tests[0].status == "not_done"
-    path.write_text(json.dumps({**data, "status": "mystery", "session_dir": "some_run1"}), encoding="utf-8")
+    link = "runs/click_grid/2026-10-06_1200"
+    path.write_text(json.dumps({**data, "status": "mystery", "run_dir": link}), encoding="utf-8")
     reread = list_tests(root, SUBJECT).tests[0]
-    assert (reread.status, reread.outcome, reread.session_dir) == ("done", "completed", "some_run1")
+    assert (reread.status, reread.outcome, reread.run_dir) == ("done", "completed", link)
 
 
 def test_missing_optional_fields_read_with_defaults(root):
@@ -328,4 +329,4 @@ def test_missing_optional_fields_read_with_defaults(root):
 def test_missing_folder_is_simply_no_tests(root):
     load = list_tests(root, "NEVER_SEEN")
     assert load.tests == [] and load.unreadable == []
-    assert not (root / "_tests").exists()  # listing must not create anything
+    assert not root.exists()  # listing must not create anything

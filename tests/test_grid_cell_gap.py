@@ -128,8 +128,8 @@ def test_presets_and_choices_match_the_spec():
     assert GAP_PRESETS_DEG == {"standard": None, "wide": 1.0, "extra_wide": 2.0}
     assert GAP_CHOICES == (
         ("standard", "Standard"),
-        ("wide", "Wide — 1°"),
-        ("extra_wide", "Extra wide — 2°"),
+        ("wide", "Wide (1°)"),
+        ("extra_wide", "Extra wide (2°)"),
     )
 
 
@@ -736,8 +736,8 @@ def test_gap_items_show_the_px_it_comes_to_on_this_monitor(qapp, lab_screen):
     combo = dialog._controls["grid.gap"]
     assert [combo.itemText(i) for i in range(combo.count())] == [
         "Standard",
-        "Wide — 1° (≈41 px)",
-        "Extra wide — 2° (≈82 px)",
+        "Wide (1°, about 41 px)",
+        "Extra wide (2°, about 82 px)",
     ]
     assert [combo.itemData(i) for i in range(combo.count())] == ["standard", "wide", "extra_wide"]
 

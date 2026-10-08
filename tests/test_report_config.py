@@ -4,13 +4,14 @@ from __future__ import annotations
 
 import copy
 
-from src.data.report_config import DASH, build_config_rows, setting
+from src.data.report_config import build_config_rows, setting
 from src.data.report_geometry import Geometry
+from src.data.report_util import NOT_RECORDED
 from tests.report_fixtures import RIG_META
 
 LABELS = [
-    "Configuration name", "Task", "Input", "Trials (planned)", "Selection", "Target size",
-    "Layout", "Maximum time per trial", "Pause between trials", "Theme", "Gaze cursor shown",
+    "Configuration name", "Task", "Input", "Number of trials", "Selection", "Target size",
+    "Layout", "Trial timeout", "Inter-trial interval", "Theme", "Gaze cursor",
     "Feedback", "Gaze smoothing", "Display", "Viewing distance", "Calibration", "Canvas",
 ]
 
@@ -26,17 +27,17 @@ def test_a_full_run_gives_the_17_rows_in_order_with_the_values_it_used():
     assert dict(out) == {
         "Configuration name": "Standard",
         "Task": "Grid Click",
-        "Input": "Gaze (GP3HD, 150 Hz) · Dwell 0.8 s",
-        "Trials (planned)": "6",
-        "Selection": "Dwell 0.8 s, refractory 0.5 s",
-        "Target size": "Medium (5°), 103 px radius",
+        "Input": "Gaze (GP3HD, 150 Hz), Dwell 0.8 s",
+        "Number of trials": "6",
+        "Selection": "Dwell, threshold 0.8 s, refractory 0.5 s",
+        "Target size": "Medium (5°, 207 px)",
         "Layout": "3×3 grid, gap Standard",
-        "Maximum time per trial": "8 s",
-        "Pause between trials": "0.8 s",
+        "Trial timeout": "8 s",
+        "Inter-trial interval": "0.8 s",
         "Theme": "Forest",
-        "Gaze cursor shown": "Yes",
-        "Feedback": "Sound on, sparkle on",
-        "Gaze smoothing": "Smoothing α 0.22, jitter tolerance 40 px",
+        "Gaze cursor": "Shown",
+        "Feedback": "Hit sound on, miss sound on",
+        "Gaze smoothing": "On, alpha 0.22, jitter tolerance 40 px",
         "Display": "1920×1080 @ 100% (standard)",
         "Viewing distance": "650 mm",
         "Calibration": "5 points, mean error 21.3 px (0.52°), measured",
@@ -44,11 +45,11 @@ def test_a_full_run_gives_the_17_rows_in_order_with_the_values_it_used():
     }
 
 
-def test_nothing_known_is_17_dashes_not_17_guesses():
+def test_nothing_known_is_17_not_recorded_not_17_guesses():
     out = build_config_rows(None, None)
     assert [label for label, _ in out] == LABELS
-    assert {v for _, v in out} == {DASH}
-    assert dict(build_config_rows({}, {}))["Task"] == DASH
+    assert {v for _, v in out} == {NOT_RECORDED}
+    assert dict(build_config_rows({}, {}))["Task"] == NOT_RECORDED
 
 
 def test_the_task_comes_from_the_argument_or_metadata_tasks():
@@ -60,12 +61,12 @@ def test_the_task_comes_from_the_argument_or_metadata_tasks():
 
 def test_the_resolved_planned_count_wins_over_the_requested_one():
     meta = dict(RIG_META, planned_trials=18)
-    assert rows(meta)["Trials (planned)"] == "18"
+    assert rows(meta)["Number of trials"] == "18"
 
 
 def test_a_capped_target_says_so():
     out = rows(shrunk={"requested_px": 165.6, "used_px": 53.3, "rows": 6, "cols": 6})
-    assert out["Target size"] == "Medium (5°), 103 px radius, capped to 53 px to fit"
+    assert out["Target size"] == "Medium (5°, 207 px), capped to 53 px to fit"
 
 
 def test_a_legacy_folder_with_an_explicit_radius_shows_it():
@@ -89,7 +90,7 @@ def test_layout_per_task():
     move = {"settings": {"live": {"motion.speed_frac_per_s": 0.2},
                          "structural": {"motion": {"path": "diagonal_tlbr", "select_window_ms": 2500}}}}
     assert rows(move, task_id="follow_moving")["Layout"] == (
-        "Diagonal (top-left to bottom-right) path, 20% of the width per second, "
+        "Diagonal, top-left to bottom-right path, 20% of the width per second, "
         "selection window 2.5 s"
     )
     static = {"settings": {"structural": {"target": {"positions": [[0.1, 0.1]] * 8}}}}
@@ -98,16 +99,16 @@ def test_layout_per_task():
 
 def test_input_and_selection_for_the_switch_modes():
     switch = dict(RIG_META, input_mode="switch")
-    assert rows(switch)["Input"] == "Mouse · Switch"
+    assert rows(switch)["Input"] == "Mouse, Switch"
     assert rows(switch)["Selection"] == "Switch press (mouse/switch button), refractory 0.5 s"
     both = dict(RIG_META, input_mode="gaze_switch")
-    assert rows(both)["Input"] == "Gaze (GP3HD, 150 Hz) · Switch"
+    assert rows(both)["Input"] == "Gaze (GP3HD, 150 Hz), Switch"
     assert rows(both)["Selection"] == "Switch press (mouse/switch button), refractory 0.5 s"
 
 
 def test_the_device_rate_falls_back_to_the_measured_one():
     meta = dict(RIG_META, gazepoint_rate_hz=None, measured_sample_rate_hz=148.5)
-    assert rows(meta)["Input"] == "Gaze (GP3HD, 148.5 Hz) · Dwell 0.8 s"
+    assert rows(meta)["Input"] == "Gaze (GP3HD, 148.5 Hz), Dwell 0.8 s"
 
 
 def test_feedback_and_smoothing_variants():
@@ -116,10 +117,12 @@ def test_feedback_and_smoothing_variants():
                                                   "particles": False}
     meta["settings"]["live"]["dwell.smoothing.enabled"] = False
     out = rows(meta)
-    assert out["Feedback"] == "Sound hit only, sparkle off"
-    assert out["Gaze smoothing"] == "Smoothing off, jitter tolerance 40 px"
-    meta["settings"]["structural"]["feedback"] = {"hit_sound": False, "miss_sound": False}
-    assert rows(meta)["Feedback"] == "Sound off, sparkle off"
+    assert out["Feedback"] == "Hit sound on, miss sound off"  # no sparkle: it has no control
+    assert out["Gaze smoothing"] == "Off, jitter tolerance 40 px"
+    meta["settings"]["structural"]["feedback"] = {"hit_sound": False, "miss_sound": False, "target_glow": True}
+    assert rows(meta)["Feedback"] == "Hit sound off, miss sound off, glow on"
+    meta["settings"]["structural"]["feedback"] = {"particles": True}
+    assert rows(meta)["Feedback"] == NOT_RECORDED  # the sparkle alone says nothing the page shows
 
 
 def test_theme_may_be_a_name_or_a_block():

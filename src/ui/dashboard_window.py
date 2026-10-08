@@ -23,6 +23,7 @@ opt-in entry point (``--dashboard``), not a replacement.
 
 from __future__ import annotations
 
+from PySide6.QtGui import QFont
 from PySide6.QtWidgets import (
     QApplication,
     QMainWindow,
@@ -34,14 +35,15 @@ from PySide6.QtWidgets import (
 
 from .. import __version__
 from ..engine.config import CONFIG_ROOT
+from ..engine.subject_store import output_root
 from .config_flow import ConfigFlow
 from .dashboard_flow import (
     SETUP_INDEX,
     TESTS_INDEX,
     Flow,
     TitleBar,
-    output_root_from_config,
 )
+from .design_tokens import FONT_FAMILY, TYPE_BODY
 from .report_flow import ReportFlow
 from .run_flow import RunFlow
 from .setup_page import SetupPage
@@ -64,7 +66,7 @@ class DashboardWindow(QMainWindow):
         self.flow = Flow.IDLE
         # Where tests, sessions and saved settings live; the Test List and every flow
         # read it from here (a test can point it at a scratch folder).
-        self.output_root = output_root_from_config()
+        self.output_root = output_root()
 
         central = QWidget(self)
         central.setObjectName("wtmhDashboard")
@@ -126,7 +128,9 @@ class DashboardWindow(QMainWindow):
 
     def _reload_tests(self) -> None:
         """Read the typed Subject ID's tests from disk (4A.8: never kept in memory)."""
-        self.test_list_page.set_subject(self.setup_page.subject_id(), self.output_root)
+        self.test_list_page.set_subject(
+            self.setup_page.subject_id(), self.output_root, self.setup_page.folder_mode()
+        )
 
     def show_tests(self, select: str | None = None) -> None:
         """Back to the Tests tab after a flow ends: flow ``IDLE``, the list reloaded
@@ -147,6 +151,15 @@ class DashboardWindow(QMainWindow):
         if not self.setup_page.can_continue():
             return
         self._go_to_tab(TESTS_INDEX)
+
+
+def apply_application_font(app: QApplication) -> None:
+    """The body step of the type scale (SPEC-design-system-phase1.md H4): Segoe UI at 14 px.
+    Set once on the application, because a style sheet's font does not reach every child
+    (dialogs, the run bar, the canvas); only the larger roles have a QSS rule."""
+    font = QFont(FONT_FAMILY)
+    font.setPixelSize(TYPE_BODY)
+    app.setFont(font)
 
 
 def run_dashboard() -> int:
@@ -179,6 +192,7 @@ def run_dashboard() -> int:
         # gives every not-yet-explicitly-styled corner a sane light
         # fallback instead of near-black.
         app.setPalette(style.standardPalette())
+        apply_application_font(app)
     window = DashboardWindow()
     # showMaximized(), not show() (SPEC-live-settings-panel.md S10.8). The
     # old HUD column (gone, SPEC-compass-task-flow.md 4C.7) could not shrink

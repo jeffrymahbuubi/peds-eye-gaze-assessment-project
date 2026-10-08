@@ -184,9 +184,9 @@ def test_the_size_labels_carry_the_px_of_this_monitor(qapp):
     page, _ = _page("click_grid")
     medium = page.findChild(QRadioButton, "cfg_target_size_medium")
     diameter = round(2 * radius_px_for("medium", MM_PER_PX, DISTANCE))
-    assert medium.text() == f"Medium — 5° (≈{diameter} px)"
+    assert medium.text() == f"Medium (5°, about {diameter} px)"
     wide = page.findChild(QRadioButton, "cfg_grid_gap_wide")
-    assert wide.text() == f"Wide — 1° (≈{round(gap_px_for('wide', MM_PER_PX, DISTANCE))} px)"
+    assert wide.text() == f"Wide (1°, about {round(gap_px_for('wide', MM_PER_PX, DISTANCE))} px)"
     assert page.findChild(QRadioButton, "cfg_grid_gap_standard").text() == "Standard"
 
 
@@ -211,18 +211,18 @@ def _px_labels(page):
 def test_choice_label_shows_physical_px_when_given_a_device_pixel_ratio():
     mm_per_logical_px = MM_PER_PX * 1.5  # the 150 % screen
     logical = 2 * radius_px_for("small", mm_per_logical_px, DISTANCE)
-    assert choice_label("target.size", "small", "Small — 3°", mm_per_logical_px, DISTANCE) == (
-        f"Small — 3° (≈{round(logical)} px)"  # no ratio: the logical px, as before (82)
+    assert choice_label("target.size", "small", "Small (3°)", mm_per_logical_px, DISTANCE) == (
+        f"Small (3°, about {round(logical)} px)"  # no ratio: the logical px, as before (82)
     )
-    assert choice_label("target.size", "small", "Small — 3°", mm_per_logical_px, DISTANCE, 1.5) == (
-        f"Small — 3° (≈{round(logical * 1.5)} px)"  # the panel's px (123)
+    assert choice_label("target.size", "small", "Small (3°)", mm_per_logical_px, DISTANCE, 1.5) == (
+        f"Small (3°, about {round(logical * 1.5)} px)"  # the panel's px (123)
     )
     gap = gap_px_for("extra_wide", mm_per_logical_px, DISTANCE)
-    assert choice_label("grid.gap", "extra_wide", "Extra wide — 2°", mm_per_logical_px, DISTANCE, 1.5) == (
-        f"Extra wide — 2° (≈{round(gap * 1.5)} px)"
+    assert choice_label("grid.gap", "extra_wide", "Extra wide (2°)", mm_per_logical_px, DISTANCE, 1.5) == (
+        f"Extra wide (2°, about {round(gap * 1.5)} px)"
     )
-    assert choice_label("layout.size", "large", "Large — 8°", mm_per_logical_px, DISTANCE, 1.5).endswith(
-        f"(≈{round(2 * radius_px_for('large', mm_per_logical_px, DISTANCE) * 1.5)} px)"
+    assert choice_label("layout.size", "large", "Large (8°)", mm_per_logical_px, DISTANCE, 1.5).endswith(
+        f"about {round(2 * radius_px_for('large', mm_per_logical_px, DISTANCE) * 1.5)} px)"
     )
     # A standard gap has no angle, and any other key is returned as it is.
     assert choice_label("grid.gap", "standard", "Standard", mm_per_logical_px, DISTANCE, 1.5) == "Standard"
@@ -243,12 +243,12 @@ def test_the_labels_show_physical_px_at_a_scaled_display(qapp):
     # at 150 %, and that number is the physical one (not the 82 logical px of the 150 % screen).
     assert _px_labels(scaled) == _px_labels(unscaled)
     small = scaled.findChild(QRadioButton, "cfg_target_size_small").text()
-    assert small == f"Small — 3° (≈{round(2 * radius_px_for('small', MM_PER_PX, DISTANCE))} px)"
+    assert small == f"Small (3°, about {round(2 * radius_px_for('small', MM_PER_PX, DISTANCE))} px)"
     logical = round(2 * radius_px_for("small", MM_PER_PX * 1.5, DISTANCE))
-    assert f"≈{logical} px" not in small and logical < round(logical * 1.5)
+    assert f"about {logical} px" not in small and logical < round(logical * 1.5)
     scanning = TaskConfigPage("scanning", load_task_config("scanning"), screen=SCALED_SCREEN)
     large = scanning.findChild(QRadioButton, "cfg_layout_size_large").text()
-    assert large == f"Large — 8° (≈{round(2 * radius_px_for('large', MM_PER_PX, DISTANCE))} px)"
+    assert large == f"Large (8°, about {round(2 * radius_px_for('large', MM_PER_PX, DISTANCE))} px)"
 
 
 def test_the_cards_scroll_above_a_pinned_footer(qapp):
@@ -294,7 +294,7 @@ def test_a_new_test_opens_with_standard_and_the_defaults(qapp, task_id):
 def test_the_header_names_the_test_and_the_subject(qapp):
     page, _ = _page("click_grid")
     assert page.title_label.text() == "Grid Click 1 Configuration"
-    assert page.subtitle_label.text() == "Grid Click · Subject TESTING"
+    assert page.subtitle_label.text() == "Grid Click, subject TESTING"
 
 
 # -- AB4: the values are what a run and the dialog use -----------------------------------------------
@@ -603,20 +603,20 @@ def test_values_a_hand_edited_file_cannot_give_fall_back_to_the_defaults(qapp):
     assert page.collect_values() == settings_snapshot("click_grid", config)
 
 
-# -- the modified line, dirty tracking -------------------------------------------------------------------------
+# -- the "Changed from" line, dirty tracking -------------------------------------------------------------------------
 
 
-def test_the_modified_line_names_the_loaded_configuration(qapp):
+def test_the_changed_from_line_names_the_loaded_configuration(qapp):
     page, _ = _page("click_grid")
     modified = page._form.modified_label
     assert modified.isHidden()
     page._form.controls["trials"].setValue(7)
-    assert not modified.isHidden() and modified.text() == 'Modified from "Standard"'
+    assert not modified.isHidden() and modified.text() == "Changed from Standard"
     page._form.controls["trials"].setValue(18)
     assert modified.isHidden()
     page.load_values(config_name="Large targets", structural={"trials": 9})
     page._form.controls["trials"].setValue(10)
-    assert modified.text() == 'Modified from "Large targets"'
+    assert modified.text() == "Changed from Large targets"
 
 
 def test_dirty_follows_every_kind_of_edit_and_clears_on_load_or_mark_clean(qapp):

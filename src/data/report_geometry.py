@@ -18,7 +18,7 @@ logical), so mixed old and new folders both work.
 
 Pure and Qt-free, like the rest of ``src/data``. Any value a folder lacks stays
 ``None`` and the angle helpers then return ``None`` -- a degree is never guessed
-(the report shows "—"). :meth:`Geometry.for_visuals` is the one exception: the
+(the report shows a dash). :meth:`Geometry.for_visuals` is the one exception: the
 gaze-path thinning and the heat-map blur need *some* scale, so they borrow the
 reference rig's, flagged ``assumed``.
 """

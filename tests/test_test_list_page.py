@@ -19,6 +19,7 @@ from src.engine.subject_tests import (
     STATUS_ENDED_EARLY,
     create_test,
     delete_test,
+    run_folder_of,
     subject_tests_dir,
 )
 from src.ui.test_list_page import NO_SUBJECT_TEXT, NO_TESTS_TEXT
@@ -136,11 +137,11 @@ def test_a_done_test_whose_folder_is_gone_says_so_and_has_no_report(qapp, root):
     page = page_for(root)
     select(page, test.test_id)
     assert page.report_button.isEnabled()
-    (root / test.session_dir).rmdir()
+    run_folder_of(root, test).rmdir()
     page.reload()
     assert page.row_texts()[0][COL_STATUS] == "Done · data missing"
     assert not page.report_button.isEnabled()
-    assert "missing" in page.report_button.toolTip()
+    assert "missing from the subject folder" in page.report_button.toolTip()
     assert page.copy_button.isEnabled() and page.delete_button.isEnabled()
 
 
@@ -376,3 +377,67 @@ def test_date_complete_sorts_with_the_dash_first(qapp, root):
     click_header(page, COL_DATE)
     assert names(page) == ["Later", "Earlier", "Waiting"]
     assert {later.name, earlier.name} <= set(names(page))
+
+
+# -- Open Subject Folder (SPEC-subject-data-layout.md H6, wireframe W2, L5) ---------------------------------------------
+
+
+def test_open_subject_folder_is_off_until_the_subject_has_a_folder(qapp, root):
+    page = page_for(root)  # TESTING has nothing saved yet
+    assert not page.open_folder_button.isEnabled()
+    assert page.open_folder_button.text() == "Open Subject Folder"
+    create_test(root, SUBJECT, "click_grid")
+    page.reload()
+    assert page.open_folder_button.isEnabled()
+
+
+def test_open_subject_folder_is_off_without_a_subject_id(qapp, root):
+    assert not page_for(root, subject="").open_folder_button.isEnabled()
+
+
+def test_open_subject_folder_is_on_whatever_row_is_selected_or_none(qapp, root):
+    create_test(root, SUBJECT, "click_grid")
+    done = done_test(root, "click_static")
+    page = page_for(root)
+    for test_id in (None, done.test_id):
+        if test_id is not None:
+            select(page, test_id)
+        else:
+            page.table.clearSelection()
+        assert page.open_folder_button.isEnabled()
+
+
+def test_open_subject_folder_opens_the_subjects_own_folder(qapp, root):
+    create_test(root, SUBJECT, "click_grid")
+    page = page_for(root)
+    opened = []
+    page._open_folder = lambda path: opened.append(path) or True
+    page.open_folder_button.click()
+    assert opened == [root / SUBJECT]
+
+
+def test_open_subject_folder_opens_the_code_folder_for_an_anonymous_subject(qapp, root):
+    create_test(root, "Maria Lopez", "click_grid", folder_mode="code")
+    page = page_for(root, "maria lopez")
+    opened = []
+    page._open_folder = lambda path: opened.append(path) or True
+    page.open_folder_button.click()
+    assert opened == [root / "S-0001"]
+
+
+def test_open_subject_folder_says_so_when_the_desktop_refuses(qapp, root):
+    create_test(root, SUBJECT, "click_grid")
+    page = page_for(root)
+    page._open_folder = lambda path: False
+    page.open_folder_button.click()
+    assert "Could not open the folder" in page.message_label.text()
+
+
+def test_the_first_test_added_in_the_page_makes_the_folder_in_the_chosen_mode(qapp, root):
+    page = page_for(root, "Ana")
+    page.set_subject("Ana", root, "code")
+    page._choose_new_tests = lambda: ("click_grid", 1)
+    page.add_button.click()
+    assert [p.name for p in root.iterdir() if p.name != "_system"] == ["S-0001"]
+    assert page.open_folder_button.isEnabled()
+    assert names(page) == ["Grid Click 1"]

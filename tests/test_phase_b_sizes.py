@@ -23,7 +23,6 @@ from PySide6.QtGui import QColor, QImage
 from PySide6.QtWidgets import QApplication, QComboBox
 
 from src.app import AssessmentApp
-from src.data.recorder import SessionRecorder
 from src.data.schema import SessionMetadata
 from src.engine.config import deep_merge, load_task_config
 from src.engine.settings_profile import load_settings_profile, save_settings_profile
@@ -50,6 +49,7 @@ from src.ui.settings_registry import (
     structural_settings_for_task,
 )
 from src.ui.task_settings_dialog import TaskSettingsDialog
+from tests.recorder_helpers import recorder_in
 
 FIXTURE = Path(__file__).parent / "fixtures" / "gaze_replay_click_static.jsonl"
 # The lab screen of SPEC S11.1: 0.2745 mm/px at 650 mm gives S 62.0, M 103.4, L 165.6 px.
@@ -195,9 +195,9 @@ def test_size_items_of_every_task_show_degrees_and_the_diameter_on_this_monitor(
         dialog = _dialog(task_id)  # keep it alive: its widgets die with it
         combo = dialog._controls[key]
         assert [combo.itemText(i) for i in range(combo.count())] == [
-            "Small — 3° (≈123 px)",
-            "Medium — 5° (≈205 px)",
-            "Large — 8° (≈328 px)",
+            "Small (3°, about 123 px)",
+            "Medium (5°, about 205 px)",
+            "Large (8°, about 328 px)",
         ]
 
 
@@ -801,7 +801,7 @@ def test_headless_replay_records_target_size_metadata_for_all_four_tasks(tmp_pat
 
 def test_a_real_session_records_the_clamped_positions_and_one_inset_event(tmp_path):
     meta = SessionMetadata(subject_id="P001", session_id="s", started_ns=0)
-    with SessionRecorder(meta, output_root=tmp_path) as recorder:
+    with recorder_in(tmp_path, meta) as recorder:
         task = _build("click_static", "large", canvas=HUD_SHOWN, recorder=recorder)
         _play(task, 10)
         recorder.write_trials(task.trials)

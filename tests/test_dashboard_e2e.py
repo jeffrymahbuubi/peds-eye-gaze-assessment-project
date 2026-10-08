@@ -124,12 +124,20 @@ def test_ax1_ax2_add_configure_preview_practice_run_report_and_restart(qapp, tmp
         listing.copy_button.click()
         copy = stored_tests(win)[-1]
         assert copy.test_id not in (first.test_id, second.test_id)
-        assert copy.status == "not_done" and copy.session_dir is None
+        assert copy.status == "not_done" and copy.run_dir is None
         assert copy.configuration == done.configuration and copy.configuration["name"] == NAMED
         assert copy.seed != done.seed
 
-        # The subject's sessions folder holds exactly one run: practice and preview left none.
-        assert len(run_dirs(win)) == 1 and run_dirs(win)[0].name == done.session_dir
+        # The subject's folder holds exactly one run: practice and preview left none.
+        assert len(run_dirs(win)) == 1 and done.run_dir == f"runs/click_grid/{run_dirs(win)[0].name}"
+        assert run_dirs(win)[0].parent.parent.parent.name == "TESTING"  # <subject>/runs/<task>/<run>
+
+        # L3: the subject's folder holds everything; none of the old folders was made.
+        root = Path(win.output_root)
+        assert sorted(p.name for p in root.iterdir() if p.name != "_system") == ["TESTING"]
+        for old in ("_tests", "_settings", "_calibrations", "_diagnostics"):
+            assert not (root / old).exists()
+        assert (root / "TESTING" / "subject.json").is_file() and (root / "TESTING" / "tests").is_dir()
 
         # AX2: restart the app and type the same Subject ID.
         before = win.test_list_page.row_texts()

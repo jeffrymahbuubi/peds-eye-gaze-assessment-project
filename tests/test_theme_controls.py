@@ -25,18 +25,17 @@ from PySide6.QtWidgets import (
     QWidget,
 )
 
-from src.ui.wtmh_theme import (
+from src.ui.design_tokens import (
     ACCENT,
-    BACKGROUND,
-    BORDER,
-    CONTROL_BORDER,
-    DISABLED_BG,
-    DISABLED_BORDER,
-    DISABLED_TEXT,
-    PANEL_BG,
-    SOFT_ACCENT,
-    STYLESHEET,
+    ACCENT_SUBTLE,
+    BORDER_STRONG,
+    BORDER_SUBTLE,
+    DISABLED_FILL,
+    PAGE,
+    PANEL,
+    TEXT_DISABLED,
 )
+from src.ui.wtmh_theme import STYLESHEET
 from tests.colour_helpers import contrast
 
 
@@ -82,16 +81,16 @@ def fill(root: QWidget, widget: QWidget, image: QImage) -> QColor:
 
 
 def test_the_disabled_colours_are_legible_and_the_old_faint_ones_were_not():
-    assert contrast(QColor(DISABLED_TEXT), QColor(DISABLED_BG)) >= 3.0  # muted, still legible
-    assert contrast(QColor(DISABLED_BG), QColor(PANEL_BG)) < 1.2  # a flat grey, not a colour
-    assert DISABLED_BG not in (SOFT_ACCENT, BACKGROUND)  # not the soft button, not the page
+    assert contrast(QColor(TEXT_DISABLED), QColor(DISABLED_FILL)) >= 3.0  # muted, still legible
+    assert QColor(DISABLED_FILL).saturation() == 0  # a flat grey, not a colour
+    assert DISABLED_FILL not in (ACCENT_SUBTLE, PAGE)  # not the soft button, not the page
 
 
 @pytest.mark.parametrize("selector", ["QPushButton#wtmhPrimary:disabled", "QPushButton#cfgSave:disabled"])
 def test_the_disabled_primary_rule_is_neutral_grey_with_muted_text(selector):
     body = rule(selector)
-    assert f"background: {DISABLED_BG}" in body and f"color: {DISABLED_TEXT}" in body
-    assert SOFT_ACCENT not in body  # the pale cyan that read as an enabled soft button
+    assert f"background: {DISABLED_FILL}" in body and f"color: {TEXT_DISABLED}" in body
+    assert ACCENT_SUBTLE not in body  # the pale blue that read as an enabled soft button
 
 
 @pytest.mark.parametrize(
@@ -101,8 +100,8 @@ def test_the_disabled_primary_rule_is_neutral_grey_with_muted_text(selector):
 )
 def test_the_disabled_ghost_rule_is_neutral_grey_with_a_grey_border(selector):
     body = rule(selector)
-    assert f"color: {DISABLED_TEXT}" in body
-    assert f"background: {DISABLED_BG}" in body and f"border-color: {DISABLED_BORDER}" in body
+    assert f"color: {TEXT_DISABLED}" in body
+    assert f"background: {DISABLED_FILL}" in body and f"border-color: {DISABLED_FILL}" in body
 
 
 def test_a_disabled_primary_and_ghost_button_paint_the_same_grey_unlike_any_enabled_state(qapp):
@@ -112,11 +111,11 @@ def test_a_disabled_primary_and_ghost_button_paint_the_same_grey_unlike_any_enab
     root = themed_row(primary_on, primary_off, ghost_on, ghost_off, secondary_on)
     image = root.grab().toImage()
     off_primary, off_ghost = fill(root, primary_off, image), fill(root, ghost_off, image)
-    assert off_primary == QColor(DISABLED_BG) and off_ghost == QColor(DISABLED_BG)
+    assert off_primary == QColor(DISABLED_FILL) and off_ghost == QColor(DISABLED_FILL)
     enabled = [fill(root, w, image) for w in (primary_on, ghost_on, secondary_on)]
-    assert enabled[1] == QColor(BACKGROUND)  # the ghost button is open: it shows the page
-    assert enabled[2] == QColor(SOFT_ACCENT)  # the soft button
-    for colour in (*enabled, QColor(BACKGROUND), QColor(SOFT_ACCENT), QColor(ACCENT)):
+    assert enabled[0] == QColor(ACCENT)  # the primary is the accent fill
+    assert enabled[1] == enabled[2] == QColor(PANEL)  # the secondary tier is white with an accent border
+    for colour in (*enabled, QColor(PAGE), QColor(ACCENT_SUBTLE), QColor(ACCENT)):
         assert off_primary != colour
 
 
@@ -125,7 +124,7 @@ def test_a_disabled_button_keeps_muted_legible_text_and_its_size(qapp):
     root = themed_row(on, off)
     off.ensurePolished()
     text = off.palette().color(QPalette.ColorGroup.Disabled, QPalette.ColorRole.ButtonText)
-    assert text == QColor(DISABLED_TEXT)
+    assert text == QColor(TEXT_DISABLED)
     assert on.sizeHint() == off.sizeHint()  # no border change: the button does not jump when it turns off
     assert root.isVisible()
 
@@ -134,18 +133,18 @@ def test_a_disabled_button_keeps_muted_legible_text_and_its_size(qapp):
 def test_the_fixed_name_buttons_of_the_configuration_page_look_off_too(qapp, name):
     off = button(name, False, "Save && Continue")
     root = themed_row(off)
-    assert fill(root, off, root.grab().toImage()) == QColor(DISABLED_BG)
+    assert fill(root, off, root.grab().toImage()) == QColor(DISABLED_FILL)
 
 
 # -- P2: the unchecked indicators have a visible outline ----------------------------------------------------------
 
 
 def test_the_indicator_outline_is_dark_enough_and_not_the_card_border():
-    assert contrast(QColor(CONTROL_BORDER), QColor(PANEL_BG)) >= 3.0
-    assert contrast(QColor(BORDER), QColor(PANEL_BG)) < 1.3  # what it used to be: barely there
+    assert contrast(QColor(BORDER_STRONG), QColor(PANEL)) >= 3.0
+    assert contrast(QColor(BORDER_SUBTLE), QColor(PANEL)) < 1.4  # the card edge: barely there
     for selector in ("QCheckBox::indicator {", "QRadioButton::indicator {"):
         body = rule("QWidget#wtmhDashboard " + selector.rstrip(" {"))
-        assert f"border: 1px solid {CONTROL_BORDER}" in body
+        assert f"border: 1px solid {BORDER_STRONG}" in body
 
 
 @pytest.mark.parametrize("make", [lambda: QRadioButton(""), lambda: QCheckBox("")], ids=["radio", "check box"])
@@ -155,8 +154,8 @@ def test_an_unchecked_indicator_paints_a_dark_outline_on_white(qapp, make):
     image = box.grab().toImage()
     darkest = min(image.pixelColor(x, y).lightness() for x in range(min(20, image.width()))
                   for y in range(image.height()))
-    assert darkest < QColor(BORDER).lightness() - 60  # clearly darker than the old outline
-    assert darkest <= QColor(CONTROL_BORDER).lightness() + 25
+    assert darkest < QColor(BORDER_SUBTLE).lightness() - 60  # clearly darker than the card edge
+    assert darkest <= QColor(BORDER_STRONG).lightness() + 25
     assert root.isVisible()
 
 

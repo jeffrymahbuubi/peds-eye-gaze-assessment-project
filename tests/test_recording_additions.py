@@ -17,7 +17,6 @@ from src.data.recorder import (
     TARGET_TRACK_COLUMNS,
     TARGET_TRACK_FILENAME,
     NullRecorder,
-    SessionRecorder,
 )
 from src.data.schema import SessionMetadata, TrialRecord
 from src.engine.config import load_task_config
@@ -28,6 +27,7 @@ from src.inputs.eye_input import DwellConfig, DwellSelector
 from src.tasks.base_task import BaseTask, TargetSpec
 from src.tasks.entry_tracker import DEFAULT_EXIT_HOLD_MS
 from src.tasks.target_track import TRACK_INTERVAL_NS, TrackThrottle
+from tests.recorder_helpers import recorder_in
 
 MS = 1_000_000
 FIXTURE = Path(__file__).parent / "fixtures" / "gaze_replay_click_static.jsonl"
@@ -79,7 +79,7 @@ def test_an_older_trials_csv_without_the_columns_still_loads(tmp_path: Path):
 
 
 def test_target_track_has_a_header_and_one_row_per_call(tmp_path: Path):
-    with SessionRecorder(metadata(), output_root=tmp_path) as rec:
+    with recorder_in(tmp_path, metadata()) as rec:
         rec.record_target_track(10 * MS, 0, 0.12345678, 0.5)
         rec.record_target_track(60 * MS, 0, 0.2, 0.5)
         rec.record_target_track(900 * MS, 1, 0.9, 0.25)
@@ -94,13 +94,13 @@ def test_target_track_has_a_header_and_one_row_per_call(tmp_path: Path):
 
 
 def test_a_run_that_never_moves_a_target_leaves_no_target_track(tmp_path: Path):
-    with SessionRecorder(metadata(), output_root=tmp_path) as rec:
+    with recorder_in(tmp_path, metadata()) as rec:
         rec.write_trials([])
     assert not (tmp_path / "S" / TARGET_TRACK_FILENAME).exists()
 
 
 def test_target_track_is_flushed_to_disk_as_it_goes(tmp_path: Path):
-    rec = SessionRecorder(metadata(), output_root=tmp_path)
+    rec = recorder_in(tmp_path, metadata())
     rec.open()
     try:
         for i in range(61):  # past the 60-row flush interval
@@ -112,7 +112,7 @@ def test_target_track_is_flushed_to_disk_as_it_goes(tmp_path: Path):
 
 
 def test_target_track_before_open_is_refused(tmp_path: Path):
-    rec = SessionRecorder(metadata(), output_root=tmp_path)
+    rec = recorder_in(tmp_path, metadata())
     with pytest.raises(RuntimeError):
         rec.record_target_track(0, 0, 0.5, 0.5)
     rec.close()
@@ -148,7 +148,7 @@ def raw_attrs(i: int, time_s: float | None) -> dict[str, str]:
 def test_the_raw_clock_offset_is_the_smallest_host_minus_device_delay(tmp_path: Path):
     base = 5_000_000_000_000  # host clock at the first record's device TIME
     delays_ms = [7, 3, 12, 4, 9, 3.5, 20]  # how late each record reached the host
-    with SessionRecorder(metadata(), output_root=tmp_path) as rec:
+    with recorder_in(tmp_path, metadata()) as rec:
         rec.open_all_gaze("click_static", 0)
         assert rec.raw_clock_offset_ns is None  # nothing recorded yet
         for i, delay in enumerate(delays_ms):
@@ -159,7 +159,7 @@ def test_the_raw_clock_offset_is_the_smallest_host_minus_device_delay(tmp_path: 
 
 def test_the_raw_clock_offset_gives_back_host_time_from_device_time(tmp_path: Path):
     base = 7_000_000_000_000
-    with SessionRecorder(metadata(), output_root=tmp_path) as rec:
+    with recorder_in(tmp_path, metadata()) as rec:
         rec.open_all_gaze("click_static", 0)
         for i in range(5):
             rec.record_raw(base + i * 8 * MS + (2 * MS if i else 0), raw_attrs(i, 50.0 + i * 0.008))
@@ -171,7 +171,7 @@ def test_the_raw_clock_offset_gives_back_host_time_from_device_time(tmp_path: Pa
 
 def test_a_replay_without_device_time_has_one_consistent_offset(tmp_path: Path):
     base = 3_000_000_000_000
-    with SessionRecorder(metadata(), output_root=tmp_path) as rec:
+    with recorder_in(tmp_path, metadata()) as rec:
         rec.open_all_gaze("click_static", 0)
         for i in range(20):
             rec.record_raw(base + i * 8 * MS, raw_attrs(i, None))
@@ -181,14 +181,14 @@ def test_a_replay_without_device_time_has_one_consistent_offset(tmp_path: Path):
 
 
 def test_the_raw_clock_offset_also_tracks_with_only_eye_geometry_open(tmp_path: Path):
-    with SessionRecorder(metadata(), output_root=tmp_path) as rec:
+    with recorder_in(tmp_path, metadata()) as rec:
         rec.open_eye_geometry()
         rec.record_raw(4_000_000_000, raw_attrs(0, 10.0))
         assert rec.raw_clock_offset_ns == 4_000_000_000
 
 
 def test_no_raw_file_open_means_no_offset(tmp_path: Path):
-    with SessionRecorder(metadata(), output_root=tmp_path) as rec:
+    with recorder_in(tmp_path, metadata()) as rec:
         rec.record_raw(1, raw_attrs(0, 1.0))
         assert rec.raw_clock_offset_ns is None
 
@@ -378,7 +378,7 @@ def test_a_moving_task_with_a_recorder_double_that_has_no_track_writer_still_run
 
 
 def test_a_moving_task_writes_target_track_csv_through_a_real_recorder(tmp_path: Path):
-    with SessionRecorder(metadata(), output_root=tmp_path) as rec:
+    with recorder_in(tmp_path, metadata()) as rec:
         task = make(FixedMoving, mode="switch", recorder=rec)
         for i in range(101):
             task.update(i * 10 * MS, OFF)

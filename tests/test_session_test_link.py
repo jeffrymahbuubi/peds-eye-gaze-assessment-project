@@ -75,8 +75,8 @@ def test_run_started_from_a_test_records_its_id_name_and_seed(make_app):
     assert meta["seed"] == test.seed
     assert make_app.seeds_seen == [test.seed]  # the task's target order is drawn from it
     # The run's folder is where the record will point at after Save (4A.7).
-    assert app.recorder.session_dir.parent == make_app.root
-    assert list_tests(make_app.root, "P001").tests[0].session_dir is None  # nothing links it yet
+    assert app.recorder.session_dir.parent == make_app.root / "P001" / "runs" / "click_static"
+    assert list_tests(make_app.root, "P001").tests[0].run_dir is None  # nothing links it yet
 
 
 def test_standalone_run_has_no_test_and_seed_zero(make_app):

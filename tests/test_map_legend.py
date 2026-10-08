@@ -13,6 +13,7 @@ from PySide6.QtCore import QRectF, QSize
 from PySide6.QtGui import QColor, QImage, QPainter, QTextDocument
 from PySide6.QtWidgets import QApplication, QLabel, QVBoxLayout, QWidget
 
+from src.ui.design_tokens import LEGACY_REPORT_COLOURS
 from src.ui.map_legend import (
     ICON_PX,
     LEGEND_ENTRIES,
@@ -25,7 +26,10 @@ from src.ui.map_legend import (
 from src.ui.report_views import MAP_MAX_WIDTH, SummaryView
 from src.ui.target_map import TargetMapWidget
 from src.ui.target_map_paint import LEGEND_KINDS, paint_symbol
-from src.ui.wtmh_theme import INK, SOFT_ACCENT, STYLESHEET
+from src.ui.wtmh_theme import STYLESHEET
+
+# The legend keeps today's report colours until phase 4 (SPEC-design-system-phase1.md H2).
+INK, SOFT_ACCENT = LEGACY_REPORT_COLOURS.ink, LEGACY_REPORT_COLOURS.soft_accent
 from tests.report_ui_fixtures import folder_report, synthetic_map_report
 
 

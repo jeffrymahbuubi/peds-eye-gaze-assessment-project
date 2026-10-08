@@ -88,7 +88,7 @@ def compute_fixation_saccade_metrics(session_dir: str | Path) -> dict[str, Any]:
     classification literature cited in ``SPEC-2026-09-02.md`` item 6 (fixation
     duration/frequency, saccade rate, tracked/"off-screen" proportion, pupil
     diameter). All inputs are already recorded per-sample; this just
-    aggregates them — no new tracker data is required.
+    aggregates them; no new tracker data is required.
     """
     rows = load_gaze_rows(session_dir)
     if not rows:

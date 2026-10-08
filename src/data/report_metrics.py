@@ -3,7 +3,7 @@
 :mod:`report_cache`, and the whole-test eye metrics and quality block built from these
 rows are in :mod:`report_quality`.
 
-Where a number cannot be computed from what the folder holds, it is ``None`` ("—" in
+Where a number cannot be computed from what the folder holds, it is ``None`` (a dash in
 the UI), never 0 and never a guess (4D.9): no ``entries`` column means no Entries and
 no Error-free row; no ``all_gaze.csv`` or ``raw_clock_offset_ns`` means no saccade or
 pupil figures; no physical geometry means no degrees.
@@ -30,7 +30,7 @@ from .report_eye import (
     trial_pupil,
 )
 from .report_geometry import Geometry
-from .report_util import mean_or_none, round_or_none, to_float, to_int
+from .report_util import DASH, mean_or_none, round_or_none, to_float, to_int
 from .report_visual import (
     DEFAULT_PATH,
     PathParams,
@@ -74,9 +74,9 @@ def trial_outcome(row: dict[str, str], follow: bool = False) -> str:
 
 
 def format_pct_n(n: int | None, total: int) -> str:
-    """``42.9% (3/7)``; ``0% (0/7)`` for an empty row; ``—`` when ``n`` is unknown."""
+    """``42.9% (3/7)``; ``0% (0/7)`` for an empty row; a dash when ``n`` is unknown."""
     if n is None:
-        return "—"
+        return DASH
     pct = round(100.0 * n / total, 1) if total else 0.0
     return f"{pct:g}% ({n}/{total})"
 
@@ -281,7 +281,7 @@ def summary_rows(trials: Sequence[dict[str, Any]]) -> list[dict[str, Any]]:
     membership count and ``pct_n`` text, and the means of Trial Time (onset to selection,
     or to the end for a timeout), Reaction Time (onset to the first gaze entry, over the
     trials where gaze ever entered) and Entries. Error-free = a hit with ``entries == 1``
-    and ``attempts == 1``; when the folder has no ``entries`` the row is ``None`` / "—"
+    and ``attempts == 1``; when the folder has no ``entries`` the row is ``None`` / a dash
     (not guessed). ``clicks`` / ``click_errors`` are the means of a Switch test's presses.
     """
     scored = [t for t in trials if t["outcome"] in (OUTCOME_HIT, OUTCOME_TIMEOUT)]

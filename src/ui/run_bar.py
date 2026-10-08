@@ -1,9 +1,13 @@
-"""The run screen's bottom bar (SPEC-compass-task-flow.md 4C.5, U5).
+"""The run screen's bottom bar (SPEC-compass-task-flow.md 4C.5, U5; SPEC-design-system-
+phase1.md H9).
 
 With the operator HUD gone, a thin bar under the canvas is all the operator sees of
-the run: one line of status on the left, and Pause (Alt-P) / Skip trial / Quit
+the run: the status on the left, and Pause (Alt-P) / Skip trial / Quit
 (Alt-Q) in the middle. No score, no counters, no sliders. The bar is the only thing
-that tells a Practice or a Preview from a recorded run, so those turn it amber.
+that tells a Practice or a Preview from a recorded run, so those turn it amber and
+carry a PRACTICE / PREVIEW chip. The status is not one line of text but separate labels:
+the chip, a pause marker, "Trial 4 of 18", the pointer, and the tracking state in
+the colour of its level.
 
 The bar only emits signals; :class:`~src.app.AssessmentApp` decides what they mean.
 Its stylesheet is its own (scoped by object name), so it looks the same inside the
@@ -13,29 +17,61 @@ dashboard's.
 
 from __future__ import annotations
 
-from html import escape
-
 from PySide6.QtCore import Qt, Signal
 from PySide6.QtWidgets import QFrame, QHBoxLayout, QLabel, QPushButton, QSizePolicy, QWidget
 
 from ..engine.run_mode import PRACTICE, PREVIEW, RECORD, validate_run_mode
-from ..engine.tracking_status import LEVEL_ERROR, LEVEL_OK, LEVEL_WARN
+from ..engine.tracking_status import LEVEL_ERROR, LEVEL_OK, LEVEL_WARN, RunStatus
+from .design_tokens import (
+    ACCENT,
+    ACCENT_SUBTLE,
+    BORDER_STRONG,
+    BORDER_SUBTLE,
+    BORDER_WIDTH,
+    DANGER_TEXT,
+    DISABLED_FILL,
+    INK,
+    PAGE,
+    PANEL,
+    RADIUS,
+    RUN_BAR_BUTTON_HEIGHT,
+    RUN_BAR_HEIGHT,
+    SUCCESS_TEXT,
+    TEXT_DISABLED,
+    TYPE_BODY,
+    TYPE_BODY_LARGE,
+    TYPE_CAPTION,
+    WARNING,
+    WARNING_CHIP,
+    WARNING_SUBTLE,
+    WARNING_TEXT,
+)
 
-BAR_HEIGHT = 44
+BAR_HEIGHT = RUN_BAR_HEIGHT
 
-# Text colours for the tracking state, dark enough to read on both bar backgrounds.
-_LEVEL_COLORS = {LEVEL_OK: "#1e7a53", LEVEL_WARN: "#8a5a00", LEVEL_ERROR: "#c0392b"}
-
-_STYLESHEET = """
-QFrame#wtmhRunBar { background: #e9eef1; border-top: 1px solid #c9d5dc; }
-QFrame#wtmhRunBar[practice="true"] { background: #fbe3b0; border-top: 1px solid #d9a441; }
-QFrame#wtmhRunBar QLabel { color: #122b3a; background: transparent; font-size: 13px; }
-QFrame#wtmhRunBar QPushButton {
-    color: #122b3a; background: #ffffff; border: 1px solid #b8c7cf;
-    border-radius: 6px; padding: 5px 16px; font-size: 13px; font-weight: 600;
-}
-QFrame#wtmhRunBar QPushButton:hover { background: #dcf0f5; border-color: #1f7a9c; }
-QFrame#wtmhRunBar QPushButton:disabled { color: #7f939e; background: #f3f6f8; border-color: #d3dde2; }
+# The tracking state is drawn in success-text / warning-text / danger-text, dark enough to
+# read on both bar backgrounds (7.0 to 7.2:1).
+_STYLESHEET = f"""
+QFrame#wtmhRunBar {{ background: {PAGE}; border-top: 1px solid {BORDER_SUBTLE}; }}
+QFrame#wtmhRunBar[practice="true"] {{ background: {WARNING_SUBTLE}; border-top: 1px solid {WARNING}; }}
+QFrame#wtmhRunBar QLabel {{ color: {INK}; background: transparent; font-size: {TYPE_BODY_LARGE}px; }}
+QFrame#wtmhRunBar QLabel#runBarChip {{
+    background: {WARNING_CHIP}; color: {INK}; border-radius: 12px; padding: 0 12px;
+    min-height: 24px; font-size: {TYPE_CAPTION}px; font-weight: 600;
+}}
+QFrame#wtmhRunBar QLabel#runBarTracking {{ font-weight: 600; }}
+QFrame#wtmhRunBar QLabel#runBarTracking[level="{LEVEL_OK}"] {{ color: {SUCCESS_TEXT}; }}
+QFrame#wtmhRunBar QLabel#runBarTracking[level="{LEVEL_WARN}"] {{ color: {WARNING_TEXT}; }}
+QFrame#wtmhRunBar QLabel#runBarTracking[level="{LEVEL_ERROR}"] {{ color: {DANGER_TEXT}; }}
+QFrame#wtmhRunBar QPushButton {{
+    color: {INK}; background: {PANEL}; border: {BORDER_WIDTH}px solid {BORDER_STRONG};
+    border-radius: {RADIUS}px; min-height: {RUN_BAR_BUTTON_HEIGHT - 2 * BORDER_WIDTH}px;
+    padding: 0 15px; font-size: {TYPE_BODY}px; font-weight: 600;
+}}
+QFrame#wtmhRunBar QPushButton:hover {{ background: {ACCENT_SUBTLE}; border-color: {ACCENT}; }}
+QFrame#wtmhRunBar QPushButton:disabled {{
+    color: {TEXT_DISABLED}; background: {DISABLED_FILL}; border-color: {DISABLED_FILL};
+}}
 """
 
 
@@ -56,15 +92,23 @@ class RunBar(QFrame):
         layout.setContentsMargins(16, 0, 16, 0)
         layout.setSpacing(10)
 
-        # One status line at the left; the buttons sit in the middle because both
-        # side columns stretch equally (the label's own text width, which changes
-        # every frame, must not decide its share: hence Ignored).
-        self.status_label = QLabel("")
-        self.status_label.setObjectName("runBarStatus")
-        self.status_label.setTextFormat(Qt.TextFormat.RichText)
-        self.status_label.setSizePolicy(QSizePolicy.Policy.Ignored, QSizePolicy.Policy.Preferred)
-        self.status_label.setMinimumWidth(120)
-        layout.addWidget(self.status_label, stretch=1)
+        # The status at the left, a label per fact; the buttons sit in the middle because
+        # both side columns stretch equally (the labels' own text width, which changes
+        # every frame, must not decide their share: hence Ignored).
+        self.status_box = QWidget()
+        self.status_box.setObjectName("runBarStatus")
+        self.status_box.setSizePolicy(QSizePolicy.Policy.Ignored, QSizePolicy.Policy.Preferred)
+        self.status_box.setMinimumWidth(120)
+        status_row = QHBoxLayout(self.status_box)
+        status_row.setContentsMargins(0, 0, 0, 0)
+        status_row.setSpacing(16)
+        self.chip_label = self._status_label("runBarChip", status_row)
+        self.paused_label = self._status_label("runBarPaused", status_row)
+        self.trial_label = self._status_label("runBarTrial", status_row)
+        self.pointer_label = self._status_label("runBarPointer", status_row)
+        self.tracking_label = self._status_label("runBarTracking", status_row)
+        status_row.addStretch(1)
+        layout.addWidget(self.status_box, stretch=1)
 
         self.pause_button = self._button("runBarPause", "Pause (Alt-P)")
         self.skip_button = self._button("runBarSkip", "Skip trial")
@@ -77,6 +121,15 @@ class RunBar(QFrame):
         self.skip_button.clicked.connect(self.skip_requested.emit)
         self.quit_button.clicked.connect(self.quit_requested.emit)
         self.set_run_mode(run_mode)
+
+    @staticmethod
+    def _status_label(name: str, row: QHBoxLayout) -> QLabel:
+        label = QLabel("")
+        label.setObjectName(name)
+        label.setTextFormat(Qt.TextFormat.PlainText)  # a status is never read as markup
+        label.hide()  # shown while it has something to say
+        row.addWidget(label)
+        return label
 
     @staticmethod
     def _button(name: str, text: str) -> QPushButton:
@@ -111,19 +164,26 @@ class RunBar(QFrame):
     def set_skip_enabled(self, enabled: bool) -> None:
         self.skip_button.setEnabled(bool(enabled))
 
-    def set_status(self, line: str, tracking: str | None = None, level: str | None = None) -> None:
-        """Show ``line`` (the whole status, e.g. ``Trial 4/18 · tracking OK``). When
-        ``tracking`` is the end of it, that part is drawn in the colour of ``level``."""
-        self._plain = line
-        if tracking and level in _LEVEL_COLORS and line.endswith(tracking):
-            head = escape(line[: len(line) - len(tracking)])
-            tail = f'<span style="color:{_LEVEL_COLORS[level]}; font-weight:600">{escape(tracking)}</span>'
-            self.status_label.setText(head + tail)
-        else:
-            self.status_label.setText(escape(line))
+    def set_status(self, status: RunStatus) -> None:
+        """Show ``status``: each fact in its own label, hidden when empty; the tracking state
+        takes the colour of its level."""
+        self._plain = status.line
+        for label, text in (
+            (self.chip_label, status.chip),
+            (self.paused_label, "Paused" if status.paused else ""),
+            (self.trial_label, status.trial),
+            (self.pointer_label, status.pointer),
+            (self.tracking_label, status.tracking),
+        ):
+            label.setText(text)
+            label.setVisible(bool(text))
+        if self.tracking_label.property("level") != status.level:
+            self.tracking_label.setProperty("level", status.level)
+            self.tracking_label.style().unpolish(self.tracking_label)
+            self.tracking_label.style().polish(self.tracking_label)
 
     def status_text(self) -> str:
-        """The status as plain text."""
+        """The status as plain text (the labels' texts, in order)."""
         return self._plain
 
     def _on_pause_clicked(self) -> None:

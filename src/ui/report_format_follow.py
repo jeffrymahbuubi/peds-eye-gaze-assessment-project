@@ -3,7 +3,7 @@ W2, H6, H8; wireframes ``report-summary.md`` / ``report-detailed.md``). Qt-free,
 :mod:`report_format`, whose figure helpers it uses.
 
 Read from the ``follow`` block of ``report.json`` (:mod:`src.data.report_follow`) exactly as
-built: nothing is computed here beyond rounding. A figure the report could not give is "—",
+built: nothing is computed here beyond rounding. A figure the report could not give is a dash,
 and a figure that needs the eye tracker says "not recorded" for a test with no gaze recorded
 (a Mouse test with no tracker). An old Follow & Click folder (``follow.legacy``) is not a
 Follow layout: it keeps the selection tables of :mod:`report_format`.
@@ -156,16 +156,16 @@ def follow_trial_cells(report: dict[str, Any], index: int) -> list[Cell]:
     rows = block.get("trials") or []
     figures = rows[index] if index < len(rows) else {}
     fix, sac, pup = trial.get("fixations", {}), trial.get("saccades", {}), trial.get("pupil", {})
-    outcome = OUTCOME_LABELS.get(str(trial.get("outcome")), DASH)
-    path = PATH_LABELS.get(str(block.get("path")), DASH)
+    outcome = OUTCOME_LABELS.get(str(trial.get("outcome")), NOT_RECORDED)
+    path = PATH_LABELS.get(str(block.get("path")), NOT_RECORDED)
 
     def number(value: Any, digits: int, *, signed: bool = False) -> Cell:
         return Cell(num(value, digits, signed=signed), None if value is None else float(value))
 
     cells = [
         Cell(str(trial.get("trial", "")), float(trial.get("trial") or 0)),
-        Cell(path, None if path == DASH else path),
-        Cell(outcome, None if outcome == DASH else outcome),
+        Cell(path, None if path == NOT_RECORDED else path),
+        Cell(outcome, None if outcome == NOT_RECORDED else outcome),
         number(figures.get("duration_s"), 1),
         number(figures.get("time_on_target_pct"), 0),
         number(figures.get("mean_distance_deg"), 1),

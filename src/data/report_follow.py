@@ -9,7 +9,7 @@ What comes from where:
   here. A trial is *followed* when the task said so (``is_hit``, at least 50 % of its valid time
   on target, H6).
 * **Smooth-pursuit gain** and **catch-up saccades** come from the device-rate gaze of
-  ``all_gaze.csv`` (H8), so a Mouse run with no tracker has neither (``None``, "—").
+  ``all_gaze.csv`` (H8), so a Mouse run with no tracker has neither (``None``, a dash).
 * The **pointer path** coloured on / off target is the smoothed pointer (gaze, or the mouse from
   ``pointer_stream.csv``) against the target's track.
 

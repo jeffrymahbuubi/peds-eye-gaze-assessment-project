@@ -125,7 +125,7 @@ def test_the_json_is_compact_and_keeps_unicode(tmp_path):
     text = report_json(build_report(full_folder(tmp_path)))
     assert text == json.dumps(json.loads(text), ensure_ascii=False, separators=(",", ":"))
     assert len(text.splitlines()) == 1
-    assert "Gaze (GP3HD, 150 Hz) · Dwell 0.8 s" in text and "5°" in text  # not \u escaped
+    assert "Gaze (GP3HD, 150 Hz), Dwell 0.8 s" in text and "5°" in text  # not \u escaped
 
 
 # -- the cache -------------------------------------------------------------------------------
@@ -245,7 +245,7 @@ def test_g10_a_partial_run_carries_the_banner_flag(tmp_path):
     folder = write_session(tmp_path / "p", records3(), meta=meta)
     report = build_report(folder)
     assert report["quality"]["warnings"][0] == {
-        "code": "ended_early", "text": "Ended early — 3 of 6 trials"
+        "code": "ended_early", "text": "Ended early: 3 of 6 trials"
     }
     s = report["session"]
     assert (s["planned_trials"], s["n_rows"], s["n_not_presented"]) == (6, 3, 3)

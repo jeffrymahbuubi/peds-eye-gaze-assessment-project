@@ -32,6 +32,15 @@ from ..engine.target_size import clamp_to_inset, edge_inset_norm
 from .base_task import BaseTask, TargetSpec
 
 PATHS = ("circular", "horizontal", "vertical", "diagonal_tlbr", "diagonal_trbl")
+# What each path is called to a person: the configuration page's radio labels and the report's
+# Layout row use these exact words (one vocabulary, SPEC-design-system-phase1.md A4).
+MOTION_PATH_LABELS = {
+    "circular": "Circular",
+    "horizontal": "Horizontal ↔",
+    "vertical": "Vertical ↕",
+    "diagonal_tlbr": "Diagonal, top-left to bottom-right",
+    "diagonal_trbl": "Diagonal, top-right to bottom-left",
+}
 DEFAULT_PATH = "horizontal"  # today's fallback for an unknown/missing value
 
 # Nominal ends of a straight path along one axis, in normalized canvas coords.
