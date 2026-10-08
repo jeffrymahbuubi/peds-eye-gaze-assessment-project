@@ -4,13 +4,14 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>wiremd Mockup</title>
+  <link rel="icon" href="../../configs/assets/branding/WTMH.ico">
   <style>
 a.wmd-button { text-decoration: none; color: inherit; }
 
 .wmd-tab-headers { display: flex; gap: 0; border-bottom: 2px solid #e0e0e0; margin-bottom: 12px; }
-.wmd-tab-header { display: inline-block; padding: 8px 16px; border: none; border-bottom: 2px solid transparent; margin-bottom: -2px; font-size: 14px; font-weight: 500; color: #888; background: transparent; cursor: pointer; font-family: inherit; transition: color 0.15s; }
-.wmd-tab-header:hover { color: #333; }
-.wmd-tab-header.wmd-active { border-bottom-color: currentColor; color: #333; font-weight: 600; }
+.wmd-tab-header { display: inline-block; padding: 8px 16px; border: none; border-bottom: 2px solid transparent; margin-bottom: -2px; font-size: 14px; font-weight: 500; color: #5C7684; background: transparent; cursor: pointer; font-family: inherit; transition: color 0.15s; }
+.wmd-tab-header:hover { color: #122B3A; }
+.wmd-tab-header.wmd-active { border-bottom-color: currentColor; color: #1A6F95; font-weight: 600; }
 .wmd-tab-panel[hidden] { display: none; }
 .wmd-tab-panels { padding: 12px 0; }
 
@@ -42,8 +43,8 @@ a.wmd-button { text-decoration: none; color: inherit; }
 
 body.wmd-root {
   font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
-  background: #ffffff;
-  color: #1a1a1a;
+  background: #F5F9FB;
+  color: #122B3A;
   padding: 40px;
   margin: 0;
   line-height: 1.6;
@@ -53,11 +54,11 @@ body.wmd-root {
 .wmd-h1, .wmd-h2, .wmd-h3, .wmd-h4, .wmd-h5, .wmd-h6 {
   font-weight: 600;
   margin: 1.5em 0 0.75em;
-  color: #000;
+  color: #122B3A;
   letter-spacing: -0.02em;
 }
 
-.wmd-h1 { font-size: 2.5em; border-bottom: 2px solid #e0e0e0; padding-bottom: 0.3em; }
+.wmd-h1 { font-size: 2.5em; border-bottom: 2px solid #DBE6EC; padding-bottom: 0.3em; }
 .wmd-h2 { font-size: 2em; }
 .wmd-h3 { font-size: 1.5em; }
 .wmd-h4 { font-size: 1.25em; }
@@ -67,7 +68,7 @@ body.wmd-root {
 /* Paragraph */
 .wmd-paragraph {
   margin: 0.75em 0;
-  color: #4a4a4a;
+  color: #5C7684;
 }
 
 /* Buttons */
@@ -75,8 +76,9 @@ body.wmd-root {
   display: inline-block;
   padding: 10px 20px;
   margin: 6px;
-  background: #f5f5f5;
-  border: 1px solid #d0d0d0;
+  background: transparent;
+  color: #122B3A;
+  border: 1px solid #DBE6EC;
   border-radius: 6px;
   font-family: inherit;
   font-size: 14px;
@@ -86,29 +88,30 @@ body.wmd-root {
 }
 
 .wmd-button:hover {
-  background: #e8e8e8;
-  border-color: #b0b0b0;
+  background: #DCF0F5;
+  border-color: #1F7A9C;
 }
 
 .wmd-button-primary, .wmd-button.wmd-primary {
-  background: #0066cc;
+  background: linear-gradient(90deg, #2FA8C4, #1A6F95);
   color: #fff;
-  border-color: #0052a3;
+  border-color: #1A6F95;
 }
 
 .wmd-button-primary:hover, .wmd-button.wmd-primary:hover {
-  background: #0052a3;
+  background: #1A6F95;
 }
 
 .wmd-button-secondary, .wmd-button.wmd-secondary {
-  background: #fff;
-  border: 2px solid #d0d0d0;
+  background: #DCF0F5;
+  color: #0F5670;
+  border: 2px solid #DCF0F5;
 }
 
 .wmd-button-danger, .wmd-button.wmd-danger {
-  background: #dc3545;
+  background: #E15353;
   color: #fff;
-  border-color: #c82333;
+  border-color: #C23E3E;
 }
 
 .wmd-button[disabled], .wmd-button.wmd-state-disabled {
@@ -125,13 +128,18 @@ body.wmd-root {
   font-size: 11px;
   font-weight: 600;
   letter-spacing: 0.02em;
-  background: #e5e7eb;
-  color: #374151;
+  background: #E6EDF1;
+  color: #5C7684;
 }
-.wmd-badge-primary { background: #dbeafe; color: #1d4ed8; }
-.wmd-badge-success { background: #d1fae5; color: #065f46; }
-.wmd-badge-warning { background: #fef3c7; color: #92400e; }
-.wmd-badge-error { background: #fee2e2; color: #991b1b; }
+.wmd-badge-primary { background: #DCF0F5; color: #0F5670; }
+.wmd-badge-success { background: #2F9E6E; color: #ffffff; }
+/* warning/error badges here mark INACTIVE states ("not connected", "none") --
+   per the WTMH palette these read as neutral, not alarm colors. */
+.wmd-badge-warning { background: #E6EDF1; color: #5C7684; }
+.wmd-badge-error { background: #E6EDF1; color: #5C7684; }
+/* reserved for a real danger state (e.g. a future "SIGNAL LOST" badge) --
+   unused by setup.md/tasks.md today. */
+.wmd-badge-danger { background: #E15353; color: #ffffff; }
 
 /* Inputs */
 .wmd-input, .wmd-textarea, .wmd-select {
@@ -142,16 +150,17 @@ body.wmd-root {
   margin: 6px 0;
   font-family: inherit;
   font-size: 14px;
-  background: #fff;
-  border: 1px solid #d0d0d0;
+  background: #FFFFFF;
+  color: #122B3A;
+  border: 1px solid #DBE6EC;
   border-radius: 6px;
   transition: border-color 0.2s;
 }
 
 .wmd-input:focus, .wmd-textarea:focus, .wmd-select:focus {
   outline: none;
-  border-color: #0066cc;
-  box-shadow: 0 0 0 3px rgba(0, 102, 204, 0.1);
+  border-color: #1F7A9C;
+  box-shadow: 0 0 0 3px rgba(31, 122, 156, 0.15);
 }
 
 .wmd-input[disabled], .wmd-input.wmd-state-disabled,
@@ -159,8 +168,8 @@ body.wmd-root {
 .wmd-select[disabled], .wmd-select.wmd-state-disabled {
   opacity: 0.6;
   cursor: not-allowed;
-  background: #f5f5f5;
-  border-color: #e0e0e0;
+  background: #E6EDF1;
+  border-color: #DBE6EC;
 }
 
 .wmd-textarea {
@@ -197,29 +206,44 @@ body.wmd-root {
 
 /* Containers */
 .wmd-container-hero, .wmd-container-card, .wmd-container-modal {
-  background: #fafafa;
-  border: 1px solid #e0e0e0;
+  background: #F5F9FB;
+  border: 1px solid #DBE6EC;
   border-radius: 8px;
   padding: 32px;
   margin: 24px 0;
 }
 
+/* alerts (::: alert ...) get no dedicated rule from wiremd's "clean" style at
+   all -- confirmed by reading src/renderer/styles.ts and the rendered output,
+   the warning/info/success word after "alert" isn't captured as a CSS class
+   either, so per-severity coloring isn't available. One consistent
+   informational card treatment is used for all of them instead. */
+.wmd-container-alert {
+  background: #DCF0F5;
+  border: 1px solid #BFE3ED;
+  border-left: 4px solid #1F7A9C;
+  border-radius: 6px;
+  padding: 16px 20px;
+  margin: 16px 0;
+  color: #122B3A;
+}
+
 .wmd-container-hero {
-  background: linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%);
+  background: linear-gradient(135deg, #F5F9FB 0%, #DCF0F5 100%);
   text-align: center;
   padding: 60px 32px;
 }
 
 .wmd-container-card {
-  background: #fff;
-  box-shadow: 0 2px 8px rgba(0,0,0,0.08);
+  background: #FFFFFF;
+  box-shadow: 0 2px 8px rgba(18,43,58,0.08);
 }
 
 .wmd-container-modal {
   max-width: 500px;
   margin: 40px auto;
-  background: #fff;
-  box-shadow: 0 4px 16px rgba(0,0,0,0.15);
+  background: #FFFFFF;
+  box-shadow: 0 4px 16px rgba(18,43,58,0.15);
 }
 
 /* Radio Groups */
@@ -251,12 +275,12 @@ body.wmd-root {
 
 /* Navigation */
 .wmd-nav {
-  background: #fff;
-  border: 1px solid #e0e0e0;
+  background: #12374A;
+  border: 1px solid #1B4A61;
   border-radius: 8px;
   padding: 16px 24px;
   margin: 24px 0;
-  box-shadow: 0 1px 3px rgba(0,0,0,0.05);
+  box-shadow: 0 1px 3px rgba(0,0,0,0.2);
 }
 
 .wmd-nav-content {
@@ -270,31 +294,43 @@ body.wmd-root {
   font-weight: 600;
   font-size: 1.25em;
   margin-right: auto;
+  color: #CFE6EE;
+  display: inline-flex;
+  align-items: center;
 }
 
 .wmd-nav-item {
-  display: inline-block;
-  color: #4a4a4a;
+  display: inline-flex;
+  align-items: center;
+  color: #CFE6EE;
   text-decoration: none;
   font-weight: 500;
   padding: 8px 16px;
-  background: #f8f9fa;
-  border: 1px solid #dee2e6;
+  background: rgba(255,255,255,0.08);
+  border: 1px solid rgba(255,255,255,0.16);
   border-radius: 6px;
   transition: all 0.2s;
 }
 
 .wmd-nav-item:hover {
-  background: #e9ecef;
-  border-color: #adb5bd;
+  background: rgba(255,255,255,0.16);
+  border-color: rgba(255,255,255,0.32);
   transform: translateY(-1px);
-  box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+  box-shadow: 0 2px 4px rgba(0,0,0,0.2);
 }
 
 .wmd-nav-item.wmd-active {
-  background: #343a40;
-  color: #fff;
-  border-color: #343a40;
+  background: rgba(255,255,255,0.08);
+  color: #ffffff;
+  border-color: transparent;
+  border-bottom: 3px solid #2FA8C4;
+}
+
+.wmd-brand-logo {
+  height: 28px;
+  width: auto;
+  margin-right: 4px;
+  vertical-align: middle;
 }
 
 .wmd-breadcrumbs {
@@ -328,8 +364,8 @@ body.wmd-root {
   gap: 4px;
   width: 180px;
   padding: 12px;
-  background: #f0f8ff;
-  border: 2px solid #4682B4;
+  background: #DCF0F5;
+  border: 2px solid #1F7A9C;
   border-radius: 8px;
 }
 .wmd-container-sidebar .wmd-button { display: block; width: 100%; text-align: left; margin: 0; }
@@ -371,8 +407,8 @@ body.wmd-root {
 .wmd-col-span-4 { grid-column: span 4; }
 
 .wmd-grid-item-card {
-  background: #fff;
-  border: 1px solid #e0e0e0;
+  background: #FFFFFF;
+  border: 1px solid #DBE6EC;
   border-radius: 8px;
   padding: 24px;
   transition: box-shadow 0.2s;
@@ -393,10 +429,10 @@ body.wmd-root {
 
 /* Blockquote */
 .wmd-blockquote {
-  border-left: 3px solid #0066cc;
+  border-left: 3px solid #1F7A9C;
   padding-left: 20px;
   margin: 20px 0;
-  color: #4a4a4a;
+  color: #5C7684;
 }
 
 /* Code */
@@ -428,7 +464,7 @@ body.wmd-root {
 /* Separator */
 .wmd-separator {
   border: none;
-  border-top: 1px solid #e0e0e0;
+  border-top: 1px solid #DBE6EC;
   margin: 32px 0;
 }
 
@@ -524,12 +560,17 @@ body.wmd-root {
 <body class="wmd-root wmd-clean">
   <nav class="wmd-nav">
   <div class="wmd-nav-content">
+    <img src="../../configs/assets/branding/wtmh_logo.png" alt="WTMH logo" class="wmd-brand-logo">
     <div class="wmd-brand">Pediatric Eye-Gaze Assessment</div>
     <a href="./setup.html" class="wmd-nav-item">1 · Setup</a>
     <a href="./test-list.html" class="wmd-nav-item">2 · Tests</a>
   </div>
 </nav>
-<h2 class="wmd-h2">Summary Results:</h2>
+<h2 class="wmd-h2">Summary Results</h2>
+<h3 class="wmd-h3">Grid Click 1</h3>
+<blockquote class="wmd-blockquote">
+  <p class="wmd-paragraph"><strong>Design system phases 1 and 4</strong> (SPEC-design-system-phase1.md, SPEC-design-system-phase4.md H1-H9, X1): title without the colon, the test name under it at 20 px. Main column at most 1100 px, sidebar 460 px. Test Name field 480 px, Evaluator 320 px, Notes 84 px tall. Dates read yyyy-MM-dd HH:mm.</p>
+</blockquote>
 <blockquote class="wmd-blockquote">
   <p class="wmd-paragraph">SPEC-compass-task-flow.md 4D.2–4D.3 and 4D.7–4D.8 (U9–U11). It opens from View Report on the Test List, or from "Save and View Report" in the Test Complete dialog. It replaces the old Results tab (<code>results.md</code>, superseded). The numbers come from <code>report.json</code>, which P4 built at the end of the run. The nav is locked while the report shows. Compass reference: <code>docs/compass/screenshots/08a-*.png</code>.</p>
 </blockquote>
@@ -540,7 +581,8 @@ body.wmd-root {
   </div>
   <div class="wmd-grid-item wmd-align-right">
     
-    <p class="wmd-paragraph">Subject: <strong>TESTING</strong> · Test Date: <strong>Oct 6, 2026 2:06 PM</strong></p>
+    <p class="wmd-paragraph">Subject: <strong>TESTING</strong></p>
+    <p class="wmd-paragraph">Test Date: <strong>2026-10-06 14:06</strong></p>
     <div class="wmd-container-form-group">
   Evaluator
   <input type="text" class="wmd-input" placeholder="Dr. Lin" style="width: 14ch; max-width: 14ch;" />
@@ -549,10 +591,10 @@ body.wmd-root {
 </div>
 <div class="wmd-container-alert">
   <p class="wmd-paragraph">warning</p>
-  <p class="wmd-paragraph">Ended early — 7 of 18 trials.</p>
+  <p class="wmd-paragraph">▲ Warning: Ended early, 7 of 18 trials.</p>
 </div>
 <blockquote class="wmd-blockquote">
-  <p class="wmd-paragraph">The banner shows only for an early-ended run, or when valid gaze during trials is under 80 % (&quot;Gaze data is low quality: 72 % valid&quot;).</p>
+  <p class="wmd-paragraph">A warning alert box (phase-2 AlertBox: ▲ glyph tile, the word &quot;Warning:&quot;, white fill, amber border; no tint). The banner shows only for an early-ended run, or when valid gaze during trials is under 80 % (&quot;Gaze data is low quality: 72 % valid&quot;).</p>
 </blockquote>
 <div class="wmd-container-layout wmd-sidebar-main">
   <div class="wmd-layout-sidebar">
@@ -576,30 +618,30 @@ body.wmd-root {
   </tr>
     <tr>
     <td class="wmd-table-cell wmd-align-left">Input</td>
-    <td class="wmd-table-cell wmd-align-left">Gaze (GP3 HD, 150 Hz) · Dwell</td>
+    <td class="wmd-table-cell wmd-align-left">Gaze (GP3 HD, 150 Hz), Dwell</td>
   </tr>
     <tr>
-    <td class="wmd-table-cell wmd-align-left">Trials (planned)</td>
+    <td class="wmd-table-cell wmd-align-left">Number of trials</td>
     <td class="wmd-table-cell wmd-align-left">18</td>
   </tr>
     <tr>
     <td class="wmd-table-cell wmd-align-left">Selection</td>
-    <td class="wmd-table-cell wmd-align-left">Dwell 0.8 s, refractory 0.5 s</td>
+    <td class="wmd-table-cell wmd-align-left">Dwell, threshold 0.8 s, refractory 0.5 s</td>
   </tr>
     <tr>
     <td class="wmd-table-cell wmd-align-left">Target size</td>
-    <td class="wmd-table-cell wmd-align-left">Large — 8° (328 px), capped to 180 px</td>
+    <td class="wmd-table-cell wmd-align-left">Large (8°, 328 px), capped to 180 px</td>
   </tr>
     <tr>
     <td class="wmd-table-cell wmd-align-left">Layout</td>
     <td class="wmd-table-cell wmd-align-left">Grid 3x3, gap Standard</td>
   </tr>
     <tr>
-    <td class="wmd-table-cell wmd-align-left">Maximum time per trial</td>
+    <td class="wmd-table-cell wmd-align-left">Trial timeout</td>
     <td class="wmd-table-cell wmd-align-left">8.0 s</td>
   </tr>
     <tr>
-    <td class="wmd-table-cell wmd-align-left">Pause between trials</td>
+    <td class="wmd-table-cell wmd-align-left">Inter-trial interval</td>
     <td class="wmd-table-cell wmd-align-left">0.8 s</td>
   </tr>
     <tr>
@@ -607,16 +649,16 @@ body.wmd-root {
     <td class="wmd-table-cell wmd-align-left">Forest</td>
   </tr>
     <tr>
-    <td class="wmd-table-cell wmd-align-left">Gaze cursor shown</td>
-    <td class="wmd-table-cell wmd-align-left">Yes</td>
+    <td class="wmd-table-cell wmd-align-left">Gaze cursor</td>
+    <td class="wmd-table-cell wmd-align-left">Shown</td>
   </tr>
     <tr>
     <td class="wmd-table-cell wmd-align-left">Feedback</td>
-    <td class="wmd-table-cell wmd-align-left">Hit sound, miss sound</td>
+    <td class="wmd-table-cell wmd-align-left">Hit sound on, miss sound on, glow off</td>
   </tr>
     <tr>
     <td class="wmd-table-cell wmd-align-left">Gaze smoothing</td>
-    <td class="wmd-table-cell wmd-align-left">On, alpha 0.22 · jitter 40 px</td>
+    <td class="wmd-table-cell wmd-align-left">On, alpha 0.22, jitter tolerance 40 px</td>
   </tr>
     <tr>
     <td class="wmd-table-cell wmd-align-left">Display</td>
@@ -685,7 +727,7 @@ body.wmd-root {
 </table>
     <p class="wmd-paragraph">1 skipped trial(s) excluded. Target area = drawn target + 40 px tolerance ring. Reaction Time = onset to the first gaze entry; about 0 if the gaze already rested on the new target&#039;s place.</p>
     <blockquote class="wmd-blockquote">
-  <p class="wmd-paragraph"><strong>Selection = Switch</strong> (SPEC-input-selection-and-follow.md 4.5, added 2026-10-07): the same table gains two columns, means per row. The configuration rows read "Input: Gaze (GP3 HD, 150 Hz) · Switch" and "Selection: Switch press (mouse/switch button), refractory 0.5 s". With Dwell these columns are not shown.</p>
+  <p class="wmd-paragraph"><strong>Selection = Switch</strong> (SPEC-input-selection-and-follow.md 4.5, added 2026-10-07): the same table gains two columns, means per row. The configuration rows read "Input: Gaze (GP3 HD, 150 Hz), Switch" and "Selection: Switch press (mouse/switch button), refractory 0.5 s". With Dwell these columns are not shown.</p>
 </blockquote>
     <table class="wmd-table">
   <thead>
@@ -742,7 +784,7 @@ body.wmd-root {
     <blockquote class="wmd-blockquote">
   <p class="wmd-paragraph"><strong>Follow the Target</strong> (SPEC-input-selection-and-follow.md 4.5): instead of the Summary of Results table above, the main column shows this table. The configuration rows show "Trial duration 10.0 s" in place of "Maximum time per trial" and no Selection row.</p>
 </blockquote>
-    <h4 class="wmd-h4">Summary of Results — Follow the Target</h4>
+    <h4 class="wmd-h4">Summary of Results: Follow the Target</h4>
     <table class="wmd-table">
   <thead>
     <tr>
@@ -783,7 +825,7 @@ body.wmd-root {
 </table>
     <p class="wmd-paragraph">Smooth-pursuit gain = eye speed ÷ target speed, saccades removed; children&#039;s typical range about 0.6–0.85, vertical lower. Not a pass/fail value. &quot;Followed&quot; uses a fixed 50 % threshold.</p>
     <blockquote class="wmd-blockquote">
-  <p class="wmd-paragraph">Pursuit gain and catch-up saccades come from the eye tracker only, so a Mouse run shows &quot;—&quot; for them (and &quot;not recorded&quot; when no gaze was recorded).</p>
+  <p class="wmd-paragraph">Pursuit gain and catch-up saccades come from the eye tracker only, so a Mouse run shows a dash for them (and &quot;not recorded&quot; when no gaze was recorded).</p>
 </blockquote>
     <h4 class="wmd-h4">Target Map</h4>
     <ul class="wmd-list">
@@ -812,15 +854,19 @@ body.wmd-root {
 |   &#039;- - -&#039;        &#039;- - -&#039;        &#039;- - -&#039;      aspect ratio        |
 +------------------------------------------------------------------+</code></pre>
     <div class="wmd-container-callout">
-  <p class="wmd-paragraph"><strong>Legend</strong> (tinted box under the map, body-size dark text; the same box in the PDF)</p>
-  <p class="wmd-paragraph">● Target selected (hit) · X Target not selected · ◌ Trial skipped · ○ Layout position (cell or icon)</p>
+  <p class="wmd-paragraph"><strong>Legend</strong> (white box with a light grey edge, no tint, under the map; the same box in the PDF)</p>
+  <p class="wmd-paragraph">● Target selected (hit): pale green fill, green edge, dark number</p>
+  <p class="wmd-paragraph">X Target not selected: red X and ring, dark number on a white pill</p>
+  <p class="wmd-paragraph">◌ Trial skipped: grey dashed ring</p>
+  <p class="wmd-paragraph">○ Layout position (cell or icon): grey dashed circle</p>
+  <p class="wmd-paragraph">Scanpath: fixations joined in time order, all trials (one blue)</p>
   <p class="wmd-paragraph">Numbers = trials shown at that place</p>
 </div>
     <blockquote class="wmd-blockquote">
   <p class="wmd-paragraph"><strong>Overlays:</strong></p>
   <ul class="wmd-list">
-  <li class="wmd-list-item">Scanpath draws one dot per fixation, joined by straight lines in time order, per trial in a 6-colour cycle. The Detailed per-trial view draws the full gaze path smoothed like the on-screen cursor (the run&#039;s smoothing alpha), with numbered fixation circles.</li>
-  <li class="wmd-list-item">Heat map is an alpha ramp over the whole test.</li>
+  <li class="wmd-list-item">Scanpath draws one dot (3 px) per fixation, joined by straight lines (1.5 px) in time order, all trials in one blue (#1F669E, alpha 200; phase 4 X1), so the hit and miss marks and the trial numbers stay readable. Per-trial colour lives only in the Detailed view&#039;s selected trial. The Detailed per-trial view draws the full gaze path smoothed like the on-screen cursor (the run&#039;s smoothing alpha), with numbered fixation circles.</li>
+  <li class="wmd-list-item">Heat map is an alpha ramp over the whole test (unchanged: the Gazepoint Analysis ramp).</li>
   <li class="wmd-list-item">Follow the Target also shows the target&#039;s track as a faint line, with the mark at its end position. Its legend adds &quot;on target&quot; (dark path) and &quot;off target&quot; (light path) entries.</li>
   <li class="wmd-list-item">A Mouse run draws the mouse path (from pointer_stream.csv) in place of the gaze path; Scanpath and Heat map are disabled with &quot;not recorded&quot; when no gaze was recorded.</li>
 </ul>
@@ -880,7 +926,7 @@ body.wmd-root {
   <p class="wmd-paragraph">A Mouse run with no tracker shows one line here instead of the table: &quot;Eye metrics: not recorded (mouse test without the eye tracker).&quot;</p>
 </blockquote>
     <blockquote class="wmd-blockquote">
-  <p class="wmd-paragraph">Peak saccade velocity is a smoothed value (accepted 2026-10-06). Compare it only between children measured on the same device and sample rate. Old sessions without the new fields show &quot;—&quot;.</p>
+  <p class="wmd-paragraph">Peak saccade velocity is a smoothed value (accepted 2026-10-06). Compare it only between children measured on the same device and sample rate. Old sessions without the new fields show a dash (a figure that could not be computed; &quot;not recorded&quot; means no tracker).</p>
 </blockquote>
   </div>
 </div>
@@ -891,7 +937,7 @@ body.wmd-root {
   <button class="wmd-button wmd-outline">Print Report</button>
   <button class="wmd-button wmd-outline">View Details</button>
   <button class="wmd-button wmd-button-primary">Save &amp; Continue</button>
-  <button class="wmd-button wmd-outline">Cancel</button>
+  <button class="wmd-button wmd-secondary">Cancel</button>
 </div>
   </div>
 </div>
@@ -900,7 +946,7 @@ body.wmd-root {
   <ul class="wmd-list">
   <li class="wmd-list-item">Save &amp; Continue keeps Test Name, Evaluator and Notes (the only editable fields), then returns to the Test List.</li>
   <li class="wmd-list-item">Cancel drops those edits.</li>
-  <li class="wmd-list-item">Print Report exports a PDF (A4 portrait) to TESTING_Grid Click 1_2026-10-06.pdf in the run folder. One stacked column: page 1 holds the header, configuration and summary; the map with Targets only, its legend box and the Eye Metrics start page 2; then the Trial-by-Trial table and the definitions.</li>
+  <li class="wmd-list-item">Print Report exports a PDF (A4 portrait) to &lt;subject&gt;/reports/2026-10-06_Grid Click 1.pdf (SPEC-subject-data-layout.md H7). One stacked column (phase 4 H8): page 1 holds the header, configuration, summary and Eye Metrics; the map with Targets only and its legend box start page 2; then the Trial-by-Trial table and the definitions. Title &quot;Summary Results, Grid Click 1&quot;; body 9.5 pt, trial table 8 pt, definitions 8.5 pt; table headers grey with dark text; a missing text value prints &quot;not recorded&quot;.</li>
   <li class="wmd-list-item">The run data itself is never editable.</li>
 </ul>
 </blockquote>

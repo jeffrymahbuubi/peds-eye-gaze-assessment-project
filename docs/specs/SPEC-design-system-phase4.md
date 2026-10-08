@@ -4,7 +4,7 @@ title: Design system v1, phase 4: report Summary, Detailed and PDF (map tokens, 
 status: approved 2026-10-08 (X1 user decision, H1-H10 hub decisions approved by the user)
 created: 2026-10-08
 last_updated: 2026-10-08
-next_step: /spec-run after phase 2 (wireframe gate for report-summary and report-detailed)
+next_step: /spec-run step 2 after phase 2 (wireframes approved 2026-10-08)
 related:
   - docs/design/fable-proposal.md (source: §2.2 map and data-viz tokens, §3.7-§3.9, §5.2 phase 4)
   - SPEC-design-system-phase1.md (copy, dates, "not recorded"; LEGACY_REPORT_COLOURS frozen there until this phase)
@@ -100,7 +100,7 @@ badges).
 `report_page.py`, `report_tables.py`, `frozen_table.py`, `report_pdf.py`, `design_tokens.py` (map
 tokens), `wtmh_theme.py` (alias removal).
 **Out:** what the report computes (metrics, fixations, scanpaths, heat), the CSV exports, the report
-cache format; operator pages (phases 1-2); canvas (phase 3); the standalone dialog (phase 5).
+cache format; operator pages (phases 1-2); canvas (phase 3); the standalone `--task X --gui` dialog (proposal phase 5, **dropped by the user 2026-10-08**: not needed).
 
 ## 6. Acceptance criteria
 
@@ -119,7 +119,7 @@ cache format; operator pages (phases 1-2); canvas (phase 3); the standalone dial
 | Step | Content | Gate |
 |---|---|---|
 | 0 | Phase 2 done (StatusBadge, AlertBox) | — |
-| 1 | Wireframes: report-summary, report-detailed | **WF gate** |
+| 1 | Wireframes: report-summary, report-detailed (DONE 2026-10-08, user-approved) | **WF gate** |
 | 2 | spec-implementer: H1-H10 | — |
 | 3 | Hub review + full pytest; §9 questions | — |
 | 4 | Live check with the user (existing recorded runs; no subject needed) | user |
@@ -141,3 +141,5 @@ cache format; operator pages (phases 1-2); canvas (phase 3); the standalone dial
   when the data-layout SPEC lands, so new runs must be recorded first (the phase-3 live check
   produces them).
 - **2026-10-08** — The user approved H1-H10 as written. SPEC committed on `feature/compass-task-flow`.
+- **2026-10-08** — The user dropped the optional proposal phase 5 (standalone dialog parity): phase 4 is the last design-system phase. Step 1 wireframes (report-summary, report-detailed) drafted and rendered, awaiting the WF gate.
+- **2026-10-08** - Step 1: the user approved the report-summary and report-detailed wireframes as drawn.

@@ -1,6 +1,10 @@
 ![[_nav.md]]
 
-## Summary Results:
+## Summary Results
+
+### Grid Click 1
+
+> **Design system phases 1 and 4** (SPEC-design-system-phase1.md, SPEC-design-system-phase4.md H1-H9, X1): title without the colon, the test name under it at 20 px. Main column at most 1100 px, sidebar 460 px. Test Name field 480 px, Evaluator 320 px, Notes 84 px tall. Dates read yyyy-MM-dd HH:mm.
 
 > SPEC-compass-task-flow.md 4D.2–4D.3 and 4D.7–4D.8 (U9–U11). It opens from View Report on the Test List, or from "Save and View Report" in the Test Complete dialog. It replaces the old Results tab (`results.md`, superseded). The numbers come from `report.json`, which P4 built at the end of the run. The nav is locked while the report shows. Compass reference: `docs/compass/screenshots/08a-*.png`.
 
@@ -12,7 +16,9 @@
 
 ### {.right}
 
-Subject: **TESTING** · Test Date: **Oct 6, 2026 2:06 PM**
+Subject: **TESTING**
+
+Test Date: **2026-10-06 14:06**
 
 Evaluator
 [Dr. Lin______________]
@@ -20,10 +26,10 @@ Evaluator
 :::
 
 ::: alert warning
-Ended early — 7 of 18 trials.
+▲ Warning: Ended early, 7 of 18 trials.
 :::
 
-> The banner shows only for an early-ended run, or when valid gaze during trials is under 80 % ("Gaze data is low quality: 72 % valid").
+> A warning alert box (phase-2 AlertBox: ▲ glyph tile, the word "Warning:", white fill, amber border; no tint). The banner shows only for an early-ended run, or when valid gaze during trials is under 80 % ("Gaze data is low quality: 72 % valid").
 
 ::: layout {.sidebar-main}
 
@@ -37,17 +43,17 @@ Configuration Name: **Large targets**
 |---|---|
 | Configuration name | Large targets |
 | Task | Grid Click |
-| Input | Gaze (GP3 HD, 150 Hz) · Dwell |
-| Trials (planned) | 18 |
-| Selection | Dwell 0.8 s, refractory 0.5 s |
-| Target size | Large — 8° (328 px), capped to 180 px |
+| Input | Gaze (GP3 HD, 150 Hz), Dwell |
+| Number of trials | 18 |
+| Selection | Dwell, threshold 0.8 s, refractory 0.5 s |
+| Target size | Large (8°, 328 px), capped to 180 px |
 | Layout | Grid 3x3, gap Standard |
-| Maximum time per trial | 8.0 s |
-| Pause between trials | 0.8 s |
+| Trial timeout | 8.0 s |
+| Inter-trial interval | 0.8 s |
 | Theme | Forest |
-| Gaze cursor shown | Yes |
-| Feedback | Hit sound, miss sound |
-| Gaze smoothing | On, alpha 0.22 · jitter 40 px |
+| Gaze cursor | Shown |
+| Feedback | Hit sound on, miss sound on, glow off |
+| Gaze smoothing | On, alpha 0.22, jitter tolerance 40 px |
 | Display | 1920x1080 @ 100 % (standard) |
 | Viewing distance | 600 mm |
 | Calibration | 9 points, 0.6° mean, measured |
@@ -74,7 +80,7 @@ One cell of a visible board lights up; the child selects it by looking at it.
 
 1 skipped trial(s) excluded. Target area = drawn target + 40 px tolerance ring. Reaction Time = onset to the first gaze entry; about 0 if the gaze already rested on the new target's place.
 
-> **Selection = Switch** (SPEC-input-selection-and-follow.md 4.5, added 2026-10-07): the same table gains two columns, means per row. The configuration rows read "Input: Gaze (GP3 HD, 150 Hz) · Switch" and "Selection: Switch press (mouse/switch button), refractory 0.5 s". With Dwell these columns are not shown.
+> **Selection = Switch** (SPEC-input-selection-and-follow.md 4.5, added 2026-10-07): the same table gains two columns, means per row. The configuration rows read "Input: Gaze (GP3 HD, 150 Hz), Switch" and "Selection: Switch press (mouse/switch button), refractory 0.5 s". With Dwell these columns are not shown.
 
 | | % (N) | Trial Time (s) | Reaction Time (s) | Entries | Clicks | Click errors |
 |---|---|---|---|---|---|---|
@@ -87,7 +93,7 @@ Clicks = switch presses counted in the trial (presses between trials are ignored
 
 > **Follow the Target** (SPEC-input-selection-and-follow.md 4.5): instead of the Summary of Results table above, the main column shows this table. The configuration rows show "Trial duration 10.0 s" in place of "Maximum time per trial" and no Selection row.
 
-#### Summary of Results — Follow the Target
+#### Summary of Results: Follow the Target
 
 | Metric | Value |
 |---|---|
@@ -101,7 +107,7 @@ Clicks = switch presses counted in the trial (presses between trials are ignored
 
 Smooth-pursuit gain = eye speed ÷ target speed, saccades removed; children's typical range about 0.6–0.85, vertical lower. Not a pass/fail value. "Followed" uses a fixed 50 % threshold.
 
-> Pursuit gain and catch-up saccades come from the eye tracker only, so a Mouse run shows "—" for them (and "not recorded" when no gaze was recorded).
+> Pursuit gain and catch-up saccades come from the eye tracker only, so a Mouse run shows a dash for them (and "not recorded" when no gaze was recorded).
 
 #### Target Map
 
@@ -125,17 +131,25 @@ Smooth-pursuit gain = eye speed ÷ target speed, saccades removed; children's ty
 
 ::: callout
 
-**Legend** (tinted box under the map, body-size dark text; the same box in the PDF)
+**Legend** (white box with a light grey edge, no tint, under the map; the same box in the PDF)
 
-● Target selected (hit) · X Target not selected · ◌ Trial skipped · ○ Layout position (cell or icon)
+● Target selected (hit): pale green fill, green edge, dark number
+
+X Target not selected: red X and ring, dark number on a white pill
+
+◌ Trial skipped: grey dashed ring
+
+○ Layout position (cell or icon): grey dashed circle
+
+Scanpath: fixations joined in time order, all trials (one blue)
 
 Numbers = trials shown at that place
 
 :::
 
 > **Overlays:**
-> - Scanpath draws one dot per fixation, joined by straight lines in time order, per trial in a 6-colour cycle. The Detailed per-trial view draws the full gaze path smoothed like the on-screen cursor (the run's smoothing alpha), with numbered fixation circles.
-> - Heat map is an alpha ramp over the whole test.
+> - Scanpath draws one dot (3 px) per fixation, joined by straight lines (1.5 px) in time order, **all trials in one blue** (#1F669E, alpha 200; phase 4 X1), so the hit and miss marks and the trial numbers stay readable. Per-trial colour lives only in the Detailed view's selected trial. The Detailed per-trial view draws the full gaze path smoothed like the on-screen cursor (the run's smoothing alpha), with numbered fixation circles.
+> - Heat map is an alpha ramp over the whole test (unchanged: the Gazepoint Analysis ramp).
 > - Follow the Target also shows the target's track as a faint line, with the mark at its end position. Its legend adds "on target" (dark path) and "off target" (light path) entries.
 > - A Mouse run draws the mouse path (from `pointer_stream.csv`) in place of the gaze path; Scanpath and Heat map are disabled with "not recorded" when no gaze was recorded.
 
@@ -156,7 +170,7 @@ Numbers = trials shown at that place
 
 > A Mouse run with no tracker shows one line here instead of the table: "Eye metrics: not recorded (mouse test without the eye tracker)."
 
-> Peak saccade velocity is a smoothed value (accepted 2026-10-06). Compare it only between children measured on the same device and sample rate. Old sessions without the new fields show "—".
+> Peak saccade velocity is a smoothed value (accepted 2026-10-06). Compare it only between children measured on the same device and sample rate. Old sessions without the new fields show a dash (a figure that could not be computed; "not recorded" means no tracker).
 
 :::
 
@@ -165,11 +179,11 @@ Numbers = trials shown at that place
 ---
 
 ::: row
-[Print Report]{.outline} [View Details]{.outline} [Save & Continue]* [Cancel]{.outline}
+[Print Report]{.outline} [View Details]{.outline} [Save & Continue]* [Cancel]{.secondary}
 :::
 
 > **Footer:**
 > - **Save & Continue** keeps Test Name, Evaluator and Notes (the only editable fields), then returns to the Test List.
 > - **Cancel** drops those edits.
-> - **Print Report** exports a PDF (A4 portrait) to `TESTING_Grid Click 1_2026-10-06.pdf` in the run folder. One stacked column: page 1 holds the header, configuration and summary; the map with Targets only, its legend box and the Eye Metrics start page 2; then the Trial-by-Trial table and the definitions.
+> - **Print Report** exports a PDF (A4 portrait) to `<subject>/reports/2026-10-06_Grid Click 1.pdf` (SPEC-subject-data-layout.md H7). One stacked column (phase 4 H8): **page 1 holds the header, configuration, summary and Eye Metrics**; the map with Targets only and its legend box start page 2; then the Trial-by-Trial table and the definitions. Title "Summary Results, Grid Click 1"; body 9.5 pt, trial table 8 pt, definitions 8.5 pt; table headers grey with dark text; a missing text value prints "not recorded".
 > - The run data itself is never editable.
