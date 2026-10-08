@@ -431,20 +431,24 @@ _GREYED_BY = {
     "dwell.progress_ring": ("input.selection", SELECTION_SWITCH),
     "feedback.target_glow": ("input.selection", SELECTION_DWELL),
 }
-# The cards in 4B.1 order: (id, title, column, hint, control keys in order). A key the task
-# has no setting for is skipped and a card left empty is dropped, so one table lays out all
-# four pages (scanning has Icons where the others have Target; only click_grid has a grid).
+# The cards in order of clinical weight (SPEC-design-system-phase2.md H6, V4): (id, title,
+# column, hint, control keys in order). Column 0 holds what the clinician sets first (the
+# test, the input, the target or icons), column 1 the task's own card, the timing and the
+# feedback, column 2 the advanced Dwell and Gaze Smoothing (under an "Advanced" title). A key
+# the task has no setting for is skipped and a card left empty is dropped, so one table lays
+# out all four pages (scanning has Icons where the others have Target; only click_grid has a
+# grid; Icons stays one card, size and count together).
 _CARDS = (
     ("test", "Test", 0, None, ("test.name", "test.config_name", "trials", "test.notes")),
-    ("feedback", "Feedback", 0, None, (
-        "dwell.visual_cursor", "dwell.progress_ring", "dwell.instant_feedback",
-        "feedback.target_glow", "feedback.hit_sound", "feedback.miss_sound")),
-    ("target", "Target", 1, None, ("target.size",)),
-    ("icons", "Icons", 1, HINT_ICON_FIT, ("layout.size", "layout.n_icons")),
+    ("input", "Input", 0, None, ("input.pointer", "input.selection")),
+    ("target", "Target", 0, None, ("target.size",)),
+    ("icons", "Icons", 0, HINT_ICON_FIT, ("layout.size", "layout.n_icons")),
     ("grid", "Grid Layout", 1, HINT_GRID_FIT, ("grid.rows", "grid.cols", "grid.gap")),
     ("motion", "Motion", 1, None, ("motion.path", "motion.speed_frac_per_s")),
     ("timing", "Timing", 1, None, ("task.timeout_ms", "task.inter_trial_interval_ms")),
-    ("input", "Input", 2, None, ("input.pointer", "input.selection")),
+    ("feedback", "Feedback", 1, None, (
+        "dwell.visual_cursor", "dwell.progress_ring", "dwell.instant_feedback",
+        "feedback.target_glow", "feedback.hit_sound", "feedback.miss_sound")),
     ("selection", "Dwell", 2, None, (
         "dwell.threshold_ms", "dwell.refractory_ms", "dwell.jitter_tolerance_px")),
     ("smoothing", "Gaze Smoothing", 2, None, ("dwell.smoothing.enabled", "dwell.smoothing.alpha")),

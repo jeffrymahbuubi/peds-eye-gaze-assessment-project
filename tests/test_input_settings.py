@@ -78,17 +78,25 @@ def test_the_new_controls_have_tooltips():
 
 
 @pytest.mark.parametrize("task_id", TASKS)
-def test_the_input_card_is_first_in_the_third_column(task_id):
+def test_the_input_card_is_second_in_the_first_column(task_id):
+    """SPEC-design-system-phase2.md H6 (V4): the Input card moved from the third column to the
+    first, under Test, because the clinician sets it before anything else."""
+    first = [g for g in config_groups_for_task(task_id) if g.column == 0]
+    assert [g.id for g in first][:2] == ["test", "input"]
+    assert first[1].title == "Input"
+    assert [c.key for c in first[1].controls] == (
+        ["input.pointer", "input.selection"] if task_id in SELECTION_TASKS else ["input.pointer"]
+    )
+    assert all(c.widget == "radio" for c in first[1].controls)
+
+
+@pytest.mark.parametrize("task_id", TASKS)
+def test_the_third_column_holds_only_the_advanced_cards(task_id):
     third = [g for g in config_groups_for_task(task_id) if g.column == 2]
     # (Follow the Target has no Dwell card: nothing to select.)
     assert [g.id for g in third] == (
-        ["input", "selection", "smoothing"] if task_id in SELECTION_TASKS else ["input", "smoothing"]
+        ["selection", "smoothing"] if task_id in SELECTION_TASKS else ["smoothing"]
     )
-    assert third[0].title == "Input"
-    assert [c.key for c in third[0].controls] == (
-        ["input.pointer", "input.selection"] if task_id in SELECTION_TASKS else ["input.pointer"]
-    )
-    assert all(c.widget == "radio" for c in third[0].controls)
 
 
 @pytest.mark.parametrize("task_id", SELECTION_TASKS)

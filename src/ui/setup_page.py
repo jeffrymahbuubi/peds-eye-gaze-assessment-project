@@ -20,7 +20,6 @@ from PySide6.QtWidgets import (
     QCompleter,
     QDateEdit,
     QFileDialog,
-    QFormLayout,
     QFrame,
     QHBoxLayout,
     QHeaderView,
@@ -61,8 +60,36 @@ from ..engine.subject_store import (
     output_root,
 )
 from ..inputs.gazepoint_client import DeviceInfo, GazepointClient
+from .alert_box import AlertBox
 from .design_tokens import BORDER_STRONG, PANEL, RADIUS, TABLE_ROW_HEIGHT
+from .page_layout import (
+    ADDRESS_WIDTH,
+    CARD_GAP,
+    CARD_PADDING,
+    CONTENT_MAX_WIDTH,
+    CONTINUE_WIDTH,
+    DATE_WIDTH,
+    FIELD_GAP,
+    NOTES_HEIGHT,
+    POINT_COUNT_WIDTH,
+    PORT_WIDTH,
+    SCROLLBAR_GUTTER,
+    SEX_WIDTH,
+    SUBJECT_ID_WIDTH,
+    content_column,
+    labeled,
+)
 from .report_format import DASH
+from .setup_status import (
+    DATE_BLOCKER,
+    DISPLAY_BLOCKER,
+    SEX_BLOCKER,
+    SUBJECT_BLOCKER,
+    calibration_badge,
+    needs_caption,
+    tracker_badge,
+)
+from .status_badge import StatusBadge
 
 _SEX_OPTIONS = ["Select", "Female", "Male", "Other / Prefer not to say"]
 
@@ -369,15 +396,13 @@ class SetupPage(QWidget):
         if self._calibration_result is None:
             blockers.append(CALIBRATION_BLOCKER)
         if not self.subject_id():
-            blockers.append("Subject ID is empty.")
+            blockers.append(SUBJECT_BLOCKER)
         if not self.assessment_date():
-            blockers.append("Assessment date is empty.")
+            blockers.append(DATE_BLOCKER)
         if not self.sex():
-            blockers.append("Sex is not selected.")
+            blockers.append(SEX_BLOCKER)
         if self._display_needs_ack() and not self.display_ack_checkbox.isChecked():
-            blockers.append(
-                "The display is not 1920x1080 at 100 %. Tick the acknowledgement on the Setup page."
-            )
+            blockers.append(DISPLAY_BLOCKER)
         return blockers
 
     def continue_blockers(self) -> list[str]:
@@ -398,8 +423,9 @@ class SetupPage(QWidget):
     # -- UI -----------------------------------------------------------------
 
     def _build_ui(self) -> None:
-        outer = QVBoxLayout(self)
-        outer.setContentsMargins(24, 20, 24, 20)
+        # One column at most 1200 px wide, left-aligned (SPEC-design-system-phase2.md H4); the
+        # scroll bar sits beside it, not over the cards.
+        outer = content_column(self, CONTENT_MAX_WIDTH + SCROLLBAR_GUTTER)
         outer.setSpacing(16)
 
         title = QLabel("Setup")
@@ -417,14 +443,15 @@ class SetupPage(QWidget):
         scroll.setFrameShape(QFrame.Shape.NoFrame)
 
         scroll_content = QWidget()
+        scroll_content.setMaximumWidth(CONTENT_MAX_WIDTH)
         scroll_layout = QVBoxLayout(scroll_content)
         scroll_layout.setContentsMargins(0, 0, 0, 0)
-        scroll_layout.setSpacing(16)
+        scroll_layout.setSpacing(CARD_GAP)
         scroll_layout.addWidget(self._build_subject_card())
         scroll_layout.addWidget(self._build_tracker_card())
-        scroll_layout.addWidget(self._build_display_card())
+        scroll_layout.addWidget(self._build_display_section())
         scroll_layout.addWidget(self._build_calibration_card())
-        scroll_layout.addWidget(self._build_device_notice_card())
+        scroll_layout.addWidget(self._build_device_notice_section())
         scroll_layout.addStretch(1)
         scroll.setWidget(scroll_content)
         # QScrollArea.setWidget() turns on autoFillBackground for both the
@@ -441,57 +468,89 @@ class SetupPage(QWidget):
 
         # What Continue leaves undone when there is no tracker or no calibration: only Mouse
         # tests can run (the gaze ones are held back on their own Start page).
-        self.gaze_note = QFrame()
-        self.gaze_note.setObjectName("wtmhAlertInfo")
-        gaze_note_row = QVBoxLayout(self.gaze_note)
-        self.gaze_note_label = QLabel("")
-        self.gaze_note_label.setWordWrap(True)
-        gaze_note_row.addWidget(self.gaze_note_label)
+        self.gaze_note = AlertBox("note")
+        self.gaze_note_label = self.gaze_note.label
+        self.gaze_note.setMaximumWidth(CONTENT_MAX_WIDTH)
         self.gaze_note.hide()
         outer.addWidget(self.gaze_note)
 
+        # The footer: Continue to Tests (240 px, right-aligned) and, while it is off, a caption
+        # under it with what it still needs (H4). The tooltip says the same.
+        footer = QWidget()
+        footer.setFixedHeight(64)
+        footer.setMaximumWidth(CONTENT_MAX_WIDTH)
+        footer_layout = QVBoxLayout(footer)
+        footer_layout.setContentsMargins(0, 0, 0, 0)
+        footer_layout.setSpacing(4)
         self.continue_button = QPushButton("Continue to Tests →")
         self.continue_button.setObjectName("wtmhPrimary")
         self.continue_button.setEnabled(False)
         self.continue_button.clicked.connect(self.continueRequested)
-        outer.addWidget(self.continue_button)
+        # The 240 px belongs to a slot the button fills, not to the button: the tiers' QSS
+        # min-width replaces a widget's own minimum when it is polished, so a fixed width set
+        # on the button was lost on screen (157 px, the width of its text).
+        continue_slot = QWidget()
+        continue_slot.setFixedWidth(CONTINUE_WIDTH)
+        slot_layout = QVBoxLayout(continue_slot)
+        slot_layout.setContentsMargins(0, 0, 0, 0)
+        slot_layout.addWidget(self.continue_button)
+        footer_layout.addWidget(continue_slot, 0, Qt.AlignmentFlag.AlignRight)
+        self.needs_label = QLabel("")
+        self.needs_label.setObjectName("wtmhCaption")
+        self.needs_label.hide()
+        footer_layout.addWidget(self.needs_label, 0, Qt.AlignmentFlag.AlignRight)
+        footer_layout.addStretch(1)
+        outer.addWidget(footer)
 
     @staticmethod
-    def _card() -> tuple[QFrame, QVBoxLayout]:
+    def _card(title: str) -> tuple[QFrame, QVBoxLayout]:
+        """A card with its title; the fields go in the returned layout, 16 px apart."""
         card = QFrame()
         card.setObjectName("wtmhCard")
         layout = QVBoxLayout(card)
-        layout.setContentsMargins(16, 14, 16, 14)
-        layout.setSpacing(10)
-        return card, layout
+        layout.setContentsMargins(CARD_PADDING, CARD_PADDING, CARD_PADDING, CARD_PADDING)
+        layout.setSpacing(6)  # the title's own margin makes it the 12 px to the first field
+        layout.addWidget(SetupPage._section_title(title))
+        body = QVBoxLayout()
+        body.setSpacing(FIELD_GAP)
+        layout.addLayout(body)
+        return card, body
 
     @staticmethod
-    def _card_title(text: str) -> QLabel:
+    def _section_title(text: str) -> QLabel:
         title = QLabel(text)
         title.setObjectName("wtmhSectionTitle")
         return title
 
-    def _build_display_card(self) -> QFrame:
+    @staticmethod
+    def _stack(card: QWidget, alert: AlertBox) -> QWidget:
+        """A card with its alert directly under it, at the page level (an alert never sits
+        inside a card, proposal 2.4)."""
+        block = QWidget()
+        layout = QVBoxLayout(block)
+        layout.setContentsMargins(0, 0, 0, 0)
+        layout.setSpacing(8)
+        layout.addWidget(card)
+        layout.addWidget(alert)
+        return block
+
+    def _build_display_section(self) -> QWidget:
         """Display standard check (SPEC-display-standard-check.md S4.2):
         green line when 1920x1080 at 100 %, else a warning plus an
-        acknowledgement box that gates Continue. Always visible."""
-        card, layout = self._card()
-        layout.addWidget(self._card_title("Display"))
+        acknowledgement box that gates Continue. Always visible. A title, the alert
+        and the box, on the page: the alert is not inside a card (H3)."""
+        section = QWidget()
+        layout = QVBoxLayout(section)
+        layout.setContentsMargins(0, 0, 0, 0)
+        layout.setSpacing(8)
+        layout.addWidget(self._section_title("Display"))
 
-        self.display_ok_alert = QFrame()
-        self.display_ok_alert.setObjectName("wtmhAlertSuccess")
-        ok_layout = QVBoxLayout(self.display_ok_alert)
-        self.display_ok_label = QLabel("")
-        self.display_ok_label.setWordWrap(True)
-        ok_layout.addWidget(self.display_ok_label)
+        self.display_ok_alert = AlertBox("success")
+        self.display_ok_label = self.display_ok_alert.label
         layout.addWidget(self.display_ok_alert)
 
-        self.display_warning_alert = QFrame()
-        self.display_warning_alert.setObjectName("wtmhAlertWarning")
-        warning_layout = QVBoxLayout(self.display_warning_alert)
-        self.display_warning_label = QLabel("")
-        self.display_warning_label.setWordWrap(True)
-        warning_layout.addWidget(self.display_warning_label)
+        self.display_warning_alert = AlertBox("warning")
+        self.display_warning_label = self.display_warning_alert.label
         layout.addWidget(self.display_warning_alert)
 
         self.display_ack_checkbox = QCheckBox(
@@ -499,14 +558,11 @@ class SetupPage(QWidget):
         )
         self.display_ack_checkbox.toggled.connect(self._on_state_changed)
         layout.addWidget(self.display_ack_checkbox)
-        return card
+        return section
 
     def _build_subject_card(self) -> QFrame:
-        card, layout = self._card()
-        layout.addWidget(self._card_title("Subject & Session Info"))
+        card, layout = self._card("Subject & Session Info")
 
-        form = QFormLayout()
-        form.setVerticalSpacing(10)
         self.subject_id_edit = QLineEdit()
         self.subject_id_edit.textChanged.connect(self._on_state_changed)
         self.subject_id_edit.textChanged.connect(self.subjectIdChanged)
@@ -525,12 +581,13 @@ class SetupPage(QWidget):
         completer.setCompletionMode(QCompleter.CompletionMode.PopupCompletion)
         self.subject_id_edit.setCompleter(completer)
         self.refresh_subject_completer()
-        form.addRow("Subject ID", self.subject_id_edit)
         # The subject's folder is named after the Subject ID, so the page asks for a study
         # code, not a child's name (SPEC-subject-data-layout.md D4, wireframe W1).
         self.subject_id_hint = QLabel("Use a study code, not the child's name.")
         self.subject_id_hint.setObjectName("wtmhMuted")
-        form.addRow("", self.subject_id_hint)
+        layout.addWidget(
+            labeled("Subject ID", self.subject_id_edit, width=SUBJECT_ID_WIDTH, hint=self.subject_id_hint)
+        )
 
         # No calendar popup (SPEC-ui-setup-task-selection.md S13, user
         # feedback): a physician recording an assessment isn't "booking" a
@@ -556,7 +613,7 @@ class SetupPage(QWidget):
         # keyboard-editable text box matching Subject ID above it, not a
         # steppable control.
         self.date_edit.setButtonSymbols(QAbstractSpinBox.ButtonSymbols.NoButtons)
-        form.addRow("Assessment Date", self.date_edit)
+        layout.addWidget(labeled("Assessment Date", self.date_edit, width=DATE_WIDTH))
 
         self.sex_combo = QComboBox()
         self.sex_combo.addItems(_SEX_OPTIONS)
@@ -611,36 +668,29 @@ class SetupPage(QWidget):
                 f"background: {PANEL}; border: 1px solid {BORDER_STRONG}; "
                 f"border-top: none; border-radius: {RADIUS}px;"
             )
-        form.addRow("Sex", self.sex_combo)
+        layout.addWidget(labeled("Sex", self.sex_combo, width=SEX_WIDTH))
 
         self.notes_edit = QTextEdit()
-        self.notes_edit.setFixedHeight(60)
-        form.addRow("Notes", self.notes_edit)
-
-        layout.addLayout(form)
+        self.notes_edit.setFixedHeight(NOTES_HEIGHT)  # three lines
+        self.notes_edit.setTabChangesFocus(True)  # Tab moves on, it does not type a tab (H13)
+        layout.addWidget(labeled("Notes", self.notes_edit))
         return card
 
-    def _build_tracker_card(self) -> QFrame:
-        card, layout = self._card()
-        layout.addWidget(self._card_title("Tracker Connection"))
+    def _build_tracker_card(self) -> QWidget:
+        card, layout = self._card("Tracker Connection")
 
         local_state = load_local_state()
         gp_defaults = self._defaults.get("gazepoint", {})
 
         row = QHBoxLayout()
-        addr_col = QVBoxLayout()
-        addr_col.addWidget(QLabel("Control Address"))
+        row.setSpacing(FIELD_GAP)
         self.address_edit = QLineEdit(str(local_state.get("host", "127.0.0.1")))
-        addr_col.addWidget(self.address_edit)
-        row.addLayout(addr_col, stretch=2)
-
-        port_col = QVBoxLayout()
-        port_col.addWidget(QLabel("Control Port"))
+        row.addWidget(labeled("Control Address", self.address_edit, width=ADDRESS_WIDTH))
         self.port_spin = QSpinBox()
         self.port_spin.setRange(1, 65535)
         self.port_spin.setValue(int(local_state.get("port", gp_defaults.get("port", 4242))))
-        port_col.addWidget(self.port_spin)
-        row.addLayout(port_col, stretch=1)
+        row.addWidget(labeled("Control Port", self.port_spin, width=PORT_WIDTH))
+        row.addStretch(1)
         layout.addLayout(row)
 
         buttons = QHBoxLayout()
@@ -653,12 +703,19 @@ class SetupPage(QWidget):
         self.test_connection_button.setObjectName("wtmhGhost")
         self.test_connection_button.clicked.connect(self._on_test_connection_clicked)
         buttons.addWidget(self.test_connection_button)
+
+        # Disconnected / Connected, glyph + word, beside the buttons (V3); the line under
+        # them says what the last attempt did ("Connecting…", "Unreachable: ...").
+        self.tracker_badge = StatusBadge("disconnected")
+        buttons.addWidget(self.tracker_badge, 0, Qt.AlignmentFlag.AlignVCenter)
         buttons.addStretch(1)
         layout.addLayout(buttons)
 
-        self.tracker_status_label = QLabel("Not connected.")
-        self.tracker_status_label.setObjectName("wtmhMuted")
-        layout.addWidget(self.tracker_status_label)
+        self.tracker_message_label = QLabel("")
+        self.tracker_message_label.setObjectName("wtmhMuted")
+        self.tracker_message_label.setWordWrap(True)
+        self.tracker_message_label.hide()
+        layout.addWidget(self.tracker_message_label)
 
         # Populated from GazepointClient.device_info on a successful
         # connect; hidden whenever there's nothing to show (SPEC S23).
@@ -686,29 +743,21 @@ class SetupPage(QWidget):
         layout.addWidget(self.device_info_status_label)
 
         # S24.3: shown whenever a connected device reports a rate below
-        # 150 Hz -- the same visual pattern as calibration_alert below.
-        self.rate_warning_alert = QFrame()
-        self.rate_warning_alert.setObjectName("wtmhAlertWarning")
+        # 150 Hz -- the same visual pattern as calibration_alert below. Directly under
+        # the card, not inside it.
+        self.rate_warning_alert = AlertBox("warning")
+        self.rate_warning_label = self.rate_warning_alert.label
         self.rate_warning_alert.setVisible(False)
-        rate_alert_layout = QVBoxLayout(self.rate_warning_alert)
-        self.rate_warning_label = QLabel("")
-        self.rate_warning_label.setWordWrap(True)
-        rate_alert_layout.addWidget(self.rate_warning_label)
-        layout.addWidget(self.rate_warning_alert)
-        return card
+        return self._stack(card, self.rate_warning_alert)
 
-    def _build_calibration_card(self) -> QFrame:
-        card, layout = self._card()
-        layout.addWidget(self._card_title("Calibration"))
+    def _build_calibration_card(self) -> QWidget:
+        card, layout = self._card("Calibration")
 
-        form = QFormLayout()
-        form.setVerticalSpacing(10)
         self.point_count_spin = QSpinBox()
         self.point_count_spin.setRange(1, 9)
         cal_defaults = self._defaults.get("calibration", {})
         self.point_count_spin.setValue(int(cal_defaults.get("points", 5)))
-        form.addRow("Point Count (1–9)", self.point_count_spin)
-        layout.addLayout(form)
+        layout.addWidget(labeled("Point Count (1–9)", self.point_count_spin, width=POINT_COUNT_WIDTH))
 
         self.show_calibration_checkbox = QCheckBox("Show calibration window to the subject")
         self.show_calibration_checkbox.setChecked(bool(cal_defaults.get("show", True)))
@@ -747,22 +796,23 @@ class SetupPage(QWidget):
         self.view_details_button.setEnabled(False)
         self.view_details_button.clicked.connect(self._on_toggle_details_clicked)
         buttons.addWidget(self.view_details_button)
+
+        # Not calibrated / Calibrated, 5 points, 1.8°, glyph + word, beside the buttons (V3).
+        self.calibration_badge = StatusBadge("not_calibrated")
+        buttons.addWidget(self.calibration_badge, 0, Qt.AlignmentFlag.AlignVCenter)
         buttons.addStretch(1)
         layout.addLayout(buttons)
 
-        self.calibration_alert = QFrame()
-        self.calibration_alert.setObjectName("wtmhAlertWarning")
-        alert_layout = QVBoxLayout(self.calibration_alert)
-        self.calibration_alert_label = QLabel(
-            "No calibration yet for this subject. Run Do Calibration or "
-            "Load Calibration File before continuing."
-        )
-        self.calibration_alert_label.setWordWrap(True)
-        alert_layout.addWidget(self.calibration_alert_label)
-        layout.addWidget(self.calibration_alert)
-
         layout.addWidget(self._build_calibration_details_section())
-        return card
+
+        # The result of the last calibration, directly under the card (not inside it).
+        self.calibration_alert = AlertBox(
+            "warning",
+            "No calibration yet for this subject. Run Do Calibration or "
+            "Load Calibration File before continuing.",
+        )
+        self.calibration_alert_label = self.calibration_alert.label
+        return self._stack(card, self.calibration_alert)
 
     def _build_calibration_details_section(self) -> QWidget:
         self.calibration_details_section = QWidget()
@@ -771,7 +821,7 @@ class SetupPage(QWidget):
         details_layout.setContentsMargins(0, 4, 0, 0)
         details_layout.setSpacing(6)
 
-        details_layout.addWidget(self._card_title("Per-point breakdown"))
+        details_layout.addWidget(self._section_title("Per-point breakdown"))
 
         self.calibration_details_table = QTableWidget(0, 7)
         self.calibration_details_table.setObjectName("wtmhTable")
@@ -795,24 +845,29 @@ class SetupPage(QWidget):
 
         return self.calibration_details_section
 
-    def _build_device_notice_card(self) -> QFrame:
-        card, layout = self._card()
-        layout.addWidget(self._card_title("Before You Start"))
-        alert = QFrame()
-        alert.setObjectName("wtmhAlertInfo")
-        alert_layout = QVBoxLayout(alert)
-        label = QLabel(
-            "Confirm in Gazepoint Control that Lens Focusing and Automatic "
-            "Gain Sweep are enabled. (Read-only reminder: neither setting "
-            "can be checked or changed from this app; it does not gate "
-            "Continue.)"
+    def _build_device_notice_section(self) -> QWidget:
+        section = QWidget()
+        layout = QVBoxLayout(section)
+        layout.setContentsMargins(0, 0, 0, 0)
+        layout.setSpacing(8)
+        layout.addWidget(self._section_title("Before You Start"))
+        layout.addWidget(
+            AlertBox(
+                "note",
+                "Confirm in Gazepoint Control that Lens Focusing and Automatic "
+                "Gain Sweep are enabled. (Read-only reminder: neither setting "
+                "can be checked or changed from this app; it does not gate "
+                "Continue.)",
+            )
         )
-        label.setWordWrap(True)
-        alert_layout.addWidget(label)
-        layout.addWidget(alert)
-        return card
+        return section
 
     # -- tracker connection ---------------------------------------------
+
+    def _set_tracker_message(self, text: str) -> None:
+        """The line under the tracker buttons (what the last attempt did); hidden when empty."""
+        self.tracker_message_label.setText(text)
+        self.tracker_message_label.setVisible(bool(text))
 
     def _apply_device_info(self, info: DeviceInfo | None) -> None:
         """Render device_info_label + rate_warning_alert from a DeviceInfo
@@ -832,7 +887,7 @@ class SetupPage(QWidget):
         if self._connect_thread is not None:
             return
         self.connect_button.setEnabled(False)
-        self.tracker_status_label.setText("Connecting…")
+        self._set_tracker_message("Connecting…")
         self.device_info_label.setVisible(False)
         self.recheck_device_info_button.setVisible(False)
         self.device_info_status_label.setVisible(False)
@@ -849,7 +904,7 @@ class SetupPage(QWidget):
         self._connect_thread = None
         self._client = client
         self.connect_button.setEnabled(True)
-        self.tracker_status_label.setText("Connected.")
+        self._set_tracker_message("")  # the badge says Connected
         self.device_info_status_label.setVisible(False)
         self._apply_device_info(client.device_info)
         self.do_calibration_button.setEnabled(True)
@@ -859,7 +914,8 @@ class SetupPage(QWidget):
     def _on_connect_failed(self, message: str) -> None:
         self._connect_thread = None
         self.connect_button.setEnabled(True)
-        self.tracker_status_label.setText(f"Connection failed: {message}")
+        self._set_tracker_message(f"Connection failed: {message}")
+        self._refresh_status_badges()
         self.device_info_label.setVisible(False)
         self.recheck_device_info_button.setVisible(False)
         self.device_info_status_label.setVisible(False)
@@ -896,7 +952,7 @@ class SetupPage(QWidget):
         if self._connect_thread is not None:
             return
         self.test_connection_button.setEnabled(False)
-        self.tracker_status_label.setText("Testing connection…")
+        self._set_tracker_message("Testing connection…")
         thread = _ConnectThread(
             self.address_edit.text().strip() or "127.0.0.1", self.port_spin.value(), keep=False, parent=self
         )
@@ -905,12 +961,12 @@ class SetupPage(QWidget):
         def on_ok(_client: object) -> None:
             self._connect_thread = None
             self.test_connection_button.setEnabled(True)
-            self.tracker_status_label.setText("Reachable.")
+            self._set_tracker_message("Reachable.")
 
         def on_fail(message: str) -> None:
             self._connect_thread = None
             self.test_connection_button.setEnabled(True)
-            self.tracker_status_label.setText(f"Unreachable: {message}")
+            self._set_tracker_message(f"Unreachable: {message}")
 
         thread.succeeded.connect(on_ok)
         thread.failed.connect(on_fail)
@@ -1073,15 +1129,8 @@ class SetupPage(QWidget):
                 table.setItem(i, col, item)
 
     def _set_calibration_alert(self, kind: str, text: str) -> None:
-        object_names = {
-            "info": "wtmhAlertInfo",
-            "warning": "wtmhAlertWarning",
-            "success": "wtmhAlertSuccess",
-            "error": "wtmhAlertError",
-        }
-        self.calibration_alert.setObjectName(object_names[kind])
-        self.calibration_alert.style().unpolish(self.calibration_alert)
-        self.calibration_alert.style().polish(self.calibration_alert)
+        alert_kinds = {"info": "note", "warning": "warning", "success": "success", "error": "danger"}
+        self.calibration_alert.set_kind(alert_kinds[kind])
         self.calibration_alert_label.setText(text)
 
     # -- gating -------------------------------------------------------------
@@ -1172,12 +1221,26 @@ class SetupPage(QWidget):
         self.display_ack_checkbox.setVisible(not check.standard)
         self._on_state_changed()
 
+    def _refresh_status_badges(self) -> None:
+        """The two badges beside the Connect and Do Calibration buttons: the tracker's link
+        as it is now, and the calibration with its point count and mean error (V3)."""
+        self.tracker_badge.set_state(*tracker_badge(self.tracker_ready()[0]))
+        self.calibration_badge.set_state(
+            *calibration_badge(self._calibration_result, self.screen(), self._defaults.get("app", {}))
+        )
+
     def _on_state_changed(self, *_args: object) -> None:
         missing = self._missing_requirements()
         self.continue_button.setEnabled(not missing)
         self.continue_button.setToolTip(
             "Still needed: " + "; ".join(missing) + "." if missing else ""
         )
+        # The caption under a disabled Continue lists the blockers it names (never the tracker
+        # or the calibration: Continue does not wait for them).
+        caption = needs_caption(self.continue_blockers())
+        self.needs_label.setText(caption)
+        self.needs_label.setVisible(bool(caption))
+        self._refresh_status_badges()
         note = gaze_only_note(*self.tracker_ready())
         self.gaze_note.setVisible(note is not None)
         self.gaze_note_label.setText(note or "")

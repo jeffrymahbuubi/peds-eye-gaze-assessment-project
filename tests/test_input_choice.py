@@ -157,8 +157,8 @@ def test_the_glow_shows_for_switch_and_follow_only(task_id, selection, enabled, 
 
 def test_the_two_gaze_only_blockers_are_the_setup_pages_own_sentences():
     assert GAZE_ONLY_BLOCKERS == (TRACKER_BLOCKER, CALIBRATION_BLOCKER)
-    assert TRACKER_BLOCKER == "The tracker is not connected. Connect it on the Setup page."
-    assert CALIBRATION_BLOCKER == "No calibration yet. Calibrate on the Setup page."
+    assert TRACKER_BLOCKER == "The tracker is not connected (Setup page)."
+    assert CALIBRATION_BLOCKER == "No calibration yet (Setup page)."
 
 
 @pytest.mark.parametrize(

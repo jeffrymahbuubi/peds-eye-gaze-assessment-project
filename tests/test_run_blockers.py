@@ -16,11 +16,11 @@ from PySide6.QtWidgets import QApplication
 from src.engine.display_check import check_display
 from src.ui.setup_page import SetupPage
 
-TRACKER = "The tracker is not connected. Connect it on the Setup page."
-CALIBRATION = "No calibration yet. Calibrate on the Setup page."
-SUBJECT = "Subject ID is empty."
-DATE = "Assessment date is empty."
-SEX = "Sex is not selected."
+TRACKER = "The tracker is not connected (Setup page)."
+CALIBRATION = "No calibration yet (Setup page)."
+SUBJECT = "Subject ID is empty (Setup page)."
+DATE = "Assessment date is empty (Setup page)."
+SEX = "Sex is not selected (Setup page)."
 DISPLAY = "The display is not 1920x1080 at 100 %. Tick the acknowledgement on the Setup page."
 
 

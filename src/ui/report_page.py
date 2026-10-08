@@ -287,6 +287,7 @@ class ReportPage(QWidget):
         layout.addWidget(self.config_table)
         layout.addWidget(section_title("Notes"))
         self.notes_edit = QPlainTextEdit()
+        self.notes_edit.setTabChangesFocus(True)  # Tab moves on, it does not type a tab (H13)
         self.notes_edit.setPlaceholderText("Notes about this test")
         self.notes_edit.setMinimumHeight(110)
         layout.addWidget(self.notes_edit)

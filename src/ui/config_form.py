@@ -7,7 +7,8 @@ into widgets: one ``wtmhCard`` per group in a 3-column grid, one control per set
 *builds*: it connects no signal and holds no state of its own, so
 :class:`~src.ui.task_config_page.TaskConfigPage` wires the change handling and
 owns the values. It also computes the amber shrink hint, from the same pure
-functions the settings dialog uses.
+functions the settings dialog uses; the hint is an alert box under its card, not inside it
+(SPEC-design-system-phase2.md H3). Column C is titled "Advanced" (H6).
 """
 
 from __future__ import annotations
@@ -31,6 +32,7 @@ from PySide6.QtWidgets import (
 from ..engine.settings_profile import STANDARD_CONFIG_NAME
 from ..engine.target_size import ScaleInfo, gap_px_for, grid_fit_hint, icon_fit_hint, radius_px_for
 from ..tasks.scanning import scanning_layout_slots
+from .alert_box import AlertBox
 from .config_widgets import CONFIG_TOOLTIPS, RadioChoice, choice_label, style_combo_popup
 from .settings_registry import (
     HINT_GRID_FIT,
@@ -46,6 +48,11 @@ from .wheel_guard import WheelGuard, guard_wheel
 COLUMNS = 3
 CONTENT_MAX_WIDTH = 1500  # 4B.1: "content max width about 1500 px"
 NOTES_HEIGHT = 84  # about three lines
+ADVANCED_COLUMN = 2
+ADVANCED_TITLE = "Advanced"
+# The "Changed from ..." caption always takes this much height, text or not (C4), so the
+# cards under it never move when it appears.
+MODIFIED_LINE_HEIGHT = 20
 
 
 def object_name(key: str) -> str:
@@ -86,7 +93,7 @@ class ConfigForm:
         # (SPEC-input-selection-and-follow.md 4.1). Disjoint from ``dependents``.
         self.greyed_when: list[tuple[str, str, list[QWidget]]] = []
         self.cards: dict[str, QFrame] = {}
-        self.fit_hint: QFrame | None = None
+        self.fit_hint: AlertBox | None = None
         self.fit_hint_label: QLabel | None = None
         self._hint_kind: str | None = None
         self._wheel_guard = WheelGuard()  # shared by every slider row; lives as long as the form
@@ -109,8 +116,15 @@ class ConfigForm:
             layout.setSpacing(16)
             grid.addLayout(layout, 0, column)
             grid.setColumnStretch(column, 1)
-        for group in config_groups_for_task(self.task_id):
+        groups = config_groups_for_task(self.task_id)
+        if any(g.column == ADVANCED_COLUMN for g in groups):
+            title = QLabel(ADVANCED_TITLE)
+            title.setObjectName("cfgAdvancedTitle")
+            columns[ADVANCED_COLUMN].addWidget(title)
+        for group in groups:
             columns[group.column].addWidget(self._card(group))
+            if group.hint:  # the alert sits under its card, never inside it
+                columns[group.column].addWidget(self._hint_box(group.hint))
         for layout in columns:
             layout.addStretch(1)
         return content
@@ -128,8 +142,6 @@ class ConfigForm:
         layout.addWidget(title)
         for control in group.controls:
             self._add(layout, control, solo=len(group.controls) == 1)
-        if group.hint:
-            self._add_hint(layout, group.hint)
         self.cards[group.id] = card
         return card
 
@@ -176,6 +188,7 @@ class ConfigForm:
         if kind == "notes":
             self.notes_edit.setObjectName("cfgNotes")
             self.notes_edit.setFixedHeight(NOTES_HEIGHT)
+            self.notes_edit.setTabChangesFocus(True)  # Tab moves on, it does not type a tab (H13)
             return self.notes_edit
         setting = control.setting
         initial = (
@@ -210,8 +223,8 @@ class ConfigForm:
 
     def _add_config_extras(self, layout: QVBoxLayout) -> None:
         """Under the Configuration Name: the "Changed from ..." line and [Reset to defaults]."""
-        self.modified_label.setObjectName("wtmhMuted")
-        self.modified_label.hide()
+        self.modified_label.setObjectName("wtmhCaption")
+        self.modified_label.setFixedHeight(MODIFIED_LINE_HEIGHT)  # always there (C4)
         self.reset_button.setObjectName("cfgReset")
         self.reset_button.setAutoDefault(False)
         self.reset_button.setToolTip(
@@ -226,16 +239,14 @@ class ConfigForm:
 
     # -- the amber shrink hint (4B.3) -----------------------------------------------
 
-    def _add_hint(self, layout: QVBoxLayout, kind: str) -> None:
+    def _hint_box(self, kind: str) -> AlertBox:
+        """The warning alert of a card with a hint (stacked: the column is narrow); hidden
+        until :meth:`update_hint` has something to say."""
         self._hint_kind = kind
-        self.fit_hint = QFrame()
-        self.fit_hint.setObjectName("wtmhAlertWarning")
-        hint_layout = QVBoxLayout(self.fit_hint)
-        self.fit_hint_label = QLabel("")
-        self.fit_hint_label.setWordWrap(True)
-        hint_layout.addWidget(self.fit_hint_label)
+        self.fit_hint = AlertBox("warning", stacked=True)
+        self.fit_hint_label = self.fit_hint.label
         self.fit_hint.hide()
-        layout.addWidget(self.fit_hint)
+        return self.fit_hint
 
     def update_hint(self, values: dict[str, Any]) -> None:
         """Show how far the chosen size will be shrunk to fit (the text of

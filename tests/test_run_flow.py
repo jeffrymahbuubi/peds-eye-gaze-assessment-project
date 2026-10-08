@@ -87,7 +87,7 @@ def test_the_start_page_instructions_follow_the_tests_own_settings(rig):
 
 def test_blockers_are_listed_and_disable_start_and_practice_but_run_test_still_opens(rig):
     win, _mouse, _pointing = rig
-    reasons = ["The tracker is not connected. Connect it on the Setup page.", "No calibration yet."]
+    reasons = ["The tracker is not connected (Setup page).", "No calibration yet (Setup page)."]
     win.blockers[:] = reasons
     page = open_start(win, new_test(win))  # not a silent no-op (R2)
     assert not page.banner.isHidden()

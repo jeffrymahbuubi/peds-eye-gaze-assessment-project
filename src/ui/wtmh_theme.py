@@ -74,8 +74,9 @@ def button_rule(
 ) -> str:
     """One tier of the button family (H5): 40 px high, 96 px wide at least, 14 px / 600, a
     1 px border in the tier's colour, the hover fill, a 2 px focus border that moves
-    nothing, and the same grey-on-grey disabled look for every tier (the primary never
-    changes tier with its state)."""
+    nothing (``outline: 0`` keeps the native focus rectangle out of it: a white-fill button
+    drew one inside the border, SPEC-design-system-phase2.md H13), and the same grey-on-grey
+    disabled look for every tier (the primary never changes tier with its state)."""
     if isinstance(selectors, str):
         selectors = (selectors,)
     hover_text = hover_text or text
@@ -90,6 +91,7 @@ def button_rule(
     padding: 0 {_BUTTON_PAD_H}px;
     font-size: {TYPE_BODY}px;
     font-weight: 600;
+    outline: 0;
 }}
 {_states(selectors, ":hover")}, {_states(selectors, ":pressed")} {{
     color: {hover_text};
@@ -132,7 +134,7 @@ def _alert(name: str, border: str) -> str:
 
 
 def _badge(name: str, fill: str, text: str) -> str:
-    return f"""QLabel#wtmhBadge{name} {{
+    return f"""QLabel#wtmhBadge{name}, QWidget#wtmhDashboard QLabel#wtmhBadge{name} {{
     background: {fill};
     color: {text};
     border-radius: 9px;
@@ -225,6 +227,7 @@ QPushButton#wtmhNavButton {{
     border-radius: {RADIUS}px;
     padding: 6px 14px;
     font-weight: 600;
+    outline: 0;
 }}
 QPushButton#wtmhNavButton:hover {{ background: rgba(255,255,255,0.16); }}
 QPushButton#wtmhNavButton:focus {{ border: {_FOCUS_BORDER}px solid {TITLE_BAR_TEXT}; padding: 5px 13px; }}
@@ -244,7 +247,24 @@ QLabel#wtmhSectionTitle {{
     color: {INK};
     margin-bottom: 6px;
 }}
-QLabel#wtmhMuted {{ color: {TEXT_SECONDARY}; }}
+/* Muted text (helper lines, hints, messages). The dashboard scope in the second selector is what
+   makes it win: ``QWidget#wtmhDashboard QLabel`` above sets the ink colour with two type names and
+   an id, which outweighs a bare ``QLabel#wtmhMuted`` (one type name and an id), so a muted label
+   rendered in ink until phase 2. A disabled one stays the disabled grey. */
+QLabel#wtmhMuted, QWidget#wtmhDashboard QLabel#wtmhMuted {{ color: {TEXT_SECONDARY}; }}
+QWidget#wtmhDashboard QLabel#wtmhMuted:disabled {{ color: {TEXT_DISABLED}; }}
+/* A caption (the type scale's smallest step, in text-secondary): the Setup footer's "Needs: ..."
+   under a disabled Continue and the configuration page's "Changed from ..." line (SPEC-design-
+   system-phase2.md H4, C4). The selector carries the dashboard scope so it outweighs the generic
+   label colour above. */
+QWidget#wtmhDashboard QLabel#wtmhCaption {{ font-size: {TYPE_CAPTION}px; color: {TEXT_SECONDARY}; }}
+/* The configuration page's column C title (SPEC-design-system-phase2.md H6): the heading step,
+   quieter than a card title. */
+QWidget#wtmhDashboard QLabel#cfgAdvancedTitle {{
+    font-size: {TYPE_HEADING}px;
+    font-weight: 600;
+    color: {TEXT_SECONDARY};
+}}
 
 /* Button tiers (H5): primary, secondary (the old ghost), tertiary (text only); the danger
    tier is the run-end dialogs' own (run_dialogs.py), built from the same button_rule. */
@@ -258,9 +278,16 @@ QFrame#wtmhCard {{
     border: 1px solid {BORDER_SUBTLE};
     border-radius: {RADIUS}px;
 }}
+/* The Test List's empty state: one line inside the same frame the table has (H5). */
+QFrame#wtmhEmptyTable {{
+    background: {PANEL};
+    border: 1px solid {BORDER_SUBTLE};
+}}
 
-/* Alerts (H8): white, a 1 px border in the state colour, body-large ink text. The glyph
-   tile and the bold state word come with the badge helper (phase 2). */
+/* Alerts (H8): white, a 1 px border in the state colour, body-large ink text. These are the
+   rules of the plain QFrame banners the report page and the standalone settings dialog still
+   use; the operator pages' alerts are AlertBox widgets (alert_box.py, phase 2 H3), which
+   style themselves with the glyph tile and the bold state word. */
 QFrame#wtmhAlertInfo, QFrame#wtmhAlertWarning, QFrame#wtmhAlertSuccess, QFrame#wtmhAlertError {{
     border-radius: {RADIUS}px;
     padding: 4px;

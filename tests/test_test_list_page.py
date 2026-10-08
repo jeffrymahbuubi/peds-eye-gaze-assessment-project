@@ -108,10 +108,9 @@ def test_the_table_after_recreating_the_page_is_identical(qapp, root):
     expected_day = datetime.fromisoformat("2026-10-06T12:00:00+00:00").astimezone().strftime("%Y-%m-%d")
     assert rows[done.name][COL_DATE] == expected_day
     assert rows[early.name][COL_STATUS] == "Ended early (7/12)"
-    # Compass: rows of tests not yet run are bold, and only those.
+    # Phase 2 H5: bold marks nothing any more; the Status badge says a test is not done.
     for row in range(second.table.rowCount()):
-        bold = {second.table.item(row, c).font().bold() for c in range(5)}
-        assert bold == {second.row_texts()[row][COL_NAME] == not_done.name}
+        assert {second.table.item(row, c).font().bold() for c in range(5)} == {False}
 
 
 def test_the_date_cell_carries_the_full_time_as_its_tooltip(qapp, root):

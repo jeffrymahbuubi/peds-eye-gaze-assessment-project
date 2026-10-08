@@ -31,7 +31,6 @@ from PySide6.QtCore import Qt, QTimer, Signal
 from PySide6.QtWidgets import (
     QCheckBox,
     QFrame,
-    QHBoxLayout,
     QLabel,
     QPushButton,
     QScrollArea,
@@ -43,7 +42,8 @@ from ..engine.settings_profile import STANDARD_CONFIG_NAME, NamedConfig, validat
 from ..engine.subject_test_record import validate_test_name
 from ..engine.target_size import screen_scale, viewing_distance_mm
 from ..engine.task_info import TASK_INFO
-from .config_form import ConfigForm
+from .config_footer import centered_footer
+from .config_form import CONTENT_MAX_WIDTH, ConfigForm
 from .config_widgets import ask_two_choice, estimated_canvas_px, screen_dpr
 from .settings_registry import get_nested, set_nested
 from .settings_snapshot import complete_settings, settings_snapshot
@@ -229,7 +229,7 @@ class TaskConfigPage(QWidget):
 
     def _build_ui(self) -> None:
         outer = QVBoxLayout(self)
-        outer.setContentsMargins(24, 20, 24, 20)
+        outer.setContentsMargins(32, 20, 32, 20)
         outer.setSpacing(16)
 
         header = QVBoxLayout()
@@ -262,19 +262,20 @@ class TaskConfigPage(QWidget):
         self.scroll_area = scroll
         outer.addWidget(scroll, stretch=1)
 
-        footer = QHBoxLayout()
-        footer.setSpacing(10)
         self.preview_button = self._button("Preview Test", "cfgPreview")
         self.save_button = self._button("Save && Continue", "cfgSave")
         self.cancel_button = self._button("Cancel", "cfgCancel")
         self.footer_message = QLabel("")
         self.footer_message.setObjectName("wtmhMuted")
         self.footer_message.setWordWrap(True)
-        for widget in (self.preview_button, self.save_button, self.cancel_button):
-            footer.addWidget(widget)
-        footer.addSpacing(6)
-        footer.addWidget(self.footer_message, stretch=1)
-        outer.addLayout(footer)
+        # Centred under the three columns, the message beside the buttons (C5).
+        outer.addLayout(
+            centered_footer(
+                (self.preview_button, self.save_button, self.cancel_button),
+                self.footer_message,
+                CONTENT_MAX_WIDTH,
+            )
+        )
         self._connect()
 
     @staticmethod
@@ -377,8 +378,8 @@ class TaskConfigPage(QWidget):
                 widget.setEnabled(not grey)
         form.update_hint(self._values())
         modified = self.is_modified()
+        # Always there, empty when unmodified: the cards below never move (C4).
         form.modified_label.setText(f"Changed from {self._loaded_name}" if modified else "")
-        form.modified_label.setVisible(modified)
         self._refresh_footer()
 
     def _refresh_footer(self) -> None:

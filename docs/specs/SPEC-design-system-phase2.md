@@ -1,10 +1,10 @@
 ---
 name: SPEC-design-system-phase2
 title: Design system v1, phase 2: status badges, alerts with glyphs, and page layout (operator UI)
-status: approved 2026-10-08 (V1-V4 user decisions, H1-H12 hub decisions approved by the user; H13 phase-1 carry-overs added by the user 2026-10-08)
+status: implemented + live-checked 2026-10-09 on branch design-phase2 (NOT merged); approved 2026-10-08 (V1-V4 user decisions, H1-H12 hub decisions approved by the user; H13 phase-1 carry-overs added by the user 2026-10-08)
 created: 2026-10-08
 last_updated: 2026-10-08
-next_step: /spec-run step 2 (spec-implementer in a new worktree based on feature/compass-task-flow at or after `9bbb8c0`, which holds phase 1 + data layout); wireframes approved 2026-10-08
+next_step: user's final look at the live-check captures, then merge branch design-phase2 into feature/compass-task-flow and push (user); committed on design-phase2 under the user's unattended-run authorization 2026-10-09
 related:
   - docs/design/fable-proposal.md (source: §2.3 spacing and widths, §2.5 components, §3.1-§3.6 per-page changes, §5.2 phase 2)
   - SPEC-design-system-phase1.md (tokens, type, component QSS, copy; this phase builds on it and needs its tokens)
@@ -181,18 +181,182 @@ C7, §3.5 P1-P5, §3.6 R2.
 |---|---|---|
 | 0 | Phase 1 implemented and reviewed (DONE 2026-10-08, merged `f2376d3`) | — |
 | 1 | Wireframes: setup, test-list, task-config, start-test, run, run-end (H11) — **DONE 2026-10-08, user-approved** | **WF gate** |
-| 2 | spec-implementer in a worktree based on the phase-1 result: H1-H10, H12, H13 | — |
-| 3 | Hub review + full pytest; §9 questions | — |
-| 4 | Live check, maximized 1920x1080: every page captured; Setup badges with `tools/fake_gazepoint_server.py` (connected, calibrated) and with no tracker; one Practice run for the run bar badge. Needs the user only for the final look, not as a gaze subject | user |
-| 5 | Commit on the user's OK | user |
+| 2 | spec-implementer in a worktree based on the phase-1 result: H1-H10, H12, H13 — **DONE 2026-10-09** (3 rounds) | — |
+| 3 | Hub review + full pytest; §9 questions — **DONE 2026-10-09** | — |
+| 4 | Live check, maximized 1920x1080: every page captured; Setup badges with `tools/fake_gazepoint_server.py` (connected, calibrated) and with no tracker; one Practice run for the run bar badge. Needs the user only for the final look, not as a gaze subject — **DONE 2026-10-09** (fake tracker, unattended) | user |
+| 5 | Commit on the user's OK — committed on design-phase2 only (user authorization 2026-10-09); merge + push await the user | user |
 
 ## 8. Impl log
 
-(empty)
+### 2026-10-08, step 2 (spec-implementer, claude-sonnet-5-5), worktree `design-phase2`, nothing committed
+
+**Done:** H1-H10, H12, H13. H10: `docs/wireframes/run-end.md` already matches `run_dialogs.py`
+("Test complete" at 20 px, danger fills kept), so it is unchanged and no code changed there.
+
+**New modules** (`src/ui/`): `glyphs.py` (the painted glyph shapes), `status_badge.py` (H1, H2:
+`StatusBadge`, 12 kinds, object name `wtmhStatusBadge`), `alert_box.py` (H3: `AlertBox`, object name
+`wtmhAlert`, kind property, own style sheet), `page_layout.py` (the 1200 px column, `labeled()` fields,
+the spacing and width constants), `setup_status.py` (the Setup "Needs: ..." names, the two badge states,
+the calibration error in degrees), `config_footer.py` (the centred footer row).
+
+**Changed:** `setup_page.py` (H4; 1190 to 1245 lines, the new widgets are in their own modules),
+`test_list_table.py` and `test_list_page.py` (H5, V2), `settings_registry.py` (`_CARDS`, H6), `config_form.py`,
+`task_config_page.py`, `slider_spin.py`, `config_save_dialogs.py` (H6, C7), `start_test_page.py` (H7),
+`run_bar.py` (H8, H13.3), `wtmh_theme.py` and `wtmh_controls.py` (H13.1 `outline: 0`; a `wtmhCaption` rule, a
+`cfgAdvancedTitle` rule, a `wtmhEmptyTable` rule), `report_page.py` (H13.2, one line), `engine/input_choice.py`
+(the tracker and calibration blocker sentences, see below).
+
+**Tests added** (7 files, all offscreen): `test_status_badge.py`, `test_alert_box.py`, `test_test_list_badges.py`,
+`test_setup_phase2.py`, `test_start_page_phase2.py`, `test_config_page_phase2.py`, `test_phase1_carryovers.py`.
+**Tests updated, none deleted:** `test_test_list_page.py` (no bold), `test_start_test_page.py`,
+`test_start_path_blocker.py`, `test_mouse_run_gate.py`, `test_run_flow.py`, `test_run_blockers.py`,
+`test_input_choice.py` (wording, two surfaces, `wtmhAlert` name), `test_run_bar.py` (tracking badge, chip),
+`test_setup_subject_id.py` (hint under the field, no QFormLayout), `test_settings_layout.py`,
+`test_input_settings.py`, `test_task_config_page.py` (card order, always-present "Changed from" line),
+`test_design_tokens.py` and `test_copy_rules.py` (the new modules join the no-hex scan; the Start page no
+longer holds an interpunct).
+
+**pytest** (whole suite, from the worktree root): 5 failed, 2993 passed, 2 skipped (3000 collected; before any change: 5 failed, 2785 passed, 2 skipped; counted from the progress lines, since `addopts = -q` plus `-q` hides pytest's own summary line). The failures are the known
+skip-worktree alpha checks only (`test_config_flow::test_a_new_test_opens_at_standard_with_the_task_defaults`
+and the four `test_task_config_page::test_a_new_test_opens_with_standard_and_the_defaults[...]`: this worktree's
+`default.yaml` has alpha 0.35, the tests expect 0.22). Baseline before any change: the same 5.
+
+**Deviations from the SPEC:** none of the decisions changed. Interpretations the hub should look at in the live check:
+
+1. **Object names.** An `AlertBox` is `wtmhAlert` with a `kind` property (H3, H9), so the old `wtmhAlertInfo /
+   Warning / Success / Error` names are gone from the Setup, Start and configuration pages;
+   `test_start_path_blocker.py` pinned `wtmhAlertError` on `path_alert` and now checks `wtmhAlert` + `kind() ==
+   "danger"`. The old rules stay in `wtmh_theme.py` for the two banners phase 4 and 5 own (report page,
+   standalone settings dialog). `tracking_label` of the run bar keeps its name `runBarTracking` on the badge, and
+   every `*_label` attribute pages exposed for their alerts (`banner_label`, `path_alert_label`, `mouse_note_label`,
+   `display_ok_label`, `calibration_alert_label`, `fit_hint_label`, `gaze_note_label`, ...) still exists. The
+   removed attribute is `tracker_status_label` (H4: replaced by `tracker_badge`); what the last attempt did
+   ("Connecting...", "Unreachable: ...") is now `tracker_message_label` under the buttons.
+2. **No alert inside a card (H3), so the Display section and "Before You Start" have no card**: a card would hold
+   only its title. They are a section title, the alert and (Display) the acknowledgement box on the page, as the
+   approved wireframe draws them. The rate-warning and calibration alerts sit directly under their cards in the
+   page's scroll content; the calibration-details table stays inside the Calibration card (it is not an alert).
+3. **Blocker wording (H7).** The tracker and calibration sentences in `engine/input_choice.py`, and the Subject ID,
+   date and Sex ones, now end "(Setup page)." (proposal 4: "The tracker is not connected (Setup page)."); four test
+   files pinned the old text and were updated. The display sentence keeps "Tick the acknowledgement on the Setup
+   page." (see section 9).
+4. **Help line (P5).** `HELP_TEXT` lost "Help:" and its practice sentence ("Practice runs 3 targets" is said once, in
+   the clinician text); the alert's own word is "Note:".
+5. **Columns 1200 px with the scroll bar beside them.** Setup and Start make their column 1210 px (1200 + the
+   theme's 10 px scroll bar) and limit the scroll content and every page-level alert to 1200 px, so the cards are
+   1200 px wide whether or not the bar shows. The Start page's button row stays pinned under the scroll area (as
+   before, so a small or scaled window never clips Start): with short instructions at 1080 px there is empty
+   page between the clinician text and the row, not "directly under the card".
+6. **Test List table width.** Columns 420 / 180 / 200 / 180 / 140 are fixed; the table is 1122 px (columns + frame),
+   widened by the scroll bar's width only while one shows. The Status item keeps its text and sort key (hidden
+   under the badge by a delegate); a row whose run folder is gone shows "Data missing" whatever its status was
+   (the badge tooltip has the full status). Qt moves a cell widget with its item when the table sorts (checked).
+7. **Calibration badge unit.** "Calibrated, 5 points, 1.8°": the device's mean error is in screen px, so it is
+   turned into visual angle with the same scale and viewing distance the configuration page uses for target sizes
+   (`error_degrees`, divided by the device pixel ratio). Left out when the device gave no error.
+8. **Spacing (2.3).** Done where it cannot cost vertical room: 32 px page gutter, 24 px card padding and gaps and 16 / 4
+   px field gaps on Setup and Start, 32 px gutter on the Test List and configuration pages. The configuration page's
+   vertical spacing and card padding are unchanged (the Advanced title and the alert boxes already add height; the
+   no-scroll-at-1080 check is yours).
+9. **Shared widget.** `SliderSpinRow` is also used by the standalone settings dialog (phase 5), which therefore
+   gets the length caps, ticks and the 88 px spin box too.
+10. **Report page.** H13.2 says "any other multi-line edit in the operator pages", so the report page's Notes box got
+    `setTabChangesFocus(True)` (one line; nothing else in that file changed).
+11. **H13.1 cannot be seen offscreen.** The native focus rectangle is drawn by the Windows platform style; offscreen
+    Fusion paints none, with or without `outline: 0`. The tests pin the style sheet text (every button tier, the nav
+    button, fields, text areas, check boxes, radios, sliders, tables); Q9's window capture is yours. `outline: 0` is
+    in `button_rule` (so also the run-end dialogs' danger tier) and in the rules of the controls above.
+
+**Finding, not fixed (phase 1):** `QLabel#wtmhMuted { color: TEXT_SECONDARY }` loses to `QWidget#wtmhDashboard QLabel
+{ color: INK }` (the longer selector is more specific), so every `wtmhMuted` label renders in ink, not grey
+(measured by pixel in a themed container). The new captions use a rule with the dashboard scope
+(`wtmhCaption`, `cfgAdvancedTitle`) and render grey. Making `wtmhMuted` the same is a one-selector change in
+`wtmh_theme.py`; I left it, it is phase-1 styling.
+
+**Left undone:** the bold "No eye data will be recorded." of the Mouse note (section 9).
+
+### 2026-10-09, round 2 (spec-implementer, claude-sonnet-5-5), same worktree, nothing committed
+
+Answers of section 9 (2026-10-09) applied; no new open question.
+
+1. **Mouse note, option (b).** `MOUSE_NOTE_NO_TRACKER` is now "Mouse test. The tracker is not connected." and
+   `MOUSE_NOTE_NOT_CALIBRATED` "Mouse test. The tracker is not calibrated."; the new `MOUSE_NOTE_NO_EYE_DATA` is "No eye
+   data will be recorded." `AlertBox` gained `set_emphasis(text)` / `emphasis()` / `emphasis_label` (object name
+   `wtmhAlertEmphasis`, weight 600, a plain-text label under the text label, hidden when empty), so
+   `mouse_note_label.text()` is the first sentence only and the second is its own label inside the note. The Start page
+   shows the emphasis for the no-tracker and not-calibrated variants and hides it for "Mouse test. Eye data will be
+   recorded alongside." (the one variant without the clause, unchanged). Tests updated, none deleted:
+   `test_copy_rules.py`, `test_mouse_run_gate.py` (also checks the second sentence comes and goes with the tracker),
+   `test_start_page_phase2.py`, `test_alert_box.py` (the label's weight is DemiBold, the text label's Normal; it sits
+   under the text). Not touched: the sentence in `docs/wireframes/start-test.md` (line 31, and its html) still has the
+   old one-sentence note; re-render when the wireframes are next updated.
+2. **Blocker wording:** unchanged (approved).
+3. **`wtmhMuted` specificity fixed** in `wtmh_theme.py`: the rule is now `QLabel#wtmhMuted, QWidget#wtmhDashboard
+   QLabel#wtmhMuted { color: TEXT_SECONDARY }` (the bare selector stays for a sheet used without the scope name), plus
+   `QWidget#wtmhDashboard QLabel#wtmhMuted:disabled` in TEXT_DISABLED (the scoped rule would otherwise outweigh the
+   disabled-label rule). The dead `wtmhBadge*` label rules got the same scoped selector. Audit of every label colour rule of
+   the sheet: `wtmhPageTitle` / `wtmhSectionTitle` set ink, the same as the generic rule, so nothing changes; the title
+   bar (`QWidget#wtmhTitleBar QLabel`) ties with the generic rule and wins by coming later (white, test added); the
+   disabled-label rule has a pseudo-class and wins; `wtmhCaption` and `cfgAdvancedTitle` (phase 2) already carried the
+   scope; AlertBox and RunBar style themselves (a widget's own sheet beats an inherited one). `wtmhMuted` is the only
+   rule that lost. New `tests/test_muted_labels.py` (19 tests): the colour that renders, by pixel sample and by the
+   resolved palette, for `wtmhMuted`, `wtmhCaption`, `cfgAdvancedTitle` (TEXT_SECONDARY) and for plain, page-title and
+   section-title labels (ink); a disabled muted label; the unscoped sheet; the title bar still white; the rebuilt old
+   sheet renders ink (the bug); and a sweep of every label on the Setup, Test List (with and without tests), Start,
+   configuration (two tasks) and report pages and the save-as dialog: a label named muted / caption / Advanced title is
+   TEXT_SECONDARY, and no other label is (no ink label turned grey). The labels that are grey now: the Subject ID hint,
+   the tracker message and device lines, the calibration-details empty line, the Test List message / unreadable /
+   empty-state / "Changes are saved automatically." lines, the Start page practice and note lines, the configuration
+   page subtitle and footer reason, the save-as dialog's reason, the report's plain-text helper lines, the rename
+   editor's error line.
+
+**pytest** (whole suite): 5 failed, 3015 passed, 2 skipped (3022 collected, counted from the progress lines). The 5 are
+the known skip-worktree alpha checks, as in round 1 (2993 passed then; +22 now: 19 muted-label tests, 1 AlertBox
+emphasis test, 2 Mouse-note tests).
+
+### 2026-10-09, round 3 (spec-implementer, claude-sonnet-5-5), same worktree, nothing committed
+
+**Defect (live check, Q1 / H4): Setup's "Continue to Tests" was 157 px wide, not 240.** Cause: the tiers' QSS `min-width`
+(`button_rule`) replaces the minimum a widget's own `setFixedWidth` set, when the widget is polished, so the button kept only
+its maximum (240) and the layout, which right-aligns it, gave it its text width. Offscreen it passed because the offscreen
+font's text is wider than 240 px, and the round-1 test read the properties of an unstyled page. Fix (`setup_page.py`,
+`page_layout.py`): the 240 px (`CONTINUE_WIDTH`) is now the width of a plain slot widget in the footer that the button fills,
+right-aligned at the column's right edge with the "Needs: ..." caption under it; nothing else changed. Checked against the old
+way: in a themed window a right-aligned `setFixedWidth(240)` button with a short label measures 96 px (minimum 96, maximum 240).
+Tests (`test_setup_phase2.py`): the footer test now pins the 240 px slot, the 64 px height and the 1200 px width; two new
+tests build the page under the dashboard's own sheet, show it and measure the button: 240 px for the real label and for a short
+one (a narrower font than offscreen), its right edge on the column's right edge (32 + 1200), the caption under it with its right
+edge on the button's, and still 240 px once Continue is enabled and the caption is gone.
+
+**pytest** (whole suite): 5 failed, 3018 passed, 2 skipped (3025 collected, counted from the progress lines). The 5 are the known
+skip-worktree alpha checks, as before (3015 passed in round 2; +3 now: the two Continue width cases and the caption test).
 
 ## 9. Implementer open questions
 
-(empty)
+- **2026-10-08, Mouse note emphasis (H7 / P4).** H7 and the proposal ask for "No eye data will be recorded."
+  at weight 600 inside the Mouse note. The notes are today one sentence each ("Mouse test. The tracker is not
+  connected, so no eye data will be recorded.", fixed by phase-1 copy and pinned by `test_copy_rules` and
+  `test_mouse_run_gate` as the label's whole text), so there is no separate sentence to bold, and a partial bold
+  needs rich text, which would change `mouse_note_label.text()`. Not done: the Mouse note is a `note` `AlertBox` at
+  the alert's body weight. Decision needed: (a) leave it, (b) split the copy into two sentences ("Mouse test. The
+  tracker is not connected. No eye data will be recorded.") and bold the second with a second label, or (c) bold the
+  clause with rich text and relax the two pinned tests.
+- **2026-10-08, blocker wording beyond the three examples (H7).** Proposal 4 gives three items ("The tracker is not
+  connected (Setup page).", "No calibration yet (Setup page).", "Sex is not selected (Setup page).") and H7 says
+  "etc.". I applied the same "(Setup page)." ending to "Subject ID is empty" and "Assessment date is empty" and left
+  the display item as it was ("The display is not 1920x1080 at 100 %. Tick the acknowledgement on the Setup page.",
+  it already names the page and says what to do). The sentences are the constants in `setup_status.py` and
+  `engine/input_choice.py`; changing one is a one-line edit plus its pinned test.
+
+- **2026-10-09, user answers (hub).** (1) Mouse note: **option (b)**. Split the copy into "Mouse test. The tracker is
+  not connected." and a second label "No eye data will be recorded." at weight 600, both inside the note `AlertBox`;
+  update the pinned tests (`test_copy_rules`, `test_mouse_run_gate`) to the new copy (update, never delete). Apply the
+  same split to every Mouse-note variant that ends in the no-eye-data clause. (2) Blocker wording: **approved as
+  done** ("(Setup page)." ending on Subject ID / date / Sex; display sentence unchanged). (3) New, user decision:
+  **fix the phase-1 `wtmhMuted` specificity bug in phase 2** (muted labels render in ink because
+  `QWidget#wtmhDashboard QLabel` wins): one selector change in `wtmh_theme.py` so `QLabel#wtmhMuted` (and any other
+  muted/secondary label rule with the same problem) renders TEXT_SECONDARY on the dashboard; a test that pins the
+  winning rule (pixel sample or style-resolved colour on the dashboard). Check no label that should be ink turns grey.
 
 ## 10. Log
 
@@ -205,3 +369,17 @@ C7, §3.5 P1-P5, §3.6 R2.
 - **2026-10-08** — The user approved H1-H12 as written. SPEC committed on `feature/compass-task-flow`. Next: after the phase-1 review, /spec-run this SPEC from step 1 (wireframes).
 - **2026-10-08** — Step 1: wireframes setup, test-list, task-config, start-test, run, run-end updated to V1-V4 and H1-H12 and rendered; the user approved them as drawn. Wireframe tool limits noted: alert kinds render as a teal label (no glyph tile), and the wireframe palette is the old one; the app colours come from phase 1. Next: step 2 after the phase-1 review.
 - **2026-10-08** - H13 added (user decision after the phase-1 live check: commit phase 1 as is, fix its three live-check bugs here): white-fill button focus shows the native focus rectangle, Tab trapped in Setup Notes, PRACTICE chip stretched to the bar height. Scope, Q9 and step 2 updated. Phase 1 is committed on branch design-phase1; step 2 starts from the merged result.
+- **2026-10-09** — Steps 2-4 done. Implementer rounds: 1 (H1-H10, H12, H13), 2 (user §9 answers: Mouse note split with
+  "No eye data will be recorded." at 600; blocker "(Setup page)." endings approved; phase-1 `wtmhMuted` specificity bug
+  fixed), 3 (live-check defect: Continue to Tests was 157 px because the tier QSS `min-width` overrode `setFixedWidth`;
+  now a 240 px slot). Hub pytest in the worktree: **3018 passed, 2 skipped, 5 failed** (the known skip-worktree alpha
+  0.22-vs-0.35 checks, which fail in any fresh worktree and failed before this phase). Live check (fake tracker on
+  4343 because Gazepoint Control held 4242; maximized 1920x1009 window captures): Setup widths, Disconnected/Connected and
+  Not calibrated/"Calibrated, 5 points, 0.2°" badges, "Needs:" caption, Continue 240 px (after round 3), Q9 focus border
+  without native rectangle, Tab out of Notes, Test List widths/badge/tiers/red Delete glyph, config column order +
+  Advanced + slider caps + centred footer, Q5 no move on "Changed from Standard", Start Blocked alert with Go to Setup
+  inside, run bar PRACTICE chip 24 px + Tracking OK badge: all pass. For the user's look (not defects): the config
+  page's column A (Test, Input, Target) scrolls at 1080 px; a disabled Start looks the same grey as a disabled Practice
+  (phase-1 disabled style). Not live-checked: the Mouse note (unit tests only). Hub re-rendered
+  `docs/wireframes/start-test.{md,html}` for the split Mouse note. Committed on branch design-phase2 only (user's
+  unattended-run authorization); merge and push await the user.

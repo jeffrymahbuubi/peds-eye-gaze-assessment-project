@@ -28,10 +28,10 @@ No calibration yet (Setup page).
 > **Path blocker** (SPEC-subject-data-layout.md H9): before a recorded run, the app works out the longest path the run will write (run files and the PDF). Over 240 characters, this line shows and **Start** is disabled. **Practice stays enabled**, because practice writes nothing. Checked when the page opens; a path cannot change while it is open. With today's layout it appears only when the program folder itself is about 130+ characters deep.
 
 ::: alert info
-ⓘ Note: Mouse test. The tracker is not connected, so no eye data will be recorded.
+ⓘ Note: Mouse test. The tracker is not connected. No eye data will be recorded. (second sentence semi-bold, own line)
 :::
 
-> **Mouse note** (SPEC-input-selection-and-follow.md H5, added 2026-10-07): shown only for a test with Pointer = Mouse, in place of the blocker banner. A Mouse test needs no tracker or calibration, so Start and Practice stay enabled. With the tracker connected (and calibrated) the line reads "Mouse test. Eye data will be recorded alongside." A Gaze test keeps the blocker banner above, unchanged.
+> **Mouse note** (SPEC-input-selection-and-follow.md H5, added 2026-10-07): shown only for a test with Pointer = Mouse, in place of the blocker banner. A Mouse test needs no tracker or calibration, so Start and Practice stay enabled. Not calibrated: "Mouse test. The tracker is not calibrated." with the same semi-bold second line (SPEC-design-system-phase2 §9, 2026-10-09). With the tracker connected (and calibrated) the line reads "Mouse test. Eye data will be recorded alongside." (no second line). A Gaze test keeps the blocker banner above, unchanged.
 
 ::: card
 

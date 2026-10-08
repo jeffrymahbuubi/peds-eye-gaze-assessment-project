@@ -10,7 +10,7 @@ import pytest
 os.environ.setdefault("QT_QPA_PLATFORM", "offscreen")
 
 from PySide6.QtCore import Qt
-from PySide6.QtWidgets import QApplication, QLabel
+from PySide6.QtWidgets import QApplication, QLabel, QScrollArea
 
 from src.engine.config import load_task_config
 from src.engine.run_result import RunResult
@@ -18,8 +18,8 @@ from src.engine.task_info import TASK_INFO
 from src.ui.start_test_page import BLOCKER_REFRESH_MS, HELP_TEXT, StartTestPage
 
 TASKS = list(TASK_INFO)
-NOT_CONNECTED = "The tracker is not connected. Connect it on the Setup page."
-NO_CALIBRATION = "No calibration yet. Calibrate on the Setup page."
+NOT_CONNECTED = "The tracker is not connected (Setup page)."
+NO_CALIBRATION = "No calibration yet (Setup page)."
 
 
 @pytest.fixture(scope="module")
@@ -49,7 +49,9 @@ def make_page(task_id="click_grid", blockers=None, name="Grid Click 1", **values
 
 
 def texts(page: StartTestPage) -> list[str]:
-    return [label.text() for label in page.card.findChildren(QLabel)]
+    """The read-aloud card's labels, then the clinician's (two surfaces since phase 2, H7)."""
+    boxes = (page.card, page.clinician_box)
+    return [label.text() for box in boxes for label in box.findChildren(QLabel)]
 
 
 # -- AC1: what the page shows ----------------------------------------------------
@@ -109,9 +111,9 @@ def test_the_buttons_and_help_line(qapp):
         "Cancel",
     ]
     assert page.help_label.text() == HELP_TEXT == (
-        "Help: From this screen you can begin the test. You may also practice 3 targets "
-        "first; practice is not recorded. Read the instructions aloud to the child."
+        "From this screen you can begin the test. Read the instructions aloud to the child."
     )
+    assert page.help_bar.word() == "Note:"  # the alert's state word, not "Help:"
     assert page.practice_label.isHidden()  # no practice yet
 
 
@@ -134,9 +136,7 @@ def test_with_nothing_missing_the_banner_is_hidden_and_the_buttons_are_on(qapp):
 def test_missing_things_are_listed_and_start_and_practice_go_off(qapp):
     page = make_page(blockers=Blockers(NOT_CONNECTED, NO_CALIBRATION))
     assert not page.banner.isHidden()
-    assert page.banner_label.text() == (
-        f"Still needed before you can start: {NOT_CONNECTED} · {NO_CALIBRATION}"
-    )
+    assert page.banner_label.text() == f"{NOT_CONNECTED}\n{NO_CALIBRATION}"  # one item per line
     assert not page.start_button.isEnabled() and not page.practice_button.isEnabled()
     assert page.cancel_button.isEnabled()  # you can always go back
     assert page.go_to_setup_button.text() == "Go to Setup"
@@ -267,7 +267,15 @@ def test_a_quit_practice_says_nothing_and_a_new_test_clears_the_line(qapp):
 def test_a_scrolling_card_keeps_the_buttons_outside_it(qapp):
     """The card scrolls above the buttons, so a small or scaled window never clips Start."""
     page = make_page()
-    assert page.card.parent() is not page and page.start_button.parent() is page
+
+    def ancestors(widget):
+        while widget is not None:
+            yield widget
+            widget = widget.parentWidget()
+
+    assert any(isinstance(w, QScrollArea) for w in ancestors(page.card))
+    assert any(isinstance(w, QScrollArea) for w in ancestors(page.clinician_box))
+    assert not any(isinstance(w, QScrollArea) for w in ancestors(page.start_button))
 
 
 # -- show_note: a line from the host when a run could not start ------------------------------
