@@ -24,6 +24,7 @@ from src.app import AssessmentApp
 from src.data.analysis_export import read_all_gaze
 from src.data.recorder import NullRecorder, SessionRecorder
 from src.engine.calibration import CalibrationResult
+from src.engine.clock import now_ns
 from src.engine.run_mode import PREVIEW_SEED
 from src.engine.run_paths import new_run_dir
 from src.inputs.gazepoint_client import DeviceInfo, GazepointClient
@@ -152,11 +153,11 @@ def test_a_record_run_with_a_preset_calibration_saves_it(make_app):
 
 def test_the_pre_roll_holds_trial_one_for_at_least_500_ms(make_app):
     app = make_app(real_preroll=True)
-    t_first = time.time_ns()
+    t_first = now_ns()
     app._tick()
     assert app.task.phase is Phase.READY and app.task.trials == []
     tick_until(app, lambda: app.task.phase is Phase.WAIT_INPUT)
-    waited_ns = time.time_ns() - t_first
+    waited_ns = now_ns() - t_first
     assert waited_ns >= 500_000_000
     app._shutdown()
     shown = [e for e in events_of(app) if e["kind"] == "TARGET_SHOWN"]
@@ -186,7 +187,7 @@ def test_an_ended_run_writes_how_it_ended(make_app):
     app = make_app(structural_overrides={"trials": 6})
     app._tick()
     app._skip_trial()  # one skipped trial, then the operator ends the run
-    t_before = time.time_ns()
+    t_before = now_ns()
     app._shutdown()
     meta = metadata_of(app)
     assert meta["planned_trials"] == 6 == len(app.task.targets)

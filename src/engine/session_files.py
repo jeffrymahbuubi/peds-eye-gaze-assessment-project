@@ -75,3 +75,29 @@ def discard_session(session_dir: str | Path, output_root: str | Path) -> int:
         entry.unlink()
     resolved.rmdir()
     return len(entries)
+
+
+def remove_orphan_run_dir(session_dir: str | Path | None, output_root: str | Path) -> bool:
+    """Remove the folder of a run that failed to start, if it holds nothing but its
+    ``calibration.json`` (SPEC-audit-fixes.md H11); return whether it was removed.
+
+    ``AssessmentApp`` makes the folder when it first needs it (the preset calibration is
+    saved there before the recorder exists), so a start that fails after that would leave a
+    folder with nothing in it a report or a discard could ever use. A folder that holds
+    anything else is data, however it got there, and is never touched. The same checks as
+    :func:`discard_session` apply to its place and shape (a refusal means "not removed").
+    """
+    if session_dir is None:
+        return False
+    folder = Path(session_dir)
+    try:
+        names = {entry.name for entry in folder.iterdir()}
+    except OSError:
+        return False
+    if names - {"calibration.json"}:
+        return False
+    try:
+        discard_session(folder, output_root)
+    except (SessionDiscardError, OSError):
+        return False
+    return True

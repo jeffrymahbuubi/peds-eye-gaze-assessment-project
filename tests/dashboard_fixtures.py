@@ -43,6 +43,8 @@ def make_window(tmp_path: Path, monkeypatch) -> DashboardWindow:
 def close_window(window: DashboardWindow) -> None:
     if window.config_flow.preview_app is not None:
         window.config_flow.preview_app.timer.stop()
+    # A teardown ends whatever flow is on: the close must not ask the quit question (H4).
+    window.set_flow(Flow.IDLE)
     window.close()
 
 

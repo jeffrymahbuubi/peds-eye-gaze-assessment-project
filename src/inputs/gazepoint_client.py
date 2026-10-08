@@ -34,6 +34,7 @@ from dataclasses import dataclass
 from pathlib import Path
 
 from ..data.schema import GazeSample
+from ..engine.clock import now_ns
 
 _log = logging.getLogger(__name__)
 
@@ -424,6 +425,17 @@ class GazepointClient:
         self._device_info: DeviceInfo | None = None
         # Replay mode has no socket to lose, so it's always "connected".
         self._connected = replay_path is not None
+        # Pause bookkeeping (SPEC-audit-fixes.md H2). ``_pause_depth`` counts the pauses
+        # in force; the reader is stopped by the first and restarted by the last, once.
+        # ``_resume_after_pause``: it was running when the first pause began;
+        # ``_resume_wanted``: start_streaming() was called while a pause was in force.
+        # ``_pause_join_lock`` is held by the first pause while it waits for the reader to
+        # exit, so a nested pause returns only once the socket is really free.
+        self._pause_lock = threading.Lock()
+        self._pause_join_lock = threading.Lock()
+        self._pause_depth = 0
+        self._resume_after_pause = False
+        self._resume_wanted = False
 
     # -- connection --------------------------------------------------------
 
@@ -514,23 +526,35 @@ class GazepointClient:
         """Whether this client is backed by a real socket, not a replay fixture.
 
         A replay source's ``GazeSample.t_ns`` values are relative to its own
-        virtual playback clock, not wall time, so comparing them against
-        ``time.time_ns()`` (e.g. for latency measurement) is only meaningful
+        virtual playback clock, not the in-run clock (``engine.clock.now_ns``), so
+        comparing them against it (e.g. for latency measurement) is only meaningful
         when this is True.
         """
         return self._replay_path is None
 
     def start_streaming(self) -> None:
-        if self._thread is not None:
-            return
-        self._stop_event.clear()
-        target = self._run_replay if self._replay_path is not None else self._run_socket
-        self._thread = threading.Thread(target=target, name="gazepoint-reader", daemon=True)
-        self._thread.start()
+        """Start the reader thread (a no-op when one is running).
+
+        While a pause is in force (:meth:`pause_streaming`) this only records that the
+        reader is wanted: whoever paused is reading the socket itself, and the pause's end
+        starts the reader, once (SPEC-audit-fixes.md H2). Starting one here would put a
+        second reader on the socket a calibration is polling.
+        """
+        with self._pause_lock:
+            if self._pause_depth > 0:
+                self._resume_wanted = True
+                return
+            if self._thread is not None:
+                return
+            self._stop_event.clear()
+            target = self._run_replay if self._replay_path is not None else self._run_socket
+            self._thread = threading.Thread(target=target, name="gazepoint-reader", daemon=True)
+            self._thread.start()
 
     def pause_streaming(self) -> bool:
         """Stop the reader thread but keep the socket open (SPEC-calibration-
-        result-timeout.md S4.1). Returns whether it was running.
+        result-timeout.md S4.1). Returns whether the socket is now the caller's alone:
+        the reader was running, or another pause is already in force.
 
         For callers that must read the socket themselves (``Calibration.run``):
         while the reader runs, its ``recv()`` competes for every chunk and drops
@@ -541,16 +565,64 @@ class GazepointClient:
         A disconnect/reconnect during the pause is deliberately not handled:
         the reader is what reconnects, so the caller's own ``OSError`` handling
         applies, as on a fresh connect.
+
+        Pauses are counted (SPEC-audit-fixes.md H2): a nested one waits until the first
+        has stopped the reader and returns True, and every call must be ended by one
+        :meth:`resume_streaming` (:meth:`streaming_paused` does both). Two callers in
+        different threads still must not use the socket at the same moment; the Setup page
+        keeps them apart. Replay mode has no socket and is never paused.
         """
-        if self._thread is None or self._replay_path is not None:
+        if self._replay_path is not None:
             return False
-        self._stop_event.set()
-        self._thread.join(timeout=_PAUSE_JOIN_TIMEOUT_S)
-        if self._thread.is_alive():
-            _log.warning("gazepoint reader did not stop within %.1fs; continuing anyway", _PAUSE_JOIN_TIMEOUT_S)
-        else:
-            self._thread = None
+        with self._pause_lock:
+            self._pause_depth += 1
+            first = self._pause_depth == 1
+            reader = self._thread if first else None
+            if first:
+                self._resume_after_pause = reader is not None
+                if reader is not None:
+                    self._pause_join_lock.acquire()  # released once the reader has been stopped
+        if not first:
+            with self._pause_join_lock:  # waits for the first pause's join, if one is running
+                pass
+            return True
+        if reader is None:
+            return False
+        try:
+            self._stop_event.set()
+            reader.join(timeout=_PAUSE_JOIN_TIMEOUT_S)
+            if reader.is_alive():
+                _log.warning(
+                    "gazepoint reader did not stop within %.1fs; continuing anyway", _PAUSE_JOIN_TIMEOUT_S
+                )
+            else:
+                self._thread = None
+        finally:
+            self._pause_join_lock.release()
         return True
+
+    def resume_streaming(self) -> None:
+        """End one :meth:`pause_streaming`. The outermost end starts the reader again, once,
+        if it was running before the first pause or :meth:`start_streaming` was called during
+        one; a pause ended by :meth:`stop` restarts nothing."""
+        if self._replay_path is not None:
+            return
+        with self._pause_lock:
+            if self._pause_depth == 0:
+                return
+            self._pause_depth -= 1
+            if self._pause_depth > 0:
+                return
+            restart = self._resume_after_pause or self._resume_wanted
+            self._resume_after_pause = self._resume_wanted = False
+        if not restart:
+            return
+        if self._thread is not None:
+            # The reader never exited (the bounded join timed out): it is still the one
+            # reader, so just cancel the pending stop.
+            self._stop_event.clear()
+        else:
+            self.start_streaming()
 
     @contextmanager
     def streaming_paused(self) -> Iterator[bool]:
@@ -560,13 +632,7 @@ class GazepointClient:
         try:
             yield was_streaming
         finally:
-            if was_streaming:
-                if self._thread is not None:
-                    # The reader never exited (bounded join timed out): it is
-                    # still the one reader, so just cancel the pending stop.
-                    self._stop_event.clear()
-                else:
-                    self.start_streaming()
+            self.resume_streaming()
 
     def latest(self) -> GazeSample | None:
         with self._lock:
@@ -609,6 +675,9 @@ class GazepointClient:
 
     def stop(self) -> None:
         self._stop_event.set()
+        with self._pause_lock:
+            # A pause still in force must not start the reader again when it ends.
+            self._resume_after_pause = self._resume_wanted = False
         if self._thread is not None:
             self._thread.join(timeout=2.0)
             self._thread = None
@@ -617,6 +686,14 @@ class GazepointClient:
                 self._sock.close()
             finally:
                 self._sock = None
+        self._clear_latest()
+
+    def _clear_latest(self) -> None:
+        """Forget the last sample: once the link is gone it is not the child's gaze any more,
+        and a caller that kept reading it would record it again on every tick (F3)."""
+        with self._lock:
+            self._latest = None
+            self._last_raw_pog = None
 
     # -- reader loops ------------------------------------------------------
 
@@ -659,9 +736,11 @@ class GazepointClient:
                 line, buffer = buffer.split("\n", 1)
                 attrs = parse_rec(line)
                 if attrs is not None:
-                    self._set_latest(rec_to_sample(attrs, time.time_ns()), attrs)
+                    self._set_latest(rec_to_sample(attrs, now_ns()), attrs)
 
     def _on_disconnected(self) -> None:
+        # Before the flag: whoever sees "disconnected" never finds the old sample still there.
+        self._clear_latest()
         self._connected = False
         if self._sock is not None:
             try:

@@ -17,7 +17,10 @@ Writes one directory per recorded run, under the subject's own folder
           events.jsonl       # discrete events (DWELL_START, TARGET_SHOWN, ...)
 
 The recorder is deliberately GUI-free and streams to disk incrementally so a
-crash mid-session still leaves usable partial data.
+crash mid-session still leaves usable partial data (SPEC-audit-fixes.md H5): ``metadata.json``
+is written at :meth:`SessionRecorder.open` (``"complete": false``) and again at ``close()``
+(``"complete": true``), ``trials.csv`` gets its header at ``open`` and one row at the end of
+each trial, and the other CSVs are flushed at every trial end.
 """
 
 from __future__ import annotations
@@ -88,6 +91,10 @@ class SessionRecorder:
         self._gaze_writer: csv.DictWriter | None = None
         self._events_file: TextIO | None = None
         self._log_file: TextIO | None = None
+        # trials.csv, appended one row per finished trial (record_trial); write_trials()
+        # replaces it with the whole table at the end of the run.
+        self._trials_file: TextIO | None = None
+        self._trials_writer: csv.DictWriter | None = None
         self._closed = False
         # Flush the gaze CSV at least this often so a hard crash (SIGKILL, power
         # loss) leaves at most ~this many buffered samples on the floor.
@@ -148,6 +155,14 @@ class SessionRecorder:
             "w", encoding="utf-8"
         )
         self._log_file = (self.session_dir / "session.log").open("w", encoding="utf-8")
+
+        # Crash safety (H5): the metadata known now, marked incomplete until close(), and
+        # the trial table's header, so a run that dies leaves both beside the finished trials.
+        self.write_metadata(complete=False)
+        self._trials_file = (self.session_dir / "trials.csv").open("w", newline="", encoding="utf-8")
+        self._trials_writer = csv.DictWriter(self._trials_file, fieldnames=TrialRecord.csv_header())
+        self._trials_writer.writeheader()
+        self._trials_file.flush()
 
     def open_all_gaze(self, media_name: str, tick_frequency: int | None) -> None:
         """Start ``all_gaze.csv`` (Gazepoint Analysis layout). Call after
@@ -300,8 +315,38 @@ class SessionRecorder:
         self._log_file.write(message.rstrip("\n") + "\n")
         self._log_file.flush()
 
+    def record_trial(self, trial: TrialRecord) -> None:
+        """Append one finished trial to ``trials.csv`` and push every open CSV to disk, so
+        a run that dies between trials keeps everything up to the last one (H5). A no-op
+        once :meth:`write_trials` has written the final table."""
+        if self._events_file is None:
+            raise RuntimeError("Recorder is not open.")
+        if self._trials_writer is None or self._trials_file is None:
+            return
+        self._trials_writer.writerow(trial.as_row())
+        for fh in (
+            self._trials_file,
+            self._gaze_file,
+            self._all_gaze_file,
+            self._eye_file,
+            self._track_file,
+            self._pointer_file,
+        ):
+            if fh is not None:
+                fh.flush()
+
+    def _close_trials(self) -> None:
+        if self._trials_file is not None:
+            self._trials_file.flush()
+            self._trials_file.close()
+        self._trials_file = None
+        self._trials_writer = None
+
     def write_trials(self, trials: list[TrialRecord]) -> Path:
+        """Write the whole trial table, replacing the rows :meth:`record_trial` appended, so
+        the final file is the one a run has always ended with."""
         path = self.session_dir / "trials.csv"
+        self._close_trials()
         with path.open("w", newline="", encoding="utf-8") as fh:
             writer = csv.DictWriter(fh, fieldnames=TrialRecord.csv_header())
             writer.writeheader()
@@ -309,10 +354,16 @@ class SessionRecorder:
                 writer.writerow(trial.as_row())
         return path
 
-    def write_metadata(self) -> Path:
+    def write_metadata(self, complete: bool | None = None) -> Path:
+        """Write ``metadata.json``. ``complete`` adds the ``"complete"`` key: False while the
+        run is open, True once :meth:`close` has written the final file; left out (the file
+        every older run has) when None."""
         path = self.session_dir / "metadata.json"
+        payload = self.metadata.to_dict()
+        if complete is not None:
+            payload["complete"] = complete
         path.write_text(
-            json.dumps(self.metadata.to_dict(), ensure_ascii=False, indent=2),
+            json.dumps(payload, ensure_ascii=False, indent=2),
             encoding="utf-8",
         )
         return path
@@ -324,7 +375,8 @@ class SessionRecorder:
             return
         # metadata is (re)written on close so late fields (calibration error,
         # task list) are captured.
-        self.write_metadata()
+        self.write_metadata(complete=True)
+        self._close_trials()
         for fh in (
             self._gaze_file,
             self._all_gaze_file,
@@ -399,10 +451,13 @@ class NullRecorder:
     def log(self, message: str) -> None:
         return None
 
+    def record_trial(self, trial: TrialRecord) -> None:
+        return None
+
     def write_trials(self, trials: list[TrialRecord]) -> None:
         return None
 
-    def write_metadata(self) -> None:
+    def write_metadata(self, complete: bool | None = None) -> None:
         return None
 
     def close(self) -> None:

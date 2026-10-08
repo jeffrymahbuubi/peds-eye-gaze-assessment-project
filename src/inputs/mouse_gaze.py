@@ -15,11 +15,11 @@ run uses a ``NullRecorder``.
 
 from __future__ import annotations
 
-import time
 from collections.abc import Callable
 from typing import Any
 
 from ..data.schema import GazeSample
+from ..engine.clock import now_ns
 
 
 def _cursor_pos() -> Any:
@@ -66,7 +66,7 @@ class MouseGazeSource:
         local = canvas.mapFromGlobal(self._cursor_pos())
         px, py = local.x(), local.y()
         inside = 0 <= px < width and 0 <= py < height
-        return GazeSample(t_ns=time.time_ns(), x=px / width, y=py / height, valid=inside)
+        return GazeSample(t_ns=now_ns(), x=px / width, y=py / height, valid=inside)
 
     def is_connected(self) -> bool:
         return True

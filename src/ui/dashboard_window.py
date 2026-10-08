@@ -23,7 +23,8 @@ opt-in entry point (``--dashboard``), not a replacement.
 
 from __future__ import annotations
 
-from PySide6.QtGui import QFont
+from PySide6.QtCore import QTimer
+from PySide6.QtGui import QCloseEvent, QFont
 from PySide6.QtWidgets import (
     QApplication,
     QMainWindow,
@@ -64,6 +65,9 @@ class DashboardWindow(QMainWindow):
             self.setWindowIcon(QIcon(str(_ICON_PATH)))
 
         self.flow = Flow.IDLE
+        # A window close asked for during a run (SPEC-audit-fixes.md H4): the run ends first
+        # (the quit question, its files), then the window closes (:meth:`close_if_pending`).
+        self._close_pending = False
         # Where tests, sessions and saved settings live; the Test List and every flow
         # read it from here (a test can point it at a scratch folder).
         self.output_root = output_root()
@@ -149,6 +153,41 @@ class DashboardWindow(QMainWindow):
         if not self.setup_page.can_continue():
             return
         self._go_to_tab(TESTS_INDEX)
+
+    # -- closing the window --------------------------------------------------------------
+
+    def closeEvent(self, event: QCloseEvent) -> None:  # noqa: N802 - Qt override
+        """The X button and Alt+F4 (SPEC-audit-fixes.md H4, F2).
+
+        During a recorded run, a practice or the run-end dialogs the window does not close:
+        the close goes through the same quit question as Alt-Q, and once the run has ended
+        normally (every file written) the window closes. A Preview records nothing, so it
+        quits at once and the window closes. Otherwise the Setup threads are waited for
+        (bounded) so Qt never destroys a running ``QThread``, and the window closes.
+        """
+        if self.flow is Flow.PREVIEW:
+            preview = self.config_flow.preview_app
+            if preview is not None:
+                preview.request_quit()  # back to the configuration page, nothing written
+        if self.flow in (Flow.RUN, Flow.PRACTICE, Flow.FINISHING):
+            event.ignore()
+            self._close_pending = True
+            app = self.run_flow.app
+            if app is not None:
+                app.request_quit()
+                if not app.is_finished:  # Keep going: the run carries on, the window stays
+                    self._close_pending = False
+            return
+        self._close_pending = False
+        self.setup_page.stop_threads()
+        super().closeEvent(event)
+
+    def close_if_pending(self) -> None:
+        """Called when a run has ended and its flow is done: close the window if that was
+        asked for while the run was on. Deferred, since the run ends inside the close event."""
+        if self._close_pending:
+            self._close_pending = False
+            QTimer.singleShot(0, self.close)
 
 
 def apply_application_font(app: QApplication) -> None:

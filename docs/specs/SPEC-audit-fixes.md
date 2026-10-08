@@ -1,10 +1,10 @@
 ---
 name: SPEC-audit-fixes
 title: Fix the nine defects of the 2026-10-08 Fable bug audit (F1-F9)
-status: approved 2026-10-09 (user decisions U1-U5; hub decisions H1-H12 approved by the user)
+status: implemented + live-checked 2026-10-09 on branch audit-fixes (NOT merged; two §9 points await the user)
 created: 2026-10-09
 last_updated: 2026-10-09
-next_step: /spec-run after SPEC-design-system-phase2 is merged, BEFORE SPEC-preview-gaze-pointer (both touch app.py)
+next_step: user confirms the two §9 hub answers (H9 perf_counter_ns, H11 scope), then merges design-phase2 and audit-fixes and pushes
 related:
   - docs/audits/fable-bug-audit-2026-10-08.md (source: findings F1-F9 with file:line, repro output and fix directions)
   - SPEC-calibration-result-timeout.md (reader-thread race; §6.2 "exactly one reader thread")
@@ -155,18 +155,101 @@ incomplete run; any design-system or Preview change; new features.
 | Step | Content | Gate |
 |---|---|---|
 | 0 | SPEC approved by the user (DONE 2026-10-09) | user |
-| 1 | spec-implementer in a worktree based on the merged design-system phase 2: H1-H12 | — |
-| 2 | Hub review + full pytest; §9 questions | — |
-| 3 | Live check with `tools/fake_gazepoint_server.py`: Start blocked during Do Calibration; double Connect; X during a recorded Mouse run (quit question, files written); disconnect mid-run (stop the fake server) and no stale rows; load an invalid calibration file. Real GP3 HD optional (user's call) | user |
-| 4 | Commit on the user's OK | user |
+| 1 | spec-implementer in a worktree based on the merged design-system phase 2: H1-H12 (DONE 2026-10-09) | — |
+| 2 | Hub review + full pytest; §9 questions (DONE 2026-10-09; §9 answered by the hub, user to confirm) | — |
+| 3 | Live check with `tools/fake_gazepoint_server.py`: Start blocked during Do Calibration; double Connect; X during a recorded Mouse run (quit question, files written); disconnect mid-run (stop the fake server) and no stale rows; load an invalid calibration file. Real GP3 HD optional (user's call) (DONE 2026-10-09 with the fake tracker, unattended run authorized by the user) | user |
+| 4 | Commit on the user's OK (DONE 2026-10-09: committed on side branch audit-fixes only, per the user's unattended-run authorization; no merge, no push) | user |
 
 ## 8. Impl log
 
-(empty)
+- **2026-10-09, claude-sonnet-5-5 (spec-implementer), plan step 1, H1-H12 (F1-F9).** Worktree
+  `audit-fixes`; nothing committed or staged.
+  - **Source files changed:** `src/inputs/gazepoint_client.py` (H2 pause counter with
+    `resume_streaming()`, H6 `_clear_latest()` in `_on_disconnected` and `stop()`, H9 reader
+    stamp), `src/inputs/mouse_gaze.py` (H9), `src/data/recorder.py` (H5), `src/data/exporter.py`
+    (H6), `src/data/schema.py` and `src/engine/latency.py` and `src/tasks/base_task.py`
+    (docstrings, plus `BaseTask._record_trial` for H5), `src/engine/session_files.py`
+    (`remove_orphan_run_dir`, H11), `src/app.py` (H4 CLI close guard and `request_quit` /
+    `is_finished`, H6 tick guard, H7, H8, H9, H10 comment, H11 wrapper), `src/ui/setup_page.py`
+    (H1, H3, H7, H8, H10, `stop_threads`), `src/ui/setup_status.py` (the two blocker sentences and
+    their short names), `src/ui/dashboard_window.py` (H4 `closeEvent`, `close_if_pending`),
+    `src/ui/main_window.py` (H4 `close_guard`), `src/ui/run_flow.py` (calls `close_if_pending` when a
+    run or practice has ended).
+  - **New source files:** `src/engine/clock.py` (H9 `now_ns()`), `src/ui/setup_threads.py`
+    (`wait_for_threads`, the bounded wait of H4). New logic is in these and in `setup_status.py`;
+    `setup_page.py` is 1335 lines (1253 before, already over 500).
+  - **Not touched:** report, map and PDF modules, `design_tokens.py`, `wtmh_theme.py`,
+    `configs/default.yaml`, `configs/local_state.json` (md5 checked before and after).
+  - **Tests added (57):** `tests/test_audit_client.py` (9: pause counter, nested pause, stale sample,
+    reader stamp), `tests/test_audit_setup.py` (15: lock while Connect, Re-check and Do Calibration
+    run, second Connect stops the first client, enable switches, invalid and case-different calibration
+    files, Start and Practice blocked under a calibration), `tests/test_audit_recorder.py` (13:
+    crash-safe files, byte-identical normal run against the recorder as it was, metrics de-duplicated,
+    orphan-folder helper), `tests/test_audit_app.py` (13: a run that dies, legacy `trials.csv` bytes,
+    stale rows, CLI calibration rules, stepped wall clock, F9, standalone window guard),
+    `tests/test_audit_close.py` (7: X during RUN, PRACTICE, PREVIEW and FINISHING, Keep going, a busy
+    Setup thread).
+  - **Existing tests updated, none deleted:** `tests/dashboard_fixtures.py` and
+    `tests/run_flow_fixtures.py` (teardown sets `Flow.IDLE` before `close()`, so a closing window does
+    not open the real quit question), `tests/test_run_flow_app.py` (same, via `_shutdown_done`; and
+    `now_ns` for the quit timestamp), `tests/test_run_modes_app.py` (`now_ns` for the pre-roll and
+    ended-at checks), `tests/test_mouse_gaze.py` (the sample is stamped by the in-run clock).
+  - **pytest** (`-p no:cacheprovider -o addopts="" -q -rfE`, from the worktree root): `5 failed, 3075 passed, 2 skipped in 473.53s (0:07:53)`
+    Baseline in this worktree was 3018 passed, 2 skipped, 5 failed; the 5 are the known alpha 0.22 vs
+    0.35 checks.
+  - **Deviations from the SPEC:**
+    1. **H9 uses `time.perf_counter_ns`, not `time.monotonic_ns`** as the monotonic source (one line in
+       `src/engine/clock.py`). On this Windows Python 3.12 `time.monotonic` is `GetTickCount64` with
+       15.6 ms steps (measured granularity 15 ms), against 100 ns for `perf_counter`; the reader's
+       150 Hz stamps would sit on a 15.6 ms grid, equal stamps would be de-duplicated away by H6 and by
+       `load_gaze_frames`, and the `raw_clock_offset_ns` alignment ("within about 5 ms") would degrade.
+       See section 9.
+    2. **H11 is implemented exactly as written** (only a folder holding nothing but `calibration.json`,
+       or empty, is removed). That covers little of F9; see section 9.
+    3. **The three Setup `QThread`s now catch every exception and still report** (`_ConnectThread`,
+       `_DeviceInfoRefreshThread`, `_CalibrationThread`; the calibration one reports an unmeasured
+       result). Not in H1-H12, but with the lock of H1 a thread that died without its signal would have
+       left the whole Setup page locked for good.
+  - **Interpretations the SPEC left open (small, easy to flip):** the two "in progress" sentences come
+    first in `run_blockers()`; a Re-check in progress disables Continue (U2) and makes `can_continue()`
+    False but adds no blocker sentence (H1 names two); the Continue tooltip lists "wait for the ..."
+    for each running thread; `GazepointClient.stop()` also cancels a pending pause-resume (a stopped
+    client is not restarted by a pause that ends later); `AssessmentApp` gained `request_quit()` and
+    `is_finished` for the windows to call; a closed PRACTICE ends without a question, as Alt-Q does for
+    a practice; after a window close during a run the Save-and-View-Report action still opens the
+    report before the window closes (unreachable in practice: the Save question has no view button
+    after a quit); `metadata.json` gains `"complete"` on every run that reaches `close()` (H5 asks for
+    it), all other files of a normal run are byte-identical (proved in `tests/test_audit_recorder.py`).
+  - **Left undone / notes:** the live check of plan step 3 is the hub's. `metadata.json` written at
+    `open()` has no calibration fields (set after `open()` in `app.py`) and no canvas geometry (first
+    tick): a second `write_metadata(complete=False)` after those would make a crashed run's metadata
+    richer, not done (H5 says once). If a Setup thread is still running after the 10 s bound the window
+    closes anyway (a calibration is ended by closing the client's socket, a connect ends within about
+    5.5 s, so this should not happen). Stray empty files made by the arrow hook may sit in the project
+    root, outside the worktree; the tool inputs of this task contained the ASCII arrow in Python type annotations.
 
 ## 9. Implementer open questions
 
-(empty)
+- **2026-10-09, H9 monotonic source.** Implemented with `time.perf_counter_ns` instead of the SPEC's
+  `time.monotonic_ns`, because `time.monotonic` has 15.6 ms steps on Windows with Python 3.12 (clock info:
+  `GetTickCount64`, resolution 0.015625 s; `perf_counter` is `QueryPerformanceCounter`, 1e-7 s). Both are
+  monotonic, so the behaviour H9 asks for is the same. Hub: confirm or change the one line in
+  `src/engine/clock.py` (`_MONO_ANCHOR_NS` and `now_ns`).
+- **2026-10-09, H11 covers only the narrow window.** `AssessmentApp.__init__` opens the recorder (and with H5
+  writes `metadata.json` and the `trials.csv` header) before `build_task` and the view are built, so the
+  realistic F9 failure (`build_task` rejecting a stored structural value, an `OSError` opening a file) leaves
+  `events.jsonl`, `session.log`, `gaze_stream.csv`, `metadata.json` and `trials.csv` beside
+  `calibration.json`. H11 says to remove the folder only when it holds nothing but `calibration.json`
+  ("never anything else"), so that folder stays; only a failure between the calibration save and
+  `recorder.open()` is cleaned up, and H12's "failed build leaves no folder" is true only for that window.
+  Implemented as written; `tests/test_audit_app.py` pins both cases. Decision needed: also remove a fresh
+  folder whose files are all ones this failed constructor wrote (the recorder's known file names, regular
+  files, same shape checks as `discard_session`), or leave as is?
+- **2026-10-09, hub interim answers (user away; side-branch commit authorized; the user may override
+  both).** (1) H9: `perf_counter_ns` accepted. It is monotonic as H9 asks, and `monotonic_ns` would
+  merge distinct 150 Hz samples on Windows; a technical fix, not a design change. (2) H11: left as
+  written (approved scope). Removing a folder that holds recorder files is a new deletion of data
+  and needs the user's decision; queued for the user on return.
 
 ## 10. Log
 
@@ -175,3 +258,22 @@ incomplete run; any design-system or Preview change; new features.
   no `closeEvent` in src (F2), no `valid` check on load (F4), only the Do Calibration button guards
   the calibration thread (F1). User decisions U1-U5. Hub H1-H12 await approval.
 - **2026-10-09** — The user approved H1-H12 as written. SPEC and the audit report committed on `feature/compass-task-flow`. Next: /spec-run this SPEC after design-system phase 2 is merged; SPEC-preview-gaze-pointer follows it.
+- **2026-10-09** — Hub review, during an unattended run the user authorized (side-branch commit
+  only, no merge, no push). The scope matches H1-H12; the deviations are accepted (§8, §9 interim
+  answers). Note: H6's fresh-sample check also stops one sample being written on several ticks
+  when the loop runs faster than the device, so `gaze_stream.csv` loses rows that repeat a
+  `t_ns`. Readers already de-duplicated these; the analysis goldens are unchanged. Hub pytest:
+  **5 failed, 3075 passed, 2 skipped** (the 5 are the known skip-worktree alpha checks). Live
+  check, worktree code (PYTHONPATH set), fake tracker on 4343: F5/H3 a second Connect closed the
+  first socket (one ESTABLISHED); F1/H1 Do Calibration locks Connect, Test Connection, Re-check,
+  Do Calibration, Load Calibration File and Continue, and the Start page shows "Blocked:
+  Calibration in progress (Setup page)." with Start and Practice off; H5 mid-run `trials.csv`
+  holds the finished rows and `metadata.json` has `complete: false`; F2/H4 WM_CLOSE (the X
+  button) during a recorded Mouse run asks "Quit the test? 10 of 32 trials are done.", Keep
+  going leaves the run going, a second X plus Quit test plus Save partial results writes every
+  file (`complete: true`, `ended_by: operator_quit`, 16 trials) and the app exits 0; F3/H6
+  killing the fake server mid-run stops `gaze_stream.csv` (1857 rows at t+2 s and t+7 s), and
+  the bar says "Tracker disconnected"; F4/H7 an invalid file shows "This calibration file is
+  not valid. Run Do Calibration."; F6/H8 a file for "auditchk" loads for AUDITCHK. Not live:
+  F7 (clock), F8 (enable switches), F9 (orphan folder): unit tests only. The AUDITCHK run sits in
+  the worktree's gitignored `sessions/`. Committed on branch `audit-fixes` only.

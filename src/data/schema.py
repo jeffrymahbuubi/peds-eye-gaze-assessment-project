@@ -24,7 +24,8 @@ class GazeSample:
     Attributes
     ----------
     t_ns:
-        Monotonic-ish capture timestamp in nanoseconds (``time.time_ns``).
+        Capture timestamp in nanoseconds (``engine.clock.now_ns``: the epoch domain, on a clock
+        that does not step).
     x, y:
         Normalized best point-of-gaze, 0-1. May be outside [0, 1] briefly.
     valid:

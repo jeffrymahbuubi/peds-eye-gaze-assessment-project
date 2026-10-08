@@ -58,6 +58,7 @@ from ..engine.subject_store import (
     find_subject,
     known_subject_ids,
     output_root,
+    same_subject,
 )
 from ..inputs.gazepoint_client import DeviceInfo, GazepointClient
 from .alert_box import AlertBox
@@ -81,6 +82,8 @@ from .page_layout import (
 )
 from .report_format import DASH
 from .setup_status import (
+    CALIBRATING_BLOCKER,
+    CONNECTING_BLOCKER,
     DATE_BLOCKER,
     DISPLAY_BLOCKER,
     SEX_BLOCKER,
@@ -89,9 +92,14 @@ from .setup_status import (
     needs_caption,
     tracker_badge,
 )
+from .setup_threads import wait_for_threads
 from .status_badge import StatusBadge
 
 _SEX_OPTIONS = ["Select", "Female", "Male", "Other / Prefer not to say"]
+
+# A calibration file marked ``valid: false`` (a timed-out calibration) is refused like one for
+# another subject (SPEC-audit-fixes.md H7).
+INVALID_CALIBRATION_FILE_ALERT = "This calibration file is not valid. Run Do Calibration."
 
 
 def _format_device_info(info: DeviceInfo | None) -> str:
@@ -230,17 +238,22 @@ class _ConnectThread(QThread):
     succeeded = Signal(object)
     failed = Signal(str)
 
-    def __init__(self, host: str, port: int, keep: bool, parent=None) -> None:
+    def __init__(
+        self, host: str, port: int, keep: bool, enable: dict[str, bool] | None = None, parent=None
+    ) -> None:
         super().__init__(parent)
         self._host = host
         self._port = port
         self._keep = keep
+        # The gazepoint.enable.* block of default.yaml, as the standalone launch passes it
+        # (SPEC-audit-fixes.md H10); None leaves every record on.
+        self._enable = enable
 
     def run(self) -> None:
-        client = GazepointClient()
+        client = GazepointClient(enable=self._enable)
         try:
             client.connect(host=self._host, port=self._port)
-        except OSError as exc:
+        except Exception as exc:  # noqa: BLE001 - the page's lock is released by this signal
             self.failed.emit(str(exc))
             return
         if not self._keep:
@@ -271,7 +284,7 @@ class _DeviceInfoRefreshThread(QThread):
     def run(self) -> None:
         try:
             info = self._client.refresh_device_info()
-        except (RuntimeError, OSError) as exc:
+        except Exception as exc:  # noqa: BLE001 - the page's lock is released by this signal
             self.failed.emit(str(exc))
             return
         self.succeeded.emit(info)
@@ -290,14 +303,20 @@ class _CalibrationThread(QThread):
         self._output_root = output_root
 
     def run(self) -> None:
-        calibration = Calibration(
-            self._client,
-            n_points=self._n_points,
-            enabled=True,
-            show=self._show,
-            timing_log_path=calibration_timing_log_path(self._output_root),
-        )
-        self.finished_ok.emit(calibration.run())
+        # The page stays locked until this signal arrives (SPEC-audit-fixes.md H1), so an
+        # error must end as an unmeasured result, not as a thread that never reports.
+        try:
+            calibration = Calibration(
+                self._client,
+                n_points=self._n_points,
+                enabled=True,
+                show=self._show,
+                timing_log_path=calibration_timing_log_path(self._output_root),
+            )
+            result = calibration.run()
+        except Exception:  # noqa: BLE001
+            result = CalibrationResult(n_points=self._n_points, mean_error_px=None, valid=False)
+        self.finished_ok.emit(result)
 
 
 class SetupPage(QWidget):
@@ -381,16 +400,40 @@ class SetupPage(QWidget):
     def _display_needs_ack(self) -> bool:
         return self._display_check is not None and not self._display_check.standard
 
+    def _busy(self) -> bool:
+        """Whether a Setup thread is using the device: a Connect or Test Connection, a
+        Re-check or Do Calibration. While one is, the device actions are locked
+        (SPEC-audit-fixes.md H1), so two threads never share a socket and a test never
+        starts under a calibration."""
+        return any(
+            thread is not None
+            for thread in (self._connect_thread, self._recheck_thread, self._calibration_thread)
+        )
+
+    def stop_threads(self) -> bool:
+        """Before the window closes (H4): end the Setup threads, waiting for them (bounded), so
+        Qt never destroys a running ``QThread``. A calibration is ended by closing the
+        client's socket under it (its poll then returns); the others end on their own.
+        Returns whether none is left running."""
+        if self._calibration_thread is not None and self._client is not None:
+            self._client.stop()
+        return wait_for_threads((self._connect_thread, self._recheck_thread, self._calibration_thread))
+
     def run_blockers(self) -> list[str]:
         """Why a test cannot be started right now, as sentences for the Start
         page's banner (SPEC-compass-task-flow.md 4C.2); empty when it can.
 
         The conditions of :meth:`can_continue` plus the tracker and the calibration
         (which only a gaze test needs: :meth:`continue_blockers` leaves them out), in
-        the order the banner lists them. Pure: reads state, changes nothing, so the
-        page can re-evaluate it on a timer.
+        the order the banner lists them; a connect or calibration still running comes
+        first (H1). Pure: reads state, changes nothing, so the page can re-evaluate it on
+        a timer.
         """
         blockers: list[str] = []
+        if self._calibration_thread is not None:
+            blockers.append(CALIBRATING_BLOCKER)
+        if self._connect_thread is not None:
+            blockers.append(CONNECTING_BLOCKER)
         if self._client is None or not self._client.is_connected():
             blockers.append(TRACKER_BLOCKER)
         if self._calibration_result is None:
@@ -413,7 +456,9 @@ class SetupPage(QWidget):
         return drop_gaze_only_blockers(self.run_blockers())[0]
 
     def can_continue(self) -> bool:
-        return not self.continue_blockers()
+        # A Re-check in progress locks Continue too (U2) but is no blocker sentence: it ends
+        # within a second, on the page the operator is looking at.
+        return not self.continue_blockers() and self._recheck_thread is None
 
     def tracker_ready(self) -> tuple[bool, bool]:
         """``(tracker connected, calibrated)``: what a gaze test needs."""
@@ -883,91 +928,103 @@ class SetupPage(QWidget):
         self.rate_warning_label.setText(rate_warning_text)
         self.rate_warning_alert.setVisible(bool(rate_warning_text))
 
+    def _gazepoint_enable(self) -> dict[str, bool] | None:
+        """The ``gazepoint.enable.*`` switches of default.yaml, for a new client (H10)."""
+        return self._defaults.get("gazepoint", {}).get("enable")
+
     def _on_connect_clicked(self) -> None:
-        if self._connect_thread is not None:
+        if self._busy():
             return
-        self.connect_button.setEnabled(False)
         self._set_tracker_message("Connecting…")
         self.device_info_label.setVisible(False)
         self.recheck_device_info_button.setVisible(False)
         self.device_info_status_label.setVisible(False)
         self.rate_warning_alert.setVisible(False)
         self._connect_thread = _ConnectThread(
-            self.address_edit.text().strip() or "127.0.0.1", self.port_spin.value(), keep=True, parent=self
+            self.address_edit.text().strip() or "127.0.0.1",
+            self.port_spin.value(),
+            keep=True,
+            enable=self._gazepoint_enable(),
+            parent=self,
         )
         self._connect_thread.succeeded.connect(self._on_connect_succeeded)
         self._connect_thread.failed.connect(self._on_connect_failed)
         self._connect_thread.finished.connect(self._connect_thread.deleteLater)
+        self._on_state_changed()  # locks the device actions while it runs
         self._connect_thread.start()
 
     def _on_connect_succeeded(self, client: GazepointClient) -> None:
         self._connect_thread = None
-        self._client = client
-        self.connect_button.setEnabled(True)
+        previous, self._client = self._client, client
+        if previous is not None and previous is not client:
+            # A second Connect must not leave the first client's socket and reader running (H3).
+            previous.stop()
         self._set_tracker_message("")  # the badge says Connected
         self.device_info_status_label.setVisible(False)
         self._apply_device_info(client.device_info)
-        self.do_calibration_button.setEnabled(True)
         save_local_state({"host": self.address_edit.text().strip(), "port": self.port_spin.value()})
         self._on_state_changed()
 
     def _on_connect_failed(self, message: str) -> None:
         self._connect_thread = None
-        self.connect_button.setEnabled(True)
         self._set_tracker_message(f"Connection failed: {message}")
-        self._refresh_status_badges()
         self.device_info_label.setVisible(False)
         self.recheck_device_info_button.setVisible(False)
         self.device_info_status_label.setVisible(False)
         self.rate_warning_alert.setVisible(False)
+        self._on_state_changed()
 
     def _on_recheck_device_info_clicked(self) -> None:
-        if self._recheck_thread is not None or self._client is None:
+        if self._busy() or self._client is None:
             return
-        self.recheck_device_info_button.setEnabled(False)
         self.device_info_status_label.setText("Re-checking…")
         self.device_info_status_label.setVisible(True)
         self._recheck_thread = _DeviceInfoRefreshThread(self._client, parent=self)
         self._recheck_thread.succeeded.connect(self._on_recheck_succeeded)
         self._recheck_thread.failed.connect(self._on_recheck_failed)
         self._recheck_thread.finished.connect(self._recheck_thread.deleteLater)
+        self._on_state_changed()
         self._recheck_thread.start()
 
     def _on_recheck_succeeded(self, info: DeviceInfo) -> None:
         self._recheck_thread = None
-        self.recheck_device_info_button.setEnabled(True)
         self.device_info_status_label.setVisible(False)
         self._apply_device_info(info)
+        self._on_state_changed()
 
     def _on_recheck_failed(self, message: str) -> None:
         self._recheck_thread = None
-        self.recheck_device_info_button.setEnabled(True)
         # Last-known-good device_info_label/rate_warning_alert are left
         # exactly as they were -- a failed re-check doesn't mean the device
         # info shown is now wrong.
         self.device_info_status_label.setText(f"Re-check unavailable: {message}")
         self.device_info_status_label.setVisible(True)
+        self._on_state_changed()
 
     def _on_test_connection_clicked(self) -> None:
-        if self._connect_thread is not None:
+        if self._busy():
             return
-        self.test_connection_button.setEnabled(False)
         self._set_tracker_message("Testing connection…")
         thread = _ConnectThread(
-            self.address_edit.text().strip() or "127.0.0.1", self.port_spin.value(), keep=False, parent=self
+            self.address_edit.text().strip() or "127.0.0.1",
+            self.port_spin.value(),
+            keep=False,
+            enable=self._gazepoint_enable(),
+            parent=self,
         )
         self._connect_thread = thread
 
         def on_ok(_client: object) -> None:
             self._connect_thread = None
-            self.test_connection_button.setEnabled(True)
             self._set_tracker_message("Reachable.")
+            self._on_state_changed()
 
         def on_fail(message: str) -> None:
             self._connect_thread = None
-            self.test_connection_button.setEnabled(True)
             self._set_tracker_message(f"Unreachable: {message}")
+            self._on_state_changed()
 
+        self._on_state_changed()  # locks the device actions while it runs
         thread.succeeded.connect(on_ok)
         thread.failed.connect(on_fail)
         thread.finished.connect(thread.deleteLater)
@@ -976,9 +1033,8 @@ class SetupPage(QWidget):
     # -- calibration ------------------------------------------------------
 
     def _on_do_calibration_clicked(self) -> None:
-        if self._client is None or self._calibration_thread is not None:
+        if self._client is None or self._busy():
             return
-        self.do_calibration_button.setEnabled(False)
         self._set_calibration_alert("info", "Calibrating…")
         thread = _CalibrationThread(
             self._client,
@@ -990,11 +1046,11 @@ class SetupPage(QWidget):
         self._calibration_thread = thread
         thread.finished_ok.connect(self._on_calibration_finished)
         thread.finished.connect(thread.deleteLater)
+        self._on_state_changed()  # locks the device actions while it runs
         thread.start()
 
     def _on_calibration_finished(self, result: CalibrationResult) -> None:
         self._calibration_thread = None
-        self.do_calibration_button.setEnabled(True)
         self._calibration_result = result
         self._calibration_source = "measured"
         self._calibration_file = None
@@ -1037,6 +1093,8 @@ class SetupPage(QWidget):
         )
 
     def _on_load_calibration_clicked(self) -> None:
+        if self._busy():
+            return
         # Default to this subject's own saved calibration (SPEC-gui-audit-
         # 2026-09-10.md item 2b) when one exists, instead of always starting
         # the browse at output_root -- QFileDialog pre-selects the file
@@ -1057,11 +1115,14 @@ class SetupPage(QWidget):
         subject_id = self.subject_id() or "UNKNOWN"
         try:
             saved = load_calibration_result(path)
-            if saved.subject_id != subject_id:
+            if not same_subject(saved.subject_id, subject_id):
                 raise CalibrationFileError(
                     f"Calibration file subject_id {saved.subject_id!r} does not match "
                     f"Subject ID {subject_id!r}"
                 )
+            if not saved.result.valid:
+                # A timed-out calibration is saved too; it must not clear the blocker (U4).
+                raise CalibrationFileError(INVALID_CALIBRATION_FILE_ALERT)
         except CalibrationFileError as exc:
             self._calibration_result = None
             self._calibration_source = None
@@ -1074,8 +1135,10 @@ class SetupPage(QWidget):
         self._calibration_file = path
         self.calibration_details_section.setVisible(False)  # collapse any stale prior breakdown
         error_txt = f"{saved.result.mean_error_px:.0f}px" if saved.result.mean_error_px is not None else "n/a"
+        valid_txt = "valid" if saved.result.valid else "not valid"
         self._set_calibration_alert(
-            "success", f"Calibration loaded: {saved.result.n_points} points, mean error {error_txt}, valid."
+            "success",
+            f"Calibration loaded: {saved.result.n_points} points, mean error {error_txt}, {valid_txt}.",
         )
         self._on_state_changed()
 
@@ -1154,6 +1217,12 @@ class SetupPage(QWidget):
         missing = []
         # No tracker and no calibration are not missing requirements any more: a Mouse test
         # needs neither (the gaze_note under the page says what is left).
+        if self._calibration_thread is not None:
+            missing.append("wait for the calibration to finish")
+        if self._connect_thread is not None:
+            missing.append("wait for the connection to finish")
+        if self._recheck_thread is not None:
+            missing.append("wait for the device check to finish")
         if not self.subject_id():
             missing.append("enter a Subject ID")
         if not self.sex():
@@ -1229,9 +1298,22 @@ class SetupPage(QWidget):
             *calibration_badge(self._calibration_result, self.screen(), self._defaults.get("app", {}))
         )
 
+    def _refresh_enablement(self) -> None:
+        """The device actions and Continue, in one place (SPEC-audit-fixes.md H1, U2): while a
+        Setup thread runs, Connect, Test Connection, Re-check, Do Calibration, Load
+        Calibration File and Continue to Tests are off; after it, the normal rules
+        (Do Calibration needs a client, Continue needs nothing missing)."""
+        busy = self._busy()
+        self.connect_button.setEnabled(not busy)
+        self.test_connection_button.setEnabled(not busy)
+        self.recheck_device_info_button.setEnabled(not busy)
+        self.do_calibration_button.setEnabled(not busy and self._client is not None)
+        self.load_calibration_button.setEnabled(not busy)
+        self.continue_button.setEnabled(not self._missing_requirements())
+
     def _on_state_changed(self, *_args: object) -> None:
         missing = self._missing_requirements()
-        self.continue_button.setEnabled(not missing)
+        self._refresh_enablement()
         self.continue_button.setToolTip(
             "Still needed: " + "; ".join(missing) + "." if missing else ""
         )
