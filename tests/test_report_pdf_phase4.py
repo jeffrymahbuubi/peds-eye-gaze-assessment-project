@@ -18,13 +18,16 @@ import pytest
 os.environ.setdefault("QT_QPA_PLATFORM", "offscreen")
 
 from PySide6.QtCore import QBuffer, QRectF, QSize
-from PySide6.QtGui import QFont, QFontMetricsF, QTextBlock, QTextDocument, QTextTable
+from PySide6.QtGui import QColor, QFont, QFontMetricsF, QImage, QTextBlock, QTextDocument, QTextTable
 from PySide6.QtWidgets import QApplication
 
+import src.ui.report_page as report_page_module
 import src.ui.report_pdf as report_pdf
 from src.data.report_cache import build_report
 from src.data.report_config import build_config_rows
-from src.ui.design_tokens import CONTRAST_PAIRS, HEADER, INK, WARNING_SUBTLE
+from src.ui.design_tokens import CONTRAST_PAIRS, HEADER, INK, MAP_OVERLAY_ON_PANEL, WARNING_SUBTLE
+from src.ui.map_legend import NUMBERS_NOTE, SCANPATH_NOTE
+from src.ui.report_format import gaze_was_recorded
 from src.ui.report_page import ReportPage
 from src.ui.report_pdf import build_report_html, export_report_pdf
 from src.ui.target_map import TargetMapWidget
@@ -83,9 +86,12 @@ LAYOUTS = {"selection": selection, "switch": switch, "follow": follow, "no gaze"
 
 
 def map_image(report):
+    """The page's map for the PDF (:meth:`ReportPage.export_pdf`): the targets, and the scanpath when
+    gaze was recorded."""
     widget = TargetMapWidget()
     widget.set_report(report)
-    return widget.render_to_image(QSize(1800, round(1800 / widget.aspect)), {"targets": True})
+    overlays = {"targets": True, "path": gaze_was_recorded(report)}
+    return widget.render_to_image(QSize(1800, round(1800 / widget.aspect)), overlays)
 
 
 def html_of(report, *, with_map=True, **kw) -> str:
@@ -210,6 +216,100 @@ def test_page_1_holds_the_header_configuration_summary_and_eye_metrics_and_the_m
     # every table of page 1 is whole on it, down to the last row of the Eye Metrics
     eye = next(t for t in laid.tables() if t.columns() == 2 and t.cellAt(0, 0).firstCursorPosition().block().text() == "Metric")
     assert laid.page_of(eye.cellAt(eye.rows() - 1, 1).firstCursorPosition().block()) == 0
+
+
+# -- the PDF's map has the Summary's scanpath, and its legend says so (the user's answer of 2026-10-09) ----------------
+
+
+def with_scanpath(report):
+    """A scanpath along the bottom edge of the canvas, clear of every target mark."""
+    report["trials"][0]["scanpath"] = [[0.06, 0.95], [0.5, 0.95], [0.94, 0.95]]
+    return report
+
+
+def overlay_pixels(image: QImage) -> int:
+    """How many pixels are the scanpath's blue (the overlay colour at alpha 200 over white)."""
+    want = QColor(MAP_OVERLAY_ON_PANEL)
+    return sum(
+        1
+        for y in range(image.height())
+        for x in range(image.width())
+        if all(abs(a - b) <= 3 for a, b in zip(image.pixelColor(x, y).getRgb()[:3], want.getRgb()[:3], strict=True))
+    )
+
+
+def capture_export(monkeypatch) -> dict:
+    """Make :meth:`ReportPage.export_pdf` hand what it passes to the writer to the test."""
+    seen: dict = {}
+    monkeypatch.setattr(report_page_module, "export_report_pdf", lambda path, report, **kw: seen.update(kw) or path)
+    return seen
+
+
+def test_the_page_gives_the_pdf_the_map_with_the_scanpath_drawn_by_the_screens_own_code(qapp, tmp_path, monkeypatch):
+    seen = capture_export(monkeypatch)
+    page = ReportPage()
+    page.set_report(with_scanpath(selection(tmp_path)), test_name="Grid Click 1")
+    page.export_pdf(tmp_path / "a.pdf")
+    image = seen["map_image"]
+    assert overlay_pixels(image) > 200  # the line along the bottom edge and its three dots
+    screen = page.summary.map.render_to_image(image.size(), {"targets": True, "path": True})
+    assert image == screen  # pixel for pixel what the Summary's map draws with Targets and Scanpath on
+
+
+def test_the_pdf_map_has_the_scanpath_whatever_the_summarys_switches_say(qapp, tmp_path, monkeypatch):
+    seen = capture_export(monkeypatch)
+    page = ReportPage()
+    page.set_report(with_scanpath(selection(tmp_path)), test_name="Grid Click 1")
+    assert not page.summary.path_check.isChecked()  # off on the screen
+    page.summary.targets_check.setChecked(False)
+    page.export_pdf(tmp_path / "a.pdf")
+    assert overlay_pixels(seen["map_image"]) > 200
+    assert page.summary.map.overlays() == {"targets": False, "path": False, "heat": False}  # untouched
+
+
+def test_a_test_with_no_gaze_has_no_scanpath_in_the_pdf_map_and_no_line_in_its_legend(qapp, segoe, tmp_path, monkeypatch):
+    seen = capture_export(monkeypatch)
+    report = with_scanpath(no_gaze(tmp_path))
+    page = ReportPage()
+    page.set_report(report, test_name="Grid Click 1")
+    page.export_pdf(tmp_path / "a.pdf")
+    assert overlay_pixels(seen["map_image"]) == 0
+    assert SCANPATH_NOTE not in html_of(report) and NUMBERS_NOTE in html_of(report)
+
+
+@pytest.mark.parametrize("layout", ["selection", "switch", "follow"])
+def test_the_pdf_legend_names_the_scanpath_on_page_2_with_the_map(qapp, segoe, tmp_path, layout):
+    report = LAYOUTS[layout](tmp_path)
+    html = html_of(report)
+    assert html.count(SCANPATH_NOTE) == 1 and html.index(SCANPATH_NOTE) < html.index(NUMBERS_NOTE)
+    laid = Laid(html)
+    note, numbers = laid.block(SCANPATH_NOTE), laid.block(NUMBERS_NOTE)
+    assert laid.page_of(laid.block("Target Map")) == laid.page_of(note) == laid.page_of(numbers) == 1
+
+
+def test_no_legend_line_without_a_map(qapp, tmp_path):
+    assert SCANPATH_NOTE not in html_of(selection(tmp_path), with_map=False)
+
+
+def test_the_written_pdf_shows_the_scanpath_on_page_2_when_gaze_was_recorded(qapp, segoe, tmp_path, monkeypatch):
+    """End to end, read back from the file: the blue of the scanpath is on page 2 with gaze and not
+    without it (nothing else on the page is blue)."""
+
+    def blue_on_page_2(report) -> int:
+        path = export_report_pdf(tmp_path / "r.pdf", report, test_name="Grid Click 1", map_image=map_image(report))
+        document = QtPdf.QPdfDocument()
+        assert document.load(str(path)) == QtPdf.QPdfDocument.Error.None_
+        page = document.render(1, QSize(1240, 1754))
+        document.close()
+        return sum(
+            1
+            for y in range(0, page.height(), 2)
+            for x in range(0, page.width(), 2)
+            if (c := page.pixelColor(x, y)).blue() - c.red() > 60 and c.blue() - c.green() > 20
+        )
+
+    assert blue_on_page_2(with_scanpath(selection(tmp_path))) > 50
+    assert blue_on_page_2(with_scanpath(no_gaze(tmp_path))) == 0
 
 
 def test_the_written_file_is_two_pages_for_a_short_test(qapp, segoe, tmp_path):

@@ -330,8 +330,8 @@ def _paint_trial(
     """One trial: the target with its dashed hitbox ring, the gaze path dark to light by
     time, fixation circles (radius grows with duration) numbered in order, the onset
     (S) and, for a hit, the selection (star) at the path's two ends. With ``runs`` (Follow
-    the Target) the pointer path is drawn as they say instead: dark on the target, lighter
-    and thinner off it."""
+    the Target) the pointer path is drawn as they say instead: dark on the target, grey,
+    thinner and dashed off it."""
     target = trial.get("target", {})
     outcome = trial.get("outcome")
     outcome_hit = outcome in ("hit", "followed")

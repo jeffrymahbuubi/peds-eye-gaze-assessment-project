@@ -4,9 +4,10 @@ wireframes ``report-summary.md`` / ``report-detailed.md``).
 :class:`SummaryView`: the task sentence, the Summary of Results table and its
 footnote, the Target Map with its Targets / Scanpath / Heat map switches and its symbol
 legend, and the whole-test Eye Metrics table (320 + 320 px, the whole view at most 1100 px wide).
-:class:`DetailedView`: the Trial-by-Trial table (first column frozen, every column sortable, the
-Outcome column as status badges, two-line headers so the 13 columns fit) above the selected trial's
-720 x 405 px map (SPEC-design-system-phase4.md H6, H7).
+:class:`DetailedView`: the selected trial's 720 x 405 px map, then the Trial-by-Trial table below it at
+the full width (first column frozen, every column sortable, the Outcome column as status badges,
+two-line headers so the 13 columns fit; the pane scrolls, the table keeps room for eight rows)
+(SPEC-design-system-phase4.md H6, H7 and the user's answer of 2026-10-09).
 
 Both are scroll areas that only **show** a report: every figure is formatted by
 :mod:`report_format` and drawn by :class:`~src.ui.target_map.TargetMapWidget`; nothing is
@@ -70,6 +71,7 @@ MAP_MAX_WIDTH = 880  # the Summary's map, so a wide window does not make it enor
 SUMMARY_MAX_WIDTH = 1100  # the Summary's whole main column (the sidebar keeps 460)
 EYE_COLUMN_WIDTHS = (320, 320)  # the Eye Metrics table: Metric, Value
 SELECTED_MAP_SIZE = (720, 405)  # the Detailed view's map of the selected trial
+TABLE_MIN_ROWS = 8  # the Detailed table is never squeezed below this many rows (the pane scrolls)
 # The badge of an Outcome cell (SPEC-design-system-phase4.md H7): the glyph and colour of a
 # status badge kind, with the report's own word ("Hit", "Not selected", ...).
 OUTCOME_KINDS = {
@@ -97,8 +99,8 @@ TRIAL_LEGEND = (
 FOLLOW_TRIAL_LEGEND = (
     "S = pointer when the target appeared, numbered circles = fixations (bigger = longer), "
     "faint line = the path of the target, dashed ring = target area.\n"
-    "The pointer path (smoothed like the on-screen cursor) is dark where the pointer was on the "
-    "target and light where it was off it."
+    "The pointer path (smoothed like the on-screen cursor) is solid dark blue where the pointer was on the "
+    "target and dashed grey where it was off it."
 )
 NOT_RECORDED_SUFFIX = "not recorded"  # on the Scanpath and Heat map switches of a test with no gaze
 
@@ -254,7 +256,7 @@ class SummaryView(QScrollArea):
 
 
 class DetailedView(QScrollArea):
-    """The Trial-by-Trial table and the selected trial's map.
+    """The selected trial's map and, below it, the Trial-by-Trial table.
 
     Rows are selected one at a time (the first when a report is set); the map and the
     line under it follow. A click on a column header sorts by it (again to reverse), a
@@ -271,12 +273,8 @@ class DetailedView(QScrollArea):
         layout = QVBoxLayout(content)
         layout.setContentsMargins(0, 0, 8, 0)
         layout.setSpacing(8)
-        layout.addWidget(section_title("Trial-by-Trial Results"))
         self._cells: list[list[Any]] = []  # the cells of each report trial, in the report's order
         self._aligns: list[str] = []
-        self.table = FrozenColumnTable([two_lines(c) for c in TRIAL_COLUMNS])
-        self.table.setMinimumHeight(200)
-        layout.addWidget(self.table, stretch=1)
         self.selected_title = section_title("Selected trial")
         layout.addWidget(self.selected_title)
         self.map = TargetMapWidget()
@@ -292,6 +290,10 @@ class DetailedView(QScrollArea):
         layout.addWidget(self.legend)
         self.trial_legend = caption_label(TRIAL_LEGEND)
         layout.addWidget(self.trial_legend)
+        layout.addWidget(section_title("Trial-by-Trial Results"))
+        self.table = FrozenColumnTable([two_lines(c) for c in TRIAL_COLUMNS])
+        self.table.set_minimum_rows(TABLE_MIN_ROWS)
+        layout.addWidget(self.table, stretch=1)
         setup_scroll(self, content)
         self.table.sortRequested.connect(self._on_sort)
         self.table.currentCellChanged.connect(self._on_current_changed)

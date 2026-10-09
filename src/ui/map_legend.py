@@ -2,10 +2,11 @@
 
 A white box with a light grey edge under the map (no tint, SPEC-design-system-phase4.md H5):
 each mark the map uses drawn as a small icon next to a short label, then what the Scanpath
-overlay draws (the Summary's, in its one colour) and what the numbers mean. Caption size, ink
-text. The same four entries are in the PDF (:func:`legend_html`); the icons are drawn by the
-map's own code (:func:`~src.ui.target_map_paint.paint_symbol`), so a legend icon is the mark it
-names.
+overlay draws (the Summary's, in its one colour) and what the numbers mean. Body size, ink
+text (the user's answer of 2026-10-09: it must read without effort). The same entries are in the
+PDF (:func:`legend_html`), with the Scanpath line when the PDF's map draws the scanpath; the icons
+are drawn by the map's own code (:func:`~src.ui.target_map_paint.paint_symbol`), so a legend icon
+is the mark it names.
 """
 
 from __future__ import annotations
@@ -16,7 +17,7 @@ from PySide6.QtCore import QBuffer, QByteArray, QIODevice, QRectF, QSize, Qt
 from PySide6.QtGui import QColor, QImage, QPainter
 from PySide6.QtWidgets import QFrame, QGridLayout, QLabel, QWidget
 
-from .design_tokens import BORDER_SUBTLE, INK, PANEL, RADIUS, TYPE_CAPTION
+from .design_tokens import BORDER_SUBTLE, INK, PANEL, RADIUS, TYPE_BODY
 from .target_map_paint import paint_symbol
 
 # (kind of mark, label). The kinds are those of :func:`paint_symbol`.
@@ -27,13 +28,13 @@ LEGEND_ENTRIES: tuple[tuple[str, str], ...] = (
     ("slot", "Layout position (cell or icon)"),
 )
 NUMBERS_NOTE = "Numbers = trials shown at that place"
-# What the Summary's Scanpath overlay draws: one colour for every trial (X1). Only the on-screen
-# Summary legend has this line; the PDF's map is Targets only.
+# What the Summary's Scanpath overlay draws: one colour for every trial (X1). The on-screen Summary
+# legend and the PDF's (which draws the same scanpath when gaze was recorded) have this line.
 SCANPATH_NOTE = "Scanpath: fixations joined in time order, all trials"
 # Follow the Target (SPEC-input-selection-and-follow.md 4.5): its marks say followed or not, it
 # has no layout positions, and its map draws the target's path. The selected trial's pointer path
-# is drawn dark where the pointer was on the target and light where it was off it, so the
-# Detailed view's own legend names those two lines (the Summary map and the PDF do not draw them).
+# is drawn solid dark where the pointer was on the target and grey and dashed where it was off it,
+# so the Detailed view's own legend names those two lines (the Summary map and the PDF do not draw them).
 FOLLOW_LEGEND_ENTRIES: tuple[tuple[str, str], ...] = (
     ("hit", "Trial followed"),
     ("timeout", "Trial not followed"),
@@ -56,7 +57,7 @@ QFrame#mapLegend {{
     border: 1px solid {BORDER_SUBTLE};
     border-radius: {RADIUS}px;
 }}
-QFrame#mapLegend QLabel {{ color: {INK}; background: transparent; font-size: {TYPE_CAPTION}px; }}
+QFrame#mapLegend QLabel {{ color: {INK}; background: transparent; font-size: {TYPE_BODY}px; }}
 """
 
 
@@ -170,9 +171,11 @@ def legend_html(
     width_css_px: int | None = None,
     icon_css_px: int = 20,
     entries: tuple[tuple[str, str], ...] = LEGEND_ENTRIES,
+    overlay_note: str = "",
 ) -> str:
     """The legend as HTML for the PDF: the same white, outlined box, the same icons and
     labels (``entries``: the four marks unless a Follow the Target report gives its own), the
+    ``overlay_note`` line (what the scanpath on the map draws; none when empty) and the
     same numbers note. ``width_css_px`` is the box's width in CSS px (1/96 inch;
     the map's width, so the two line up), the full text width when ``None``; ``icon_css_px``
     is the icon's side.
@@ -190,8 +193,9 @@ def legend_html(
     rows = "".join(
         f"<tr>{''.join(cells[i:i + COLUMNS])}</tr>" for i in range(0, len(cells), COLUMNS)
     )
+    overlay = f'<tr><td colspan="{COLUMNS * 2}">{overlay_note}</td></tr>' if overlay_note else ""
     inner = (
-        f'<table width="100%" border="0" cellspacing="0" cellpadding="3">{rows}'
+        f'<table width="100%" border="0" cellspacing="0" cellpadding="3">{rows}{overlay}'
         f'<tr><td colspan="{COLUMNS * 2}">{NUMBERS_NOTE}</td></tr></table>'
     )
     width = f'"{width_css_px}"' if width_css_px else '"100%"'

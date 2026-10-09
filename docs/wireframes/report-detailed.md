@@ -6,6 +6,10 @@
 
 > **Design system phases 1 and 4** (SPEC-design-system-phase4.md H5-H7): title without the colon, test name under it. The 13 columns fit about 1,370 px without a horizontal scrollbar at 1920x1080: two-line headers ("Reaction" over "Time (s)", "Mean fix." over "dur. (s)", ...) and 14 px tabular numbers. Outcome cells are status badges (glyph + word). The selected row is a blue fill, not bold.
 
+> **Order of the right-hand column** (the user's answer of 2026-10-09): the selected trial first, then the table below it, **full width**. The pane scrolls vertically. The table keeps room for **8 rows** (its header plus 8 x 40 px, about 375 px), so it never shrinks to a few rows beside the 720 x 405 map; with more trials it scrolls inside its own frame. The legend text is body size (14 px).
+>
+> From the top: "Selected trial: Trial 1", the 720 x 405 map, the scan-path line, (Follow the Target only: the pointer legend box), the two caption lines of the map's legend, "Trial-by-Trial Results", then the table at the pane's full width (8 rows or more, its columns without a sideways scroll).
+
 > SPEC-compass-task-flow.md 4D.2 and 4D.7. Same page as `report-summary.md`, switched with View Details / View Summary. The header, banner, left column (Test Configuration + Notes) and footer are identical, so they are shortened here. Compass reference: `docs/compass/screenshots/08b-*.png`.
 
 ::: grid-2
@@ -43,6 +47,29 @@ Configuration Name: **Large targets**
 
 ::: main
 
+#### Selected trial: Trial 1
+
+```
++------------------------------------------------------------------+
+|                                                                  |
+|                  ⓢ onset                                         |
+|                    \  1                                          |
+|                     o----.                                       |
+|                           \   2         .- - - - -.              |
+|                            o-----------(   ●  3    )  ← target   |
+|                                         '- - - - -'   + dashed   |
+|                                               ★ selected  hitbox |
+|      smoothed gaze path dark → light by time; circles = fixations|
+|      size ∝ duration, numbered in order                          |
++------------------------------------------------------------------+
+  Scan path 12.3°, 3 fixations, 3 saccades
+```
+
+> **Selected-trial map:**
+> - It is the same map widget as on the Summary, showing one trial, 720 x 405 px. Its path runs dark blue (#1F669E) to light blue (#2D7EB3) with time; fixation number badges are at least 11 px; the legend sentence is two caption lines (phase 4 H3, H5).
+> - Up/Down keys move the selection, and the map follows.
+> - For Follow the Target it draws the target's track during the trial (grey, solid) plus the smoothed pointer path: stretches on the target are solid dark blue, stretches off it are grey, thinner and **dashed**, so on and off read without colour (the user's answer of 2026-10-09). The legend's "Pointer off target" icon is dashed too.
+
 #### Trial-by-Trial Results
 
 | Trial | Size (deg) | Distance (deg) | Outcome | Trial Time (s) | Reaction Time (s) | Entries | Fixations | Mean fix. dur. (s) | Saccades | Mean peak vel. (deg/s) | Pupil (mm) | Pupil change (mm) |
@@ -73,29 +100,6 @@ Configuration Name: **Large targets**
 | 3 | Circular | ■ Not followed | 10.0 | 41 | 3.9 | 1.20 | 0.55 | 2.3 | 84 | 21 | 24 | 3.7 | +0.09 |
 
 > Follow table: the follow metrics of the summary per trial, then the usual eye columns. Outcome = Followed / Not followed (on target ≥ 50 %). A Mouse run without the tracker shows "not recorded" in the gain, catch-up and eye columns (A5; step 4 decision 2026-10-08, a skipped trial keeps its dashes). Old Follow & Click sessions keep their old layout (H10).
-
-#### Selected trial: Trial 1
-
-```
-+------------------------------------------------------------------+
-|                                                                  |
-|                  ⓢ onset                                         |
-|                    \  1                                          |
-|                     o----.                                       |
-|                           \   2         .- - - - -.              |
-|                            o-----------(   ●  3    )  ← target   |
-|                                         '- - - - -'   + dashed   |
-|                                               ★ selected  hitbox |
-|      smoothed gaze path dark → light by time; circles = fixations|
-|      size ∝ duration, numbered in order                          |
-+------------------------------------------------------------------+
-  Scan path 12.3°, 3 fixations, 3 saccades
-```
-
-> **Selected-trial map:**
-> - It is the same map widget as on the Summary, showing one trial, 720 x 405 px. Its path runs dark blue (#1F669E) to light blue (#2D7EB3) with time; fixation number badges are at least 11 px; the legend sentence is two caption lines (phase 4 H3, H5).
-> - Up/Down keys move the selection, and the map follows.
-> - For Follow the Target it draws the target's track during the trial plus the smoothed pointer path; samples off target are drawn lighter (legend: on target / off target).
 
 :::
 

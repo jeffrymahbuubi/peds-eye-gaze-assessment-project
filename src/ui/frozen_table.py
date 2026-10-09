@@ -13,6 +13,7 @@ it: "Reaction\\nTime (s)"). The column widths are not left to the header: Qt add
 arrow's room, as high as the header is, to every section, which two-line headers would double.
 :meth:`fit_columns` sets each width from the text instead (the widest cell or header line plus
 the sheet's padding and room for the arrow), so thirteen columns fit about 1,370 px.
+:meth:`set_minimum_rows` keeps the table tall enough to show that many rows under the header.
 
 One column may hold status badges (:meth:`set_badge_column`, :meth:`set_badge`): the item keeps
 the text, for the sort and for reading, and the badge painted over it says the state. The delegate
@@ -159,6 +160,7 @@ class FrozenColumnTable(QTableWidget):
     def __init__(self, columns: Sequence[str], parent: QWidget | None = None) -> None:
         super().__init__(0, len(columns), parent)
         self.badge_column: int | None = None
+        self._minimum_rows = 0
         self.setObjectName("reportTrialTable")
         self.setHorizontalHeaderLabels(list(columns))
         self.setEditTriggers(QAbstractItemView.EditTrigger.NoEditTriggers)
@@ -309,7 +311,25 @@ class FrozenColumnTable(QTableWidget):
                 width = max(width, self._cell_px(row, column, body))
             self.setColumnWidth(column, max(MIN_COLUMN_PX, width))
         self._sync_header_heights()
+        self._apply_minimum_height()  # the header may have changed its height with the labels
         self._update_frozen_geometry()
+
+    def set_minimum_rows(self, rows: int) -> None:
+        """Keep the table at least tall enough to show ``rows`` rows under its header (the page
+        around it scrolls instead of squeezing the table); 0 sets no minimum."""
+        self._minimum_rows = max(0, rows)
+        self._apply_minimum_height()
+
+    def height_for_rows(self, rows: int) -> int:
+        """The table height that shows ``rows`` rows under the header: the header, the rows
+        and the frame (a sideways scroll bar, when one is needed, takes its own room)."""
+        header = self.horizontalHeader()
+        for part in (self, header):
+            part.ensurePolished()
+        return header.sizeHint().height() + rows * self.verticalHeader().defaultSectionSize() + 2 * self.frameWidth()
+
+    def _apply_minimum_height(self) -> None:
+        self.setMinimumHeight(self.height_for_rows(self._minimum_rows) if self._minimum_rows else 0)
 
     def columns_width(self) -> int:
         """The sum of the column widths (what the table needs, with the frame, to show every

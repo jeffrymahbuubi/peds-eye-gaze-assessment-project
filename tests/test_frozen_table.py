@@ -278,3 +278,37 @@ def test_the_cells_are_14_px_with_tabular_figures_and_the_header_is_semibold(qap
     assert table.font().pixelSize() == 14 and table.frozen_view.font().pixelSize() == 14
     if hasattr(QFont, "Tag"):
         assert body.featureValue(QFont.Tag("tnum")) == 1
+
+
+# -- room for a number of rows (the Detailed table below the map keeps eight) ---------------------------------------
+
+
+def test_height_for_rows_is_the_header_the_rows_and_the_frame(qapp):
+    table = FrozenColumnTable(COLUMNS)
+    header = table.horizontalHeader().sizeHint().height()
+    row = table.verticalHeader().defaultSectionSize()
+    assert table.height_for_rows(0) == header + 2 * table.frameWidth()
+    assert table.height_for_rows(8) - table.height_for_rows(0) == 8 * row
+    assert table.height_for_rows(8) - table.height_for_rows(7) == row
+
+
+def test_set_minimum_rows_keeps_the_table_that_tall_and_zero_takes_it_off(qapp):
+    table = FrozenColumnTable(COLUMNS)
+    assert table.minimumHeight() == 0  # none unless asked for
+    table.set_minimum_rows(8)
+    assert table.minimumHeight() == table.height_for_rows(8)
+    table.setRowCount(3)  # the minimum does not follow the number of rows
+    table.fit_columns()
+    assert table.minimumHeight() == table.height_for_rows(8)
+    table.set_minimum_rows(0)
+    assert table.minimumHeight() == 0
+
+
+def test_a_table_with_a_minimum_shows_that_many_whole_rows_when_given_that_height(qapp):
+    table = make_table(rows=20, width=900, height=100)
+    table.set_minimum_rows(8)
+    table.resize(900, 100)  # asked to be shorter: it cannot be
+    QCoreApplication.processEvents()
+    assert table.height() >= table.height_for_rows(8)
+    assert table.viewport().height() // table.verticalHeader().defaultSectionSize() >= 7  # the bar of a sideways scroll may take a row's part
+    table.close()

@@ -19,6 +19,7 @@ from PySide6.QtCore import QCoreApplication, Qt
 from PySide6.QtGui import QColor, QFontMetrics, QPalette
 from PySide6.QtWidgets import (
     QApplication,
+    QLabel,
     QStyleFactory,
     QStyleOptionViewItem,
     QVBoxLayout,
@@ -31,12 +32,22 @@ from src.ui.design_tokens import (
     HEADER,
     PANEL,
     ROW_SELECTED,
+    TABLE_ROW_HEIGHT,
     TYPE_BODY,
     TYPE_CAPTION,
     TYPE_DISPLAY,
     TYPE_HEADING,
 )
 from src.ui.frozen_table import BADGE_KIND_ROLE, FrozenColumnTable, two_lines
+from src.ui.map_legend import (
+    FOLLOW_LEGEND_ENTRIES,
+    LEGEND_ENTRIES,
+    NUMBERS_NOTE,
+    POINTER_LEGEND_ENTRIES,
+    POINTER_NUMBERS_NOTE,
+    SCANPATH_NOTE,
+    MapLegend,
+)
 from src.ui.report_format import SWITCH_TRIAL_COLUMNS, TRIAL_COLUMNS
 from src.ui.report_format_follow import FOLLOW_TRIAL_COLUMNS
 from src.ui.report_page import (
@@ -48,9 +59,11 @@ from src.ui.report_page import (
 )
 from src.ui.report_views import (
     EYE_COLUMN_WIDTHS,
+    MAP_MAX_WIDTH,
     OUTCOME_KINDS,
     SELECTED_MAP_SIZE,
     SUMMARY_MAX_WIDTH,
+    TABLE_MIN_ROWS,
     TRIAL_LEGEND,
 )
 from src.ui.wtmh_theme import STYLESHEET
@@ -200,7 +213,7 @@ def test_the_selected_trials_legend_is_two_caption_lines_without_an_interpunct(q
     assert first and second and "·" not in label.text()
     assert "dark to light with time" in second and "numbered circles" in first
     page.set_report(build_report(follow_folder(tmp_path / "f")), test_name="Follow 1")
-    assert page.detailed.trial_legend.text().count("\n") == 1 and "light where it was off it" in page.detailed.trial_legend.text()
+    assert page.detailed.trial_legend.text().count("\n") == 1 and "dashed grey where it was off it" in page.detailed.trial_legend.text()
 
 
 def test_a_caption_label_is_12_px_in_the_dashboard_sheet(qapp, tmp_path):
@@ -517,5 +530,136 @@ def test_every_layouts_detailed_table_has_no_dark_block_beside_its_header(qapp, 
         table.setPalette(dark_palette())
         QCoreApplication.processEvents()
         assert empty_header_pixel(table).name().lower() == HEADER.lower()
+    finally:
+        root.close()
+
+
+# -- the Detailed table below the map, full width (the user's answer of 2026-10-09) ---------------------------------
+
+
+def top_in(content: QWidget, widget: QWidget) -> int:
+    return widget.mapTo(content, widget.rect().topLeft()).y()
+
+
+def left_in(content: QWidget, widget: QWidget) -> int:
+    return widget.mapTo(content, widget.rect().topLeft()).x()
+
+
+def test_the_detailed_table_is_below_the_map_and_its_legend_at_the_full_width(qapp, segoe, tmp_path):
+    root, page = themed_page(folder_report(tmp_path), view="detailed")
+    try:
+        view = page.detailed
+        content, table, trial_map = view.widget(), view.table, view.map
+        title = next(w for w in view.findChildren(QLabel) if w.text() == "Trial-by-Trial Results")
+        order = [view.selected_title, trial_map, view.line_label, view.trial_legend, title, table]
+        tops = [top_in(content, w) for w in order]
+        assert tops == sorted(tops) and len(set(tops)) == len(tops)  # top to bottom, in that order
+        assert top_in(content, title) >= top_in(content, trial_map) + trial_map.height()  # under the 720 x 405 map
+        assert top_in(content, table) >= top_in(content, title) + title.height()  # its heading directly above it
+        assert (trial_map.width(), trial_map.height()) == (720, 405)  # the map did not change
+        assert left_in(content, table) == left_in(content, trial_map) == 0  # left-aligned, not beside the map
+        assert table.width() == content.width() - 8 > trial_map.width() + 600  # the pane's width less its margin
+    finally:
+        root.close()
+
+
+def test_the_legend_of_a_follow_detailed_view_is_above_the_table_too(qapp, segoe, tmp_path):
+    root, page = themed_page(build_report(follow_folder(tmp_path)), view="detailed")
+    try:
+        view = page.detailed
+        assert not view.legend.isHidden()
+        content = view.widget()
+        assert top_in(content, view.map) < top_in(content, view.legend) < top_in(content, view.table)
+    finally:
+        root.close()
+
+
+def test_the_detailed_table_keeps_room_for_eight_rows_and_the_pane_scrolls(qapp, segoe, tmp_path):
+    root, page = themed_page(folder_report(tmp_path), view="detailed", height=1000)  # a maximized 1080p window
+    try:
+        view, table = page.detailed, page.detailed.table
+        assert TABLE_MIN_ROWS == 8
+        assert table.minimumHeight() == table.height_for_rows(TABLE_MIN_ROWS)
+        assert table.height() >= table.minimumHeight()
+        assert table.viewport().height() >= TABLE_MIN_ROWS * TABLE_ROW_HEIGHT  # eight whole rows under the header
+        bar = view.verticalScrollBar()
+        assert bar.maximum() > 0  # the map, the legend and the table do not fit: the pane scrolls ...
+        bar.setValue(bar.maximum())
+        QCoreApplication.processEvents()
+        assert table.mapTo(view.viewport(), table.rect().bottomLeft()).y() <= view.viewport().height()  # ... to all of it
+    finally:
+        root.close()
+
+
+@pytest.mark.parametrize("layout", ["selection", "switch", "follow"])
+def test_below_the_map_the_table_still_shows_every_column_without_a_horizontal_scroll_bar(
+    qapp, segoe, tmp_path, layout
+):
+    """M-3 with the pane's own vertical scroll bar and, for twenty trials, the table's: the full
+    width has room for the columns of every layout."""
+    if layout == "follow":
+        report = build_report(follow_folder(tmp_path))
+    else:
+        report = switch_report(tmp_path) if layout == "switch" else folder_report(tmp_path)
+        base = report["trials"][0]
+        report["trials"] = [dict(base, trial=i + 1) for i in range(20)]
+    root, page = themed_page(report, view="detailed")
+    try:
+        table = page.detailed.table
+        assert page.detailed.verticalScrollBar().maximum() > 0
+        assert table.viewport().width() >= table.columns_width()
+        assert table.horizontalScrollBar().maximum() == 0
+    finally:
+        root.close()
+
+
+# -- H5, the user's answer of 2026-10-09: the legend's text is body size, and it still fits ------------------------
+
+
+LEGEND_SETS = {
+    "selection": (LEGEND_ENTRIES, NUMBERS_NOTE, SCANPATH_NOTE),
+    "follow": (FOLLOW_LEGEND_ENTRIES, NUMBERS_NOTE, SCANPATH_NOTE),
+    "pointer": (POINTER_LEGEND_ENTRIES, POINTER_NUMBERS_NOTE, ""),
+}
+
+
+def assert_nothing_clips(legend: MapLegend) -> None:
+    box = legend.rect()
+    assert legend.width() >= legend.minimumSizeHint().width() and legend.height() >= legend.minimumSizeHint().height()
+    for label in (*legend.labels, legend.numbers_label, *([legend.overlay_label] if legend.overlay_label.text() else [])):
+        assert label.width() >= label.sizeHint().width() and label.height() >= label.sizeHint().height(), label.text()
+        assert box.contains(label.geometry()), label.text()
+
+
+@pytest.mark.parametrize("which", list(LEGEND_SETS))
+def test_the_legend_text_is_14_px_and_every_line_fits_its_box(qapp, segoe, which):
+    entries, numbers, overlay = LEGEND_SETS[which]
+    legend = MapLegend()
+    legend.set_entries(entries, numbers, overlay)
+    legend.setMaximumWidth(MAP_MAX_WIDTH)
+    host = QWidget()
+    host.setObjectName("wtmhDashboard")
+    host.setStyleSheet(STYLESHEET)
+    QVBoxLayout(host).addWidget(legend)
+    host.resize(MAP_MAX_WIDTH + 20, 200)
+    host.show()
+    QCoreApplication.processEvents()
+    try:
+        for label in (*legend.labels, legend.numbers_label, *([legend.overlay_label] if overlay else [])):
+            assert label.font().pixelSize() == TYPE_BODY == 14, label.text()
+        assert legend.minimumSizeHint().width() < 700  # well inside the narrowest main column
+        assert_nothing_clips(legend)
+    finally:
+        host.close()
+
+
+@pytest.mark.parametrize("width", [1920, 1366])
+def test_the_summary_legend_does_not_clip_at_body_size_on_a_wide_or_a_narrow_window(qapp, segoe, tmp_path, width):
+    root, page = themed_page(folder_report(tmp_path), width=width, height=1000)
+    try:
+        legend = page.summary.legend
+        assert not legend.overlay_label.isHidden()
+        assert_nothing_clips(legend)
+        assert legend.width() <= 880
     finally:
         root.close()

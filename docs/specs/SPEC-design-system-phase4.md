@@ -1,10 +1,10 @@
 ---
 name: SPEC-design-system-phase4
 title: Design system v1, phase 4: report Summary, Detailed and PDF (map tokens, widths, Outcome badge, PDF order)
-status: implemented + live-checked (recorded runs) 2026-10-09 on branch design-phase4 (NOT merged; 4 §9 look questions await the user)
+status: implemented + live-checked (recorded runs) 2026-10-09 on branch design-phase4 (NOT merged); §9 look questions answered by the user 2026-10-09 and done in the fix round
 created: 2026-10-08
 last_updated: 2026-10-08
-next_step: user answers the §9 look questions (table room, legend size, PDF legend line, Follow path colours) and has a final look; then merges design-phase2 and design-phase4 and pushes
+next_step: user merges design-phase2 and design-phase4 into feature/compass-task-flow and pushes
 related:
   - docs/design/fable-proposal.md (source: §2.2 map and data-viz tokens, §3.7-§3.9, §5.2 phase 4)
   - SPEC-design-system-phase1.md (copy, dates, "not recorded"; LEGACY_REPORT_COLOURS frozen there until this phase)
@@ -259,6 +259,75 @@ the known alpha 0.22-vs-0.35 checks only, in two parallel runs of the final tree
 pages; the Follow table's headers wrap to three lines in some columns ("Time on / target / (%)") because 14 columns
 share the width: no word is split.
 
+### 2026-10-09, look-answers fix round (spec-implementer, claude-sonnet-5-5), worktree `design-phase4`, nothing committed
+
+The four answers of section 9 ("2026-10-09, user answers"), report files only. They supersede the interim defaults of the
+first entry: its interpretations 1 (legend at caption size) and 2 (no Scanpath line in the PDF) and the open table-room
+question; interpretation 3 (target path line `MAP_SLOT` solid) stands, as the user said.
+
+1. **Detailed table below the map, full width.** In the code the table was *above* the map (one vertical stack, the table
+   with stretch 1); it is now: "Selected trial: Trial N", the 720 x 405 map (unchanged), the scan-path line, the pointer legend
+   (Follow only), the two caption lines, then "Trial-by-Trial Results" and the table, at the pane's full width
+   (`content.width() - 8`, the layout's right margin). The pane scrolls vertically. **Minimum height chosen: 8 rows**
+   (`TABLE_MIN_ROWS` in `report_views.py`; new `FrozenColumnTable.set_minimum_rows()` / `height_for_rows()`): header + 8 x 40 px
+   + frame = 377 px on real Segoe UI (55 + 320 + 2), it was 200 px (about 3 rows). At 1920 x 1009 the pane scrolls (range 201 px
+   for the Grid fixture, 318 for Follow) and the table shows 8 whole rows. A fixed 8, not min(8, rows): a 3-trial test shows
+   some blank table body, as it did before whenever the pane was taller than its content. M-3 holds: no horizontal scroll bar
+   at 1920 with the pane's vertical bar, and for 20 trials with the table's own too (selection, Switch, Follow).
+2. **Legend text at body size.** `LEGEND_STYLE`: `TYPE_CAPTION` to `TYPE_BODY` (labels, Scanpath line and numbers note, 14 px).
+   Measured on real Segoe UI: the legend's minimum width is 426 px (selection), 324 (Follow), 349 (pointer legend); nothing
+   clips at 1920 and at 1366 wide; the box keeps its 880 px maximum. The selected trial's two caption lines under the map stay
+   at caption size (they are not the legend box).
+3. **PDF map has the scanpath.** `ReportPage.export_pdf` renders the map with `{"targets": True, "path": gaze_was_recorded(report)}`:
+   the same `render_to_image` / `paint_map` / `_paint_scanpaths` as the screen, no second painter (a test compares the image
+   pixel for pixel with the Summary map rendered with Targets and Scanpath on). `legend_html()` gets `overlay_note`;
+   `build_report_html` passes `SCANPATH_NOTE` when gaze was recorded (no line without gaze), above the numbers note as on the
+   screen. It is independent of the Summary's switches. Page 1 is unchanged, page 2 holds the map, the legend with its extra
+   line and the table (two pages for the fixtures, as before).
+4. **Follow the Target: off-target stretches dashed.** `target_map_follow.off_pen()`: `MAP_SKIPPED`, width 2 design px (as H4),
+   dash 4 and gap 3 pen widths, **flat caps** (with the round caps `_pen` uses a gap this thin closes up). Used by
+   `paint_pointer_runs` (screen and PDF, one code) and by the legend icon "Pointer off target"; on-target stretches and the
+   target path line stay solid, colours and widths as H4.
+
+**Changed:** `src/ui/report_views.py`, `src/ui/frozen_table.py`, `src/ui/map_legend.py`, `src/ui/report_pdf.py`,
+`src/ui/report_page.py`, `src/ui/target_map_follow.py`, `src/ui/target_map_paint.py` (a docstring), `docs/wireframes/report-detailed.md`
+(the order, the 8 rows, the legend size, the dashed off-target stretch).
+
+**Tests (28 new, none deleted):** `test_report_phase4.py` 11 (order and full width, the Follow legend above the table, 8 rows and the
+scrolling pane, no horizontal scroll bar for three layouts, the legend at 14 px and not clipped for three entry sets, the Summary
+legend at 1920 and 1366), `test_report_pdf_phase4.py` 8 (the page's PDF map is the screen's pixels, whatever the switches say, no
+scanpath and no legend line without gaze, the legend line on page 2 for three layouts, no line without a map, the blue read back
+from the written file's page 2), `test_report_follow_layout.py` 5 (off dashed and on solid, dash and gap widths, the report's own
+runs drawn dashed by the map, the legend icon dashed and the others solid, the target path line solid), `test_frozen_table.py` 3,
+`test_map_legend.py` 1 (the PDF legend's Scanpath line in place). **Updated:** `test_map_legend.py` (body size instead of caption,
+renamed `..._ink_body_text`; a comment), `test_report_page_actions.py` (the test renamed `..._and_the_whole_test_map`, with a docstring),
+`test_report_pdf_phase4.py` (its `map_image()` helper now draws what the page draws).
+
+**pytest** (whole suite, worktree root, one run): **5 failed, 3145 passed, 2 skipped** (3152 collected); the 5 are the known
+alpha 0.22-vs-0.35 checks (`test_config_flow::test_a_new_test_opens_at_standard_with_the_task_defaults` and four
+`test_task_config_page::test_a_new_test_opens_with_standard_and_the_defaults[...]`); no crash. (Baseline before any change, the 9 report
+test files: 249 passed.)
+
+**Deviations from the SPEC:** none. **Looked at** (offscreen renders with real Segoe UI, not a window): the Detailed page at 1920 x 1009
+for a Grid and a Follow report, scrolled to the end; the Follow map with an off-target stretch; PDF page 2 of a Grid and a Follow report.
+
+**For the hub (not decided here):**
+- The Follow caption under the selected trial's map (`FOLLOW_TRIAL_LEGEND` in `report_views.py`) still says the path is "light where it was
+  off it"; it is a grey, thinner and now dashed line. Copy, not in the four answers, so unchanged (two tests quote the phrase). **Done in the
+  follow-up below.**
+- `docs/wireframes/report-summary.md` is out of this round's scope and now stale in two places: line 153 (Follow legend: "off target"
+  as a light path) and line 188 (the PDF "map with Targets only"; it now has the scanpath and its legend line). **Done in the follow-up below.**
+- Where an off-target stretch runs along the target's own path line (the old fixture does: the pointer follows the target's line), the
+  gaps of the dashes show that line (`MAP_SLOT` #8D8D8D) instead of white, so dash against gap is a weak contrast there (#6F6F6F on #8D8D8D).
+  The Summary map never draws pointer runs. Away from the target's line the dashes read clearly.
+- Scratch images of the looks above are in this session's scratchpad (`detailed_follow.png`, `detailed_follow_bottom.png`, `follow_t2_720.png`,
+  `pdf_grid_p2.png`, `pdf_follow_p2.png`).
+
+**Follow-up (hub review, same day):** `FOLLOW_TRIAL_LEGEND` now says "solid dark blue where the pointer was on the target and dashed grey where it
+was off it" (the two tests that quoted the old phrase, in `test_report_follow_layout.py` and `test_report_phase4.py`, updated), and
+`report-summary.md` lines 153 and 188 say dashed grey and "the Targets, plus the Scanpath when gaze was recorded"; the dash gaps over the
+`MAP_SLOT` line left as they are; affected tests only (`test_report_follow_layout`, `test_report_phase4`, `test_copy_rules`, `test_report_switch_layout`): 133 passed.
+
 ## 9. Implementer open questions
 
 - **2026-10-09** (implementer) Two small calls the SPEC does not make. (a) The PDF legend has no Scanpath line, because
@@ -279,6 +348,14 @@ share the width: no word is split.
   reads without colour". Not changed (the SPEC names both tokens); look at a Follow report in grey scale at the live check.
 
 - **2026-10-09, hub (unattended run).** All four items above are look questions and go to the user; interim = the implementer's defaults (table min height 200 px, legend at caption size, no Scanpath line in the PDF legend, target path line `MAP_SLOT` solid, on/off pointer stretches as H4). Screenshots: Detailed at 1920 shows about 3 rows beside the 720 x 405 map and the pane scrolls.
+
+- **2026-10-09, user answers.** (1) Table room: the Detailed **table goes below the map, full width**; the map stays
+  720 x 405 (H7). (2) Legend text at **body size** (`TYPE_BODY`). (3) The **PDF map draws the scanpath** (the same
+  one-colour line as the screen Summary, X1) when gaze was recorded, and its legend then shows the Scanpath line, so app
+  and PDF match. (4) Follow: **off-target pointer stretches are drawn dashed** (colours and widths as H4), so on / off
+  read without colour; the legend icon for off-target is dashed too; target path line stays `MAP_SLOT` solid.
+  (Hub note: the hub's question to the user wrongly said the colours were green / orange; the answer is about telling
+  on from off without colour, which applies to the real tokens.)
 
 ## 10. Log
 
@@ -307,3 +384,13 @@ share the width: no word is split.
   PDF (rendered to PNG, LIVECHK1 Grid Click and a Follow run): title and headings at 12 / 11 pt,
   "Entries" whole, page 1 header through Eye Metrics, map on page 2. Not done: the user's final
   look and the §9 answers. Committed on branch `design-phase4` only.
+- **2026-10-09** — Fix round for the user's §9 answers: the Detailed table below the 720 x 405 map at full width
+  (minimum 8 rows); legend text at body size; the PDF map draws the one-colour scanpath (same paint code as the
+  screen) and its legend lists it when gaze was recorded; Follow off-target pointer stretches dashed (screen, PDF,
+  legend icon). Hub follow-up: `FOLLOW_TRIAL_LEGEND` copy and `report-summary.md` lines updated to match. Hub
+  pytest: four full runs; three clean (**5 failed, 3145 passed, 2 skipped**, the known alpha checks), one ended in a
+  native crash whose traceback was cut off; it ran while a second suite, the live app and a PDF render shared the PC.
+  Not reproduced in three later runs with `-X faulthandler`; watch for it after the merge. Live check (worktree code,
+  maximized 1920x1009, copied LIVECHK1): Detailed tab shows the table below the map at full width; PDF page 2 of
+  LIVECHK1 Grid Click and TESTING Follow shows the scanpath and its legend line. Follow dashes checked in unit tests
+  only (no recorded Follow trial with pointer runs on screen). Committed on branch design-phase4.

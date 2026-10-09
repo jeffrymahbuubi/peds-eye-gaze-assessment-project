@@ -4,7 +4,8 @@
 A :class:`QTextDocument` filled from HTML and printed by a :class:`QPdfWriter` (both
 in QtGui): no printer dialog, no QtPrintSupport. One column, stacked. Page 1: the header, the
 Test Configuration table and Notes, the Summary of Results and the Eye Metrics. The Target Map
-(Targets only, as one PNG, with its symbol legend) starts page 2, then the Trial-by-Trial table
+(the targets and, when gaze was recorded, the Summary's one-colour Scanpath, as one PNG, with its
+symbol legend) starts page 2, then the Trial-by-Trial table
 with its header row repeated on every page, and the definitions of the measures. The text and the
 choice of tables (Switch's Clicks columns, Follow the Target's Metric / Value summary) are the
 page's own (:mod:`report_layout`), so the printout and the screen cannot disagree.
@@ -42,8 +43,15 @@ from PySide6.QtGui import (
 )
 
 from .design_tokens import BORDER_SUBTLE, FONT_FAMILY, HEADER, INK, TEXT_SECONDARY, WARNING_SUBTLE
-from .map_legend import FOLLOW_LEGEND_ENTRIES, LEGEND_ENTRIES, legend_html, png_data_uri
-from .report_format import NOT_RECORDED, banner_lines, eye_rows, started_text, task_sentence
+from .map_legend import FOLLOW_LEGEND_ENTRIES, LEGEND_ENTRIES, SCANPATH_NOTE, legend_html, png_data_uri
+from .report_format import (
+    NOT_RECORDED,
+    banner_lines,
+    eye_rows,
+    gaze_was_recorded,
+    started_text,
+    task_sentence,
+)
 from .report_layout import (
     FOLLOW,
     definition_lines,
@@ -282,7 +290,9 @@ def build_report_html(
     map_image: QImage | None,
 ) -> str:
     """The report as the HTML :class:`QTextDocument` prints. ``test_name``,
-    ``evaluator`` and ``notes`` are the page's (edited) values, not the stored ones."""
+    ``evaluator`` and ``notes`` are the page's (edited) values, not the stored ones. ``map_image``
+    is the page's (:meth:`ReportPage.export_pdf`): it has the Scanpath whenever gaze was recorded,
+    so the legend beside it says what the scanpath is then."""
     session = report.get("session", {})
     config_name = session.get("config_name") or NOT_RECORDED
     meter = _Meter()
@@ -346,7 +356,11 @@ def build_report_html(
         parts.append(
             _heading("Target Map", top=0, extra_style="page-break-before:always; ")
             + _paragraph(f'<img src="{png_data_uri(map_image)}" width="{width}">')
-            + legend_html(width, entries=FOLLOW_LEGEND_ENTRIES if follow else LEGEND_ENTRIES)
+            + legend_html(
+                width,
+                entries=FOLLOW_LEGEND_ENTRIES if follow else LEGEND_ENTRIES,
+                overlay_note=SCANPATH_NOTE if gaze_was_recorded(report) else "",
+            )
             + (
                 _paragraph(_e(note), top=BLOCK_GAP_CSS_PX, style=f"font-size:{NOTE_PT}pt; color:{TEXT_SECONDARY}; ")
                 if note

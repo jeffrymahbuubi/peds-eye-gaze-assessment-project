@@ -41,7 +41,7 @@ from PySide6.QtWidgets import (
 
 from ..engine.subject_test_record import validate_test_name
 from .alert_box import AlertBox
-from .report_format import NOT_RECORDED, banner_lines, pdf_default_name, started_text
+from .report_format import NOT_RECORDED, banner_lines, gaze_was_recorded, pdf_default_name, started_text
 from .report_pdf import export_report_pdf
 from .report_tables import FitTable
 from .report_views import (
@@ -186,14 +186,16 @@ class ReportPage(QWidget):
     def export_pdf(self, path: str | Path) -> Path:
         """Write the PDF of the report as it is on screen now (the edited name,
         evaluator and notes) to ``path``; raises :class:`OSError` if it cannot. The map in
-        it is the whole test with Targets only, whatever the screen shows."""
+        it is the whole test with the Targets and, when gaze was recorded, the Scanpath (drawn
+        by the same code as the Summary's), whatever the screen's switches say."""
         summary_map = self.summary.map
         width = PDF_MAP_WIDTH_PX
         previous = summary_map.trial()
         summary_map.set_trial(None)
         try:
             image = summary_map.render_to_image(
-                QSize(width, round(width / summary_map.aspect)), {"targets": True}
+                QSize(width, round(width / summary_map.aspect)),
+                {"targets": True, "path": gaze_was_recorded(self._report)},
             )
         finally:
             summary_map.set_trial(previous)

@@ -1,7 +1,8 @@
 """SPEC-compass-task-flow.md 7.1, V1; SPEC-design-system-phase4.md H5: the Target Map's symbol
-legend box (on the page and in the PDF): white with a light grey edge, caption text, the Scanpath
-line of the Summary. Offscreen Qt; pixels are checked by colour class, never by size (no fonts
-offscreen)."""
+legend box (on the page and in the PDF): white with a light grey edge, body-size text (the user's
+answer of 2026-10-09), the Scanpath line of the Summary and of the PDF. Offscreen Qt; pixels are
+checked by colour class, never by size (no fonts offscreen; the text widths are in
+test_report_phase4.py, on real Segoe UI)."""
 
 from __future__ import annotations
 
@@ -15,7 +16,7 @@ from PySide6.QtCore import QRectF, QSize
 from PySide6.QtGui import QColor, QImage, QPainter, QTextDocument
 from PySide6.QtWidgets import QApplication, QLabel, QVBoxLayout, QWidget
 
-from src.ui.design_tokens import BORDER_SUBTLE, INK, PANEL, TYPE_CAPTION
+from src.ui.design_tokens import BORDER_SUBTLE, INK, PANEL, TYPE_BODY
 from src.ui.map_legend import (
     ICON_PX,
     LEGEND_ENTRIES,
@@ -101,10 +102,10 @@ def test_the_legend_does_not_depend_on_the_overlay_switches(qapp, tmp_path):
     assert len(view.legend.entries()) == 4
 
 
-# -- how it looks: a white box with a light grey edge, caption size, ink text (H5) --------------------------
+# -- how it looks: a white box with a light grey edge, body size, ink text (H5) --------------------------
 
 
-def test_the_box_is_white_with_a_light_grey_edge_and_ink_caption_text(qapp):
+def test_the_box_is_white_with_a_light_grey_edge_and_ink_body_text(qapp):
     legend = MapLegend()
     host = themed(legend)
     try:
@@ -116,8 +117,8 @@ def test_the_box_is_white_with_a_light_grey_edge_and_ink_caption_text(qapp):
         assert corner.name().lower() == PANEL.lower()
         for label in legend.labels + [legend.numbers_label]:
             assert label.palette().color(label.foregroundRole()).name().lower() == INK.lower()
-            assert label.font().pixelSize() == TYPE_CAPTION  # the type scale's caption step
-        assert f"font-size: {TYPE_CAPTION}px" in legend.styleSheet()
+            assert label.font().pixelSize() == TYPE_BODY == 14  # the type scale's body step, not the caption's
+        assert f"font-size: {TYPE_BODY}px" in legend.styleSheet()
     finally:
         host.close()
 
@@ -201,9 +202,23 @@ def test_the_pdf_legend_has_the_same_entries_and_note_in_a_white_box_with_a_ligh
         assert label in html
     assert NUMBERS_NOTE in html and BORDER_SUBTLE in html
     assert "bgcolor" not in html  # no tint
-    assert SCANPATH_NOTE not in html  # the PDF's map is Targets only: there is no scanpath to explain
+    assert SCANPATH_NOTE not in html  # no overlay note given: the map has no scanpath to explain
     assert html.count("data:image/png;base64,") == 4  # one icon per entry
     assert 'width="600"' in html  # as wide as the map above it
+
+
+def test_the_pdf_legend_gets_the_scanpath_line_between_the_entries_and_the_numbers_note(qapp):
+    """The PDF's map draws the Summary's scanpath when gaze was recorded, so its legend says so, in the
+    place the page's legend does: under the entries, above the numbers note."""
+    html = legend_html(600, overlay_note=SCANPATH_NOTE)
+    assert html.count(SCANPATH_NOTE) == 1
+    assert html.index(LEGEND_ENTRIES[-1][1]) < html.index(SCANPATH_NOTE) < html.index(NUMBERS_NOTE)
+    assert html.count("data:image/png;base64,") == 4 and html.count('border="1"') == 1  # still the one box
+    doc = QTextDocument()
+    doc.setHtml(html)
+    text = doc.toPlainText()
+    assert SCANPATH_NOTE in text and text.index(SCANPATH_NOTE) < text.index(NUMBERS_NOTE)
+    assert legend_html(600).count(NUMBERS_NOTE) == 1 and SCANPATH_NOTE not in legend_html(600)
 
 
 def test_without_a_width_the_pdf_legend_takes_the_full_text_width(qapp):

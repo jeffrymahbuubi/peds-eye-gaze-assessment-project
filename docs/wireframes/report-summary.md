@@ -150,7 +150,7 @@ Numbers = trials shown at that place
 > **Overlays:**
 > - Scanpath draws one dot (3 px) per fixation, joined by straight lines (1.5 px) in time order, **all trials in one blue** (#1F669E, alpha 200; phase 4 X1), so the hit and miss marks and the trial numbers stay readable. Per-trial colour lives only in the Detailed view's selected trial. The Detailed per-trial view draws the full gaze path smoothed like the on-screen cursor (the run's smoothing alpha), with numbered fixation circles.
 > - Heat map is an alpha ramp over the whole test (unchanged: the Gazepoint Analysis ramp).
-> - Follow the Target also shows the target's track as a faint line, with the mark at its end position. Its legend adds "on target" (dark path) and "off target" (light path) entries.
+> - Follow the Target also shows the target's track as a faint line, with the mark at its end position. Its legend adds "on target" (solid dark path) and "off target" (dashed grey path) entries.
 > - A Mouse run draws the mouse path (from `pointer_stream.csv`) in place of the gaze path; Scanpath and Heat map are disabled with "not recorded" when no gaze was recorded.
 
 #### Eye Metrics
@@ -185,5 +185,5 @@ Numbers = trials shown at that place
 > **Footer:**
 > - **Save & Continue** keeps Test Name, Evaluator and Notes (the only editable fields), then returns to the Test List.
 > - **Cancel** drops those edits.
-> - **Print Report** exports a PDF (A4 portrait) to `<subject>/reports/2026-10-06_Grid Click 1.pdf` (SPEC-subject-data-layout.md H7). One stacked column (phase 4 H8): **page 1 holds the header, configuration, summary and Eye Metrics**; the map with Targets only and its legend box start page 2; then the Trial-by-Trial table and the definitions. Title "Summary Results, Grid Click 1"; body 9.5 pt, trial table 8 pt, definitions 8.5 pt; table headers grey with dark text; a missing text value prints "not recorded".
+> - **Print Report** exports a PDF (A4 portrait) to `<subject>/reports/2026-10-06_Grid Click 1.pdf` (SPEC-subject-data-layout.md H7). One stacked column (phase 4 H8): **page 1 holds the header, configuration, summary and Eye Metrics**; the map (the Targets, plus the Scanpath when gaze was recorded) and its legend box start page 2; then the Trial-by-Trial table and the definitions. Title "Summary Results, Grid Click 1"; body 9.5 pt, trial table 8 pt, definitions 8.5 pt; table headers grey with dark text; a missing text value prints "not recorded".
 > - The run data itself is never editable.
