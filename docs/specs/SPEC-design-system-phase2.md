@@ -588,3 +588,10 @@ the Start page or the Test List (about 1100 tests in two runs): all pass except 
   the config page's three columns share the width with no vertical scroll (Grid Click). Hub pytest:
   **5 failed, 3077 passed, 2 skipped** (the known alpha checks). Wireframe .md text updated; the .html renders are
   not. Committed on branch design-phase2.
+- **2026-10-09** — Test-suite hardening (user OK). The full suite segfaulted once at `tests/test_muted_labels.py:77`
+  (`root.show(); QApplication.processEvents()`): a widget left alive by an earlier test was garbage-collected in
+  the middle of a later test's event processing. New `tests/conftest.py`: an autouse teardown closes and
+  `deleteLater()`s every top-level widget, flushes `DeferredDelete`, processes events and runs `gc.collect()`
+  after each test (only `qapp` fixtures outlive a test, and they hold no widgets). No app code changed. Hub pytest:
+  the muted-label, full-width and dashboard-flow files 3x clean (102 passed each); full suite **5 failed, 3077
+  passed, 2 skipped** (the known alpha checks), no crash. Committed on branch design-phase2.
