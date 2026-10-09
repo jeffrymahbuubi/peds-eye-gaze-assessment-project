@@ -6,9 +6,11 @@
 
 > **Design system phases 1 and 4** (SPEC-design-system-phase4.md H5-H7): title without the colon, test name under it. The 13 columns fit about 1,370 px without a horizontal scrollbar at 1920x1080: two-line headers ("Reaction" over "Time (s)", "Mean fix." over "dur. (s)", ...) and 14 px tabular numbers. Outcome cells are status badges (glyph + word). The selected row is a blue fill, not bold.
 
-> **Order of the right-hand column** (the user's answer of 2026-10-09): the selected trial first, then the table below it, **full width**. The pane scrolls vertically. The table keeps room for **8 rows** (its header plus 8 x 40 px, about 375 px), so it never shrinks to a few rows beside the 720 x 405 map; with more trials it scrolls inside its own frame. The legend text is body size (14 px).
+> **Order of the right-hand column** (the user's answer of 2026-10-09): the selected trial first, then the table below it, **full width**. The pane scrolls vertically. The table keeps room for **8 rows** (its header plus 8 x 40 px, about 375 px), so it never shrinks to a few rows beside the map; with more trials it scrolls inside its own frame. The legend text is body size (14 px).
 >
-> From the top: "Selected trial: Trial 1", the 720 x 405 map, the scan-path line, (Follow the Target only: the pointer legend box), the two caption lines of the map's legend, "Trial-by-Trial Results", then the table at the pane's full width (8 rows or more, its columns without a sideways scroll).
+> **Size of the map** (the user's decision of 2026-10-09, "empty space"): the map grows to fill the pane's column, as wide as the column at the canvas's aspect, but never taller than the pane shows, so the heading "Selected trial: Trial 1" and the whole map are in view without scrolling. It never gets smaller than 720 x 405 px and it follows the window. The pointer legend box under it (Follow the Target) is as wide as the map.
+>
+> From the top: "Selected trial: Trial 1", the map, the scan-path line, (Follow the Target only: the pointer legend box), the two caption lines of the map's legend, "Trial-by-Trial Results", then the table at the pane's full width (8 rows or more, its columns without a sideways scroll).
 
 > SPEC-compass-task-flow.md 4D.2 and 4D.7. Same page as `report-summary.md`, switched with View Details / View Summary. The header, banner, left column (Test Configuration + Notes) and footer are identical, so they are shortened here. Compass reference: `docs/compass/screenshots/08b-*.png`.
 
@@ -66,7 +68,7 @@ Configuration Name: **Large targets**
 ```
 
 > **Selected-trial map:**
-> - It is the same map widget as on the Summary, showing one trial, 720 x 405 px. Its path runs dark blue (#1F669E) to light blue (#2D7EB3) with time; fixation number badges are at least 11 px; the legend sentence is two caption lines (phase 4 H3, H5).
+> - It is the same map widget as on the Summary, showing one trial, filling the pane's column (at least 720 x 405 px, see the size note at the top). Its path runs dark blue (#1F669E) to light blue (#2D7EB3) with time; fixation number badges are at least 11 px; the legend sentence is two caption lines (phase 4 H3, H5).
 > - Up/Down keys move the selection, and the map follows.
 > - For Follow the Target it draws the target's track during the trial (grey, solid) plus the smoothed pointer path: stretches on the target are solid dark blue, stretches off it are grey, thinner and **dashed**, so on and off read without colour (the user's answer of 2026-10-09). The legend's "Pointer off target" icon is dashed too.
 

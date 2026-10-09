@@ -27,7 +27,7 @@ from src.ui.map_legend import (
     legend_html,
     symbol_image,
 )
-from src.ui.report_views import MAP_MAX_WIDTH, SummaryView
+from src.ui.report_views import SummaryView
 from src.ui.target_map import TargetMapWidget
 from src.ui.target_map_paint import LEGEND_KINDS, paint_symbol
 from src.ui.wtmh_theme import STYLESHEET
@@ -89,7 +89,7 @@ def test_the_legend_sits_in_the_summary_under_the_map_and_replaces_the_grey_line
     assert isinstance(view.legend, MapLegend)
     layout = view.widget().layout()
     assert layout.indexOf(view.legend) == layout.indexOf(view.map) + 1  # directly under the map
-    assert view.legend.maximumWidth() == MAP_MAX_WIDTH == view.map.maximumWidth()  # as wide as the map
+    assert view.legend.maximumWidth() == view.map.width() == view.map.maximumWidth()  # as wide as the map
     texts = " ".join(label.text() for label in view.findChildren(QLabel))
     assert "Green circle = hit" not in texts  # the old small grey line is gone
 

@@ -3,11 +3,15 @@ wireframes ``report-summary.md`` / ``report-detailed.md``).
 
 :class:`SummaryView`: the task sentence, the Summary of Results table and its
 footnote, the Target Map with its Targets / Scanpath / Heat map switches and its symbol
-legend, and the whole-test Eye Metrics table (320 + 320 px, the whole view at most 1100 px wide).
-:class:`DetailedView`: the selected trial's 720 x 405 px map, then the Trial-by-Trial table below it at
+legend, and the whole-test Eye Metrics table (320 + 320 px). The view takes the whole width of its column.
+:class:`DetailedView`: the selected trial's map, then the Trial-by-Trial table below it at
 the full width (first column frozen, every column sortable, the Outcome column as status badges,
 two-line headers so the 13 columns fit; the pane scrolls, the table keeps room for eight rows)
-(SPEC-design-system-phase4.md H6, H7 and the user's answer of 2026-10-09).
+(SPEC-design-system-phase4.md H6, H7 and the user's answers of 2026-10-09).
+
+On screen both maps fill their column (user decision of 2026-10-09, "empty space"): as wide as
+the column, at the canvas's aspect, but never taller than the pane shows (heading and switches
+included), and never below 720 x 405 px; they follow the window (:func:`fit_map`).
 
 Both are scroll areas that only **show** a report: every figure is formatted by
 :mod:`report_format` and drawn by :class:`~src.ui.target_map.TargetMapWidget`; nothing is
@@ -19,7 +23,7 @@ from __future__ import annotations
 from typing import Any
 
 from PySide6.QtCore import Qt
-from PySide6.QtGui import QColor
+from PySide6.QtGui import QColor, QResizeEvent
 from PySide6.QtWidgets import (
     QCheckBox,
     QFrame,
@@ -67,10 +71,8 @@ from .report_layout import (
 from .report_tables import FitTable
 from .target_map import TargetMapWidget
 
-MAP_MAX_WIDTH = 880  # the Summary's map, so a wide window does not make it enormous
-SUMMARY_MAX_WIDTH = 1100  # the Summary's whole main column (the sidebar keeps 460)
+CONTENT_RIGHT_MARGIN = 8  # what both views' layouts leave at the right of their content
 EYE_COLUMN_WIDTHS = (320, 320)  # the Eye Metrics table: Metric, Value
-SELECTED_MAP_SIZE = (720, 405)  # the Detailed view's map of the selected trial
 TABLE_MIN_ROWS = 8  # the Detailed table is never squeezed below this many rows (the pane scrolls)
 # The badge of an Outcome cell (SPEC-design-system-phase4.md H7): the glyph and colour of a
 # status badge kind, with the report's own word ("Hit", "Not selected", ...).
@@ -159,6 +161,19 @@ def scroll_area(content: QWidget) -> QScrollArea:
     return area
 
 
+def fit_map(area: QScrollArea, target_map: TargetMapWidget, above: int, legends: tuple[QWidget, ...] = ()) -> None:
+    """Make ``target_map`` fill ``area``: the column's width less the content's right margin and a
+    vertical scroll bar (counted whether it shows or not, so the size never depends on it), at most
+    the pane's visible height less ``above``, the room of the heading (and switches) that belong
+    with the map, so the heading and the whole map are in view together. ``legends`` are as wide
+    as the map, no wider."""
+    bar = area.verticalScrollBar().sizeHint().width()
+    width = area.width() - 2 * area.frameWidth() - bar - CONTENT_RIGHT_MARGIN
+    target_map.fit_within(width, area.viewport().height() - above)
+    for legend in legends:
+        legend.setMaximumWidth(target_map.width())
+
+
 class SummaryView(QScrollArea):
     """Summary of Results, Target Map and Eye Metrics of one report.
 
@@ -173,7 +188,7 @@ class SummaryView(QScrollArea):
         super().__init__(parent)
         content = QWidget()
         layout = QVBoxLayout(content)
-        layout.setContentsMargins(0, 0, 8, 0)
+        layout.setContentsMargins(0, 0, CONTENT_RIGHT_MARGIN, 0)
         layout.setSpacing(8)
         self.task_label = QLabel("")
         self.task_label.setWordWrap(True)
@@ -184,7 +199,8 @@ class SummaryView(QScrollArea):
         self.note = muted_label()
         layout.addWidget(self.note)
 
-        layout.addWidget(section_title("Target Map"))
+        self.map_title = section_title("Target Map")
+        layout.addWidget(self.map_title)
         switches = QHBoxLayout()
         self.targets_check = QCheckBox("Targets")
         self.targets_check.setChecked(True)
@@ -195,12 +211,9 @@ class SummaryView(QScrollArea):
             switches.addWidget(check)
         switches.addStretch(1)
         layout.addLayout(switches)
-        self.map = TargetMapWidget()
-        self.map.set_fit_to_width(True)
-        self.map.setMaximumWidth(MAP_MAX_WIDTH)
-        layout.addWidget(self.map)  # no alignment: it takes up to its maximum width
-        self.legend = MapLegend()
-        self.legend.setMaximumWidth(MAP_MAX_WIDTH)  # as wide as the map above it, no wider
+        self.map = TargetMapWidget()  # sized by fit_map() to the column and the pane
+        layout.addWidget(self.map, 0, Qt.AlignmentFlag.AlignLeft)
+        self.legend = MapLegend()  # as wide as the map above it, no wider (fit_map)
         layout.addWidget(self.legend)
         self.map_note = muted_label()
         layout.addWidget(self.map_note)
@@ -211,7 +224,19 @@ class SummaryView(QScrollArea):
         layout.addWidget(muted_label(EYE_NOTE))
         layout.addStretch(1)
         setup_scroll(self, content)
-        self.setMaximumWidth(SUMMARY_MAX_WIDTH)
+        self._fit_map()
+
+    def resizeEvent(self, event: QResizeEvent) -> None:  # noqa: N802 (Qt naming)
+        super().resizeEvent(event)
+        self._fit_map()
+
+    def _fit_map(self) -> None:
+        """Fill the column; the heading and the switches above the map stay in view with it."""
+        for part in (self.map_title, self.targets_check):
+            part.ensurePolished()
+        spacing = self.widget().layout().spacing()
+        above = self.map_title.sizeHint().height() + self.targets_check.sizeHint().height() + 2 * spacing
+        fit_map(self, self.map, above, (self.legend,))
 
     def set_report(self, report: dict[str, Any]) -> None:
         self.task_label.setText(task_sentence(report))
@@ -232,6 +257,7 @@ class SummaryView(QScrollArea):
         self._set_gaze_switches(recorded)
         self.eye_table.set_rows([list(row) for row in eye_rows(report)])
         self.map.set_report(report)
+        self._fit_map()  # the canvas's aspect may differ from the last report's
         notes = [self.map.note] if self.map.note else []
         if report.get("geometry", {}).get("assumed_for_visuals"):
             notes.append(ASSUMED_GEOMETRY_NOTE)
@@ -271,21 +297,19 @@ class DetailedView(QScrollArea):
         self._indexes: list[int] = []  # report trial index of each table row, as shown
         content = QWidget()
         layout = QVBoxLayout(content)
-        layout.setContentsMargins(0, 0, 8, 0)
+        layout.setContentsMargins(0, 0, CONTENT_RIGHT_MARGIN, 0)
         layout.setSpacing(8)
         self._cells: list[list[Any]] = []  # the cells of each report trial, in the report's order
         self._aligns: list[str] = []
         self.selected_title = section_title("Selected trial")
         layout.addWidget(self.selected_title)
-        self.map = TargetMapWidget()
-        self.map.setFixedSize(*SELECTED_MAP_SIZE)
+        self.map = TargetMapWidget()  # sized by fit_map() to the column and the pane
         layout.addWidget(self.map, 0, Qt.AlignmentFlag.AlignLeft)
         self.line_label = QLabel("")
         layout.addWidget(self.line_label)
         # Follow the Target only: what the dark and the light stretches of the pointer path mean.
         self.legend = MapLegend()
         self.legend.set_entries(POINTER_LEGEND_ENTRIES, POINTER_NUMBERS_NOTE)
-        self.legend.setMaximumWidth(MAP_MAX_WIDTH)
         self.legend.setVisible(False)
         layout.addWidget(self.legend)
         self.trial_legend = caption_label(TRIAL_LEGEND)
@@ -297,6 +321,17 @@ class DetailedView(QScrollArea):
         setup_scroll(self, content)
         self.table.sortRequested.connect(self._on_sort)
         self.table.currentCellChanged.connect(self._on_current_changed)
+        self._fit_map()
+
+    def resizeEvent(self, event: QResizeEvent) -> None:  # noqa: N802 (Qt naming)
+        super().resizeEvent(event)
+        self._fit_map()
+
+    def _fit_map(self) -> None:
+        """Fill the column; the heading above the map stays in view with it."""
+        self.selected_title.ensurePolished()
+        above = self.selected_title.sizeHint().height() + self.widget().layout().spacing()
+        fit_map(self, self.map, above, (self.legend,))
 
     def set_report(self, report: dict[str, Any]) -> None:
         """Show ``report``'s trials unsorted with the first selected."""
@@ -312,6 +347,7 @@ class DetailedView(QScrollArea):
         self.legend.setVisible(follow)
         self.trial_legend.setText(FOLLOW_TRIAL_LEGEND if follow else TRIAL_LEGEND)
         self.map.set_report(report)
+        self._fit_map()  # the canvas's aspect may differ from the last report's
         self._fill(select=0)
 
     def selected_trial(self) -> int | None:

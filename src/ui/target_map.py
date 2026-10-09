@@ -6,8 +6,12 @@ keeps the model, the overlay switches (Targets / Scanpath / Heat map) and the
 selected trial, centres the canvas rectangle at its true aspect in whatever room it
 has, and renders to an image for the PDF.
 
-Two uses: the Summary's map (the whole test; :meth:`set_fit_to_width` makes its height
-follow its width) and the Detailed view's pane (one trial, :meth:`set_trial`).
+Two uses: the Summary's map (the whole test) and the Detailed view's pane (one trial,
+:meth:`set_trial`). On the report page both fill their column (:meth:`fit_within`: the
+largest map at the canvas's aspect that fits the room, never below :data:`MAP_MIN_SIZE`);
+every mark is drawn from canvas-normalized positions inside :meth:`canvas_rect`, so the map
+is right at any size. :meth:`set_fit_to_width` makes the height follow the width instead,
+for a layout that sizes the map itself.
 """
 
 from __future__ import annotations
@@ -21,6 +25,7 @@ from PySide6.QtWidgets import QSizePolicy, QWidget
 from .target_map_paint import MapModel, build_model, paint_map
 
 MARGIN = 2  # px around the canvas rectangle, so its border is not clipped
+MAP_MIN_SIZE = (720, 405)  # a map that fills its column never gets smaller than this (px)
 
 
 class TargetMapWidget(QWidget):
@@ -108,8 +113,26 @@ class TargetMapWidget(QWidget):
 
     def heightForWidth(self, width: int) -> int:  # noqa: N802 (Qt naming)
         # A layout asks with the width it has, not the width the widget will take.
-        width = min(width, self.maximumWidth())
+        return self._height_for(min(width, self.maximumWidth()))
+
+    def _height_for(self, width: int) -> int:
         return round(max(0, width - 2 * MARGIN) / self._model.aspect) + 2 * MARGIN
+
+    def fill_size(self, width: int, height: int) -> QSize:
+        """The largest widget size at the canvas's aspect within ``width`` x ``height`` px,
+        but never below :data:`MAP_MIN_SIZE` (a room that is smaller gets the minimum)."""
+        aspect = self._model.aspect
+        canvas = min(width - 2 * MARGIN, (height - 2 * MARGIN) * aspect)
+        out_w = max(round(canvas) + 2 * MARGIN, MAP_MIN_SIZE[0])
+        out_h = self._height_for(out_w)
+        if out_h < MAP_MIN_SIZE[1]:  # a wider canvas than the minimum's: the height is what is short
+            out_h = MAP_MIN_SIZE[1]
+            out_w = round((out_h - 2 * MARGIN) * aspect) + 2 * MARGIN
+        return QSize(out_w, out_h)
+
+    def fit_within(self, width: int, height: int) -> None:
+        """Make the map as large as :meth:`fill_size` says for this room (a fixed size)."""
+        self.setFixedSize(self.fill_size(width, height))
 
     def sizeHint(self) -> QSize:  # noqa: N802 (Qt naming)
         width = 640

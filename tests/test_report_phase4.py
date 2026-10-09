@@ -1,6 +1,7 @@
 """SPEC-design-system-phase4.md H3, H5-H7, M-3, M-4: the report page's title and widths, the warning
 alert, the legend's Scanpath line, the Detailed table (two-line headers, the 13 columns within
-1,370 px, the Outcome badges, the selected row) and the 720 x 405 px map of the selected trial.
+1,370 px, the Outcome badges, the selected row) and the minimum size of the selected trial's map
+(it fills its column since the user's decision of 2026-10-09; ``test_report_map_fill.py`` holds that).
 
 Offscreen Qt cannot measure text, so the width claims run on real Segoe UI (registered from the
 Windows font folder for the module; skipped where it is missing). They are claims about column
@@ -59,19 +60,18 @@ from src.ui.report_page import (
 )
 from src.ui.report_views import (
     EYE_COLUMN_WIDTHS,
-    MAP_MAX_WIDTH,
     OUTCOME_KINDS,
-    SELECTED_MAP_SIZE,
-    SUMMARY_MAX_WIDTH,
     TABLE_MIN_ROWS,
     TRIAL_LEGEND,
 )
+from src.ui.target_map import MAP_MIN_SIZE
 from src.ui.wtmh_theme import STYLESHEET
 from tests import real_fonts
 from tests.follow_fixtures import folder as follow_folder
 from tests.report_ui_fixtures import SWITCH_META, SWITCH_PRESSES, folder_report
 
 DETAILED_TABLE_MAX = 1370  # the room the Detailed table has at 1920 x 1080 (SPEC H7)
+LEGEND_WIDTH = 880  # an arbitrary legend width for the stand-alone legend test
 
 
 @pytest.fixture(scope="module")
@@ -148,16 +148,19 @@ def test_the_name_and_evaluator_fields_and_the_notes_have_their_phase_4_sizes(qa
     assert page.notes_edit.minimumHeight() == page.notes_edit.maximumHeight() == 84
 
 
-def test_the_summary_main_column_is_at_most_1100_px_and_the_sidebar_460(qapp, tmp_path):
+def test_the_summary_main_column_takes_the_whole_stack_width_and_the_sidebar_keeps_460(qapp, tmp_path):
+    """The 1100 px cap of H6 is lifted (the user's decision of 2026-10-09: no empty space at the right)."""
     root, page = themed_page(folder_report(tmp_path), width=1920)
     try:
-        assert SUMMARY_MAX_WIDTH == 1100
-        assert page.summary.maximumWidth() == 1100 and page.summary.width() == 1100
+        assert page.summary.maximumWidth() > 1920  # no cap left
+        assert page.summary.width() == page._stack.width() > 1100
         sidebar = page.config_table.parentWidget().parentWidget().parentWidget()
         assert sidebar.width() == 460
-        assert page.summary.x() == 0 < page._stack.width() - 1100  # left-aligned in a stack wider than it
+        assert page.summary.x() == 0
         assert page.summary.mapTo(page, page.summary.rect().topLeft()).x() >= sidebar.x() + 460
-        assert page.detailed.maximumWidth() > 1100  # the Detailed table needs the room
+        assert page.detailed.maximumWidth() > 1100  # and the Detailed table has the room
+        content = page.summary.widget()
+        assert page.summary.table.width() == content.width() - 8  # the Summary table spans the column
     finally:
         root.close()
 
@@ -228,14 +231,18 @@ def test_a_caption_label_is_12_px_in_the_dashboard_sheet(qapp, tmp_path):
 # -- H7: the Detailed page ---------------------------------------------------------------------------------------
 
 
-def test_the_map_of_the_selected_trial_is_720_by_405(qapp, tmp_path):
+def test_the_map_of_the_selected_trial_is_never_smaller_than_720_by_405(qapp, tmp_path):
+    """A page that is not shown has no room to give: the map is at its minimum (it grows with the
+    column once the page has a size; see ``test_report_map_fill.py``)."""
     page = ReportPage()
     page.set_report(folder_report(tmp_path), test_name="Grid Click 1")
     page.show_detailed()
-    assert SELECTED_MAP_SIZE == (720, 405)
-    assert (page.detailed.map.width(), page.detailed.map.height()) == (720, 405)
-    assert page.detailed.map.minimumSize() == page.detailed.map.maximumSize()
-    assert page.detailed.map.trial() == 0  # and it is the selected trial's
+    assert MAP_MIN_SIZE == (720, 405)
+    shown = page.detailed.map
+    assert shown.width() == 720 and shown.height() >= 405  # the canvas's aspect (1640 x 957) is a little taller than 16:9
+    assert shown.size() == shown.fill_size(0, 0)  # the minimum
+    assert shown.minimumSize() == shown.maximumSize()
+    assert shown.trial() == 0  # and it is the selected trial's
 
 
 def test_two_lines_splits_a_label_at_the_space_that_makes_the_longer_line_shortest():
@@ -554,11 +561,11 @@ def test_the_detailed_table_is_below_the_map_and_its_legend_at_the_full_width(qa
         order = [view.selected_title, trial_map, view.line_label, view.trial_legend, title, table]
         tops = [top_in(content, w) for w in order]
         assert tops == sorted(tops) and len(set(tops)) == len(tops)  # top to bottom, in that order
-        assert top_in(content, title) >= top_in(content, trial_map) + trial_map.height()  # under the 720 x 405 map
+        assert top_in(content, title) >= top_in(content, trial_map) + trial_map.height()  # under the map
         assert top_in(content, table) >= top_in(content, title) + title.height()  # its heading directly above it
-        assert (trial_map.width(), trial_map.height()) == (720, 405)  # the map did not change
+        assert trial_map.width() >= MAP_MIN_SIZE[0] and trial_map.height() >= MAP_MIN_SIZE[1]  # at least the minimum
         assert left_in(content, table) == left_in(content, trial_map) == 0  # left-aligned, not beside the map
-        assert table.width() == content.width() - 8 > trial_map.width() + 600  # the pane's width less its margin
+        assert table.width() == content.width() - 8 >= trial_map.width()  # the pane's width less its margin
     finally:
         root.close()
 
@@ -636,12 +643,12 @@ def test_the_legend_text_is_14_px_and_every_line_fits_its_box(qapp, segoe, which
     entries, numbers, overlay = LEGEND_SETS[which]
     legend = MapLegend()
     legend.set_entries(entries, numbers, overlay)
-    legend.setMaximumWidth(MAP_MAX_WIDTH)
+    legend.setMaximumWidth(LEGEND_WIDTH)
     host = QWidget()
     host.setObjectName("wtmhDashboard")
     host.setStyleSheet(STYLESHEET)
     QVBoxLayout(host).addWidget(legend)
-    host.resize(MAP_MAX_WIDTH + 20, 200)
+    host.resize(LEGEND_WIDTH + 20, 200)
     host.show()
     QCoreApplication.processEvents()
     try:
@@ -660,6 +667,6 @@ def test_the_summary_legend_does_not_clip_at_body_size_on_a_wide_or_a_narrow_win
         legend = page.summary.legend
         assert not legend.overlay_label.isHidden()
         assert_nothing_clips(legend)
-        assert legend.width() <= 880
+        assert legend.width() == page.summary.map.width()  # as wide as the map above it
     finally:
         root.close()

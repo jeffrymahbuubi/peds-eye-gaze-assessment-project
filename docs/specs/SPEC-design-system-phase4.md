@@ -328,6 +328,77 @@ was off it" (the two tests that quoted the old phrase, in `test_report_follow_la
 `report-summary.md` lines 153 and 188 say dashed grey and "the Targets, plus the Scanpath when gaze was recorded"; the dash gaps over the
 `MAP_SLOT` line left as they are; affected tests only (`test_report_follow_layout`, `test_report_phase4`, `test_copy_rules`, `test_report_switch_layout`): 133 passed.
 
+### 2026-10-09, map-fills-column fix round (spec-implementer, claude-sonnet-5-5), worktree `design-phase4`, nothing committed
+
+The last entry of section 9 ("user decision after testing the try-all build (empty space)"), report files only. On screen the
+target map of the **Summary** and of the **Detailed** tab now grows to fill its column, at the canvas's aspect, never taller than
+the pane shows, never below 720 x 405 px, and follows the window. It replaces the fixed 720 x 405 of H7 on screen. The PDF is untouched.
+
+**Changed:**
+- `src/ui/target_map.py`: `MAP_MIN_SIZE = (720, 405)`; `fill_size(width, height)` (the largest widget size at the canvas's aspect within the room,
+  never below the minimum) and `fit_within(width, height)` (sets that fixed size); `heightForWidth` shares `_height_for()`. `set_fit_to_width` stays
+  (its tests are unchanged) but the report views no longer use it.
+- `src/ui/report_views.py`: `fit_map(area, map, above, legends)` and, in both views, `resizeEvent` + `_fit_map()` (also called from `set_report`, the
+  canvas's aspect may change). The width is the view's width less its frame, a vertical scroll bar (counted whether it shows or not, so the size never
+  depends on the bar showing, no feedback loop) and the layout's right margin (`CONTENT_RIGHT_MARGIN = 8`); the height is the pane's viewport height less
+  `above`. Removed: `MAP_MAX_WIDTH` (880), `SUMMARY_MAX_WIDTH` (1100, also `setMaximumWidth` on the Summary), `SELECTED_MAP_SIZE`. The Summary view now
+  takes the whole stack width at 1920 (the Summary of Results table spans it); the map is left-aligned; the legend boxes (Summary, and the Follow
+  pointer legend in Detailed) are as wide as the map above them (`setMaximumWidth(map.width())` in `fit_map`, as they were as wide as the 880 px map).
+- `docs/wireframes/report-summary.md`, `report-detailed.md`: text only (the 1100 px cap, a "Size of the map" note in each, the 720 x 405 mentions).
+
+**Measured** (offscreen, real Segoe UI registered, `Fusion`, under the dashboard sheet; not a window): Summary map x viewport at 1920 x 1009
+1144 x 669 in 1382 x 738, at 1920 x 1080 1265 x 740 in 1382 x 809; Detailed 1192 x 697 and 1313 x 768. At 1920 the **height** holds the map back (the
+column is 1374 wide), so about 240 px of the column stay empty at the map's right at 1080p; in a taller window the map is exactly the column wide.
+1366 x 768 gives 731 x 428 and 779 x 456; 1280 x 700 the minimum 720 x 422.
+
+**Hit-testing / mouse mapping:** the map has none (no mouse event, hover or tooltip in `target_map*.py`). It maps recorded canvas-normalized positions
+to pixels through `canvas_rect()` (`_point()` = rect.left + x * rect.width) and every mark size is a fraction of `rect.width()` (`unit = rect.width() / 900`),
+so it scales from the recorded canvas at any size; a test draws the fixture's hit and miss at three map sizes and reads them at the same canvas fractions.
+
+**PDF:** `ReportPage.export_pdf` renders the Summary map with `render_to_image(QSize(1800, ...))`, which uses the image's own rectangle, not the widget's;
+a test renders the same report from a 100 x 100 and a 2000 x 2000 fit and gets equal images. `report_pdf.py`, `test_report_pdf*.py` unchanged and green.
+
+**Interpretations** (one place each, easy to change; also in section 9):
+1. **Aspect.** The widget follows the recorded canvas's aspect (`map.aspect`: 16:9 for the standard canvas, 1640 x 957 for the fixtures), not a forced 16:9, as
+   the Summary's map did before; with a 16:9 canvas the canvas rectangle is exactly 16:9. The 2 px margin of the widget (`MARGIN`) is taken off before the ratio.
+2. **The height cap leaves room for the heading.** "Fits the visible height of its scroll pane" is taken as: the map's height is the pane's visible height less
+   what sits above it in its group (Detailed: the "Selected trial" heading and one gap; Summary: the "Target Map" heading, the switches row and two gaps), so
+   the heading (and the three switches) and the whole map are in view together. With the map as tall as the whole pane, the Detailed map (it is the first thing)
+   would be cut at its bottom at scroll 0, which is the opposite of "no scrolling". The room is computed in `_fit_map()` of each view (3 lines each).
+3. **Minimum.** 720 x 405 is the minimum widget size, at the canvas's aspect: 720 x 407 for a 16:9 canvas (the widget's 2 px margin), 720 x 422 for the fixtures'.
+   A pane too small for it keeps the minimum and the page scrolls (the same as the old fixed size did).
+4. **Not changed:** the Eye Metrics table stays 320 + 320 px (H6, M6) and Notes and the other fixed widths stay, so on a wide Summary the space at the right of
+   the Eye Metrics table stays empty (the decision names the map).
+
+**Tests** (23 new, none deleted): `tests/test_report_map_fill.py` (bare-widget rule: widens with the room and keeps 16:9, never taller than the room, minimum
+for small and degenerate rooms, a wider-than-16:9 canvas, `fit_within`; on the page, for both views: widens with the column by exactly the window's growth,
+exact 16:9 for a 16:9 canvas, heading and whole map in view for the Detailed at scroll 0 and for the Summary scrolled to its heading at 1000 and 1080, the
+minimum in a small window, follows a resize and back, a second report with another aspect, legends as wide as the map; marks at the same canvas fractions
+at three sizes; the PDF's image independent of the widget's size). **Updated:** `test_report_phase4.py` (the 1100 px test now says the column takes the stack
+width and the Summary table spans it, the 720 x 405 test says "never smaller than", the order test no longer pins 720 x 405 or a table 600 px wider than the
+map, the stand-alone legend test has its own width constant, the summary legend test says "as wide as the map"), `test_map_legend.py` (legend max width equals the
+map's width), `test_report_page.py` (both maps are fixed-size, neither is height-for-width). The module registers no font and sets no application style on purpose
+(see the pytest note).
+
+**pytest** (whole suite, worktree root, `-p no:cacheprovider -o addopts=""`, two consecutive runs of the final tree): **5 failed, 3168 passed, 2 skipped** (3175
+collected) both times; the 5 are the known alpha 0.22-vs-0.35 checks (`test_config_flow::test_a_new_test_opens_at_standard_with_the_task_defaults` and four
+`test_task_config_page::test_a_new_test_opens_with_standard_and_the_defaults[...]`), no crash. The touched files alone (`test_report_map_fill`, `test_report_phase4`,
+`test_map_legend`, `test_report_page`, `test_target_map`): all passed. With the new module left out the suite was 5 failed, 3145 passed, 2 skipped.
+**A sixth failure I had to chase:** the first versions of `test_report_map_fill.py` made full runs (not subsets, which passed) fail one more test, three times
+`test_setup_phase2::test_the_page_is_one_column_1200_px_wide_with_the_scroll_bar_beside_it` (the page's content got a real font's metrics, 1196 px wide instead of
+the offscreen em-wide 1200 the test relies on) with a version that registered Segoe UI and set Fusion like the neighbouring report modules, and once
+`test_report_phase4::test_the_test_name_stands_at_the_heading_step_under_the_page_title` (the sheet's 28 px font not applied) with a font-free version. Neither is in
+code this round changed (a leaked font / cached style-sheet state); I did not find the exact mechanism. What made it stop (two full runs clean after it): the module
+registers no font and sets no application style (nothing here needs text metrics: every claim is a relation between sizes the widgets report), closes and
+`deleteLater()`s each window, and an autouse fixture sends the deferred deletes and collects garbage after each test, so no window of this module is freed inside a later
+module's test. Those two tests, and `test_muted_labels:77` which crashed one parallel run of mine without this module, are order-sensitive; watch them if a sixth
+failure shows up after a merge.
+
+**Deviations from the SPEC:** none of the decisions changed. Interpretation 2 (the heading's room) makes the Summary map up to 69 px and the Detailed map up to 41 px smaller
+than "the whole pane height"; drop `above` to 0 in the two `_fit_map()` to get the literal reading.
+
+**Left undone:** the live look (a maximized window at 1080p and a laptop width) is the hub's.
+
 ## 9. Implementer open questions
 
 - **2026-10-09** (implementer) Two small calls the SPEC does not make. (a) The PDF legend has no Scanpath line, because
@@ -356,6 +427,19 @@ was off it" (the two tests that quoted the old phrase, in `test_report_follow_la
   read without colour; the legend icon for off-target is dashed too; target path line stays `MAP_SLOT` solid.
   (Hub note: the hub's question to the user wrongly said the colours were green / orange; the answer is about telling
   on from off without colour, which applies to the real tokens.)
+
+- **2026-10-09, user decision after testing the try-all build (empty space).** The target map on the Summary and
+  the Detailed tab **grows to fill its column**, keeping 16:9, capped so the whole map fits the visible height of the
+  pane (no scrolling to see the map); it replaces the fixed 720 x 405 of H7 on screen. The PDF keeps its current size
+  (user: "PDF OK, no comment"). The legend and the Detailed table follow below as now. To implement as a fix round on
+  branch design-phase4.
+
+- **2026-10-09** (implementer, map fills its column) Two look questions the decision does not settle; both are implemented with the default named and decide
+  at the live check. (a) The map's height cap keeps the heading (Summary: heading + the three switches) in view with the whole map, so on a 1920 x 1009 window
+  the Summary map is 1144 x 669 and the Detailed one 1192 x 697, which leaves about 240 px of the 1374 px column empty at their right; the literal reading (the
+  map as tall as the whole pane) is 69 / 41 px taller, so about 118 / 70 px wider. Change: the `above` in `SummaryView._fit_map()` / `DetailedView._fit_map()`
+  (`src/ui/report_views.py`), set it to 0. (b) The Eye Metrics table is still 320 + 320 px (H6), so the space at its right on a wide Summary stays empty; say if
+  it should grow with the column too (`EYE_COLUMN_WIDTHS`, `FitTable(column_widths=...)`).
 
 ## 10. Log
 
@@ -394,3 +478,12 @@ was off it" (the two tests that quoted the old phrase, in `test_report_follow_la
   maximized 1920x1009, copied LIVECHK1): Detailed tab shows the table below the map at full width; PDF page 2 of
   LIVECHK1 Grid Click and TESTING Follow shows the scanpath and its legend line. Follow dashes checked in unit tests
   only (no recorded Follow trial with pointer runs on screen). Committed on branch design-phase4.
+- **2026-10-09** — Fix round for the user's empty-space decision: the Summary and Detailed maps grow to fill
+  their column at the recorded canvas aspect, capped so the heading and the whole map fit the pane's visible height,
+  never below 720 x 405; the 1100 px Summary cap is gone (sidebar keeps 460). The PDF is unchanged (pinned by test).
+  Hub live check (maximized 1920x1009, copied LIVECHK1): Summary map about 1144 x 669, Detailed about 1192 x 697;
+  about 240 px stays empty right of the map, the price of 16:9 within the height. Hub pytest: two full runs; run 2
+  **5 failed, 3168 passed, 2 skipped** (the known alpha checks); run 1 ended in an access violation inside
+  `tests/test_muted_labels.py:77` (`root.show()` + `processEvents()`), a phase-2 test, the same place the implementer
+  saw crash in a run without this round's tests: a test-suite object-lifetime flake, not this change; queued for a
+  hardening fix. Committed on branch design-phase4.
