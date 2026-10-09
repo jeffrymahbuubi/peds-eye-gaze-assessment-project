@@ -2,9 +2,10 @@
 SPEC-design-system-phase2.md H5).
 
 Split out of :mod:`src.ui.test_list_page` to keep both under 500 lines: the column
-layout, the pure text and sort-key helpers (:func:`natural_key`, :func:`status_text`,
-:func:`date_cells`, :func:`status_badge_state`), the cell that sorts by a key rather than
-by its text, and the table that turns Delete / F2 / Enter into signals.
+layout (Test Name stretches, the other four columns are fixed), the pure text and sort-key
+helpers (:func:`natural_key`, :func:`status_text`, :func:`date_cells`,
+:func:`status_badge_state`), the cell that sorts by a key rather than by its text, and the
+table that turns Delete / F2 / Enter into signals.
 
 The Status column shows a :class:`~src.ui.status_badge.StatusBadge` (glyph and word) in a
 cell widget over its item. The item keeps the status text and the sort key, so sorting by
@@ -19,7 +20,7 @@ from collections.abc import Callable
 from datetime import datetime
 from typing import Any
 
-from PySide6.QtCore import Qt, QTimer, Signal
+from PySide6.QtCore import Qt, Signal
 from PySide6.QtWidgets import (
     QHBoxLayout,
     QHeaderView,
@@ -36,10 +37,11 @@ from .status_badge import StatusBadge
 
 COL_NAME, COL_TASK, COL_CONFIG, COL_STATUS, COL_DATE = range(5)
 HEADERS = ("Test Name", "Task", "Configuration", "Status", "Date Complete")
-# Test Name 420, Task 180, Configuration 200, Status 180, Date 140 (H5); the table is at most
-# 1200 px, so the columns' 1120 px and its frame always fit.
-COLUMN_WIDTHS = (420, 180, 200, 180, 140)
-TABLE_MAX_WIDTH = 1200
+# The table fills the width it is given (SPEC-design-system-phase2.md section 9, 2026-10-09):
+# Task 180, Configuration 200, Status 180 and Date 140 keep their widths (H5), and Test Name
+# stretches to take the rest, never narrower than NAME_MIN_WIDTH.
+OTHER_COLUMN_WIDTHS = (180, 200, 180, 140)
+NAME_MIN_WIDTH = 240
 NO_DATE = "—"
 DATA_MISSING = " · data missing"
 
@@ -145,22 +147,13 @@ class SubjectTestTable(QTableWidget):
         self.setItemDelegateForColumn(COL_STATUS, _StatusDelegate(self))
         self.setHorizontalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAlwaysOff)
         header = self.horizontalHeader()
-        for column, width in enumerate(COLUMN_WIDTHS):
+        header.setSectionResizeMode(COL_NAME, QHeaderView.ResizeMode.Stretch)
+        for column, width in zip((COL_TASK, COL_CONFIG, COL_STATUS, COL_DATE), OTHER_COLUMN_WIDTHS, strict=True):
             header.setSectionResizeMode(column, QHeaderView.ResizeMode.Fixed)
             header.resizeSection(column, width)
-        self.setFixedWidth(self.fitted_width())
-        # A vertical scroll bar takes room from the viewport: widen the table by what it took,
-        # so the five columns always show in full.
-        self.verticalScrollBar().rangeChanged.connect(lambda *_: QTimer.singleShot(0, self._fit_width))
-
-    def fitted_width(self) -> int:
-        """The width the five columns and the frame need (without a scroll bar)."""
-        return sum(COLUMN_WIDTHS) + 2 * self.frameWidth()
-
-    def _fit_width(self) -> None:
-        deficit = sum(COLUMN_WIDTHS) - self.viewport().width()
-        if deficit:
-            self.setFixedWidth(min(max(self.width() + deficit, self.fitted_width()), TABLE_MAX_WIDTH))
+        # The stretching column takes what a vertical scroll bar takes from the viewport, so the
+        # four fixed columns always show in full; the table never asks for more than this.
+        self.setMinimumWidth(NAME_MIN_WIDTH + sum(OTHER_COLUMN_WIDTHS) + 2 * self.frameWidth())
 
     def badge_at(self, row: int) -> StatusBadge | None:
         """The Status badge of ``row``."""

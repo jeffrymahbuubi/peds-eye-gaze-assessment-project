@@ -1,6 +1,6 @@
 """SPEC-design-system-phase2.md H5, H12, V2 (Q2, Q4): the Test List's Status cells are status
 badges (glyph + word) over items that keep their text and sort key, so sorting still works;
-bold marks nothing; the columns have their widths; Run Test is the only primary button, Delete
+bold marks nothing; the table fills the window, Test Name stretching and the other columns keeping their widths; Run Test is the only primary button, Delete
 Test carries the danger glyph and Back to Setup is tertiary. Offscreen Qt."""
 
 from __future__ import annotations
@@ -27,11 +27,13 @@ from src.ui.status_badge import StatusBadge
 from src.ui.test_list_table import (
     COL_NAME,
     COL_STATUS,
-    COLUMN_WIDTHS,
-    TABLE_MAX_WIDTH,
+    NAME_MIN_WIDTH,
+    OTHER_COLUMN_WIDTHS,
     status_badge_state,
 )
 from tests.list_page_fixtures import SUBJECT, done_test, page_for
+
+QWIDGETSIZE_MAX = (1 << 24) - 1  # a widget with no maximum size set
 
 
 @pytest.fixture(scope="module")
@@ -210,19 +212,53 @@ def test_the_selection_and_a_reload_keep_the_badges(qapp, root):
 # -- widths and placement (H5, Q1: the values are set in code) ---------------------------------------------
 
 
-def test_the_columns_have_the_widths_of_h5(qapp, root):
+def test_the_other_columns_keep_the_widths_of_h5_and_test_name_stretches(qapp, root):
     four_states(root)
     page = page_for(root)
     header = page.table.horizontalHeader()
-    assert COLUMN_WIDTHS == (420, 180, 200, 180, 140)
-    assert [header.sectionSize(c) for c in range(5)] == [420, 180, 200, 180, 140]
-    assert [header.sectionResizeMode(c).name for c in range(5)] == ["Fixed"] * 5
-    assert TABLE_MAX_WIDTH == 1200
-    assert page.table.width() == sum(COLUMN_WIDTHS) + 2 * page.table.frameWidth() <= TABLE_MAX_WIDTH
+    assert OTHER_COLUMN_WIDTHS == (180, 200, 180, 140)  # Task, Configuration, Status, Date
+    assert [header.sectionSize(c) for c in range(1, 5)] == [180, 200, 180, 140]
+    assert [header.sectionResizeMode(c).name for c in range(5)] == ["Stretch"] + ["Fixed"] * 4
     assert page.table.horizontalScrollBarPolicy() == Qt.ScrollBarPolicy.ScrollBarAlwaysOff
 
 
-def test_many_rows_widen_the_table_by_the_scroll_bar_so_the_columns_still_fit(qapp, root):
+@pytest.mark.parametrize("width", [1920, 1366])
+def test_the_table_has_no_maximum_width_and_fills_the_window(qapp, root, width):
+    four_states(root)
+    page = page_for(root)
+    assert page.table.maximumWidth() == QWIDGETSIZE_MAX  # no TABLE_MAX_WIDTH any more
+    page.resize(width, 700)
+    page.show()
+    QApplication.processEvents()
+    buttons_left = page.add_button.mapTo(page, QPoint(0, 0)).x()
+    table_left = page.table.mapTo(page, QPoint(0, 0)).x()
+    assert table_left == 32
+    assert table_left + page.table.width() + 24 == buttons_left  # the table runs up to the button column
+    header = page.table.horizontalHeader()
+    # the other four columns keep their widths, Test Name takes the rest of the viewport
+    assert [header.sectionSize(c) for c in range(1, 5)] == [180, 200, 180, 140]
+    assert header.sectionSize(COL_NAME) == page.table.viewport().width() - sum(OTHER_COLUMN_WIDTHS)
+    assert header.sectionSize(COL_NAME) > 420 or width < 1500  # wider than before at 1920
+    page.close()
+
+
+def test_a_wider_window_widens_only_the_test_name_column(qapp, root):
+    four_states(root)
+    page = page_for(root)
+    sizes = {}
+    for width in (1366, 1920):
+        page.resize(width, 700)
+        page.show()
+        QApplication.processEvents()
+        header = page.table.horizontalHeader()
+        sizes[width] = [header.sectionSize(c) for c in range(5)]
+    assert sizes[1920][1:] == sizes[1366][1:] == [180, 200, 180, 140]
+    assert sizes[1920][COL_NAME] - sizes[1366][COL_NAME] == 1920 - 1366
+    assert sizes[1366][COL_NAME] >= NAME_MIN_WIDTH
+    page.close()
+
+
+def test_many_rows_leave_the_four_fixed_columns_whole_and_test_name_gives_up_the_scroll_bar(qapp, root):
     for n in range(40):
         create_test(root, SUBJECT, "click_grid", name=f"Grid Click {n + 1}")
     page = page_for(root)
@@ -231,12 +267,14 @@ def test_many_rows_widen_the_table_by_the_scroll_bar_so_the_columns_still_fit(qa
     for _ in range(4):
         QApplication.processEvents()
     assert page.table.verticalScrollBar().maximum() > 0  # the list scrolls
-    assert page.table.viewport().width() == sum(COLUMN_WIDTHS)  # and no column is cut
-    assert page.table.width() <= TABLE_MAX_WIDTH
+    header = page.table.horizontalHeader()
+    assert [header.sectionSize(c) for c in range(1, 5)] == [180, 200, 180, 140]  # no column is cut
+    assert sum(header.sectionSize(c) for c in range(5)) == page.table.viewport().width()  # and no sideways scroll
+    assert page.table.horizontalScrollBar().maximum() == 0
     page.close()
 
 
-def test_the_button_column_is_24_px_right_of_the_table_and_top_aligned(qapp, root):
+def test_the_button_column_is_24_px_right_of_the_table_at_the_windows_right_side_and_top_aligned(qapp, root):
     four_states(root)
     page = page_for(root)
     page.resize(1600, 700)
@@ -246,15 +284,29 @@ def test_the_button_column_is_24_px_right_of_the_table_and_top_aligned(qapp, roo
     gap = page.add_button.mapTo(page, QPoint(0, 0)).x() - (table_left.x() + page.table.width())
     assert gap == 24
     assert page.add_button.mapTo(page, QPoint(0, 0)).y() == table_left.y()  # top-aligned
+    # the column is the right side of the page: its widest button ends at the right gutter
+    right = max(
+        b.mapTo(page, QPoint(b.width(), 0)).x()
+        for b in (page.add_button, page.configure_button, page.run_button, page.report_button,
+                  page.copy_button, page.delete_button, page.open_folder_button)
+    )
+    assert right == page.width() - 32
     page.close()
 
 
-def test_the_empty_state_is_one_line_inside_a_frame_of_the_tables_width(qapp, root):
+def test_the_empty_state_is_one_line_inside_a_frame_that_follows_the_tables_width(qapp, root):
     page = page_for(root)  # a subject with no tests
     assert page.center.currentIndex() == 1
     frame = page.empty_label.parentWidget()
     assert isinstance(frame, QFrame) and frame.objectName() == "wtmhEmptyTable"
-    assert frame.width() == page.table.fitted_width() or frame.maximumWidth() == page.table.fitted_width()
+    assert frame.maximumWidth() == QWIDGETSIZE_MAX  # no fixed width
+    for width in (1920, 1366):
+        page.resize(width, 700)
+        page.show()
+        QApplication.processEvents()
+        # the frame takes the room the table takes: from the left gutter up to 24 px before the buttons
+        assert frame.width() == page.center.width()
+        assert frame.width() == page.add_button.mapTo(page, QPoint(0, 0)).x() - 24 - 32
     assert page.empty_label.text() == "No tests yet. Choose Add New Test."
 
 

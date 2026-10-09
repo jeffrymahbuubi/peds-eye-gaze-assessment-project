@@ -15,7 +15,8 @@ default button, so Enter starts nothing, and Esc is Cancel. The wording of the
 instructions comes from :func:`~src.ui.task_instructions.build_instructions` and is
 read aloud to children, so it needs a clinician's review before release.
 
-The page is one column 1200 px wide. The read-aloud text is a white card, the clinician's text
+The page fills the window's width inside its gutters (SPEC-design-system-phase2.md section 9,
+2026-10-09: no maximum width). The read-aloud text is a white card, the clinician's text
 sits on the page under it; Start is always the primary button (a disabled primary while
 blocked), Practice the secondary, Cancel the tertiary, in one row at the left.
 
@@ -46,7 +47,7 @@ from ..engine.input_choice import drop_gaze_only_blockers, resolve_input
 from ..engine.run_result import RunResult, practice_result_text
 from .alert_box import AlertBox
 from .design_tokens import TYPE_BODY, TYPE_BODY_LARGE, TYPE_HEADING
-from .page_layout import CARD_PADDING, CONTENT_MAX_WIDTH, SCROLLBAR_GUTTER, content_column
+from .page_layout import CARD_PADDING, page_frame
 from .task_instructions import Instructions, build_instructions
 
 BLOCKER_REFRESH_MS = 1000
@@ -189,8 +190,7 @@ class StartTestPage(QWidget):
     # -- UI -------------------------------------------------------------------
 
     def _build_ui(self) -> None:
-        outer = content_column(self, CONTENT_MAX_WIDTH + SCROLLBAR_GUTTER)  # the bar sits beside
-        outer.setSpacing(16)
+        outer = page_frame(self)  # the window's width inside the gutters; the scroll bar sits beside
 
         self.title_label = QLabel("Start")
         self.title_label.setObjectName("wtmhPageTitle")
@@ -229,7 +229,6 @@ class StartTestPage(QWidget):
         scroll.setHorizontalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAlwaysOff)
         scroll.setStyleSheet(_SCROLL_STYLE)
         content = QWidget()
-        content.setMaximumWidth(CONTENT_MAX_WIDTH)
         content_layout = QVBoxLayout(content)
         content_layout.setContentsMargins(0, 0, 0, 0)
         content_layout.setSpacing(24)
@@ -280,10 +279,6 @@ class StartTestPage(QWidget):
         self.help_bar = AlertBox("note", HELP_TEXT)
         self.help_label = self.help_bar.label
         outer.addWidget(self.help_bar)
-        # Every alert is as wide as the card under them, 1200 px, not as the column (which
-        # leaves room for the scroll bar).
-        for alert in (self.banner, self.path_alert, self.mouse_note, self.help_bar):
-            alert.setMaximumWidth(CONTENT_MAX_WIDTH)
 
     @staticmethod
     def _button(name: str, text: str, tier: str, slot: Callable[[], None]) -> QPushButton:

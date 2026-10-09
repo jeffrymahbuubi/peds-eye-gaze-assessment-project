@@ -1,29 +1,34 @@
-"""The page frame of the operator pages (SPEC-design-system-phase2.md H4-H7; ``docs/design/
-fable-proposal.md`` 2.3).
+"""The page frame of the operator pages (SPEC-design-system-phase2.md H4-H7 and the section 9
+answer of 2026-10-09 on empty space; ``docs/design/fable-proposal.md`` 2.3).
 
-Form pages keep their content in a column at most 1200 px wide, left-aligned, with a 32 px
-gutter: :func:`content_column` gives a page that column. :func:`labeled` is one form field
-(the label 4 px above its control, the control a fixed width by content); the gap constants
-are the proposal's. The widths are set in code, so they hold on any screen; nothing here
-depends on a measured size.
+Form pages fill the window's width inside a 32 px gutter, there is no maximum width:
+:func:`page_frame` gives a page that frame. :class:`CardGrid` lays cards in two columns of equal
+width, and :class:`FlowLayout` lets a row of buttons wrap when its card is narrow. :func:`labeled`
+is one form field (the label 4 px above its control, the control a fixed width by content);
+the gap constants are the proposal's. The widths are set in code, so they hold on any screen;
+nothing here depends on a measured size.
 """
 
 from __future__ import annotations
 
-from PySide6.QtCore import Qt
-from PySide6.QtWidgets import QHBoxLayout, QLabel, QVBoxLayout, QWidget
+from PySide6.QtCore import QPoint, QRect, QSize, Qt
+from PySide6.QtWidgets import (
+    QHBoxLayout,
+    QLabel,
+    QLayout,
+    QLayoutItem,
+    QVBoxLayout,
+    QWidget,
+)
 
-CONTENT_MAX_WIDTH = 1200  # a form page's column
-# The dashboard sheet's scroll bar is 10 px wide (wtmh_theme.py). A page whose cards scroll
-# makes its column this much wider than CONTENT_MAX_WIDTH and limits the content to
-# CONTENT_MAX_WIDTH, so the cards are 1200 px wide with the bar beside them, not under it.
-SCROLLBAR_GUTTER = 10
 PAGE_GUTTER = 32  # left and right
 PAGE_MARGIN_V = 24  # top and bottom
-CARD_GAP = 24  # between two cards
+PAGE_SPACING = 16  # between the parts of a page
+CARD_GAP = 24  # between two cards, across and down
 CARD_PADDING = 24
 LABEL_GAP = 4  # between a label and its control
 FIELD_GAP = 16  # between two fields
+CARD_COLUMNS = 2  # columns of a CardGrid
 
 # Field widths by content (2.3)
 SUBJECT_ID_WIDTH = 320
@@ -36,28 +41,153 @@ NOTES_HEIGHT = 84  # three lines
 CONTINUE_WIDTH = 240  # Setup's Continue to Tests button
 
 
-def content_column(
+def page_frame(
     page: QWidget,
-    max_width: int = CONTENT_MAX_WIDTH,
+    spacing: int = PAGE_SPACING,
     *,
     margins: tuple[int, int, int, int] = (PAGE_GUTTER, PAGE_MARGIN_V, PAGE_GUTTER, PAGE_MARGIN_V),
 ) -> QVBoxLayout:
-    """Give ``page`` one column at most ``max_width`` px wide, left-aligned, and return the
-    column's layout (zero margins) for the page's own widgets. Any room the page has beyond
-    ``max_width`` stays empty at the right."""
-    root = QHBoxLayout(page)
-    root.setContentsMargins(*margins)
-    root.setSpacing(0)
-    column = QWidget()
-    column.setObjectName("wtmhPageColumn")
-    column.setMaximumWidth(max_width)
-    layout = QVBoxLayout(column)
-    layout.setContentsMargins(0, 0, 0, 0)
-    layout.setSpacing(CARD_GAP)
-    root.addWidget(column, 1000)
-    root.addStretch(1)
-    page.content_column_widget = column  # type: ignore[attr-defined]  # for tests and the hub
+    """Give ``page`` one column as wide as the page less its gutters and return its layout
+    for the page's own widgets. Nothing caps the width: a wider window means wider cards."""
+    layout = QVBoxLayout(page)
+    layout.setContentsMargins(*margins)
+    layout.setSpacing(spacing)
     return layout
+
+
+class CardGrid(QVBoxLayout):
+    """Cards in two independent columns of equal width, each card at the top of its column, the
+    gap between two cards the same across and down (:data:`CARD_GAP`).
+
+    :meth:`add_card` puts the next card at the foot of the next column, left then right, so the
+    cards read, and Tab, in the order they were added (Subject, Tracker, Display, Calibration
+    are left, right, left, right). The columns are not rows: a short card does not leave a hole
+    under it for a tall one beside it, the next card of its column moves up under it.
+    :meth:`add_wide` puts a one-line note (not a card) across both columns under them; a card
+    added after it starts a new pair of columns. :meth:`finish` takes the room left over below,
+    so the cards keep their height.
+    """
+
+    def __init__(self, parent: QWidget | None = None) -> None:
+        super().__init__(parent)
+        self.setContentsMargins(0, 0, 0, 0)
+        self.setSpacing(CARD_GAP)
+        self._columns: list[QVBoxLayout] | None = None
+        self._next = 0
+
+    def _start_columns(self) -> list[QVBoxLayout]:
+        # The layouts are attached before any card is added, so a card is reparented to the
+        # page's widget at once, in the order of the calls (that order is the Tab order).
+        row = QHBoxLayout()
+        row.setContentsMargins(0, 0, 0, 0)
+        row.setSpacing(CARD_GAP)
+        self.addLayout(row)
+        columns = []
+        for _ in range(CARD_COLUMNS):
+            column = QVBoxLayout()
+            column.setContentsMargins(0, 0, 0, 0)
+            column.setSpacing(CARD_GAP)
+            row.addLayout(column, 1)  # equal stretch: equal widths
+            column.addStretch(1)  # keeps the cards at the top of their column
+            columns.append(column)
+        self._next = 0
+        return columns
+
+    def add_card(self, widget: QWidget) -> None:
+        if self._columns is None:
+            self._columns = self._start_columns()
+        column = self._columns[self._next % CARD_COLUMNS]
+        column.insertWidget(column.count() - 1, widget)
+        self._next += 1
+
+    def add_wide(self, widget: QWidget) -> None:
+        self.addWidget(widget)
+        self._columns = None
+
+    def finish(self) -> None:
+        self.addStretch(1)
+
+
+class FlowLayout(QLayout):
+    """Items left to right, wrapping to a new line when the width runs out; the items of a
+    line are centred on it vertically. Its minimum width is the widest item, so a card that
+    holds one can be as narrow as its widest button, and its height follows the width."""
+
+    def __init__(self, *, h_spacing: int = 6, v_spacing: int = 8, parent: QWidget | None = None) -> None:
+        super().__init__(parent)
+        self._items: list[QLayoutItem] = []
+        self._h_spacing = h_spacing
+        self._v_spacing = v_spacing
+        self.setContentsMargins(0, 0, 0, 0)
+
+    # -- QLayout --------------------------------------------------------------------
+
+    def addItem(self, item: QLayoutItem) -> None:  # noqa: N802 (Qt naming)
+        self._items.append(item)
+
+    def count(self) -> int:
+        return len(self._items)
+
+    def itemAt(self, index: int) -> QLayoutItem | None:  # noqa: N802 (Qt naming)
+        return self._items[index] if 0 <= index < len(self._items) else None
+
+    def takeAt(self, index: int) -> QLayoutItem | None:  # noqa: N802 (Qt naming)
+        return self._items.pop(index) if 0 <= index < len(self._items) else None
+
+    def expandingDirections(self) -> Qt.Orientation:  # noqa: N802 (Qt naming)
+        return Qt.Orientation(0)
+
+    def hasHeightForWidth(self) -> bool:  # noqa: N802 (Qt naming)
+        return True
+
+    def heightForWidth(self, width: int) -> int:  # noqa: N802 (Qt naming)
+        return self._arrange(QRect(0, 0, width, 0), apply=False)
+
+    def setGeometry(self, rect: QRect) -> None:  # noqa: N802 (Qt naming)
+        super().setGeometry(rect)
+        self._arrange(rect, apply=True)
+
+    def sizeHint(self) -> QSize:  # noqa: N802 (Qt naming)
+        return self.minimumSize()
+
+    def minimumSize(self) -> QSize:  # noqa: N802 (Qt naming)
+        size = QSize()
+        for item in self._items:
+            if not item.isEmpty():
+                size = size.expandedTo(item.minimumSize())
+        margins = self.contentsMargins()
+        return size + QSize(margins.left() + margins.right(), margins.top() + margins.bottom())
+
+    # -- the lines ------------------------------------------------------------------
+
+    def _arrange(self, rect: QRect, *, apply: bool) -> int:
+        """Break the items into lines for ``rect``'s width; put them there when ``apply``.
+        Returns the height the lines need, margins included."""
+        margins = self.contentsMargins()
+        left, right = rect.x() + margins.left(), rect.right() + 1 - margins.right()
+        top = rect.y() + margins.top()
+        lines: list[list[tuple[QLayoutItem, QSize]]] = [[]]
+        x = left
+        for item in self._items:
+            if item.isEmpty():
+                continue
+            hint = item.sizeHint()
+            if lines[-1] and x + hint.width() > right:
+                lines.append([])
+                x = left
+            lines[-1].append((item, hint))
+            x += hint.width() + self._h_spacing
+        y = top
+        for index, line in enumerate(lines):
+            line_height = max((hint.height() for _item, hint in line), default=0)
+            if apply:
+                x = left
+                for item, hint in line:
+                    width = min(hint.width(), max(right - left, item.minimumSize().width()))
+                    item.setGeometry(QRect(QPoint(x, y + (line_height - hint.height()) // 2), QSize(width, hint.height())))
+                    x += hint.width() + self._h_spacing
+            y += line_height + (self._v_spacing if index < len(lines) - 1 else 0)
+        return y + margins.bottom() - rect.y()
 
 
 def labeled(

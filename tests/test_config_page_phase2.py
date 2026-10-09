@@ -54,6 +54,7 @@ from src.ui.task_config_page import TaskConfigPage
 from src.ui.wtmh_theme import STYLESHEET
 
 TASKS = ("click_static", "click_grid", "follow_moving", "scanning")
+QWIDGETSIZE_MAX = (1 << 24) - 1  # a widget with no maximum size set
 CARD_IDS = {
     "click_static": [["test", "input", "target"], ["timing", "feedback"], ["selection", "smoothing"]],
     "click_grid": [["test", "input", "target"], ["grid", "timing", "feedback"], ["selection", "smoothing"]],
@@ -105,17 +106,17 @@ def test_the_columns_follow_h6_for_every_task(qapp, task_id):
 
 
 @pytest.mark.parametrize("task_id", TASKS)
-def test_column_c_is_titled_advanced_above_its_cards(qapp, task_id):
+def test_column_c_is_titled_gaze_pointer_settings_above_its_cards(qapp, task_id):
     page = make_page(task_id)
     items = column_items(page, 2)
-    assert isinstance(items[0], QLabel) and items[0].text() == ADVANCED_TITLE == "Advanced"
+    assert isinstance(items[0], QLabel) and items[0].text() == ADVANCED_TITLE == "Gaze Pointer Settings"
     assert items[0].objectName() == "cfgAdvancedTitle"
     assert items[1] is page.cards[CARD_IDS[task_id][2][0]]
     for column in (0, 1):  # the other two have no title
         assert not any(isinstance(w, QLabel) for w in column_items(page, column))
 
 
-def test_the_advanced_title_is_the_heading_step_in_text_secondary():
+def test_the_column_c_title_is_the_heading_step_in_text_secondary():
     block = next(
         b for b in STYLESHEET.split("}") if "QLabel#cfgAdvancedTitle" in b
     )
@@ -257,13 +258,15 @@ def test_the_slider_row_still_keeps_slider_and_spin_in_step(qapp):
 
 
 def test_the_footer_row_is_as_wide_as_the_grid_and_the_buttons_sit_in_its_middle(qapp):
+    """The grid fills the window now (section 9, 2026-10-09), so the footer does too."""
     page = make_page("click_grid")
     page.resize(1800, 900)
     page.show()
     QApplication.processEvents()
     footer = page.findChild(QWidget, "cfgFooter")
-    assert footer.maximumWidth() == 1500 == page.scroll_area.widget().maximumWidth()
-    assert footer.mapTo(page, QPoint(0, 0)).x() == page.scroll_area.mapTo(page, QPoint(0, 0)).x()  # left-aligned like the grid
+    assert footer.maximumWidth() == page.scroll_area.widget().maximumWidth() == QWIDGETSIZE_MAX  # no cap
+    assert footer.mapTo(page, QPoint(0, 0)).x() == page.scroll_area.mapTo(page, QPoint(0, 0)).x()  # at the grid's left
+    assert footer.width() == page.scroll_area.width() == page.width() - 64  # and as wide as the grid
 
     def middle() -> float:
         left = page.preview_button.mapTo(footer, QPoint(0, 0)).x()
@@ -342,7 +345,7 @@ MIN_SAVING = 110
 
 
 def card_stack_height(page, column) -> int:
-    """The cards of ``column`` (not an alert or the Advanced title) and the gaps between them."""
+    """The cards of ``column`` (not an alert or the column title) and the gaps between them."""
     cards = [w for w in column_items(page, column) if w.objectName() == "wtmhCard"]
     return sum(card.sizeHint().height() for card in cards) + column_layout(page, column).spacing() * (len(cards) - 1)
 

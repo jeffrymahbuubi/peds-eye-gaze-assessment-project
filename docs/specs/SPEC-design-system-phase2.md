@@ -393,6 +393,102 @@ levers are the 12 px card gap (to 8) and the title margin (6), or moving Icons t
 mine. `docs/wireframes/task-config.md` (and its html) still draw the caption and Reset on rows of their own and a taller Notes
 box; not updated.
 
+### 2026-10-09, fix round 5 (spec-implementer, claude-sonnet-5-5), same worktree, nothing committed
+
+Fix round of the user's "empty space" decisions (section 9, last entry, 2026-10-09), which override H4 / H5 / H8 where they
+conflict: (1) full width, (2) two cards per row on Setup, (3) the "Advanced" column title renamed.
+
+**1. Full width.** `page_layout.py`: `CONTENT_MAX_WIDTH`, `SCROLLBAR_GUTTER` and `content_column()` are gone (no
+`wtmhPageColumn` widget, no `content_column_widget` attribute, no trailing stretch); `page_frame(page)` gives a page a plain
+`QVBoxLayout` with the 32 / 24 px margins and 16 px spacing. Users checked: `setup_page.py` and `start_test_page.py` (the only
+two importers; `config_form.CONTENT_MAX_WIDTH` 1500 was a different constant, removed in round 5c below).
+- Setup: the scroll area, the gaze note and the footer have no maximum width. Continue to Tests keeps its 240 px slot and sits at
+  the right edge of the full-width footer (the window's right gutter), the "Needs:" caption under it. The scroll bar is the
+  scroll area's own, beside the cards (the cards' area is the scroll area less the bar; tested).
+- Start: the card, the scroll content and every alert (`banner`, `path_alert`, `mouse_note`, `help_bar`) have no maximum width; the
+  buttons stay one row at the left.
+- Test List: `TABLE_MAX_WIDTH`, `COLUMN_WIDTHS`, `fitted_width()`, `_fit_width()` and the table's fixed width are gone. Test Name is
+  a `Stretch` column (never below `NAME_MIN_WIDTH` = 240 through the table's minimum width), Task 180 / Configuration 200 /
+  Status 180 / Date 140 stay `Fixed` (`OTHER_COLUMN_WIDTHS`); the viewport scroll bar is absorbed by Test Name, so no column is cut.
+  Body layout: the table side has stretch 1, the button column follows 24 px to its right with no trailing stretch, so it ends at
+  the right gutter. The empty-state frame has no fixed width, it fills what the table would.
+
+**2. Setup, two cards per row** (first built as grid rows; changed to independent columns in round 5b below). New
+`CardGrid` in `page_layout.py`: two columns of equal stretch, top-aligned, 24 px (`CARD_GAP`) across and down, `add_card()` /
+`add_wide()` / `finish()`. Order: Subject & Session Info | Tracker Connection (its rate-warning alert directly under it), Display |
+Calibration (its alert under it), then Before You Start on a row of its own. New `FlowLayout(QLayout)` (same module): the Calibration card's four buttons and the badge wrap onto a second
+line when the half-width card is narrower than they are, one row otherwise; `device_info_label` now wraps. Attributes added for
+tests and the hub: `subject_card`, `tracker_card`, `calibration_card`, `display_section`, `card_grid`. Fields keep their H4 widths.
+Measured with Segoe UI loaded into the offscreen platform and the dashboard sheet (scratchpad probe, not in the repo): at a
+1920 wide window the cards are 900 px each, 24 px apart, four calibration buttons and the badge on one line; at 1366 the cards
+are 623 px, the buttons wrap ("View Calibration Details" and the badge on the second line), no horizontal scroll bar at 1920,
+1366 or 1280 (at 1920 and 1366 also with a calibration and the details table open; the long alerts are in the unit test).
+
+**3. Rename.** `config_form.ADVANCED_TITLE` = "Gaze Pointer Settings" (the constant, `ADVANCED_COLUMN` and the object name
+`cfgAdvancedTitle` keep their names: title text only). Comments in `config_form.py`, `settings_registry.py` and four test files
+updated.
+
+**Wireframes (text only, not rendered; the `.html` files are stale until the hub renders them):** `docs/wireframes/setup.md` (full
+width, two cards per row, Before You Start across, footer at the right edge, Display placement), `test-list.md` (table fills the
+window, Test Name stretches, buttons at the right side, empty frame), `start-test.md` (alert and card as wide as the page),
+`task-config.md` (the title and the two `C ·` headings). `task-config.md` still draws Reset and the "Changed from" caption as in
+round 3 (see round 4).
+
+**Tests.** New `tests/test_full_width_layout.py` (22 tests; a 7 px fallback font fixture gives the offscreen platform the
+proportions of Segoe UI 14 px, because its own fallback is about twice as wide and would make the display checkbox 756 px):
+two cards share the top row at 1920 and 1366 (same top), equal widths and 24 px across = down (rewritten in round 5b), fields keep their
+widths, Before You Start spans both columns, no sideways scroll with a calibration + details + long alerts, calibration buttons
+inside their card at both widths, one row wide / wrapped narrow, the footer, `FlowLayout` (wrap, height for width, centring,
+hidden items), `CardGrid`, the removed constants, and the column C title text on all four tasks. Updated, none deleted:
+`test_setup_phase2.py` (footer without a cap, Continue at the page's right gutter, the page fills the window with the bar beside the
+cards), `test_start_page_phase2.py` (buttons at the gutter, card and alerts as wide as the page at 1920 and 1366),
+`test_test_list_badges.py` (columns: Test Name stretches and the rest keep their widths, no maximum at 1920 / 1366, only Test Name
+grows with the window, many rows, buttons at the right side, the empty frame), `test_config_page_phase2.py` (title text),
+`test_muted_labels.py`, and comments in `test_settings_layout.py`, `test_task_config_page.py`.
+
+**pytest** (whole suite, from the worktree root, `-p no:cacheprovider -o addopts="" -q -rfE`): `5 failed, 3058 passed, 2 skipped in 627.88s (0:10:27)` (3065 collected; 3033 passed before this round, +25: the 22 new tests and +3 in `test_test_list_badges.py`, whose four width tests became seven, the parametrised no-maximum test counting twice). The 5 are the known skip-worktree alpha checks (`test_config_flow::test_a_new_test_opens_at_standard_with_the_task_defaults` and the four `test_task_config_page::test_a_new_test_opens_with_standard_and_the_defaults[...]`). After the last small edits (lint fixes, docstring rewraps) the ten test files this round touches or depends on were rerun: 369 passed.
+
+**Deviations from the brief:** none of the decisions changed. Readings the hub should look at:
+1. "Any other card after them flows the same way": Before You Start is a one-line note and not a card, so it is a row of its own
+   across both columns (a half-width cell with an empty right half looked worse). `CardGrid.add_card()` would put a future card at the foot of the next column.
+2. The optional one-card-per-row fallback below about 1100 px is **not** built (a resize-driven switch can flap when the vertical
+   bar appears). Two columns work down to roughly a 1050 px window (the Tracker card needs 504 px: address 320 + port 120 + gap 16 +
+   padding); narrower than that Setup would scroll sideways. I found no minimum window width set in `dashboard_window.py` or `main_window.py`.
+3. At 1366 px the per-point calibration table (7 equal columns in a 573 px card) has 80 px columns: the position cells
+   ("0.502, 0.503", about 77 px of text plus padding) and the longer headers are cut with an ellipsis. Not a page scroll; left as
+   it was (sizing the narrow columns to their content gave the position columns no more room, so I reverted that try).
+4. When the scroll bar shows, the cards end 10 px before the footer's right edge (the bar takes the room; the footer and the page-level
+   alerts span the full width). The old 1210 px column hid this; it is not visible when the page does not scroll.
+5. Spacing of the calibration buttons is 6 px across (as before) and 8 px between lines.
+
+**Left undone:** the `.html` wireframes (hub renders); `docs/wireframes/task-config.md` round-4 drawing (Reset / caption rows).
+
+**Round 5b (hub live check, same day): Setup is two independent columns, not grid rows.** The row height followed the taller card
+(Subject about 443 px, Tracker about 200 px), leaving about 250 px empty under Tracker. `CardGrid` is now a `QVBoxLayout` holding a
+`QHBoxLayout` of two equal-stretch `QVBoxLayout` columns (24 px between everything, a stretch at the foot of each column keeps the
+cards at the top): Subject over Display on the left, Tracker over Calibration on the right, Before You Start across both under
+them; each card's alert stays directly under it and moves only its own column. The column layouts are attached before any card is
+added, so the cards are reparented in call order and Tab/reading order stays Subject, Tracker, Display, Calibration (pinned by a
+test of the focus chain). Display stays a title plus an alert, not a card: making it one would put its alerts inside a card, which
+H3 forbids, so it is not a one-line change. Tests in `tests/test_full_width_layout.py` updated (none deleted): the two-cards test now
+checks the shared top row and the stacked columns, the equal-width / gap test measures the gap down inside a column, new tests for
+an alert staying under its card, the Tab order, `CardGrid` unit tests (alternating columns, wide row, reparent order). Affected
+files run only (no full suite): `test_full_width_layout.py` 27 passed. `docs/wireframes/setup.md` text updated, not rendered.
+
+**Round 5c (new user decision, relayed by the hub): the configuration page is full width too.** `config_form.CONTENT_MAX_WIDTH` (1500) is
+removed: the card grid has no maximum width, so the three columns (Test / Input / Target, the task cards, Gaze Pointer Settings)
+share the viewport equally inside the 32 px gutters. `config_footer.centered_footer(buttons, message)` lost its `max_width`
+argument: the footer row is as wide as the grid, the buttons still centred under the three columns, the reason text still to their
+right. Nothing is moved or hidden; the round-4 rule holds: at a maximized 1920x1009 window with Segoe UI and the dashboard sheet
+(scratchpad probe) none of the four tasks has a vertical or horizontal scroll bar, the cards are 600 px wide, and the card heights
+are the round-4 ones (Test 344, Input 201, Target 127, Icons 217, Input 103 for Follow the Target); the budget tests pass
+unchanged. Tests: `tests/test_full_width_layout.py` +14 (no cap left, three equal columns reaching both gutters at 1920 and 1366
+for each of the four tasks, wider cards are not taller than at 1500 px for every card, the footer stays centred); updated, none
+deleted: the footer test of `test_config_page_phase2.py` (full width instead of 1500) and the `maximumWidth() == 1500` line of
+`test_the_cards_scroll_above_a_pinned_footer` in `test_task_config_page.py`. `docs/wireframes/task-config.md` text
+updated, not rendered. Affected files run only (no full suite): every test file that touches the configuration page, the Setup page,
+the Start page or the Test List (about 1100 tests in two runs): all pass except the 5 known alpha 0.22 vs 0.35 checks.
+
 ## 9. Implementer open questions
 
 - **2026-10-08, Mouse note emphasis (H7 / P4).** H7 and the proposal ask for "No eye data will be recorded."
@@ -426,6 +522,27 @@ box; not updated.
   it fits, keeping the 8 px grid where possible. (2) A **disabled Start** (the primary button) shows a **pale WTMH
   blue** (ACCENT at reduced strength, text still readable), not the flat grey of a disabled Practice; other disabled
   buttons keep the phase-1 grey. Both are fix-round changes on branch design-phase2.
+
+- **2026-10-09, user decisions after testing the try-all build (empty space).** The user prefers the full-width feel
+  of `feature/compass-task-flow`; the phase-2 look itself is fine. Decided from live screenshots (hub scratchpad
+  `layout_compare/`: A = feature branch, B = try-all, C = full-width prototype):
+  (1) **Full width.** Setup, Start and Test List fill the window as in the feature branch, keeping the phase-2 look;
+  this replaces the 1200 px left-aligned column of H4 / H5 / H8 (CONTENT_MAX_WIDTH, the fixed-width test table and
+  TABLE_MAX_WIDTH). Test List: the Test Name column stretches, the button column sits at the right of the table.
+  Continue to Tests sits at the right edge of the full-width footer.
+  (2) **Setup: two cards per row.** Subject & Session Info beside Tracker Connection, Display beside Calibration;
+  fields keep their H4 widths; the cards share the row equally. The page gets shorter.
+  (3) **Rename the "Advanced" column title to "Gaze Pointer Settings"** (V4 / H6 title only; the cards inside and
+  their greying rules are unchanged; note Dwell also applies to a Mouse run, only the smoothing keys grey on Mouse).
+  To implement as a fix round on branch design-phase2; the wireframes setup / test-list / start-test / task-config
+  need the same changes.
+
+- **2026-10-09, user decision relayed by the hub (configuration page full width).** The configuration page also fills the
+  window: drop the 1500 px `CONTENT_MAX_WIDTH` cap of `task_config_page` / `config_form`, so the three columns share the
+  window width equally inside the page gutters; the footer row (Preview Test, Save & Continue, Cancel) follows the grid as
+  before; slider rows may grow wider; no setting is moved or hidden; the round-4 rule (column A fits a maximized 1920x1080
+  window without a vertical scroll, all four tasks) must still hold. This overrides "the 1500 px grid stays" (H6) and "the
+  config page is NOT in scope" of the 2026-10-09 "empty space" entry above.
 
 ## 10. Log
 
@@ -462,3 +579,12 @@ box; not updated.
   the Scanning config page (tallest, column A 786 px) shows no scrollbar (viewport 800 px, content 800 px); a
   disabled Continue to Tests is pale blue. Not updated: `docs/wireframes/task-config.md` still draws Reset on its own
   row. Committed on branch design-phase2.
+- **2026-10-09** — Round 5 (user feedback after testing the try-all build: empty space). Setup, Start, Test List
+  and the configuration page fill the window (the 1200 px column, the fixed test table and the 1500 px config grid
+  are gone); Setup stacks two independent columns (Subject over Display, Tracker over Calibration; Tab order
+  Subject, Tracker, Display, Calibration); the config column title "Advanced" is now "Gaze Pointer Settings". Hub
+  live check (maximized 1920x1009; screenshots in the hub scratchpad `layout_compare/E_final_*`): Setup has no
+  gap under Tracker and Continue sits at the right edge; Test List stretches Test Name with the buttons at the right;
+  the config page's three columns share the width with no vertical scroll (Grid Click). Hub pytest:
+  **5 failed, 3077 passed, 2 skipped** (the known alpha checks). Wireframe .md text updated; the .html renders are
+  not. Committed on branch design-phase2.

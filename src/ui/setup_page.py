@@ -64,20 +64,19 @@ from .alert_box import AlertBox
 from .design_tokens import BORDER_STRONG, PANEL, RADIUS, TABLE_ROW_HEIGHT
 from .page_layout import (
     ADDRESS_WIDTH,
-    CARD_GAP,
     CARD_PADDING,
-    CONTENT_MAX_WIDTH,
     CONTINUE_WIDTH,
     DATE_WIDTH,
     FIELD_GAP,
     NOTES_HEIGHT,
     POINT_COUNT_WIDTH,
     PORT_WIDTH,
-    SCROLLBAR_GUTTER,
     SEX_WIDTH,
     SUBJECT_ID_WIDTH,
-    content_column,
+    CardGrid,
+    FlowLayout,
     labeled,
+    page_frame,
 )
 from .report_format import DASH
 from .setup_status import (
@@ -423,10 +422,9 @@ class SetupPage(QWidget):
     # -- UI -----------------------------------------------------------------
 
     def _build_ui(self) -> None:
-        # One column at most 1200 px wide, left-aligned (SPEC-design-system-phase2.md H4); the
-        # scroll bar sits beside it, not over the cards.
-        outer = content_column(self, CONTENT_MAX_WIDTH + SCROLLBAR_GUTTER)
-        outer.setSpacing(16)
+        # The page fills the window inside its gutters, no maximum width (section 9, 2026-10-09);
+        # the scroll area's bar sits beside the cards, not over them.
+        outer = page_frame(self)
 
         title = QLabel("Setup")
         title.setObjectName("wtmhPageTitle")
@@ -442,17 +440,17 @@ class SetupPage(QWidget):
         scroll.setWidgetResizable(True)
         scroll.setFrameShape(QFrame.Shape.NoFrame)
 
+        # Two columns of cards (section 9, 2026-10-09): Subject over Display on the left, Tracker
+        # over Calibration on the right; the order added is the reading and Tab order.
         scroll_content = QWidget()
-        scroll_content.setMaximumWidth(CONTENT_MAX_WIDTH)
-        scroll_layout = QVBoxLayout(scroll_content)
-        scroll_layout.setContentsMargins(0, 0, 0, 0)
-        scroll_layout.setSpacing(CARD_GAP)
-        scroll_layout.addWidget(self._build_subject_card())
-        scroll_layout.addWidget(self._build_tracker_card())
-        scroll_layout.addWidget(self._build_display_section())
-        scroll_layout.addWidget(self._build_calibration_card())
-        scroll_layout.addWidget(self._build_device_notice_section())
-        scroll_layout.addStretch(1)
+        self.card_grid = CardGrid(scroll_content)
+        self.card_grid.add_card(self._build_subject_card())
+        self.card_grid.add_card(self._build_tracker_card())
+        self.display_section = self._build_display_section()
+        self.card_grid.add_card(self.display_section)
+        self.card_grid.add_card(self._build_calibration_card())
+        self.card_grid.add_wide(self._build_device_notice_section())
+        self.card_grid.finish()
         scroll.setWidget(scroll_content)
         # QScrollArea.setWidget() turns on autoFillBackground for both the
         # viewport and the content widget, painting them with the inherited
@@ -470,15 +468,13 @@ class SetupPage(QWidget):
         # tests can run (the gaze ones are held back on their own Start page).
         self.gaze_note = AlertBox("note")
         self.gaze_note_label = self.gaze_note.label
-        self.gaze_note.setMaximumWidth(CONTENT_MAX_WIDTH)
         self.gaze_note.hide()
         outer.addWidget(self.gaze_note)
 
-        # The footer: Continue to Tests (240 px, right-aligned) and, while it is off, a caption
-        # under it with what it still needs (H4). The tooltip says the same.
+        # The footer: Continue to Tests (240 px, at the window's right edge) and, while it is
+        # off, a caption under it with what it still needs (H4). The tooltip says the same.
         footer = QWidget()
         footer.setFixedHeight(64)
-        footer.setMaximumWidth(CONTENT_MAX_WIDTH)
         footer_layout = QVBoxLayout(footer)
         footer_layout.setContentsMargins(0, 0, 0, 0)
         footer_layout.setSpacing(4)
@@ -562,6 +558,7 @@ class SetupPage(QWidget):
 
     def _build_subject_card(self) -> QFrame:
         card, layout = self._card("Subject & Session Info")
+        self.subject_card = card
 
         self.subject_id_edit = QLineEdit()
         self.subject_id_edit.textChanged.connect(self._on_state_changed)
@@ -678,6 +675,7 @@ class SetupPage(QWidget):
 
     def _build_tracker_card(self) -> QWidget:
         card, layout = self._card("Tracker Connection")
+        self.tracker_card = card
 
         local_state = load_local_state()
         gp_defaults = self._defaults.get("gazepoint", {})
@@ -726,6 +724,7 @@ class SetupPage(QWidget):
         device_info_row = QHBoxLayout()
         self.device_info_label = QLabel("")
         self.device_info_label.setObjectName("wtmhMuted")
+        self.device_info_label.setWordWrap(True)  # a half-width card is narrower than two lines of it
         self.device_info_label.setVisible(False)
         device_info_row.addWidget(self.device_info_label, stretch=1)
 
@@ -752,6 +751,7 @@ class SetupPage(QWidget):
 
     def _build_calibration_card(self) -> QWidget:
         card, layout = self._card("Calibration")
+        self.calibration_card = card
 
         self.point_count_spin = QSpinBox()
         self.point_count_spin.setRange(1, 9)
@@ -763,7 +763,9 @@ class SetupPage(QWidget):
         self.show_calibration_checkbox.setChecked(bool(cal_defaults.get("show", True)))
         layout.addWidget(self.show_calibration_checkbox)
 
-        buttons = QHBoxLayout()
+        # The four buttons and the badge wrap onto a second line when the half-width card is
+        # narrower than they are (a 1366 px window); on a wide one they are a single row.
+        buttons = FlowLayout()
         self.do_calibration_button = QPushButton("Do Calibration")
         self.do_calibration_button.setObjectName("wtmhPrimary")
         self.do_calibration_button.setEnabled(False)  # needs a connected tracker first
@@ -799,8 +801,7 @@ class SetupPage(QWidget):
 
         # Not calibrated / Calibrated, 5 points, 1.8°, glyph + word, beside the buttons (V3).
         self.calibration_badge = StatusBadge("not_calibrated")
-        buttons.addWidget(self.calibration_badge, 0, Qt.AlignmentFlag.AlignVCenter)
-        buttons.addStretch(1)
+        buttons.addWidget(self.calibration_badge)
         layout.addLayout(buttons)
 
         layout.addWidget(self._build_calibration_details_section())

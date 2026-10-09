@@ -17,9 +17,11 @@ The table is a ``QTableWidget`` that is not sortable by Qt itself: a header clic
 it (Test Name by a natural key, so "Grid Click 2" comes before "Grid Click 10"; Date
 Complete with a dash first) and the order and the selection are kept across a reload.
 
-Layout (SPEC-design-system-phase2.md H5, V2): the table has fixed column widths and the button
-column sits 24 px to its right, top-aligned. Run Test is the only primary button; Delete Test
-is a secondary one with the red danger glyph; Back to Setup is a tertiary one.
+Layout (SPEC-design-system-phase2.md H5, V2; section 9, 2026-10-09): the table fills the
+window (Test Name stretches, the other columns keep their widths) and the button column sits
+24 px to its right, at the window's right side, top-aligned. Run Test is the only primary
+button; Delete Test is a secondary one with the red danger glyph; Back to Setup is a tertiary
+one.
 """
 
 from __future__ import annotations
@@ -209,7 +211,7 @@ class SubjectTestListPage(QWidget):
 
         left = QVBoxLayout()
         left.setSpacing(8)
-        body.addLayout(left)
+        body.addLayout(left, stretch=1)  # the table takes the width the button column leaves
 
         self.table = SubjectTestTable(0, len(HEADERS))
         self.table.setObjectName("wtmhTestTable")
@@ -226,12 +228,11 @@ class SubjectTestListPage(QWidget):
         header.setSortIndicatorShown(False)
 
         # Page 0 is the table; page 1 is the empty-state line that stands in for it, inside a
-        # frame of the table's width.
+        # frame that fills the same room.
         self.center = QStackedWidget()
         self.center.addWidget(self.table)
         empty_page = QFrame()
         empty_page.setObjectName("wtmhEmptyTable")
-        empty_page.setFixedWidth(self.table.fitted_width())
         empty_layout = QVBoxLayout(empty_page)
         empty_layout.setContentsMargins(16, 12, 16, 12)
         self.empty_label = QLabel(NO_SUBJECT_TEXT)
@@ -269,7 +270,6 @@ class SubjectTestListPage(QWidget):
         self.open_folder_button = self._button("Open Subject Folder", "wtmhGhost", column)
         column.addStretch(1)
         body.addLayout(column)
-        body.addStretch(1)
 
         footer = QHBoxLayout()
         footer.setSpacing(16)

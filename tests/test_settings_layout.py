@@ -41,7 +41,7 @@ TIMING = ["task.timeout_ms", "task.inter_trial_interval_ms"]
 
 # (id, column, hint, controls) per card, in order -- 4B.1 and the 4B.2 tables, reordered by
 # clinical weight in SPEC-design-system-phase2.md H6 (V4): column A = Test, Input, Target (or
-# Icons); B = the task's own card, Timing, Feedback; C = Dwell, Gaze Smoothing ("Advanced").
+# Icons); B = the task's own card, Timing, Feedback; C = Dwell, Gaze Smoothing ("Gaze Pointer Settings").
 EXPECTED = {
     "click_static": [
         ("test", 0, None, TEST_CARD),

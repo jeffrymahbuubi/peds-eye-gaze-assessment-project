@@ -43,7 +43,7 @@ from ..engine.subject_test_record import validate_test_name
 from ..engine.target_size import screen_scale, viewing_distance_mm
 from ..engine.task_info import TASK_INFO
 from .config_footer import centered_footer
-from .config_form import CONTENT_MAX_WIDTH, ConfigForm
+from .config_form import ConfigForm
 from .config_widgets import ask_two_choice, estimated_canvas_px, screen_dpr
 from .settings_registry import get_nested, set_nested
 from .settings_snapshot import complete_settings, settings_snapshot
@@ -275,7 +275,6 @@ class TaskConfigPage(QWidget):
             centered_footer(
                 (self.preview_button, self.save_button, self.cancel_button),
                 self.footer_message,
-                CONTENT_MAX_WIDTH,
             )
         )
         self._connect()

@@ -202,7 +202,7 @@ def test_configuration_page(qapp, task_id):
     page._form.controls["trials"].setValue(7)  # the "Changed from ..." caption has text
     grey = sweep(page, f"configuration {task_id}")
     assert ("wtmhCaption", "Changed from Standard") in grey
-    assert ("cfgAdvancedTitle", "Advanced") in grey
+    assert ("cfgAdvancedTitle", "Gaze Pointer Settings") in grey
     assert any(name == "wtmhMuted" and "TESTING" in text for name, text in grey)  # the subtitle
 
 

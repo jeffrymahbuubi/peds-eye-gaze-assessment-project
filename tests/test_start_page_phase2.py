@@ -18,13 +18,15 @@ from PySide6.QtWidgets import QApplication, QLabel
 from src.engine.config import load_task_config
 from src.engine.input_choice import CALIBRATION_BLOCKER, TRACKER_BLOCKER
 from src.ui.alert_box import AlertBox
-from src.ui.page_layout import CONTENT_MAX_WIDTH, SCROLLBAR_GUTTER
+from src.ui.page_layout import PAGE_GUTTER
 from src.ui.setup_status import SEX_BLOCKER
 from src.ui.start_test_page import (
     MOUSE_NOTE_NO_EYE_DATA,
     MOUSE_NOTE_NO_TRACKER,
     StartTestPage,
 )
+
+QWIDGETSIZE_MAX = (1 << 24) - 1  # a widget with no maximum size set
 
 
 @pytest.fixture(scope="module")
@@ -131,23 +133,25 @@ def test_the_three_buttons_are_one_row_at_the_left_in_that_order(qapp):
     positions = [b.mapTo(page, QPoint(0, 0)) for b in (page.start_button, page.practice_button, page.cancel_button)]
     assert positions[0].x() < positions[1].x() < positions[2].x()
     assert len({p.y() for p in positions}) == 1  # one row
-    assert positions[0].x() == page.content_column_widget.x()  # at the content edge, not centred
+    assert positions[0].x() == PAGE_GUTTER  # at the content edge, not centred
     page.close()
 
 
 # -- the card and the surfaces (P3, P5) --------------------------------------------------------------------------
 
 
-def test_the_column_is_1200_px_with_room_for_the_scroll_bar_beside_it(qapp):
+def test_the_card_and_the_alerts_fill_the_window_width_with_no_maximum(qapp):
     page = make_page([TRACKER_BLOCKER])
-    assert page.content_column_widget.maximumWidth() == CONTENT_MAX_WIDTH + SCROLLBAR_GUTTER
     for alert in (page.banner, page.path_alert, page.mouse_note, page.help_bar):
-        assert alert.maximumWidth() == CONTENT_MAX_WIDTH
-    page.resize(1856, 900)
-    page.show()
-    QApplication.processEvents()
-    assert page.card.width() == page.banner.width() == CONTENT_MAX_WIDTH
-    assert page.card.mapTo(page, QPoint(0, 0)).x() == page.banner.mapTo(page, QPoint(0, 0)).x() == 32
+        assert alert.maximumWidth() == QWIDGETSIZE_MAX  # section 9, 2026-10-09: no 1200 px column
+    assert page.card.parentWidget().maximumWidth() == QWIDGETSIZE_MAX
+    for width in (1920, 1366):
+        page.resize(width, 900)
+        page.show()
+        QApplication.processEvents()
+        full = page.width() - 2 * PAGE_GUTTER
+        assert page.card.width() == page.banner.width() == full  # the page's width less the gutters
+        assert page.card.mapTo(page, QPoint(0, 0)).x() == page.banner.mapTo(page, QPoint(0, 0)).x() == PAGE_GUTTER
     page.close()
 
 

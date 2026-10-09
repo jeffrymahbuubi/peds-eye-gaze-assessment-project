@@ -34,7 +34,7 @@
 
 :::
 
-> **Design system phase 2** (SPEC-design-system-phase2.md H5, V1, V2): the table is at most 1200 px (Test Name 420, Task 180, Configuration 200, Status 180, Date 140); the button column sits 24 px to its right, top-aligned. **Run Test is the only primary (filled) button**; Add New Test, Configure Test, View Report, Copy Test and Open Subject Folder are secondary (outlined); Delete Test is secondary with a red ■ glyph (its dialog's Delete keeps the red fill). The Status column holds a status badge (glyph + word): ○ Not done (grey), ● Done (green), ◐ Ended early 4/6 (amber), ▲ Data missing (amber). Bold no longer marks anything; the selected row is a blue fill (#CFE2F1), distinct from the grey header.
+> **Design system phase 2** (SPEC-design-system-phase2.md H5, V1, V2): the table fills the window width inside the 32 px gutters, with no maximum (section 9, 2026-10-09): **Test Name stretches**, Task 180, Configuration 200, Status 180 and Date 140 keep their widths; the button column sits 24 px to its right, at the window's right side, top-aligned. **Run Test is the only primary (filled) button**; Add New Test, Configure Test, View Report, Copy Test and Open Subject Folder are secondary (outlined); Delete Test is secondary with a red ■ glyph (its dialog's Delete keeps the red fill). The Status column holds a status badge (glyph + word): ○ Not done (grey), ● Done (green), ◐ Ended early 4/6 (amber), ▲ Data missing (amber). Bold no longer marks anything; the selected row is a blue fill (#CFE2F1), distinct from the grey header.
 
 > **Selected row:** "Grid Click 1" (Not done). The buttons on the right follow the matrix below. Disabled buttons stay visible and grey, never hidden.
 
@@ -87,7 +87,7 @@ Enter a Subject ID in Setup.
 
 No tests yet. Choose Add New Test.
 
-> Shown as one line inside the empty table frame, with Add New Test beside it.
+> Shown as one line inside the empty table frame, with Add New Test beside it. The frame fills the same width the table would.
 
 :::
 

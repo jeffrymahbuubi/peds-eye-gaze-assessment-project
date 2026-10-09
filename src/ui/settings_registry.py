@@ -434,7 +434,7 @@ _GREYED_BY = {
 # The cards in order of clinical weight (SPEC-design-system-phase2.md H6, V4): (id, title,
 # column, hint, control keys in order). Column 0 holds what the clinician sets first (the
 # test, the input, the target or icons), column 1 the task's own card, the timing and the
-# feedback, column 2 the advanced Dwell and Gaze Smoothing (under an "Advanced" title). A key
+# feedback, column 2 Dwell and Gaze Smoothing (under a "Gaze Pointer Settings" title). A key
 # the task has no setting for is skipped and a card left empty is dropped, so one table lays
 # out all four pages (scanning has Icons where the others have Target; only click_grid has a
 # grid; Icons stays one card, size and count together).

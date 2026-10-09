@@ -119,7 +119,7 @@ def _select(page, name):
 
 
 def _widgets_of_column(page, column):
-    """The cards of a column, top to bottom (not the "Advanced" title or an alert box)."""
+    """The cards of a column, top to bottom (not the "Gaze Pointer Settings" title or an alert box)."""
     layout = page.scroll_area.widget().layout().itemAtPosition(0, column).layout()
     widgets = [layout.itemAt(i).widget() for i in range(layout.count()) if layout.itemAt(i).widget()]
     return [w for w in widgets if w.objectName() == "wtmhCard"]
@@ -262,7 +262,7 @@ def test_the_cards_scroll_above_a_pinned_footer(qapp):
     for button in (page.preview_button, page.save_button, page.cancel_button):
         assert not scroll.isAncestorOf(button)
         assert not button.autoDefault()  # Enter never saves (4B.5)
-    assert scroll.widget().maximumWidth() == 1500
+    assert scroll.widget().maximumWidth() == (1 << 24) - 1  # no 1500 px cap (section 9, 2026-10-09)
     assert "wtmhConfigScroll" in wtmh_theme.STYLESHEET
     assert "QRadioButton" in wtmh_theme.STYLESHEET
 

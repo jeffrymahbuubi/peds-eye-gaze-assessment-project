@@ -6,7 +6,7 @@ Grid Click, subject TESTING
 
 > SPEC-compass-task-flow.md 4B. A full page opened by Configure Test on the Test List. It replaces the Settings dialog inside the dashboard (the old dialog stays only for standalone `--task X --gui`, see `task-settings.md`). Shown: Grid Click in its Standard state. Compass reference: `docs/compass/screenshots/06-*.png`. The nav is locked while this page is open.
 
-> Three columns of cards, ordered by clinical weight (SPEC-design-system-phase2.md H6, V4). **Column A:** Test, Input, Target (Icons for Scanning Search). **Column B:** the task card (here Grid Layout; Motion for Follow the Target; none for Static Click), Timing, Feedback. **Column C, under the quieter title "Advanced" (20 px, grey):** Dwell, Gaze Smoothing. Every number is a slider plus a spin box (the existing SliderSpinRow), shown here as a number box.
+> Three columns of cards, ordered by clinical weight (SPEC-design-system-phase2.md H6, V4). **Column A:** Test, Input, Target (Icons for Scanning Search). **Column B:** the task card (here Grid Layout; Motion for Follow the Target; none for Static Click), Timing, Feedback. **Column C, under the quieter title "Gaze Pointer Settings" (20 px, grey; renamed from "Advanced" on 2026-10-09):** Dwell, Gaze Smoothing. Every number is a slider plus a spin box (the existing SliderSpinRow), shown here as a number box.
 
 > SPEC-input-selection-and-follow.md 4.1 (added 2026-10-07): the **Input** card (Pointer + Selection), the card "Selection (Dwell)" renamed **Dwell**, and "Glow on target" in Feedback. Shown: Gaze + Dwell, the default.
 
@@ -48,7 +48,7 @@ Cell gap
 
 Warning alert (▲ glyph, no tint) when it does not fit: "Targets will be shrunk to about 180 px to fit a 3x3 grid with this gap."
 
-### C · Advanced: Dwell
+### C · Gaze Pointer Settings: Dwell
 
 Dwell threshold (s)
 [0.8___]{type:number}
@@ -85,7 +85,7 @@ Trial timeout (s)
 Inter-trial interval (s)
 [0.8___]{type:number}
 
-### C · Advanced: Gaze Smoothing
+### C · Gaze Pointer Settings: Gaze Smoothing
 
 - [x] Smoothing enabled
 
@@ -140,10 +140,10 @@ Greyed (not hidden) while Smoothing enabled is off: the only dependent control.
 > **Layout** (phase 2 H6):
 > - Column A: Test, then Input, then Target (Icons for Scanning Search, one card with size and count).
 > - Column B: the task card (Grid Layout / Motion), then Timing, then Feedback.
-> - Column C, titled "Advanced": Dwell, then Gaze Smoothing (Follow the Target has no Dwell card).
+> - Column C, titled "Gaze Pointer Settings": Dwell, then Gaze Smoothing (Follow the Target has no Dwell card).
 > - The "Changed from Standard" caption line under Configuration Name is always there (empty when unmodified), so the page never shifts when it appears.
 > - Sliders: 240 px when the range has 10 steps or fewer (with ticks: trials, icons, rows, cols), 360 px otherwise; spin boxes 88 px.
-> - The footer row is centred under the three columns. The grid stays 1500 px wide.
+> - The footer row is centred under the three columns. The three columns share the window's width equally inside the 32 px gutters, with no 1500 px cap (section 9, 2026-10-09): the cards and slider rows grow wider, not taller.
 > - At 1920x1080 @ 100 % nothing scrolls. At larger scaling the cards scroll and the footer stays visible.
 
 ### Task-specific cards

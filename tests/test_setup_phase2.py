@@ -23,7 +23,7 @@ from src.engine.display_check import check_display
 from src.engine.input_choice import CALIBRATION_BLOCKER, TRACKER_BLOCKER
 from src.ui import design_tokens as tokens
 from src.ui.alert_box import AlertBox
-from src.ui.page_layout import CONTENT_MAX_WIDTH, CONTINUE_WIDTH, SCROLLBAR_GUTTER
+from src.ui.page_layout import CONTINUE_WIDTH, PAGE_GUTTER
 from src.ui.setup_page import SetupPage
 from src.ui.setup_status import (
     DATE_BLOCKER,
@@ -38,6 +38,8 @@ from src.ui.setup_status import (
 )
 from src.ui.status_badge import StatusBadge
 from src.ui.wtmh_theme import STYLESHEET
+
+QWIDGETSIZE_MAX = (1 << 24) - 1  # a widget with no maximum size set
 
 
 @pytest.fixture(scope="module")
@@ -112,13 +114,13 @@ def test_the_tooltip_stays(qapp):
     assert page.continue_button.toolTip() == "Still needed: enter a Subject ID; select Sex."
 
 
-def test_the_footer_is_64_px_and_as_wide_as_the_column_and_holds_a_240_px_slot_for_continue(qapp):
+def test_the_footer_is_64_px_and_has_no_maximum_width_and_holds_a_240_px_slot_for_continue(qapp):
     page = page_with()
     slot = page.continue_button.parentWidget()
     footer = slot.parentWidget()
     assert slot.minimumWidth() == slot.maximumWidth() == CONTINUE_WIDTH == 240
     assert footer.minimumHeight() == footer.maximumHeight() == 64
-    assert footer.maximumWidth() == CONTENT_MAX_WIDTH == 1200
+    assert footer.maximumWidth() == QWIDGETSIZE_MAX  # full width (section 9, 2026-10-09)
     assert page.needs_label.parentWidget() is footer  # the caption is under the slot, in the footer
 
 
@@ -143,9 +145,9 @@ def test_continue_to_tests_is_240_px_wide_under_the_real_sheet_whatever_its_text
     page.continue_button.setText(label)
     root = themed_page(page)
     assert page.continue_button.width() == 240
-    column_right = page.content_column_widget.x() + CONTENT_MAX_WIDTH  # the column's right edge
+    page_right = page.width() - PAGE_GUTTER  # the window's right edge less the gutter
     right = page.continue_button.mapTo(page, QPoint(page.continue_button.width(), 0)).x()
-    assert right == column_right  # right-aligned at the column's right edge
+    assert right == page_right  # right-aligned at the right edge of the full-width footer
     root.close()
 
 
@@ -258,17 +260,19 @@ def test_the_label_is_above_its_field_and_the_hint_under_subject_id(qapp):
     assert layout.spacing() == 4  # between a label and its field
 
 
-def test_the_page_is_one_column_1200_px_wide_with_the_scroll_bar_beside_it(qapp):
+def test_the_page_fills_the_window_with_the_scroll_bar_beside_the_cards(qapp):
     page = page_with()
-    assert page.content_column_widget.maximumWidth() == CONTENT_MAX_WIDTH + SCROLLBAR_GUTTER
     scroll = page.findChild(QScrollArea, "wtmhSetupScroll")
-    assert scroll.widget().maximumWidth() == CONTENT_MAX_WIDTH
-    assert page.gaze_note.maximumWidth() == CONTENT_MAX_WIDTH
-    page.resize(1856, 900)
+    assert scroll.widget().maximumWidth() == QWIDGETSIZE_MAX  # no cap on the cards' area
+    assert page.gaze_note.maximumWidth() == QWIDGETSIZE_MAX
+    page.resize(1856, 500)  # short enough to scroll: the bar shows
     page.show()
     QApplication.processEvents()
-    assert scroll.widget().width() == CONTENT_MAX_WIDTH  # room to spare: exactly the column
-    assert page.content_column_widget.x() == 32  # left-aligned at the gutter
+    bar = scroll.verticalScrollBar()
+    assert scroll.x() == PAGE_GUTTER and scroll.width() == page.width() - 2 * PAGE_GUTTER
+    assert bar.maximum() > 0 and bar.isVisible()
+    # the bar takes its own room beside the cards: the cards' area plus the bar is the scroll area
+    assert scroll.widget().width() == scroll.viewport().width() == scroll.width() - bar.width()
     page.close()
 
 

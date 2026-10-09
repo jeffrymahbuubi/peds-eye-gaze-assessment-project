@@ -8,7 +8,9 @@ into widgets: one ``wtmhCard`` per group in a 3-column grid, one control per set
 :class:`~src.ui.task_config_page.TaskConfigPage` wires the change handling and
 owns the values. It also computes the amber shrink hint, from the same pure
 functions the settings dialog uses; the hint is an alert box under its card, not inside it
-(SPEC-design-system-phase2.md H3). Column C is titled "Advanced" (H6).
+(SPEC-design-system-phase2.md H3). The three columns share the width of the window equally; the
+1500 px cap of 4B.1 is gone (section 9, 2026-10-09). Column C is titled "Gaze Pointer Settings"
+(H6, renamed from "Advanced" on 2026-10-09).
 """
 
 from __future__ import annotations
@@ -55,10 +57,9 @@ from .slider_spin import SliderSpinRow
 from .wheel_guard import WheelGuard, guard_wheel
 
 COLUMNS = 3
-CONTENT_MAX_WIDTH = 1500  # 4B.1: "content max width about 1500 px"
 NOTES_HEIGHT = 56  # two lines
 ADVANCED_COLUMN = 2
-ADVANCED_TITLE = "Advanced"
+ADVANCED_TITLE = "Gaze Pointer Settings"  # the title of column C (once "Advanced")
 # The "Changed from ..." caption sits at the right of the Configuration Name label's row and
 # always takes this much height, text or not (C4), so nothing moves when it appears.
 MODIFIED_LINE_HEIGHT = 20
@@ -124,8 +125,7 @@ class ConfigForm:
 
     def build(self) -> QWidget:
         """The scrolling content: the cards in their three columns."""
-        content = QWidget()
-        content.setMaximumWidth(CONTENT_MAX_WIDTH)
+        content = QWidget()  # no maximum width: the three columns share the window
         grid = QGridLayout(content)
         grid.setContentsMargins(0, 0, 0, 0)
         grid.setHorizontalSpacing(COLUMN_GAP)
