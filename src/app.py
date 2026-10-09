@@ -28,7 +28,7 @@ from .data.analysis_export import (
     median_eye_distance_mm,
 )
 from .data.exporter import write_session_metrics
-from .data.recorder import NullRecorder, SessionRecorder
+from .data.recorder import RECORDER_FILENAMES, NullRecorder, SessionRecorder
 from .data.schema import SessionMetadata
 from .engine.calibration import (
     Calibration,
@@ -205,15 +205,23 @@ def calibration_log_line(cal: CalibrationResult, source: str, file: str | None) 
 
 def _removing_an_orphan_run_folder(init):
     """Wrap ``AssessmentApp.__init__`` (SPEC-audit-fixes.md H11): a start that fails after
-    the run's folder was made, and before anything but its ``calibration.json`` was written
-    into it, removes the folder again. A folder with anything else in it is left alone."""
+    the run's folder was made, and before the first trial was recorded, closes the recorder's
+    files and removes the folder again if it holds nothing but files this start wrote (its
+    ``calibration.json`` and the recorder's). A folder with any other entry, or with a
+    recorded trial, is left alone."""
 
     @functools.wraps(init)
     def wrapper(self, *args, **kwargs):
         try:
             init(self, *args, **kwargs)
         except BaseException:
-            remove_orphan_run_dir(getattr(self, "_run_dir", None), getattr(self, "_output_root", ""))
+            recorder = getattr(self, "recorder", None)
+            if recorder is not None:
+                recorder.abort()  # Windows cannot delete a file that is still open
+            if not getattr(recorder, "trials_recorded", 0):
+                remove_orphan_run_dir(
+                    getattr(self, "_run_dir", None), getattr(self, "_output_root", ""), RECORDER_FILENAMES
+                )
             raise
 
     return wrapper
@@ -339,9 +347,10 @@ class AssessmentApp:
         # folder (``_2``) and never overwrites a prior run. ``run_dir()`` makes it at
         # the first thing that needs it -- an auto-saved calibration.json (which is
         # written before the recorder exists), else the recorder. A run that fails to
-        # start before its recorder opens has the folder removed again (``__init__`` is
-        # wrapped by ``_removing_an_orphan_run_folder``). A practice or preview run has
-        # no folder: its "session id" is a sentinel and ``run_dir`` is never called.
+        # start has the folder removed again when it holds only what this start wrote
+        # (``__init__`` is wrapped by ``_removing_an_orphan_run_folder``). A practice or
+        # preview run has no folder: its "session id" is a sentinel and ``run_dir`` is
+        # never called.
         output_root = resolve_output_root(self.config)
         self._output_root = output_root
         self._run_dir: Path | None = None

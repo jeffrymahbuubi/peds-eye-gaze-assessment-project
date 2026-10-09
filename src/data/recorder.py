@@ -40,6 +40,7 @@ from .analysis_export import (
     rec_to_all_gaze_row,
     rec_to_eye_geometry_row,
 )
+from .null_recorder import NullRecorder  # noqa: F401  (re-exported: it used to live here)
 from .schema import GazeSample, SessionMetadata, TrialRecord
 
 _GAZE_HEADER = [
@@ -65,6 +66,29 @@ TARGET_TRACK_COLUMNS = ["t_ns", "trial", "x", "y"]
 # pointer is inside the canvas. Lets the report draw the mouse path.
 POINTER_STREAM_FILENAME = "pointer_stream.csv"
 POINTER_STREAM_COLUMNS = ["t_ns", "x", "y", "valid"]
+
+METADATA_FILENAME = "metadata.json"
+SESSION_LOG_FILENAME = "session.log"
+GAZE_STREAM_FILENAME = "gaze_stream.csv"
+EVENTS_FILENAME = "events.jsonl"
+TRIALS_FILENAME = "trials.csv"
+
+# Every file name a SessionRecorder can create in its folder (the same constants its
+# ``open`` calls use). A run that fails to start removes its folder only if it holds nothing
+# but these and its calibration.json (SPEC-audit-fixes.md H11).
+RECORDER_FILENAMES = frozenset(
+    {
+        METADATA_FILENAME,
+        SESSION_LOG_FILENAME,
+        GAZE_STREAM_FILENAME,
+        EVENTS_FILENAME,
+        TRIALS_FILENAME,
+        ALL_GAZE_FILENAME,
+        EYE_GEOMETRY_FILENAME,
+        TARGET_TRACK_FILENAME,
+        POINTER_STREAM_FILENAME,
+    }
+)
 
 
 class SessionRecorder:
@@ -95,6 +119,7 @@ class SessionRecorder:
         # replaces it with the whole table at the end of the run.
         self._trials_file: TextIO | None = None
         self._trials_writer: csv.DictWriter | None = None
+        self._trials_recorded = 0
         self._closed = False
         # Flush the gaze CSV at least this often so a hard crash (SIGKILL, power
         # loss) leaves at most ~this many buffered samples on the floor.
@@ -145,21 +170,21 @@ class SessionRecorder:
         tracker (SPEC-input-selection-and-follow.md H4): there is no gaze, so no
         ``gaze_stream.csv`` is created and :meth:`record_gaze` must not be called."""
         if gaze_stream:
-            self._gaze_file = (self.session_dir / "gaze_stream.csv").open(
+            self._gaze_file = (self.session_dir / GAZE_STREAM_FILENAME).open(
                 "w", newline="", encoding="utf-8"
             )
             self._gaze_writer = csv.DictWriter(self._gaze_file, fieldnames=_GAZE_HEADER)
             self._gaze_writer.writeheader()
 
-        self._events_file = (self.session_dir / "events.jsonl").open(
+        self._events_file = (self.session_dir / EVENTS_FILENAME).open(
             "w", encoding="utf-8"
         )
-        self._log_file = (self.session_dir / "session.log").open("w", encoding="utf-8")
+        self._log_file = (self.session_dir / SESSION_LOG_FILENAME).open("w", encoding="utf-8")
 
         # Crash safety (H5): the metadata known now, marked incomplete until close(), and
         # the trial table's header, so a run that dies leaves both beside the finished trials.
         self.write_metadata(complete=False)
-        self._trials_file = (self.session_dir / "trials.csv").open("w", newline="", encoding="utf-8")
+        self._trials_file = (self.session_dir / TRIALS_FILENAME).open("w", newline="", encoding="utf-8")
         self._trials_writer = csv.DictWriter(self._trials_file, fieldnames=TrialRecord.csv_header())
         self._trials_writer.writeheader()
         self._trials_file.flush()
@@ -324,6 +349,7 @@ class SessionRecorder:
         if self._trials_writer is None or self._trials_file is None:
             return
         self._trials_writer.writerow(trial.as_row())
+        self._trials_recorded += 1
         for fh in (
             self._trials_file,
             self._gaze_file,
@@ -345,7 +371,7 @@ class SessionRecorder:
     def write_trials(self, trials: list[TrialRecord]) -> Path:
         """Write the whole trial table, replacing the rows :meth:`record_trial` appended, so
         the final file is the one a run has always ended with."""
-        path = self.session_dir / "trials.csv"
+        path = self.session_dir / TRIALS_FILENAME
         self._close_trials()
         with path.open("w", newline="", encoding="utf-8") as fh:
             writer = csv.DictWriter(fh, fieldnames=TrialRecord.csv_header())
@@ -358,7 +384,7 @@ class SessionRecorder:
         """Write ``metadata.json``. ``complete`` adds the ``"complete"`` key: False while the
         run is open, True once :meth:`close` has written the final file; left out (the file
         every older run has) when None."""
-        path = self.session_dir / "metadata.json"
+        path = self.session_dir / METADATA_FILENAME
         payload = self.metadata.to_dict()
         if complete is not None:
             payload["complete"] = complete
@@ -368,7 +394,23 @@ class SessionRecorder:
         )
         return path
 
+    @property
+    def trials_recorded(self) -> int:
+        """How many finished trials :meth:`record_trial` has appended to ``trials.csv``."""
+        return self._trials_recorded
+
     # -- teardown ----------------------------------------------------------
+
+    def _open_files(self) -> tuple[TextIO | None, ...]:
+        return (
+            self._gaze_file,
+            self._all_gaze_file,
+            self._eye_file,
+            self._track_file,
+            self._pointer_file,
+            self._events_file,
+            self._log_file,
+        )
 
     def close(self) -> None:
         if self._closed:
@@ -377,91 +419,28 @@ class SessionRecorder:
         # task list) are captured.
         self.write_metadata(complete=True)
         self._close_trials()
-        for fh in (
-            self._gaze_file,
-            self._all_gaze_file,
-            self._eye_file,
-            self._track_file,
-            self._pointer_file,
-            self._events_file,
-            self._log_file,
-        ):
+        for fh in self._open_files():
             if fh is not None:
                 fh.flush()
                 fh.close()
         self._closed = True
 
-
-class NullRecorder:
-    """A recorder that records nothing (SPEC-compass-task-flow.md 4C.4).
-
-    Stands in for :class:`SessionRecorder` in a practice or preview run, which
-    must leave no trace on disk: the same surface, every call a no-op, no
-    session directory (``session_dir`` is ``None``). Lets the run code call the
-    recorder unguarded, as it does for a real one.
-    """
-
-    def __init__(self, metadata: SessionMetadata | None = None) -> None:
-        self.metadata = metadata
-        self.session_dir: Path | None = None
-
-    def __enter__(self) -> NullRecorder:
-        return self
-
-    def __exit__(self, *exc: object) -> None:
-        return None
-
-    def open(self, *, gaze_stream: bool = True) -> None:
-        return None
-
-    def open_all_gaze(self, media_name: str, tick_frequency: int | None) -> None:
-        return None
-
-    def open_eye_geometry(self) -> None:
-        return None
-
-    def open_pointer_stream(self) -> None:
-        return None
-
-    def record_pointer(self, sample: GazeSample) -> None:
-        return None
-
-    def flush_eye_geometry(self) -> None:
-        return None
-
-    def flush_all_gaze(self) -> None:
-        return None
-
-    def record_raw(self, t_ns: int, attrs: dict[str, str]) -> None:
-        return None
-
-    @property
-    def raw_clock_offset_ns(self) -> int | None:
-        return None
-
-    def record_target_track(self, t_ns: int, trial: int, x: float, y: float) -> None:
-        return None
-
-    def record_gaze(self, sample: GazeSample) -> None:
-        return None
-
-    def record_event(self, kind: str, t_ns: int, **payload: Any) -> None:
-        return None
-
-    def log(self, message: str) -> None:
-        return None
-
-    def record_trial(self, trial: TrialRecord) -> None:
-        return None
-
-    def write_trials(self, trials: list[TrialRecord]) -> None:
-        return None
-
-    def write_metadata(self, complete: bool | None = None) -> None:
-        return None
-
-    def close(self) -> None:
-        return None
+    def abort(self) -> None:
+        """Release every open file without writing anything more (SPEC-audit-fixes.md H11):
+        for a run that failed to start, whose folder may now be removed (Windows cannot
+        delete an open file). ``metadata.json`` keeps ``"complete": false``. Best effort: a
+        file that will not flush or close does not stop the others being closed."""
+        if self._closed:
+            return
+        for fh in (self._trials_file, *self._open_files()):
+            if fh is not None:
+                try:
+                    fh.close()  # flushes first
+                except OSError:
+                    pass
+        self._trials_file = None
+        self._trials_writer = None
+        self._closed = True
 
 
 def _parse_float(raw: str | None) -> float | None:

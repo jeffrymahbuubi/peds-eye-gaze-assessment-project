@@ -11,12 +11,13 @@ from __future__ import annotations
 import csv
 import io
 import json
+import os
 from pathlib import Path
 
 import pytest
 
 from src.data.exporter import compute_fixation_saccade_metrics
-from src.data.recorder import NullRecorder, SessionRecorder
+from src.data.recorder import RECORDER_FILENAMES, NullRecorder, SessionRecorder
 from src.data.schema import GazeSample, SessionMetadata, TrialRecord
 from src.engine.run_paths import new_run_dir
 from src.engine.session_files import remove_orphan_run_dir
@@ -200,11 +201,64 @@ def test_an_empty_run_folder_is_removed_too(tmp_path):
 
 
 def test_a_run_folder_with_anything_else_in_it_is_never_touched(tmp_path):
+    """Without a list of names the start wrote, the calibration is the only file allowed."""
     root, run = make_run(tmp_path)
     (run / "calibration.json").write_text("{}", encoding="utf-8")
     (run / "events.jsonl").write_text("{}", encoding="utf-8")
     assert remove_orphan_run_dir(run, root) is False
     assert (run / "calibration.json").is_file() and (run / "events.jsonl").is_file()
+
+
+def test_a_run_folder_holding_the_recorders_files_is_removed_when_they_are_named(tmp_path):
+    root, run = make_run(tmp_path)
+    (run / "calibration.json").write_text("{}", encoding="utf-8")
+    for name in sorted(RECORDER_FILENAMES):
+        (run / name).write_text("x", encoding="utf-8")
+    assert remove_orphan_run_dir(run, root, RECORDER_FILENAMES) is True
+    assert not run.exists() and (root / "P001").is_dir()
+
+
+def test_one_foreign_file_keeps_the_whole_folder(tmp_path):
+    root, run = make_run(tmp_path)
+    for name in ("calibration.json", "events.jsonl", "trials.csv", "report.pdf"):
+        (run / name).write_text("x", encoding="utf-8")
+    assert remove_orphan_run_dir(run, root, RECORDER_FILENAMES) is False
+    assert sorted(p.name for p in run.iterdir()) == ["calibration.json", "events.jsonl", "report.pdf", "trials.csv"]
+
+
+def test_a_subfolder_with_a_known_name_keeps_the_folder(tmp_path):
+    root, run = make_run(tmp_path)
+    (run / "events.jsonl").write_text("x", encoding="utf-8")
+    (run / "trials.csv").mkdir()  # a known name, but not a regular file
+    (run / "trials.csv" / "inner.txt").write_text("x", encoding="utf-8")
+    assert remove_orphan_run_dir(run, root, RECORDER_FILENAMES) is False
+    assert (run / "events.jsonl").is_file() and (run / "trials.csv" / "inner.txt").is_file()
+
+
+@pytest.mark.parametrize("linked", ["events.jsonl", "calibration.json"])
+def test_a_link_with_a_known_name_keeps_the_folder(tmp_path, monkeypatch, linked):
+    """The link check is simulated, so this also runs where symlinks need a privilege."""
+    from src.engine import session_files
+
+    root, run = make_run(tmp_path)
+    for name in ("calibration.json", "events.jsonl"):
+        (run / name).write_text("x", encoding="utf-8")
+    real = session_files._is_link
+    monkeypatch.setattr(session_files, "_is_link", lambda p: p.name == linked or real(p))
+    assert remove_orphan_run_dir(run, root, RECORDER_FILENAMES) is False
+    assert (run / "calibration.json").is_file() and (run / "events.jsonl").is_file()
+
+
+def test_a_real_symlink_with_a_known_name_keeps_the_folder_and_its_target(tmp_path):
+    root, run = make_run(tmp_path)
+    target = tmp_path / "precious.txt"
+    target.write_text("keep me", encoding="utf-8")
+    try:
+        os.symlink(target, run / "events.jsonl")
+    except (OSError, NotImplementedError):
+        pytest.skip("symlinks need privileges on this machine")
+    assert remove_orphan_run_dir(run, root, RECORDER_FILENAMES) is False
+    assert target.read_text(encoding="utf-8") == "keep me"
 
 
 def test_a_folder_that_is_not_a_run_folder_is_never_touched(tmp_path):
@@ -215,5 +269,69 @@ def test_a_folder_that_is_not_a_run_folder_is_never_touched(tmp_path):
     (elsewhere / "calibration.json").write_text("{}", encoding="utf-8")
     assert remove_orphan_run_dir(elsewhere, root) is False and elsewhere.is_dir()
     assert remove_orphan_run_dir(root / "P001", root) is False and (root / "P001").is_dir()
-    assert remove_orphan_run_dir(None, root) is False
-    assert remove_orphan_run_dir(tmp_path / "missing", root) is False
+    assert remove_orphan_run_dir(None, root, RECORDER_FILENAMES) is False
+    assert remove_orphan_run_dir(tmp_path / "missing", root, RECORDER_FILENAMES) is False
+
+
+# -- H11: the recorder's side of the orphan cleanup --------------------------------------------------------
+
+
+def test_the_recorders_file_names_are_every_file_it_can_make(tmp_path):
+    """RECORDER_FILENAMES is what the cleanup trusts: open every optional file and compare."""
+    rec = recorder_in(tmp_path, meta())
+    rec.open()
+    rec.open_all_gaze("click_static", 120)
+    rec.open_eye_geometry()
+    rec.open_pointer_stream()
+    rec.record_target_track(1, 0, 0.5, 0.5)
+    rec.write_trials([trial(0)])
+    rec.close()
+    assert {p.name for p in (tmp_path / "S").iterdir()} == RECORDER_FILENAMES
+
+
+def test_abort_releases_every_file_and_writes_nothing_more(tmp_path):
+    rec = recorder_in(tmp_path, meta())
+    rec.open()
+    rec.open_all_gaze("click_static", 120)
+    rec.open_eye_geometry()
+    rec.open_pointer_stream()
+    rec.record_target_track(1, 0, 0.5, 0.5)
+    folder = tmp_path / "S"
+    names = {p.name for p in folder.iterdir()}
+    metadata = (folder / "metadata.json").read_bytes()
+    rec.abort()  # closing flushes what was buffered; it creates and rewrites nothing
+    assert {p.name for p in folder.iterdir()} == names
+    assert (folder / "metadata.json").read_bytes() == metadata
+    assert read_json(folder / "metadata.json")["complete"] is False  # never marked finished
+    rec.close()  # nothing left to do once aborted
+    assert read_json(folder / "metadata.json")["complete"] is False
+    for entry in folder.iterdir():
+        entry.unlink()  # no handle is held (Windows refuses to delete an open file)
+    folder.rmdir()
+
+
+def test_abort_copes_with_a_recorder_that_was_never_opened_or_died_in_open(tmp_path, monkeypatch):
+    recorder_in(tmp_path / "never", meta()).abort()
+    rec = recorder_in(tmp_path / "died", meta())
+    monkeypatch.setattr(SessionRecorder, "write_metadata", lambda self, complete=None: 1 / 0)
+    with pytest.raises(ZeroDivisionError):
+        rec.open()  # gaze_stream.csv, events.jsonl and session.log are open, trials.csv is not
+    rec.abort()
+    for entry in (tmp_path / "died" / "S").iterdir():
+        entry.unlink()
+
+
+def test_the_recorder_counts_the_trials_it_appended(tmp_path):
+    rec = recorder_in(tmp_path, meta())
+    assert rec.trials_recorded == 0
+    rec.open()
+    assert rec.trials_recorded == 0
+    rec.record_trial(trial(0))
+    rec.record_trial(trial(1))
+    assert rec.trials_recorded == 2
+    rec.close()
+
+
+def test_the_null_recorder_has_the_abort_surface():
+    rec = NullRecorder()
+    assert rec.abort() is None and rec.trials_recorded == 0

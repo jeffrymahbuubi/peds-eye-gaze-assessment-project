@@ -1,10 +1,10 @@
 ---
 name: SPEC-audit-fixes
 title: Fix the nine defects of the 2026-10-08 Fable bug audit (F1-F9)
-status: implemented + live-checked 2026-10-09 on branch audit-fixes (NOT merged; two §9 points await the user)
+status: implemented + live-checked 2026-10-09 on branch audit-fixes (NOT merged); §9 answered by the user 2026-10-09 (H9 confirmed, H11 widened, fix round committed)
 created: 2026-10-09
 last_updated: 2026-10-09
-next_step: user confirms the two §9 hub answers (H9 perf_counter_ns, H11 scope), then merges design-phase2 and audit-fixes and pushes
+next_step: user merges design-phase2 and audit-fixes into feature/compass-task-flow and pushes
 related:
   - docs/audits/fable-bug-audit-2026-10-08.md (source: findings F1-F9 with file:line, repro output and fix directions)
   - SPEC-calibration-result-timeout.md (reader-thread race; §6.2 "exactly one reader thread")
@@ -109,8 +109,13 @@ The audit report has every `file:line`. In short:
 - **H10 Enable switches (F8).** `_ConnectThread` passes `load_default()["gazepoint"]["enable"]`
   (same as the CLI path); the comment at `app.py:362-366` is corrected.
 - **H11 Orphan folder (F9).** If `AssessmentApp.__init__` raises after `run_dir()` created the
-  folder, the folder is removed when it holds nothing but `calibration.json` (never anything else;
-  shape-checked like `discard_session`). The comment at `app.py:320-321` becomes true.
+  folder, the recorder's open files are closed (`SessionRecorder.abort()`, nothing more is written) and
+  the folder is removed when every entry in it is a regular file this failed start wrote: its
+  `calibration.json` and the recorder's known file names (`RECORDER_FILENAMES`, built from the same
+  constants the recorder opens its files with). Any other entry, a subfolder or link even with a known
+  name, or a recorded trial (`trials_recorded > 0`) keeps the whole folder; shape-checked like
+  `discard_session`. The comment at `app.py:320-321` becomes true. *Widened 2026-10-09 by the user's
+  answer in section 9; the first version removed only a folder holding nothing but `calibration.json`.*
 - **H12 Tests.** One or more tests per finding, using the audit's repro scripts as the model
   (offscreen dashboard, a blocking `Calibration` stand-in, socketpair client): F1 Start/Continue
   blocked while calibrating + one reader inside a pause; F2 close during RUN asks and writes every
@@ -118,7 +123,9 @@ The audit report has every `file:line`. In short:
   F3 no stale rows after disconnect, metrics de-duplicated; F4 invalid file refused, CLI does not
   save an invalid fresh calibration; F5 second Connect stops the first client, controls disabled
   while busy; F6 `p001` loads a `P001` file; F7 a stepped `time.time_ns` does not move a dwell;
-  F8 enable dict reaches the client; F9 failed build leaves no folder. Existing tests updated, never
+  F8 enable dict reaches the client; F9 failed build leaves no folder, whether it fails before the
+  recorder exists or after `recorder.open()`, while a folder with a foreign file or a recorded trial
+  stays. Existing tests updated, never
   deleted; the analysis-export golden tests must stay byte-identical.
 
 ## 4. Design
@@ -228,6 +235,51 @@ incomplete run; any design-system or Preview change; new features.
     5.5 s, so this should not happen). Stray empty files made by the arrow hook may sit in the project
     root, outside the worktree; the tool inputs of this task contained the ASCII arrow in Python type annotations.
 
+- **2026-10-09, claude-sonnet-5-5 (spec-implementer), fix round: H11 widened (user answer in section 9).**
+  Worktree `audit-fixes`; nothing committed or staged.
+  - **Source files changed:** `src/data/recorder.py` (the five literal file names became constants
+    beside the existing ones; `RECORDER_FILENAMES` = every name the recorder can create, built from those
+    constants and the `analysis_export` / target-track / pointer-stream ones; `SessionRecorder.abort()`
+    closes every open file, best effort, writes nothing and leaves `metadata.json` at `"complete": false`;
+    `trials_recorded` counts the rows `record_trial` appended; `NullRecorder` gets both for surface
+    parity; `close()` shares the handle list with `abort()`, behaviour unchanged),
+    `src/engine/session_files.py` (`remove_orphan_run_dir(session_dir, output_root, written_names=())`
+    allows `calibration.json` plus the names given; the `discard_session` place and shape checks are
+    unchanged, so a link or a subfolder, even one with a known name, still keeps the folder),
+    `src/app.py` (`_removing_an_orphan_run_folder`: on a failed `__init__` it calls `recorder.abort()` if a
+    recorder exists, and unless `trials_recorded` is non-zero calls `remove_orphan_run_dir(...,
+    RECORDER_FILENAMES)`; the run-folder comment updated). `docs/specs/SPEC-audit-fixes.md`: H11 and the F9
+    line of H12 reworded to the widened rule.
+  - **"Written by this failed constructor":** `_run_dir` is only ever made by `new_run_dir` inside this
+    constructor (atomic `mkdir`, never an existing folder), and the constructor writes into it only
+    `calibration.json` and the recorder's files (the dropout and calibration timing logs go to
+    `_diagnostics` under the output root), so "known name + regular file" is the test.
+  - **Tests (update, none deleted; +15 collected):** `tests/test_audit_app.py` (the old "keeps what was
+    written" test became `test_a_start_that_fails_after_the_recorder_opened_leaves_no_folder`, three cases:
+    `write_metadata` dying inside `open()`, `open_all_gaze` dying after it, `build_task` dying; plus foreign
+    file keeps the folder and the recorder is closed and not marked complete; recorded trial keeps the
+    folder; the pre-recorder case is unchanged). `tests/test_audit_recorder.py` (helper: recorder files
+    named removes, one foreign file keeps, subfolder with a known name keeps, simulated and real link keep;
+    `RECORDER_FILENAMES` equals what a recorder with every optional file leaves; `abort()` releases the
+    files and writes nothing more; `abort()` after a half-done `open()` and on a never-opened recorder;
+    `trials_recorded`; `NullRecorder` surface). Checked that the three window cases fail on Windows when
+    `abort()` is a no-op, so they do prove the files are closed first.
+  - **pytest** (`-p no:cacheprovider -o addopts="" -q -rfE`, worktree root): `5 failed, 3089 passed, 3 skipped
+    in 630.72s (0:10:30)`. The 5 are the known alpha 0.22 vs 0.35 checks
+    (`test_config_flow::test_a_new_test_opens_at_standard_with_the_task_defaults`, 4 x
+    `test_task_config_page::test_a_new_test_opens_with_standard_and_the_defaults`). The third skip is the
+    real-symlink helper test (no symlink privilege here; its simulated twin runs).
+  - **Deviations from the SPEC:** none. **Left undone / notes:** `recorder.py` is now 530 lines (473
+    before the SPEC's H5 work, over the 500 guide since H5). If a file would not close (`OSError` in
+    `abort()`), `discard_session` can fail part way and leave a partly emptied orphan folder; that cannot
+    happen with every handle closed, and the folder is an orphan anyway. The frontmatter `status` and
+    `next_step` still name H11 scope as awaiting confirmation; the hub updates those.
+  - **Hub follow-up, 2026-10-09 (claude-sonnet-5-5):** `NullRecorder` moved unchanged into the new
+    `src/data/null_recorder.py` (89 lines) and re-exported from `recorder.py` (530 to 452 lines), so every
+    import keeps working; no circular import (the new module needs only `schema`). Targeted tests
+    (audit_app, audit_recorder, recorder, pointer_stream, recording_additions, run_mode, run_modes_app,
+    session_files): `182 passed, 3 skipped`; full suite left to the hub.
+
 ## 9. Implementer open questions
 
 - **2026-10-09, H9 monotonic source.** Implemented with `time.perf_counter_ns` instead of the SPEC's
@@ -250,6 +302,12 @@ incomplete run; any design-system or Preview change; new features.
   merge distinct 150 Hz samples on Windows; a technical fix, not a design change. (2) H11: left as
   written (approved scope). Removing a folder that holds recorder files is a new deletion of data
   and needs the user's decision; queued for the user on return.
+
+- **2026-10-09, user answers.** (1) H9: `perf_counter_ns` **confirmed**. (2) H11: **widen it**. When the
+  constructor fails before the first trial is recorded, remove the fresh run folder if every entry in it is a
+  regular file this failed constructor wrote (`calibration.json` and the recorder's known file names), with the same
+  shape checks as `discard_session`; any other entry, or a recorded trial, keeps the folder. Update H11/H12's
+  tests (update, never delete).
 
 ## 10. Log
 
@@ -277,3 +335,11 @@ incomplete run; any design-system or Preview change; new features.
   not valid. Run Do Calibration."; F6/H8 a file for "auditchk" loads for AUDITCHK. Not live:
   F7 (clock), F8 (enable switches), F9 (orphan folder): unit tests only. The AUDITCHK run sits in
   the worktree's gitignored `sessions/`. Committed on branch `audit-fixes` only.
+- **2026-10-09** — Fix round for the user's §9 answers (H9 `perf_counter_ns` confirmed; H11 widened). A failed
+  start now calls `SessionRecorder.abort()` (closes every file, writes nothing more) and removes the fresh run folder
+  when no trial was recorded and every entry is `calibration.json` or a name in `RECORDER_FILENAMES` (derived from the
+  recorder's own open/write code); any other entry, a subfolder or link, or a recorded trial keeps it. Hub follow-up:
+  `NullRecorder` moved to `src/data/null_recorder.py` (re-exported) so `recorder.py` stays under 500 lines (452).
+  Hub pytest: **5 failed, 3089 passed, 3 skipped** (the 5 known skip-worktree alpha checks; the third skip is a
+  symlink test that needs a privilege this PC lacks). Not live-checked: a failed start cannot be provoked from the UI
+  without a broken task file; unit tests only (as F9 before). Committed on branch audit-fixes only.

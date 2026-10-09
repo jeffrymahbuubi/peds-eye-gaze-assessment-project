@@ -24,6 +24,7 @@ from PySide6.QtWidgets import QApplication
 import src.app as app_module
 from src.app import AssessmentApp
 from src.data.exporter import load_gaze_rows, load_trials_rows
+from src.data.recorder import SessionRecorder
 from src.data.schema import GazeSample, TrialRecord
 from src.engine.calibration import CalibrationFileError, CalibrationResult, save_calibration_result
 from src.engine.clock import now_ns
@@ -309,11 +310,19 @@ def test_a_run_is_stamped_in_the_epoch_ns_domain(make_app):
 # -- H11/F9: a failed start leaves no orphan folder --------------------------------------------------------------------
 
 
-def test_a_start_that_fails_after_the_calibration_was_saved_leaves_no_folder(make_app, monkeypatch):
-    class Refusing:
-        def __init__(self, *args, **kwargs) -> None:
-            raise OSError("disk full")
+class Refusing:
+    def __init__(self, *args, **kwargs) -> None:
+        raise OSError("disk full")
 
+
+def refuse(monkeypatch, owner, name: str) -> None:
+    def refusing(*args, **kwargs):
+        raise ValueError("a stored value this task rejects")
+
+    monkeypatch.setattr(owner, name, refusing)
+
+
+def test_a_start_that_fails_after_the_calibration_was_saved_leaves_no_folder(make_app, monkeypatch):
     monkeypatch.setattr(app_module, "SessionRecorder", Refusing)
     with pytest.raises(OSError, match="disk full"):
         # The preset calibration is written into the new run folder first.
@@ -322,15 +331,55 @@ def test_a_start_that_fails_after_the_calibration_was_saved_leaves_no_folder(mak
     assert (make_app.root / "P001" / "subject.json").is_file()  # the subject's own folder stays
 
 
-def test_a_start_that_fails_after_the_recorder_opened_keeps_what_was_written(make_app, monkeypatch):
-    """Pins H11 as written: only a folder holding nothing but calibration.json is removed. The
-    recorder's own files are data, however the run ended (see the SPEC's section 9)."""
+@pytest.mark.parametrize(
+    ("owner", "name"),
+    [
+        (SessionRecorder, "write_metadata"),  # open() dies with three of its files made and open
+        (SessionRecorder, "open_all_gaze"),  # open() is done; the raw file is not
+        (app_module, "build_task"),  # every file the recorder makes at open() is there
+    ],
+)
+def test_a_start_that_fails_after_the_recorder_opened_leaves_no_folder(make_app, monkeypatch, owner, name):
+    """The F9 window the SPEC widened (section 9, user answers 2026-10-09): the recorder's own files
+    are no reason to keep a run that never recorded a trial. Windows cannot delete an open file, so
+    this also proves the recorder's files were closed first."""
+    refuse(monkeypatch, owner, name)
+    with pytest.raises(ValueError, match="rejects"):
+        make_app(client=FakeTracker(), replay=False)
+    assert run_folders(make_app.root) == []
+    assert (make_app.root / "P001" / "subject.json").is_file()
 
-    def refusing(*args, **kwargs):
+
+def test_a_start_that_fails_beside_a_foreign_file_keeps_the_folder_and_closes_the_recorder(
+    make_app, monkeypatch
+):
+    def refusing(*args, recorder, **kwargs):
+        (recorder.session_dir / "notes.txt").write_text("not ours", encoding="utf-8")
         raise ValueError("a stored value this task rejects")
 
     monkeypatch.setattr(app_module, "build_task", refusing)
     with pytest.raises(ValueError):
         make_app(client=FakeTracker(), replay=False)
     (folder,) = run_folders(make_app.root)
+    assert (folder / "notes.txt").read_text(encoding="utf-8") == "not ours"
     assert (folder / "calibration.json").is_file() and (folder / "events.jsonl").is_file()
+    # Nothing was finished on the way out: the metadata still says the run never completed.
+    assert json.loads((folder / "metadata.json").read_text(encoding="utf-8"))["complete"] is False
+    for entry in folder.iterdir():
+        entry.unlink()  # none is held open any more (Windows refuses otherwise)
+
+
+def test_a_start_that_fails_after_a_trial_was_recorded_keeps_the_folder(make_app, monkeypatch):
+    def refusing(*args, recorder, **kwargs):
+        recorder.record_trial(TrialRecord(0, "click_static", 0.5, 0.5, 90, 10, t_click_ns=15, is_hit=True, attempts=1))
+        raise ValueError("a stored value this task rejects")
+
+    monkeypatch.setattr(app_module, "build_task", refusing)
+    with pytest.raises(ValueError):
+        make_app(client=FakeTracker(), replay=False)
+    (folder,) = run_folders(make_app.root)
+    (row,) = load_trials_rows(folder)  # the trial it recorded is data
+    assert row["trial_id"] == "0"
+    assert json.loads((folder / "metadata.json").read_text(encoding="utf-8"))["complete"] is False
+    for entry in folder.iterdir():
+        entry.unlink()

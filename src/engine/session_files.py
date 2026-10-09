@@ -8,6 +8,7 @@ it is deliberately paranoid: it refuses anything that is not a plain run folder 
 
 from __future__ import annotations
 
+from collections.abc import Iterable
 from pathlib import Path
 
 from .run_paths import RUN_NAME_RE, TASK_DIR_RE
@@ -77,15 +78,22 @@ def discard_session(session_dir: str | Path, output_root: str | Path) -> int:
     return len(entries)
 
 
-def remove_orphan_run_dir(session_dir: str | Path | None, output_root: str | Path) -> bool:
-    """Remove the folder of a run that failed to start, if it holds nothing but its
-    ``calibration.json`` (SPEC-audit-fixes.md H11); return whether it was removed.
+def remove_orphan_run_dir(
+    session_dir: str | Path | None,
+    output_root: str | Path,
+    written_names: Iterable[str] = (),
+) -> bool:
+    """Remove the folder of a run that failed to start, if every entry in it is a file the
+    failed start wrote (SPEC-audit-fixes.md H11); return whether it was removed.
 
     ``AssessmentApp`` makes the folder when it first needs it (the preset calibration is
-    saved there before the recorder exists), so a start that fails after that would leave a
-    folder with nothing in it a report or a discard could ever use. A folder that holds
-    anything else is data, however it got there, and is never touched. The same checks as
-    :func:`discard_session` apply to its place and shape (a refusal means "not removed").
+    saved there before the recorder exists), so a start that fails afterwards leaves a
+    folder no report or discard could ever use. The files a start writes are its
+    ``calibration.json`` and, if the recorder opened, the recorder's own: the caller names
+    those in ``written_names``. A folder that holds any other entry is data, however it got
+    there, and is never touched. The same checks as :func:`discard_session` apply to its
+    place and shape (a link or a subfolder, even one with a known name, means "not removed").
+    The caller closes any file it still holds open first (Windows cannot delete one).
     """
     if session_dir is None:
         return False
@@ -94,7 +102,7 @@ def remove_orphan_run_dir(session_dir: str | Path | None, output_root: str | Pat
         names = {entry.name for entry in folder.iterdir()}
     except OSError:
         return False
-    if names - {"calibration.json"}:
+    if names - {"calibration.json", *written_names}:
         return False
     try:
         discard_session(folder, output_root)
