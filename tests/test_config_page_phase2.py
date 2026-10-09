@@ -2,7 +2,8 @@
 and order, its shrink hints as alerts under their cards, the "Changed from ..." line that keeps
 its height, the slider length caps, the centred footer and the name dialog. Sizes asserted are
 the values set in code, and positions compared are relative (offscreen Qt has no fonts, so
-nothing here measures a text width). Offscreen Qt."""
+nothing here measures a text width). The last section is the fit-1080 fix round (SPEC section 9,
+2026-10-09): column A must fit a maximized 1920x1080 window without a scroll bar. Offscreen Qt."""
 
 from __future__ import annotations
 
@@ -14,13 +15,33 @@ os.environ.setdefault("QT_QPA_PLATFORM", "offscreen")
 
 from PySide6.QtCore import QPoint, Qt
 from PySide6.QtTest import QTest
-from PySide6.QtWidgets import QApplication, QFrame, QLabel, QSlider, QWidget
+from PySide6.QtWidgets import (
+    QApplication,
+    QFrame,
+    QLabel,
+    QPlainTextEdit,
+    QSizePolicy,
+    QSlider,
+    QWidget,
+)
 
 from src.engine.config import load_task_config
+from src.engine.settings_profile import NamedConfig
 from src.ui import design_tokens as tokens
 from src.ui.alert_box import AlertBox
-from src.ui.config_form import ADVANCED_TITLE, MODIFIED_LINE_HEIGHT
+from src.ui.config_form import (
+    ADVANCED_TITLE,
+    CARD_GAP,
+    CARD_PAD_H,
+    CARD_PAD_V,
+    COLUMN_GAP,
+    MODIFIED_LINE_HEIGHT,
+    NOTES_HEIGHT,
+    ROW_GAP,
+)
 from src.ui.config_save_dialogs import NAME_FIELD_WIDTH, ConfigNameDialog
+from src.ui.config_widgets import RADIO_GAP, ElidedLabel
+from src.ui.page_layout import LABEL_GAP
 from src.ui.settings_registry import config_groups_for_task
 from src.ui.slider_spin import (
     LONG_SLIDER_PX,
@@ -302,3 +323,128 @@ def test_tab_in_the_notes_box_moves_on_and_types_nothing(qapp):
 def test_no_card_frame_other_than_wtmhcard_was_added(qapp):
     page = make_page("click_grid")
     assert all(card.objectName() == "wtmhCard" and isinstance(card, QFrame) for card in page.cards.values())
+
+
+# -- column A fits a maximized 1920x1080 window (fit-1080 fix round, SPEC section 9) ----------------------------------
+
+# The sum of column A's card size hints plus the gaps between them, in offscreen px. Offscreen Qt
+# has no fonts and understates a real window by about 10 % (labels 12 px high, not 19), so these
+# are a proxy: the real figures, measured with Segoe UI loaded, are 871 px before this round for
+# Test + Input + Target (click_static, click_grid) against a 784 px scroll viewport, and 696 / 696 /
+# 598 / 786 px now (static, grid, follow, scanning) against 800 px. ``BEFORE`` is the offscreen sum
+# before the round.
+COLUMN_A_BEFORE = {"click_static": 808, "click_grid": 808, "follow_moving": 714, "scanning": 892}
+# 690 is the budget of the three pages with a Target card. Scanning's third card is Icons (a size
+# group of three and the count slider: 76 px taller than Target), so its proxy sits near 716; its
+# real column is 786 px against the 800 px viewport, so it fits too, with less room.
+COLUMN_A_BUDGET = {"click_static": 690, "click_grid": 690, "follow_moving": 690, "scanning": 720}
+MIN_SAVING = 110
+
+
+def card_stack_height(page, column) -> int:
+    """The cards of ``column`` (not an alert or the Advanced title) and the gaps between them."""
+    cards = [w for w in column_items(page, column) if w.objectName() == "wtmhCard"]
+    return sum(card.sizeHint().height() for card in cards) + column_layout(page, column).spacing() * (len(cards) - 1)
+
+
+@pytest.mark.parametrize("task_id", TASKS)
+def test_column_a_stays_inside_its_height_budget(qapp, task_id):
+    height = card_stack_height(make_page(task_id), 0)
+    assert height <= COLUMN_A_BUDGET[task_id], (task_id, height)
+    assert height <= COLUMN_A_BEFORE[task_id] - MIN_SAVING, (task_id, height)  # at least 110 px shorter
+
+
+@pytest.mark.parametrize("task_id", ["click_static", "click_grid", "follow_moving"])
+def test_the_pages_with_a_target_card_fit_the_690_px_budget_and_no_column_is_taller(qapp, task_id):
+    page = make_page(task_id)
+    assert card_stack_height(page, 0) <= 690
+    for column in (1, 2):
+        assert card_stack_height(page, column) <= 690, (column, card_stack_height(page, column))
+
+
+def test_the_spacing_is_on_the_scale_and_the_cards_use_it(qapp):
+    for value in (CARD_PAD_H, CARD_PAD_V, ROW_GAP, CARD_GAP, COLUMN_GAP, LABEL_GAP, RADIO_GAP):
+        assert value in tokens.SPACING_SCALE, value
+    page = make_page("click_grid")
+    for card in page.cards.values():
+        margins = card.layout().contentsMargins()
+        assert (margins.left(), margins.top(), margins.right(), margins.bottom()) == (
+            CARD_PAD_H, CARD_PAD_V, CARD_PAD_H, CARD_PAD_V,
+        )
+    for column in range(3):
+        assert column_layout(page, column).spacing() == CARD_GAP
+    assert page.scroll_area.widget().layout().horizontalSpacing() == COLUMN_GAP
+
+
+# -- the Test card: caption on the label row, Reset beside the box, a two-line Notes -------------------------
+
+
+def labels_named(page, text):
+    return [w for w in page.findChildren(QLabel) if w.text() == text]
+
+
+def test_the_notes_box_is_two_lines_high(qapp):
+    notes = make_page("click_grid")._form.notes_edit
+    assert isinstance(notes, QPlainTextEdit) and NOTES_HEIGHT == 56
+    assert notes.minimumHeight() == notes.maximumHeight() == NOTES_HEIGHT
+
+
+def test_the_changed_from_line_sits_on_the_configuration_name_label_row_and_reset_beside_the_box(qapp):
+    page = make_page("click_grid")
+    page.resize(1700, 900)
+    page.show()
+    QApplication.processEvents()
+    form = page._form
+    name_label = labels_named(page, "Configuration Name")[0]
+    caption, combo, reset, notes = form.modified_label, form.config_combo, form.reset_button, form.notes_edit
+
+    def top(widget):
+        return widget.mapTo(page, QPoint(0, 0))
+
+    def centre(widget):
+        return top(widget).y() + widget.height() / 2
+
+    # the caption shares the label's row, at its right, above the box and the button
+    assert abs(centre(caption) - centre(name_label)) <= 2
+    assert top(caption).x() >= top(name_label).x() + name_label.width()
+    assert top(caption).y() + caption.height() <= top(combo).y() + 1
+    assert top(caption).y() + caption.height() <= top(reset).y() + 1
+    # the box and [Reset to defaults] share a row: the box takes the width, the button its own
+    assert abs(centre(combo) - centre(reset)) <= 2
+    assert top(reset).x() >= top(combo).x() + combo.width()
+    assert combo.width() > reset.width() >= reset.sizeHint().width()
+    # nothing else sits between that row and Number of trials, and Notes follows below
+    assert top(notes).y() > top(combo).y() + combo.height()
+    page.close()
+
+
+def test_a_long_configuration_name_neither_widens_the_card_nor_squeezes_reset(qapp):
+    name = "N" * 40
+    page = make_page("click_grid")
+    page.set_context(named_configs=[NamedConfig(name, "2026-10-05T14:12:00+08:00", "n.json", {}, {})])
+    page.resize(1700, 900)
+    page.show()
+    QApplication.processEvents()
+    card, reset = page.cards["test"], page._form.reset_button
+    before = (card.size(), reset.size())
+    page.load_values(config_name=name)
+    page._form.controls["trials"].setValue(9)
+    QApplication.processEvents()
+    caption = page._form.modified_label
+    assert caption.text() == "Changed from " + name  # the whole text is kept ...
+    assert caption.toolTip() == caption.text()  # ... and is the tooltip, since the line can be cut short
+    assert (card.size(), reset.size()) == before
+    assert reset.width() >= reset.sizeHint().width()
+    page.close()
+
+
+def test_the_elided_label_never_asks_for_width_and_keeps_its_text(qapp):
+    label = ElidedLabel("")
+    label.setText("Changed from a rather long configuration name")
+    assert label.text() == "Changed from a rather long configuration name"
+    assert label.minimumSizeHint().width() == 0
+    assert label.sizePolicy().horizontalPolicy() == QSizePolicy.Policy.Ignored
+    assert label.sizePolicy().verticalPolicy() == QSizePolicy.Policy.Fixed
+    assert label.toolTip() == label.text()
+    label.setText("")
+    assert label.text() == "" and label.toolTip() == ""

@@ -4,7 +4,7 @@ title: Design system v1, phase 2: status badges, alerts with glyphs, and page la
 status: implemented + live-checked 2026-10-09 on branch design-phase2 (NOT merged); approved 2026-10-08 (V1-V4 user decisions, H1-H12 hub decisions approved by the user; H13 phase-1 carry-overs added by the user 2026-10-08)
 created: 2026-10-08
 last_updated: 2026-10-08
-next_step: user's final look at the live-check captures, then merge branch design-phase2 into feature/compass-task-flow and push (user); committed on design-phase2 under the user's unattended-run authorization 2026-10-09
+next_step: user merges design-phase2 into feature/compass-task-flow and pushes (then audit-fixes, preview-gaze-pointer, design-phase4); final-look items answered 2026-10-09 and fixed in round 4
 related:
   - docs/design/fable-proposal.md (source: §2.3 spacing and widths, §2.5 components, §3.1-§3.6 per-page changes, §5.2 phase 2)
   - SPEC-design-system-phase1.md (tokens, type, component QSS, copy; this phase builds on it and needs its tokens)
@@ -331,6 +331,68 @@ edge on the button's, and still 240 px once Continue is enabled and the caption 
 **pytest** (whole suite): 5 failed, 3018 passed, 2 skipped (3025 collected, counted from the progress lines). The 5 are the known
 skip-worktree alpha checks, as before (3015 passed in round 2; +3 now: the two Continue width cases and the caption test).
 
+### 2026-10-09, fix round 4 (spec-implementer, claude-sonnet-5-5), same worktree, nothing committed
+
+Fix round of the user's final-look answers (section 9, 2026-10-09 "after the unattended run"): (1) the configuration
+page fits a maximized 1920x1080 window without a vertical scroll, (2) a disabled primary is a pale WTMH blue.
+
+**1. Fit at 1080.** Measured with Segoe UI loaded into the offscreen platform (`QFontDatabase.addApplicationFont`,
+Fusion, the app font of `apply_application_font`, a fake 1920x1032 screen so the shrink hints are hidden as they are
+live): this reproduces the hub's live numbers exactly (Test 471, Input 225, Target 143, column A 871), so the figures
+below are real-metric, not the 10 % understated fontless proxy. Column A (cards plus gaps), before then now:
+click_static 871 to 696, click_grid 871 to 696, follow_moving 763 to 598, scanning 969 to 786 (Icons 241 to 217). Cards:
+Test 471 to 344, Input 225 to 201, Target 143 to 127. The scroll viewport grows from 784 to 800 px (page margins and
+spacing, below), so the slack is 104 px (static, grid), 202 px (follow), and **14 px for scanning**. Column B of click_grid
+(the other tall one) is 780 before and 712 now with its shrink hint hidden; the hint, when a chosen grid does not fit, is a
+89 px alert plus a gap and does scroll the page: that is a warning state, not the standard page. Changes:
+- Test card (`config_form.py`): the "Changed from ..." caption is no longer on a row of its own: it sits at the right of
+  the "Configuration Name" label's row (always present, fixed 20 px high, so Q5 holds: nothing moves when it appears) and
+  [Reset to defaults] sits on the row of the box (the box takes the width, the button keeps its own: `Ignored` / `Fixed`
+  size policies, so a 40-character saved name cannot squeeze it); Notes 84 to 56 px (two lines). `_add_config_extras` became
+  `_name_field`. The caption is an `ElidedLabel` (`config_widgets.py`): it never asks for width, `text()` and the tooltip
+  keep the whole text, the paint cuts it with an ellipsis, so a long name cannot widen the card. Not hidden when empty (the
+  suggestion of the brief): the row it shares with the label has to be there anyway.
+- Spacing, all on the 4 px scale (`SPACING_SCALE`): card padding 14 to 12 vertical (16 horizontal as before); a label
+  4 px above its control (`LABEL_GAP`, it was 8); rows 8 apart; the title's own 6 px margin is the gap under it (it was
+  6 + 8); radio buttons 4 apart (was 6); cards 12 apart in a column (was 16), columns still 16 apart; the page's margins
+  20 to 16 above and below and its spacing 16 to 12 (`task_config_page.py`). The constants are in `config_form.py`
+  (`CARD_PAD_V`, `ROW_GAP`, `CARD_GAP`, `COLUMN_GAP`) and `RADIO_GAP` in `config_widgets.py`.
+- Nothing removed or hidden: the same controls, object names, signals and tooltips (`cfgConfigName`, `cfgReset`,
+  `cfgNotes`, `wtmhCaption`, ...).
+
+**2. Disabled primary.** New tokens `ACCENT_DISABLED_FILL #BCD1E2` (the accent at 30 % over white) and
+`ACCENT_DISABLED_TEXT #385A76` (a blue-grey; **4.62:1** on the fill, the brief asked for 3:1; a `CONTRAST_PAIRS` row pins it).
+`button_rule` takes `disabled_fill` / `disabled_text` (default: the phase-1 grey) and only the primary tier passes the pale
+blue, so it applies to every `wtmhPrimary` and to `cfgSave`: Start, Run Test, Continue to Tests, Do Calibration, Connect, the
+report's Save & Continue, the Add Test dialog, the settings dialog and the run-end dialogs' primaries. Secondary, tertiary,
+the danger tier and the run bar's buttons keep the grey. The border takes the fill as before, so the button does not change
+size. Clash with a SPEC rule: phase-1 H5 and proposal 2.5 say every disabled tier is #E0E0E0 / #6F6F6F; the user's answer
+(section 9, 2026-10-09) is newer and names the primary, so I followed it; `docs/design/fable-proposal.md` 2.5 and
+`docs/design/design-system.html` still show the grey disabled primary and were not edited.
+
+**Tests added** (all offscreen): `test_config_page_phase2.py` (the column A budget per task and at least 110 px shorter than
+before, the 690 px budget and no taller column for the three pages with a Target card, spacing on the scale, Notes 56 px,
+the caption on the label row and Reset on the box's row, a 40-character name neither widening the card nor squeezing Reset,
+`ElidedLabel`); `test_theme_controls.py` (the pale-blue rule text, the colour is the accent's hue and paler than the hover
+tint, its contrast, the painted pixel of a disabled primary versus ghost and tertiary, and Start / Run Test / Continue /
+Do Calibration of the real pages). **Tests updated, none deleted:** `test_theme_controls.py` (the three disabled-primary tests
+and the fixed-name-buttons test now expect the pale blue for the primary and cfgSave and the grey for the rest);
+`design_tokens.CONTRAST_PAIRS` gained one row, which `test_design_tokens.py` checks.
+
+**pytest** (whole suite, from the worktree root, `-p no:cacheprovider -o addopts="" -q -rfE`): `5 failed, 3033 passed, 2
+skipped in 647.43s` (3040 collected; 3018 passed before this round, +15 new tests). The 5 are the known skip-worktree alpha
+checks (`test_config_flow::test_a_new_test_opens_at_standard_with_the_task_defaults` and the four
+`test_task_config_page::test_a_new_test_opens_with_standard_and_the_defaults[...]`), as in rounds 1 to 3.
+
+**Deviations from the brief:** (a) the offscreen budget test pins 690 px for click_static, click_grid and follow_moving but
+**720 px for scanning**: its offscreen sum is 716 (Icons is 76 px taller than Target), although its real column is 786 px
+against the 800 px viewport; getting 716 under 690 would have meant cramping every card further. It is 176 px shorter than
+before, so the "at least 110 px shorter" clause holds. (b) The caption is not hidden when empty; see above.
+**For the live check:** scanning has only 14 px of slack, so look at it first; if it scrolls, the cheapest remaining
+levers are the 12 px card gap (to 8) and the title margin (6), or moving Icons to column B, which is H6's decision and not
+mine. `docs/wireframes/task-config.md` (and its html) still draw the caption and Reset on rows of their own and a taller Notes
+box; not updated.
+
 ## 9. Implementer open questions
 
 - **2026-10-08, Mouse note emphasis (H7 / P4).** H7 and the proposal ask for "No eye data will be recorded."
@@ -358,6 +420,13 @@ skip-worktree alpha checks, as before (3015 passed in round 2; +3 now: the two C
   muted/secondary label rule with the same problem) renders TEXT_SECONDARY on the dashboard; a test that pins the
   winning rule (pixel sample or style-resolved colour on the dashboard). Check no label that should be ink turns grey.
 
+- **2026-10-09, user answers after the unattended run (final look).** (1) The configuration page's column A
+  (Test, Input, Target) must **fit a maximized 1920x1080 window without scrolling** (today it scrolls). No setting is
+  removed or hidden behind a new control; tighten vertical spacing, margins and group padding (design tokens) until
+  it fits, keeping the 8 px grid where possible. (2) A **disabled Start** (the primary button) shows a **pale WTMH
+  blue** (ACCENT at reduced strength, text still readable), not the flat grey of a disabled Practice; other disabled
+  buttons keep the phase-1 grey. Both are fix-round changes on branch design-phase2.
+
 ## 10. Log
 
 - **2026-10-08** — Drafted by the hub from fable-proposal §2.3, §2.5, §3.1-§3.6 and §5.2 phase 2,
@@ -383,3 +452,13 @@ skip-worktree alpha checks, as before (3015 passed in round 2; +3 now: the two C
   (phase-1 disabled style). Not live-checked: the Mouse note (unit tests only). Hub re-rendered
   `docs/wireframes/start-test.{md,html}` for the split Mouse note. Committed on branch design-phase2 only (user's
   unattended-run authorization); merge and push await the user.
+- **2026-10-09** — Round 4 for the user's final-look answers. (1) Column A of the configuration page fits a
+  maximized 1920x1080 window: Reset to defaults beside the Configuration Name combo, the "Changed from" caption on the
+  label's row (fixed 20 px, elided, Q5 holds), Notes 56 px, card spacing on the 4 px scale; nothing removed. (2) A
+  disabled primary (`wtmhPrimary`, `cfgSave`) is pale WTMH blue (`ACCENT_DISABLED_FILL` #BCD1E2, text #385A76,
+  4.62:1); other disabled tiers keep the grey. This supersedes the "every disabled tier grey" line of phase-1 H5 /
+  fable-proposal §2.5 by the user's 2026-10-09 decision (those design docs are not edited). Hub pytest:
+  **5 failed, 3033 passed, 2 skipped** (the known alpha checks). Live check (worktree code, maximized 1920x1009):
+  the Scanning config page (tallest, column A 786 px) shows no scrollbar (viewport 800 px, content 800 px); a
+  disabled Continue to Tests is pale blue. Not updated: `docs/wireframes/task-config.md` still draws Reset on its own
+  row. Committed on branch design-phase2.

@@ -229,8 +229,10 @@ class TaskConfigPage(QWidget):
 
     def _build_ui(self) -> None:
         outer = QVBoxLayout(self)
-        outer.setContentsMargins(32, 20, 32, 20)
-        outer.setSpacing(16)
+        # 16 px above and below, 12 px between header, cards and footer (the spacing scale):
+        # the cards scroll above the footer, and every pixel here is room for them at 1080.
+        outer.setContentsMargins(32, 16, 32, 16)
+        outer.setSpacing(12)
 
         header = QVBoxLayout()
         header.setSpacing(2)

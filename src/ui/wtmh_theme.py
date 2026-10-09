@@ -15,6 +15,8 @@ from __future__ import annotations
 
 from .design_tokens import (
     ACCENT,
+    ACCENT_DISABLED_FILL,
+    ACCENT_DISABLED_TEXT,
     ACCENT_FOCUS,
     ACCENT_HOVER,
     ACCENT_SUBTLE,
@@ -71,12 +73,15 @@ def button_rule(
     border: str,
     hover_fill: str,
     hover_text: str | None = None,
+    disabled_fill: str = DISABLED_FILL,
+    disabled_text: str = TEXT_DISABLED,
 ) -> str:
     """One tier of the button family (H5): 40 px high, 96 px wide at least, 14 px / 600, a
     1 px border in the tier's colour, the hover fill, a 2 px focus border that moves
     nothing (``outline: 0`` keeps the native focus rectangle out of it: a white-fill button
     drew one inside the border, SPEC-design-system-phase2.md H13), and the same grey-on-grey
-    disabled look for every tier (the primary never changes tier with its state)."""
+    disabled look for every tier except the primary, which passes a pale accent blue (the
+    primary never changes tier with its state, and a disabled Start still reads as Start)."""
     if isinstance(selectors, str):
         selectors = (selectors,)
     hover_text = hover_text or text
@@ -104,9 +109,9 @@ def button_rule(
     padding: 0 {_BUTTON_PAD_H - 1}px;
 }}
 {_states(selectors, ":disabled")} {{
-    color: {TEXT_DISABLED};
-    background: {DISABLED_FILL};
-    border-color: {DISABLED_FILL};
+    color: {disabled_text};
+    background: {disabled_fill};
+    border-color: {disabled_fill};
 }}
 """
 
@@ -268,7 +273,8 @@ QWidget#wtmhDashboard QLabel#cfgAdvancedTitle {{
 
 /* Button tiers (H5): primary, secondary (the old ghost), tertiary (text only); the danger
    tier is the run-end dialogs' own (run_dialogs.py), built from the same button_rule. */
-{button_rule(_PRIMARY, text=PANEL, fill=ACCENT, border=ACCENT, hover_fill=ACCENT_HOVER)}
+{button_rule(_PRIMARY, text=PANEL, fill=ACCENT, border=ACCENT, hover_fill=ACCENT_HOVER,
+             disabled_fill=ACCENT_DISABLED_FILL, disabled_text=ACCENT_DISABLED_TEXT)}
 {button_rule(_SECONDARY, text=ACCENT, fill=PANEL, border=ACCENT, hover_fill=ACCENT_SUBTLE)}
 {button_rule(_TERTIARY, text=ACCENT, fill="transparent", border="transparent",
              hover_fill=ACCENT_SUBTLE)}

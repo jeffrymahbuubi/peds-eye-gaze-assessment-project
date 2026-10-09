@@ -10,6 +10,7 @@ the look of a combo popup:
   lifted unchanged from the dialog.
 - :func:`ask_two_choice`: the themed yes/no question of the page's modals.
 - :class:`RadioChoice`: a one-of group of radio buttons (4B.1: one-of = radio).
+- :class:`ElidedLabel`: a one-line label that shortens its text to the room it has.
 - :data:`CONFIG_TOOLTIPS`: the plain-language tooltips of the controls that have
   no ``LiveSetting.tooltip`` (the structural options and the page's own fields).
 """
@@ -19,12 +20,15 @@ from __future__ import annotations
 from collections.abc import Sequence
 from typing import Any
 
-from PySide6.QtCore import Qt, Signal
+from PySide6.QtCore import QSize, Qt, Signal
+from PySide6.QtGui import QPainter
 from PySide6.QtWidgets import (
     QButtonGroup,
     QComboBox,
     QFrame,
+    QLabel,
     QRadioButton,
+    QSizePolicy,
     QVBoxLayout,
     QWidget,
 )
@@ -32,6 +36,8 @@ from PySide6.QtWidgets import (
 from ..engine.target_size import gap_px_for, radius_px_for
 from .design_tokens import BORDER_STRONG, PANEL, RADIUS
 from .run_dialogs import GHOST, PRIMARY, ask_choice
+
+RADIO_GAP = 4  # between two radio buttons of a group (the spacing scale's smallest step)
 
 # Plain-language tooltips (SPEC 4B.1: every structural control gets one, same
 # convention as the live settings' ``LiveSetting.tooltip``), by registry key.
@@ -144,6 +150,30 @@ def ask_two_choice(
     return ask_choice(parent, title, text, buttons, default, "reject") == "accept"
 
 
+class ElidedLabel(QLabel):
+    """A one-line label that never widens its layout: it takes the room it is given and shows
+    the text cut with an ellipsis when that is not enough. ``text()`` stays the whole text (the
+    tooltip carries it too), which is what the page's "Changed from <name>" line needs: a
+    configuration name can be 40 characters and shares its row with the field's label."""
+
+    def __init__(self, text: str = "", parent: QWidget | None = None) -> None:
+        super().__init__(text, parent)
+        self.setSizePolicy(QSizePolicy.Policy.Ignored, QSizePolicy.Policy.Fixed)
+
+    def minimumSizeHint(self) -> QSize:  # noqa: N802 (Qt naming)
+        return QSize(0, super().minimumSizeHint().height())
+
+    def setText(self, text: str) -> None:  # noqa: N802 (Qt naming)
+        super().setText(text)
+        self.setToolTip(text)
+
+    def paintEvent(self, event) -> None:  # noqa: N802 (Qt naming)
+        painter = QPainter(self)
+        painter.setPen(self.palette().windowText().color())  # the colour the sheet gives the label
+        shown = self.fontMetrics().elidedText(self.text(), Qt.TextElideMode.ElideRight, self.width())
+        painter.drawText(self.rect(), int(self.alignment()), shown)
+
+
 class RadioChoice(QWidget):
     """A one-of choice shown as a column of radio buttons (SPEC 4B.1, HB1).
 
@@ -165,7 +195,7 @@ class RadioChoice(QWidget):
         super().__init__(parent)
         layout = QVBoxLayout(self)
         layout.setContentsMargins(0, 0, 0, 0)
-        layout.setSpacing(6)
+        layout.setSpacing(RADIO_GAP)
         self._group = QButtonGroup(self)
         self._buttons: dict[str, QRadioButton] = {}
         for choice_value, label in choices:
