@@ -4,7 +4,7 @@ title: A fifth test - an animated scene with 8 side buttons; a spoken prompt nam
 status: approved 2026-10-10 (H1-H14 approved, S1-S8 answered, section 3.4); test name "Choice-making", task id choice_making
 created: 2026-10-10
 last_updated: 2026-10-11
-next_step: steps 1 and 3 DONE, 8 prompt WAVs approved; next step 2 (style anchor art, after a Claude Code restart with SKIP_PROMPT_ENHANCEMENT) and steps 4 / 5 (canvas with N1-N6, look-back), which can run in parallel
+next_step: steps 1, 2 and 3 DONE, 8 prompt WAVs approved; steps 4 (canvas) and 5 (look-back) running in parallel (2026-10-11), then wire look-back to choice_scene.object_box_at (N2); step 6 art after that
 related:
   - SPEC-grid3-calibration-parklife-feasibility.md (Part B feasibility, decisions U4, Q6-Q8)
   - docs/grid3/park-life/README.md (reference: layout, effects, timings, object regions - section 9)
@@ -19,7 +19,7 @@ related:
 **Status: approved 2026-10-10 (H1-H14 approved by the user; S1-S8 answered, section 3.4). The
 test is called "Choice-making" (task id `choice_making`); the file keeps its original name.
 Step 1 (wireframe) DONE `16dc79a` with the user's decisions W1-W7 (section 3.5). Branch
-`feature/compass-task-flow`. Step 3 (engine) DONE 2026-10-11; animation decisions N1-N6 (section 3.6). Next: step 2 (art) and steps 4 / 5.
+`feature/compass-task-flow`. Step 3 (engine) DONE 2026-10-11; animation decisions N1-N6 (section 3.6). Step 2 (style anchor + key-colour pipeline) DONE 2026-10-11. Next: steps 4 / 5 (in progress), then step 6.
 Reference design is Smartbox Grid 3 "Park Life" page 2, adapted into a scored test. No
 Smartbox art, sound or text is copied; all assets are our own (AI-generated, user-approved).**
 
@@ -318,7 +318,7 @@ effects with sound (W7). Glow follows the gaze in Switch mode (W3). Layout of th
 | Step | Content | Needs |
 |---|---|---|
 | 1 | Wireframes: configuration card, run screen (scene + buttons), report page. **UI gate**: the user approves before code. **DONE 2026-10-10**: `docs/wireframes/choice-making.md`, approved with W1-W7 | - |
-| 2 | Style anchor art (4:3, W1) + one object as a trial of the pipeline; the user approves the style | Claude Code restart (key already in the root `.env`, shared with the audio server) |
+| 2 | Style anchor art (4:3, W1) + one object as a trial of the pipeline; the user approves the style. **DONE 2026-10-11**: `configs/assets/scenes/park/reference/style_anchor.png`, seesaw trial `objects/seesaw_idle.png`, key-colour pipeline with `tools/chroma_key.py` (section 7) | - |
 | 3 | Engine: task class, multi-button selection, prompt / effect phases, events, trial fields; placeholder scene; pytest. **DONE 2026-10-11** (sections 8, 9) | - |
 | 4 | Canvas `"scene"` mode with effects from layers (placeholders first), effect steps, idle life, cached scene + about 60 Hz repaint (N1, N3, N5) | step 3 |
 | 5 | Look-back module + report rows; pytest on synthetic gaze | step 3 |
@@ -379,6 +379,18 @@ effects with sound (W7). Glow follows the gaze in Switch mode (W3). Layout of th
   restarts after a Claude Code restart. Animation feasibility (Qt layers vs Lottie / Spine / AI
   video) done; the user decided N1-N6 (section 3.6): layered Qt only, moving AOI for Bike / Cloud,
   idle blinks on by default, tinted rainbow copies, cached scene + about 60 Hz repaint, extra art layers.
+- **2026-10-11 (step 2)** - Style anchor and pipeline trial, by the hub with `mcp-image-openrouter`
+  (`google/gemini-3.1-flash-image`). The third anchor try (`style_anchor.png`, 1200 x 896, about 4:3)
+  follows the 8-object layout of section 4.2; the user approved the style. The image tool still cannot
+  ask for a transparent background, so the pipeline is the key-colour fallback of 4.7 item 3: each object
+  is drawn alone in the anchor's style (anchor as reference image) on flat `#00FF00` and keyed out
+  locally by `tools/chroma_key.py` (PySide6 + numpy, cropped, despilled edges; no new dependency). Trial
+  object: the seesaw, clean edges on light and dark; the user approved the pipeline (no extension of the
+  image tool needed). Files and prompts in `configs/assets/scenes/park/ASSETS.md`. The seesaw trial is
+  still one piece; step 6 makes the plank + children and the base as separate layers (N6). **Step 2
+  DONE.** Steps 4 and 5 were delegated the same day to two implementers in separate worktrees; step 5
+  takes an injectable `box_at(object_id, elapsed_ms)` and is wired to step 4's
+  `choice_scene.object_box_at` by the hub after both merge (N2).
 
 ## 8. Impl log
 
