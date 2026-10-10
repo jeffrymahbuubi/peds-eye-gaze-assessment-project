@@ -50,6 +50,7 @@ _SWITCH_STEPS: dict[str, tuple[str, str]] = {
     "click_static": ("Look at the circle, then press the button.", "circle"),
     "click_grid": ("Look at the lit square, then press the button.", "square"),
     "scanning": ("Find the bright shape, look at it, then press the button.", "shape"),
+    "choice_making": ("Look at that button, then press the switch.", "button"),
 }
 _GLOW = " The {noun} glows while you are looking at it."
 
@@ -110,6 +111,19 @@ _TEMPLATES: dict[str, tuple[tuple[str, ...], str]] = {
             "When it is selected, a different shape will light up. Continue until no more shapes light up.",
         ),
         "NOTE: If the shape is not selected within {timeout}, the next shape will light up.",
+    ),
+    # PLACEHOLDER wording (SPEC-scene-cause-effect-task.md section 9, Q3, user 2026-10-11: keep it):
+    # written so the Start page works for the new test. FOR CLINICIAN REVIEW together with the
+    # other four tests' texts above -- do not treat it as final.
+    "choice_making": (
+        (
+            "{dot}A picture will appear on the screen, with buttons on each side.",
+            'You will hear which button to choose, for example "Make the balloons pop!"',
+            "Look at that button and keep looking at it for about {dwell}.{ring}",
+            "When it is selected, the picture will come alive. Continue until no more prompts are spoken.",
+        ),
+        "NOTE: If the button is not selected within {timeout}, the picture will show what that"
+        " button does and the next prompt will follow.",
     ),
 }
 

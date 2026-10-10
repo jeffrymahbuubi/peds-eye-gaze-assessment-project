@@ -18,4 +18,11 @@ TASK_INFO: dict[str, tuple[str, str]] = {
         "The target travels across the screen. Follow it; nothing is selected. Smooth pursuit.",
     ),
     "scanning": ("Scanning Search", "Find the cued shape among other shapes. Visual search."),
+    # Offered in Add test only, never in a new subject's default test list (SPEC-scene-cause-
+    # effect-task.md S8).
+    "choice_making": (
+        "Choice-making",
+        "A spoken prompt names one of 8 buttons; the chosen object in the scene comes alive."
+        " Cause and effect, with look-back.",
+    ),
 }

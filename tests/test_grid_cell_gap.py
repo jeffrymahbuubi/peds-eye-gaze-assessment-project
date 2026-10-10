@@ -720,7 +720,8 @@ def test_cell_gap_row_is_on_click_grid_only_right_after_grid_cols():
         assert "grid.gap" not in _keys(task_id)
     setting = next(s for s in structural_settings_for_task("click_grid") if s.key == "grid.gap")
     assert (setting.label, setting.kind, setting.default) == ("Cell gap", "choice", "standard")
-    assert setting.choices == GAP_CHOICES and setting.applies_to == ("click_grid",)
+    # (Choice-making has the same gap on its 7 x 5 board: SPEC-scene-cause-effect-task.md 4.8)
+    assert setting.choices == GAP_CHOICES and setting.applies_to == ("click_grid", "choice_making")
 
 
 def test_dialog_shows_the_gap_combo_on_click_grid_only(qapp):

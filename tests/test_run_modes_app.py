@@ -199,9 +199,9 @@ def test_an_ended_run_writes_how_it_ended(make_app):
     assert "Run ended early by operator at trial 1 of 6 (1 recorded)." in log
     lines = (app.recorder.session_dir / "trials.csv").read_text(encoding="utf-8").splitlines()
     # then entries, end_x, end_y, slot_index (R6), clicks, click_errors (switch, 4.6) and the
-    # four Follow the Target columns
-    assert lines[0].split(",")[-11] == "is_skipped"
-    assert lines[1].split(",")[-11] == "1"
+    # four Follow the Target columns and Choice-making's four (SPEC-scene-cause-effect-task.md 4.9)
+    assert lines[0].split(",")[-15] == "is_skipped"
+    assert lines[1].split(",")[-15] == "1"
     # The HUD is gone (4C.7): its two metadata fields are no longer written.
     assert "hud_hidden_at_start" not in meta and "hud_toggle_count" not in meta
 

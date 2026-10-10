@@ -33,6 +33,7 @@ from .choice_lists import (  # re-exported: the dialog and the tests import them
     MOTION_PATH_CHOICES,
     TARGET_SIZE_CHOICES,
 )
+from .choice_settings import CHOICE_LIVE, CHOICE_STRUCTURAL, CHOICE_TIMEOUT, choice_cards
 from .setting_types import (  # re-exported: the two records live in setting_types.py
     MS_PER_S,
     LiveSetting,
@@ -149,6 +150,7 @@ LIVE_SETTINGS: list[LiveSetting] = [
         100,
         tooltip="Pause between one trial ending and the next one's target appearing.",
         display_divisor=MS_PER_S,
+        excludes=("choice_making",),  # its pause is "Pause after the animation"
     ),
     LiveSetting(
         "motion.speed_frac_per_s",
@@ -162,6 +164,7 @@ LIVE_SETTINGS: list[LiveSetting] = [
         tooltip="How fast the moving target travels across the screen."
         " Higher = harder to track.",
     ),
+    *CHOICE_LIVE,
 ]
 
 # A setting that reads differently on one task. Follow the Target has no timeout: its
@@ -181,6 +184,7 @@ _TASK_VARIANTS: dict[tuple[str, str], LiveSetting] = {
         " does, then the next one appears after the inter-trial interval.",
         display_divisor=MS_PER_S,
     ),
+    ("task.timeout_ms", "choice_making"): CHOICE_TIMEOUT,  # counted from the end of the prompt
 }
 
 
@@ -216,7 +220,7 @@ STRUCTURAL_SETTINGS: list[StructuralSetting] = [
         "grid.gap",
         "Cell gap",
         "choice",
-        applies_to=("click_grid",),
+        applies_to=("click_grid", "choice_making"),
         choices=GAP_CHOICES,
         default=DEFAULT_GAP,
     ),
@@ -236,7 +240,9 @@ STRUCTURAL_SETTINGS: list[StructuralSetting] = [
     # The two sound toggles (SPEC-compass-task-flow.md HB3): read once at
     # GuiFeedback construction, so structural. `feedback.particles` stays unexposed.
     # Follow plays the hit sound at the end of a followed trial and never a miss sound (I10).
-    StructuralSetting("feedback.hit_sound", "Play hit sound", "bool", default=True),
+    StructuralSetting(
+        "feedback.hit_sound", "Play hit sound", "bool", default=True, excludes=("choice_making",)
+    ),
     StructuralSetting(
         "feedback.miss_sound",
         "Play miss sound",
@@ -264,6 +270,7 @@ STRUCTURAL_SETTINGS: list[StructuralSetting] = [
     # The glow round the target while the pointer is on it (H3): drawn for a Switch
     # selection and for Follow the Target, where there is no dwell ring.
     StructuralSetting("feedback.target_glow", "Glow on target", "bool", default=True),
+    *CHOICE_STRUCTURAL,
 ]
 
 
@@ -334,6 +341,7 @@ def initial_live_values(config: dict[str, Any]) -> dict[str, Any]:
         "dwell.smoothing.alpha": smoothing_cfg.get("alpha", _SMOOTHING_DEFAULTS["alpha"]),
         "task.timeout_ms": task_cfg.get("timeout_ms", 8000),
         "task.inter_trial_interval_ms": task_cfg.get("inter_trial_interval_ms", 800),
+        "task.post_effect_ms": task_cfg.get("post_effect_ms", 1000),
         "motion.speed_frac_per_s": motion_cfg.get("speed_frac_per_s", 0.20),
     }
 
@@ -451,7 +459,8 @@ _CARDS = (
     ("icons", "Icons", 0, HINT_ICON_FIT, ("layout.size", "layout.n_icons")),
     ("grid", "Grid Layout", 1, HINT_GRID_FIT, ("grid.rows", "grid.cols", "grid.gap")),
     ("motion", "Motion", 1, None, ("motion.path", "motion.speed_frac_per_s")),
-    ("timing", "Timing", 1, None, ("task.timeout_ms", "task.inter_trial_interval_ms")),
+    ("timing", "Timing", 1, None, (
+        "task.timeout_ms", "task.inter_trial_interval_ms", "task.post_effect_ms")),
     ("feedback", "Feedback", 1, None, (
         "dwell.visual_cursor", "dwell.progress_ring", "dwell.instant_feedback",
         "feedback.target_glow", "feedback.hit_sound", "feedback.miss_sound")),
@@ -483,7 +492,7 @@ def config_groups_for_task(task_id: str) -> list[ConfigGroup]:
     for key, (label, widget) in _PAGE_CONTROLS.items():
         known[key] = ConfigControl(key, "page", widget, label)
     groups = []
-    for group_id, title, column, hint, keys in _CARDS:
+    for group_id, title, column, hint, keys in choice_cards(task_id, _CARDS):
         controls = tuple(known[key] for key in keys if key in known)
         if controls:
             groups.append(ConfigGroup(group_id, title, column, controls, hint))

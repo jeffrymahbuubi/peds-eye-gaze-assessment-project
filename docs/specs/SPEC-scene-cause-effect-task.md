@@ -3,8 +3,8 @@ name: SPEC-scene-cause-effect-task
 title: A fifth test - an animated scene with 8 side buttons; a spoken prompt names the button; the selected object animates; gaze look-back to the effect is measured
 status: approved 2026-10-10 (H1-H14 approved, S1-S8 answered, section 3.4); test name "Choice-making", task id choice_making
 created: 2026-10-10
-last_updated: 2026-10-10
-next_step: step 1 DONE (wireframe approved); next step 2 (style anchor art, needs a Claude Code restart so the image tools load) or step 3 (engine, no dependency)
+last_updated: 2026-10-11
+next_step: steps 1 and 3 DONE, 8 prompt WAVs approved; next step 2 (style anchor art, after a Claude Code restart with SKIP_PROMPT_ENHANCEMENT) and steps 4 / 5 (canvas with N1-N6, look-back), which can run in parallel
 related:
   - SPEC-grid3-calibration-parklife-feasibility.md (Part B feasibility, decisions U4, Q6-Q8)
   - docs/grid3/park-life/README.md (reference: layout, effects, timings, object regions - section 9)
@@ -19,7 +19,7 @@ related:
 **Status: approved 2026-10-10 (H1-H14 approved by the user; S1-S8 answered, section 3.4). The
 test is called "Choice-making" (task id `choice_making`); the file keeps its original name.
 Step 1 (wireframe) DONE `16dc79a` with the user's decisions W1-W7 (section 3.5). Branch
-`feature/compass-task-flow`. Next: step 3 (engine) and step 2 (style anchor art) can run in parallel.
+`feature/compass-task-flow`. Step 3 (engine) DONE 2026-10-11; animation decisions N1-N6 (section 3.6). Next: step 2 (art) and steps 4 / 5.
 Reference design is Smartbox Grid 3 "Park Life" page 2, adapted into a scored test. No
 Smartbox art, sound or text is copied; all assets are our own (AI-generated, user-approved).**
 
@@ -127,6 +127,23 @@ Asked while reviewing `docs/wireframes/choice-making.md`; they amend the design 
 | W6 | **Scene Map** in the report in place of the Target Map: idle scene faint, each object's look-back AOI as a dashed box, right-choice and timeout counts on each button; Scanpath and Heat map overlays as today. |
 | W7 | **Preview Test plays the prompts and the effects with sound** (3 trials, mouse, nothing recorded). |
 
+### 3.6 Animation decisions (user, 2026-10-11)
+
+From an animation feasibility study (Grid 3 Park Life has two kinds: the action effects and idle
+eye blinks; README 9.1). Finding: every effect and the blinks can be drawn in Qt from layered
+art (H14); Lottie (QML module missing, shape layers only, GPL), Spine / Rive / Live2D (no usable
+Python runtime or hand rigging) and AI video (OpenRouter `/api/v1/videos`: opaque MP4, no exact
+return to idle, not reproducible) are not needed. The user decided:
+
+| # | Decision |
+|---|---|
+| N1 | **Layered Qt drawing only in v1** (H14). The effect engine is built from steps (transform, swap, particles, sequence); a "sequence" step can play a short pre-rendered PNG / WebP frame set on the canvas clock, so one effect can be upgraded later without an engine change. **No AI video in v1.** |
+| N2 | **Look-back AOI moves with the object** for effects that leave the idle box (Bike, Cloud): the AOI is the object's box at each sample's time, from the same transform the canvas draws, padded 1 deg (section 4.6). |
+| N3 | **Idle life between trials:** setting `idle_animation` = `off` / `blinks` / `blinks_bob`, **default `blinks`** (as Grid 3). Blinks: an eyes-closed patch swapped in for about 150 ms at random 2-6 s intervals per blinking character. The setting is written to the run metadata and marked in the report (like the visual cue). |
+| N4 | **Rainbow** twinkle = a few pre-tinted copies of the rainbow art, cross-faded in code (keeps the art style). |
+| N5 | **Frame rate (A9):** the idle scene is cached as one pixmap and the scene repaints are capped at about 60 Hz (the gaze loop keeps its own rate); measured on the target laptop in the live check. |
+| N6 | **Extra art** (section 4.7): each balloon as its own layer plus a strings layer, the bush as a front layer, pivots for the swing and seesaw, optional bike wheels, the bubbles child's blowing pose, eyes-closed blink patches. A blink patch is accepted only if the edited image differs from the original inside the eye box alone; otherwise the eyelids are drawn in code. |
+
 ---
 
 ## 4. Design
@@ -192,13 +209,23 @@ scene manifest.
 | Seesaw | the plank sprite (with both children) rotates about its pivot, about plus/minus 12 deg, 3 cycles | 2.0 s |
 | Bubbles | the child sprite swaps to "blowing"; 6-10 bubble sprites rise and drift up-left, fading | 4.0 s |
 | Swing | the seat sprite rotates about the top bar, damped, 2 cycles | 2.5 s |
-| Rainbow | the rainbow bands cycle hue (or a sparkle sprite overlay) in place | 2.0 s |
+| Rainbow | cross-fade between pre-tinted copies of the rainbow art, in place (N4) | 2.0 s |
 | Cloud | the cloud translates left out of the scene, re-enters from the right, returns to start | 3.5 s |
 | Balloons | each balloon sprite is replaced by a pop burst one after another, bare strings remain, then the balloons fade back in | 3.5 s |
 | Apples | apple sprites fall with gravity onto the ground, then fade out while new apples fade in on the tree | 4.5 s |
 
 Easing for all moves: ease-in-out. Animations run on the canvas tick (the existing `QTimer`), from
 `scene["effect"]["t_start"]`, so they are paused with the test (pause stops the clock).
+
+Each effect is a list of steps (N1): `transform` (translate / rotate about a pivot / scale /
+fade of one layer), `swap` (another state image), `particles` (bubbles, falling apples, pop
+bursts) and `sequence` (a short frame set, unused in v1). Every effect ends on the identity
+transform, so the scene is exactly the idle picture afterwards (A5).
+
+**Idle life (N3):** with `idle_animation` `blinks` (default) each blinking character shows its
+eyes-closed patch for about 150 ms at random 2-6 s intervals; `blinks_bob` adds a slow sine
+bob of the balloons and the cloud; `off` is a still picture. Idle life runs only outside an
+effect, on the canvas clock (pauses with the test), and is not logged per blink.
 
 ### 4.5 Rendering
 
@@ -207,6 +234,9 @@ Easing for all moves: ease-in-out. Animations run on the canvas tick (the existi
   object's picture and its English label, design-system colours), then the dwell ring / cursor as
   today.
 - Pixmaps are loaded once per run and cached scaled to the current canvas size.
+- **Frame rate (N5):** the idle scene (background + idle layers) is cached as one pixmap and only
+  the animated layers are drawn over it; scene repaints are capped at about 60 Hz while the gaze
+  loop keeps its own rate (A9). A bench on this PC measured about 3.1 ms per frame for one effect.
 - **Placeholder mode**: until the art is approved, each object is drawn as a labelled coloured shape
   so the engine, events and look-back can be built and tested without art.
 
@@ -217,7 +247,10 @@ Computed after the run from `all_gaze.csv` and the effect events (Qt-free module
 
 - Window W = [`EFFECT_START`, `EFFECT_END` + 500 ms].
 - AOI = object bounding box (scene manifest, in scene fractions) mapped to canvas px with the
-  canvas geometry recorded for the run, padded by 1 deg.
+  canvas geometry recorded for the run, padded by 1 deg. For an effect that moves its object out
+  of the idle box (Bike, Cloud) the AOI **moves with the object** (N2): at each sample's time
+  the box is the object's box under the effect transform at that elapsed time, computed by the
+  same Qt-free effect function the canvas uses.
 - `lookback_latency_ms` = time from `EFFECT_START` to the first valid gaze sample inside the AOI in
   W; empty if none.
 - `lookback_dwell_ms` = sum of inter-sample intervals of valid samples inside the AOI in W.
@@ -237,6 +270,11 @@ Folder `configs/assets/scenes/park/`:
 
 - `background.png` (4:3 scene without the 8 objects, W1), `objects/<object>_<state>.png` (transparent),
   `sprites/*.png` (bubble, pop burst, fallen apple, sparkle), `buttons/<object>.png` (button pictures).
+- Extra layers (N6): each balloon as its own layer plus `balloons_strings`, the bush as a front
+  layer (the bike rides behind it), pivots for the swing and the seesaw, optional bike wheels, the
+  bubbles child's blowing pose, `rainbow_tint_<n>` copies (N4) and `blink/<character>.png`
+  eyes-closed patches with their position (accepted only if the edit changed pixels inside the
+  eye box alone).
 - `audio/en/prompt_<object>.wav`, `audio/sfx/<object>.wav`.
 - `scene.yaml`: per object the layer files, the pivot points, the bounding box in scene fractions
   (the AOI source), the effect parameters and duration, the button slot, the English label and
@@ -255,7 +293,7 @@ Folder `configs/assets/scenes/park/`:
 
 `configs/tasks/choice_making.yaml`: `trials` 16, `timeout_ms` 10000, `post_effect_ms` 1000,
 `scene` park, `language` en, `grid.gap` standard, `feedback.miss_sound` true, `visual_cue` false
-(S3). Settings registry entries `applies_to=("choice_making",)`; the per-test pointer and
+(S3), `idle_animation` blinks (N3; off / blinks / blinks_bob). Settings registry entries `applies_to=("choice_making",)`; the per-test pointer and
 selection settings apply as for the other tests. The test is offered in Add test only (S8).
 `trials` accepts any number from 1, balanced as in W5. Preview Test plays the prompts and the
 effects with sound (W7). Glow follows the gaze in Switch mode (W3). Layout of the page:
@@ -269,7 +307,8 @@ effects with sound (W7). Glow follows the gaze in Switch mode (W3). Layout of th
   `rt_ms` from `PROMPT_END`, and the look-back fields.
 - Report summary: hit rate, timeouts, misses (wrong button), median RT, look-back rate (hit trials;
   modelled trials separately), median look-back latency, waiting-phase share on scene / buttons /
-  elsewhere (S7), results split by left / right button side; a "visual cue on" marker when used (S3).
+  elsewhere (S7), results split by left / right button side; a "visual cue on" marker when used (S3)
+  and the idle-animation setting of the run (N3, also in `metadata.json`).
 - Per-trial table: trial, prompt object, side, result, selected object, attempts, RT, look-back,
   latency, dwell, valid fraction, wait on scene / buttons / elsewhere.
 - Scene Map in place of the Target Map (W6). Page layout: `docs/wireframes/choice-making.md` part C.
@@ -280,8 +319,8 @@ effects with sound (W7). Glow follows the gaze in Switch mode (W3). Layout of th
 |---|---|---|
 | 1 | Wireframes: configuration card, run screen (scene + buttons), report page. **UI gate**: the user approves before code. **DONE 2026-10-10**: `docs/wireframes/choice-making.md`, approved with W1-W7 | - |
 | 2 | Style anchor art (4:3, W1) + one object as a trial of the pipeline; the user approves the style | Claude Code restart (key already in the root `.env`, shared with the audio server) |
-| 3 | Engine: task class, multi-button selection, prompt / effect phases, events, trial fields; placeholder scene; pytest | - |
-| 4 | Canvas `"scene"` mode with effects from layers (placeholders first) | step 3 |
+| 3 | Engine: task class, multi-button selection, prompt / effect phases, events, trial fields; placeholder scene; pytest. **DONE 2026-10-11** (sections 8, 9) | - |
+| 4 | Canvas `"scene"` mode with effects from layers (placeholders first), effect steps, idle life, cached scene + about 60 Hz repaint (N1, N3, N5) | step 3 |
 | 5 | Look-back module + report rows; pytest on synthetic gaze | step 3 |
 | 6 | Full art and audio; `ASSETS.md`; the user approves every file | step 2 |
 | 7 | Live check with the user: Mouse + Dwell first (no device), then Gaze + Dwell and Gaze + Switch on the GP3 HD | steps 4-6; GP3 HD for the gaze part |
@@ -332,3 +371,242 @@ effects with sound (W7). Glow follows the gaze in Switch mode (W3). Layout of th
   Map, Preview with sound. Updated H8, sections 4.3, 4.6, 4.7, 4.8, 4.9, A2 and the step 2 row
   (the OpenRouter key is already set: the image server shares the audio server's key; only a
   Claude Code restart is needed). The user then gave the final OK on the wireframe: **step 1 DONE**.
+- **2026-10-11** - Step 3 engine implemented by `spec-implementer` in a worktree (section 8);
+  the user answered its questions Q1-Q3 (section 9). The 8 English prompt WAVs were generated
+  (gpt-audio, voice shimmer), approved by the user and placed in `configs/assets/scenes/park/audio/en/`
+  with `ASSETS.md`. Image tool: the server's prompt enhancement rewrote both style-anchor tries
+  (extra people, a sign); `SKIP_PROMPT_ENHANCEMENT=true` set in the root `.mcp.json`, step 2
+  restarts after a Claude Code restart. Animation feasibility (Qt layers vs Lottie / Spine / AI
+  video) done; the user decided N1-N6 (section 3.6): layered Qt only, moving AOI for Bike / Cloud,
+  idle blinks on by default, tinted rainbow copies, cached scene + about 60 Hz repaint, extra art layers.
+
+## 8. Impl log
+
+- **2026-10-10 - claude-sonnet-5-5 - step 3 (engine), implemented; uncommitted.** Sections 4.1, 4.2,
+  4.3, 4.8 and, from 4.9, the events and the trial-record fields; W5 for the order. Nothing of
+  steps 4-7 touched (no canvas drawing, no look-back, no report, no art, no audio, nothing under
+  `configs/assets/`).
+  - **Setup note.** The worktree I was given was at `c7e61cf` (77 commits behind
+    `feature/compass-task-flow`, no SPEC file in it), not at `108b029` as briefed. I fast-forwarded the
+    worktree's own throwaway branch to `108b029` (`git merge --ff-only`, clean tree, no commit of mine)
+    and worked from there. Nothing else in git was touched.
+  - **New files.**
+    - `src/tasks/choice_layout.py`: the 7 x 5 board maths (button cells, drawn rect, hit area, scene rect,
+      `button_at`), the 8 objects with their 4.4 default effect durations, `trial_order()` (W5),
+      `DEFAULT_PROMPT_MS` (a placeholder, see section 9 Q1).
+    - `src/tasks/choice_making.py`: `ChoiceMakingTask(BaseTask)`.
+    - `src/ui/choice_settings.py`: the Choice-making registry entries and the Scene card.
+    - `configs/tasks/choice_making.yaml`: the 4.8 defaults (16 trials, 10 s, 1 s pause, park, en, cue off,
+      standard gap, miss sound on, hit sound off, theme forest).
+    - `tests/test_choice_layout.py`, `tests/test_choice_making.py`, `tests/test_choice_making_setup.py`.
+  - **Changed files.** `src/engine/task_runner.py` (registered), `src/engine/task_info.py` (name and
+    description, H1), `src/data/schema.py` (4 trial columns), `src/ui/settings_registry.py` (adds the
+    new entries; exactly 499 lines), `src/ui/task_instructions.py` (provisional Start-page wording, see
+    D12), and four existing tests (see "Existing tests edited").
+  - **How it works.**
+    - `BaseTask` is untouched. `ChoiceMakingTask` has its own `update()` (the base one hit-tests the
+      target only) and reuses the base helpers (pre-roll, pause frame, press debounce, `_switch_press`,
+      `_finish_trial`, `skip_trial`, `pause`).
+    - Dwell: one `DwellSelector` on whichever button the pointer is in, reset when the pointer moves to
+      another button; it only runs after the prompt has ended. Switch: the base `_switch_press`
+      (SWITCH_PRESS, `clicks`, `click_errors`) plus `selected_slot` and `selected_object` on the miss.
+    - Flow: `WAIT_INPUT` (prompt plays, selection blocked, then the response window) then, on a hit or a
+      timeout, `RESULT` for the effect duration (`EFFECT_START` at the selection, `EFFECT_END` at its
+      end), then `ITI` for `post_effect_ms`, then the next trial; `DONE` only after the last effect and
+      its pause. A skip has no effect, only the pause.
+    - Events: `PROMPT_START` (trial, object, slot, side, duration_ms), `PROMPT_END`, `EFFECT_START`
+      (trial, object, modelled, duration_ms), `EFFECT_END` (trial, object, modelled); `MISS_CLICK` gains
+      `selected_slot` (-1 off every button) and `selected_object` (null off every button).
+    - Trial fields (`trials.csv`, appended at the end of the header): `prompt_object`, `button_side`
+      (`left` / `right`), `selected_object` (the prompt object on a hit, blank on a timeout or skip),
+      `rt_ms` (ms from the END of the prompt to the hit, blank without one). `slot_index` is the button
+      index 0-7; `t_selectable_start_ns` is exactly the prompt end, so
+      `reaction_time_from_selectable_ms` equals `rt_ms`.
+    - `scene_spec()` returns the 4.1 keys (`mode` scene, `theme`, `buttons`, `scene_rect`, `effect`);
+      rectangles are `(x, y, w, h)` in canvas px, `effect` has `object`, `t_start`, `duration_ms`,
+      `modelled` and `elapsed_ms` (as of the last frame, so a pause freezes it). The canvas ignores mode
+      "scene" for now and, with `layout_slots` set to the 8 button centres, falls back to its dim
+      outlines: it does not crash (no canvas change was made or run).
+  - **Decisions I took (small, mechanical; the hub may overrule any of them).**
+    - D1. `scene_spec()` carries three extra keys the decided behaviour needs: `prompt_object` (id from
+      the prompt start to the effect end, for the run bar line of W2), `cue_slot` (the button to pulse
+      while the visual cue is on, S3) and `hover_slot` (the button under the pointer, for the glow of W3
+      and the dwell ring). The frame's `target_xy_norm` is None on purpose so the prompted button is not
+      marked (H4); `FrameResult.target` and `slot_index` are set as usual.
+    - D2. Cues: a wrong button plays the generic miss cue (`feedback.on_miss`), a hit plays no generic hit
+      cue (H6), and a timeout plays no miss cue either (the modelled effect plays instead; 4.x does not say).
+      `_trial_cue` is a no-op in this task.
+    - D3. A switch press while gaze is on the scene, a gap or nowhere is a `MISS_CLICK` with
+      `selected_slot` -1, like a press off the target in the other tests (it is still a counted press and a
+      Click error). A dwell off every button never completes, so it selects nothing (H5).
+    - D4. Pause during the prompt follows the base rule for a trial in flight: the trial is dropped
+      (`TRIAL_INTERRUPTED`) and re-presented from its start on resume, so the prompt plays again; its old
+      clock is gone. Pause during an effect keeps its elapsed time and resume continues it (A8).
+    - D5. `PROMPT_END` and `EFFECT_END` carry their ideal times (start plus length), not the time of the
+      frame that noticed them, so the log and the tests are exact to the ms.
+    - D6. `entries` and `time_to_first_fixation_ms` count from the trial start (the prompt start), as for
+      the other tasks, so a look at the right button during the prompt is kept; RT is from the prompt end.
+    - D7. `TargetSpec.radius_px` is 0.0 (no configured radius; H12). `effective_radius_px` is the largest
+      circle that fits a button, and that is what `trials.csv` records as `target_radius_px`.
+    - D8. The cell gap works exactly as for Grid Click: `grid.gap` goes through the existing
+      `apply_grid_gap`, a wide gap is a dead zone, and `GAP_CAPPED` and `gap_capped_px` are reported
+      the same way.
+    - D9. Registry: `post_effect_ms` is a LIVE setting `task.post_effect_ms` ("Pause after the
+      animation (s)", 0-5 s); `task.timeout_ms` reads "Time to choose (s)" for this task through the
+      existing `_TASK_VARIANTS`; "Inter-trial interval" and "Play hit sound" are excluded for it; "Cell
+      gap" applies to it and sits in a new Scene card (Scene, Prompt language, Visual cue, Cell gap) that
+      replaces Grid Click's Grid Layout card on this task's page. Which controls the page shows is
+      therefore already data-driven; I wrote no widget code and did not run the page.
+    - D10. The 4 trial columns are appended to the header for every task (blank for the other four), as
+      the earlier column additions were; readers take columns by name, so older folders still load.
+    - D11. `DEFAULT_PROMPT_MS = 2000` for every object until Q1 is answered.
+    - D12. `task_instructions.py` needed an entry or the Start page would raise a KeyError for a test added
+      with Add test (and ten parametrized tests over `TASK_INFO` would fail). I wrote a PROVISIONAL
+      four-step text plus the NOTE line, and a switch step; it is child-facing wording and needs the
+      clinician review the rest of that file already needs (section 9 Q3).
+    - D13. The task's `title` and `instruction` in the YAML are English only (Q7: English first).
+  - **Existing tests edited (not behaviour changes; each was pinned to the old task count, header tail or
+    `grid.gap` scope).** `tests/test_add_test_dialog.py` (four tasks to five),
+    `tests/test_recording_additions.py`, `tests/test_follow_task.py`, `tests/test_run_engine.py` and
+    `tests/test_run_modes_app.py` (the trials.csv header tail now ends with the 4 new columns),
+    `tests/test_seconds_display.py` (the registry's time keys plus `task.post_effect_ms`),
+    `tests/test_grid_cell_gap.py` (`grid.gap` applies to `click_grid` and `choice_making`).
+  - **Tests added.** `tests/test_choice_layout.py` (123), `tests/test_choice_making.py` (31),
+    `tests/test_choice_making_setup.py` (12), `tests/test_choice_making_canvas.py` (1, offscreen Qt: the
+    canvas paints every phase of a trial in mode "scene" without crashing): 167 new tests, covering A2 (16 trials: each object
+    twice, 8 left and 8 right, never twice in a row, for 40 seeds; any count 1-70 balanced for 12 seeds),
+    A3 (selection blocked during the prompt for dwell and switch, RT and timeout counted from the prompt
+    end), A4 (wrong button by dwell and by switch, scene and gap select nothing, hit plays the right
+    effect, timeout plays the modelled one, no effect for a wrong object), A5 (RESULT, EFFECT_END, the
+    pause, then the next PROMPT_START; the scene idle at every later prompt in a 4-trial run), A8 (pause
+    in the prompt and in an effect), skip, scene_spec, cue and hover, live canvas size, GAP_CAPPED,
+    registration, config, registry and page layout, trials.csv columns. A mutation check (prompt gate
+    disabled) failed 10 of them.
+  - **pytest (full, venv, from the worktree):** `3452 passed, 5 failed` (3457 tests). Baseline before my
+    changes in this worktree: `3274 passed, 5 failed` (3279 tests). The 5 are the same before and after:
+    `test_a_new_test_opens_*` in `test_config_flow.py` (1) and `test_task_config_page.py` (4), alpha 0.35
+    against the local 0.22 (this worktree has the committed `configs/default.yaml`, not the skip-worktree
+    local one); `test_config_merges_task_over_default` passes here. The +178 passes are my 167 plus 11
+    cases of existing tests parametrized over `TASK_REGISTRY` / `TASK_INFO` that now include
+    `choice_making` (instructions, Start page, input choice, headless replay). `ruff` is clean on every
+    file I touched.
+  - **Deviations from the SPEC:** none beyond D1-D13 above (the extra `scene_spec` keys, the registry and
+    page-card wiring, the provisional Start-page text and the 4 columns for all tasks were not spelled out).
+  - **Left undone (by scope):** canvas drawing of mode "scene" and effects (step 4); the run bar line
+    (W2), the glow and ring on the hovered button, the visual-cue pulse (step 4 reads `prompt_object`,
+    `hover_slot`, `cue_slot`); sounds for the prompt and effects (Q2); look-back module and report
+    (step 5); scene manifest, art and audio, `ASSETS.md` (step 6); live check (step 7);
+    `docs/CLINICAL_DATA_REFERENCE.md` (the 4 new columns); the page label "Glow on the looked-at button"
+    and "(how a button is selected)" of the wireframe (the registry labels are the other tests').
+
+- **2026-10-11 - claude-sonnet-5-5 - follow-up: the user's answers to Q1-Q3 (section 9), implemented;
+  uncommitted, same worktree.**
+  - **Q1 = B, the prompt length is measured.**
+    - `src/tasks/choice_layout.py`: `wav_duration_ms(path)` (Python `wave`, Qt-free; `None` for a missing,
+      empty, non-PCM, truncated or unreadable file), `scene_audio_dir()`, `prompt_wav_path(scene, language,
+      object_id, root)` = `<assets>/scenes/<scene>/audio/<language>/prompt_<object>.wav`, `effect_wav_path()`
+      = `.../audio/sfx/<object>.wav`, and `ASSETS_ROOT` = `configs/assets` (read only).
+    - `src/tasks/choice_making.py`: `ChoiceMakingTask.prompt_length(obj)` returns `(ms, "wav" or "default")`,
+      measured once per object and run from the configured `scene` and `language`, else
+      `DEFAULT_PROMPT_MS` (2000); `prompt_ms()` returns the ms. `PROMPT_START` carries the measured
+      `duration_ms` and a new `duration_source` field (`wav` / `default`, my addition, so a run made with the
+      fallback can be told apart). The WAVs do not exist yet, so the fallback is what runs today. Class
+      attribute `assets_root` (default `ASSETS_ROOT`) lets a test point at a temp folder. Nothing under
+      `configs/assets/` is created or changed.
+  - **Q2 = A, the audio hooks.**
+    - `src/engine/feedback.py`: three optional no-op methods on `FeedbackBus` (not abstract):
+      `on_prompt(object_id)`, `on_effect(object_id, modelled)` and `on_stop_audio()` (my name for the stop
+      hook). `NullFeedback` inherits them and records nothing, so its `events` and every other task are
+      unchanged (a test runs a headless Static Click replay with a recording bus and sees no audio call).
+    - The task calls them at `PROMPT_START` (`on_prompt`), at `EFFECT_START` (`on_effect`, `modelled` true
+      after a timeout) and on every `pause()` and on a skipped trial (`on_stop_audio`; the skip is my
+      addition: it would otherwise leave the prompt playing through the pause). A wrong button plays no
+      effect sound. A bus without the hooks (a test double) is silent, via `getattr`.
+    - `src/ui/scene_audio.py` (new, Qt): `SceneAudio` keeps one `QSoundEffect` per file that exists
+      (prompts of the configured language, effect sounds from `sfx/`), loaded when the run is built, volume
+      0.6 like the other cues; a missing file is silent. API checked in the Qt docs (qt-docs, Qt 6.12):
+      `setSource(QUrl)`, `setVolume(float)`, `play()`, `stop()`, `isPlaying()`.
+      `SceneAudio.from_task_config()` returns `None` unless the task config names a `scene`.
+    - `src/app.py`: `GuiFeedback` takes an optional `scene_audio` (the constructor call of the other
+      tasks is unchanged) and forwards the three hooks to it; the app builds it from the task config. No
+      other app code changed.
+    - Limits to know: a sound cannot be held and resumed, so a pause cuts it. An interrupted prompt plays
+      again from its start with its trial (D4); an effect's animation continues after the pause without its
+      sound. A new prompt first stops anything still playing.
+  - **Q3.** The Start-page text stays as a placeholder; the comment in `src/ui/task_instructions.py` now
+    says it is for clinician review together with the other four tests' texts.
+  - **D2 confirmed:** no miss sound on a timeout, only the modelled effect with its own sound (unchanged).
+  - **D11 and D12 of the first entry are superseded** by the above (the prompt length is no longer a
+    constant; the Start-page text is a confirmed placeholder).
+  - **Tests.** 27 new: `tests/test_choice_layout.py` +7 (paths, default root, `wav_duration_ms` measured, and
+    missing / empty / garbage / folder / truncated), new `tests/test_choice_making_audio.py` (16: a prompt
+    as long as its generated WAV, a length per object, fallback for a missing, unreadable or empty file,
+    scene and language resolve the path, measured once, the hooks at prompt start / hit / timeout / wrong
+    button / pause in a prompt / pause in an effect / skip, a bus without hooks, no other task calls
+    them), `tests/test_choice_making_canvas.py` +4 (offscreen Qt: `SceneAudio` loads only existing files and
+    is silent for the rest, with none at all, only a task with a scene gets audio, `GuiFeedback` forwards).
+    The existing choice tests now point `assets_root` at a folder that never exists, so audio added to the
+    repository later cannot change them. Files stay under 500 lines; `settings_registry.py` unchanged
+    at 499; `ruff` clean on every file I touched or added (a pre-existing import-order warning in
+    `src/app.py` is not mine).
+  - **pytest (full, venv, from the worktree):** `3479 passed, 5 failed` (3484 tests; 194 new in all). The same
+    5 baseline failures as before (alpha 0.35 against the local 0.22: `test_config_flow.py` 1,
+    `test_task_config_page.py` 4); no other failure.
+  - **Deviations:** none beyond the two small additions named above (`duration_source` on `PROMPT_START`,
+    the stop on a skip). **Left undone:** the real prompt and effect audio files and the manifest
+    (step 6); the canvas, run bar and look-back (steps 4 and 5).
+
+## 9. Open questions
+
+Written by the step 3 implementer (2026-10-10, claude-sonnet-5-5). The engine builds and passes its
+tests without these answered; each only changes one clearly marked place. **All three were answered by
+the user on 2026-10-11 and are implemented** (answers below; section 8, follow-up entry).
+
+- **Q1 - How does the engine learn how long a spoken prompt lasts?** The response clock, the timeout and
+  `PROMPT_END` all start at the prompt's end (H4, H9), and the prompt WAVs do not exist yet. Today
+  `ChoiceMakingTask.prompt_ms(obj)` returns the placeholder `DEFAULT_PROMPT_MS` (2000 ms) for every
+  object. Options:
+  - **A.** A per-object `prompt_ms` in `scene.yaml` (4.7), written when the WAVs are made (step 6) and read by a
+    Qt-free manifest loader. Simple to test; the number can drift from the file if the audio is regenerated.
+  - **B.** The engine measures each `prompt_<object>.wav` itself at build time (Python `wave`, no Qt), falling
+    back to the placeholder when a file is missing. One source of truth (the file), nothing to keep in sync.
+  - **C.** The app tells the task when playback ends (a Qt audio callback). Ties timing to the audio device,
+    cannot be replayed headlessly, and a pause cannot hold it.
+  - **Recommendation: B**, with the measured length written into `PROMPT_START` (already `duration_ms`).
+    The effect durations stay in the manifest (4.4) either way.
+  - **Answer (user, 2026-10-11): B.** The engine measures each `audio/en/prompt_<object>.wav` itself with
+    Python `wave` (Qt-free, read only) and falls back to `DEFAULT_PROMPT_MS` (2000) when the file is missing or
+    unreadable; the measured length goes into `PROMPT_START` `duration_ms`. The path is resolved from the
+    configured scene and language. DONE, see section 8 (follow-up, 2026-10-11).
+- **Q2 - How does the app play the prompt and effect sounds?** The feedback bus has only `target_shown`,
+  `hit`, `miss` and `progress`, so the task has no way to ask for a sound. I added nothing. Options:
+  - **A.** Two optional hooks with no-op defaults on `FeedbackBus` (`on_prompt(object_id)` and
+    `on_effect(object_id, modelled)`), called by the task at `PROMPT_START` and `EFFECT_START`; `GuiFeedback`
+    plays a cached `QSoundEffect` per file. Same pattern as the hit and miss cues; headless runs and
+    `NullFeedback` are unaffected.
+  - **B.** The app watches `scene_spec()` every tick and starts the sound when `prompt_object` or `effect`
+    changes. No bus change, but the logic sits in `app.py` and the start can lag by one tick.
+  - **C.** A separate audio object passed to the task next to `feedback`.
+  - **Recommendation: A.** Whatever is chosen must also stop a playing sound on pause (A8), which
+    `QSoundEffect.stop()` allows but `FeedbackBus` has no hook for yet.
+  - **Answer (user, 2026-10-11): A.** Optional no-op hooks on `FeedbackBus` (`on_prompt(object_id)`,
+    `on_effect(object_id, modelled)` and a stop hook for a pause), called by the task at `PROMPT_START`,
+    `EFFECT_START` and on a pause; `GuiFeedback` plays a cached `QSoundEffect` per file that exists and does
+    nothing when it is missing; `NullFeedback` and the headless runs are unaffected. DONE, see section 8
+    (follow-up, 2026-10-11).
+- **Q3 - Start-page wording for Choice-making.** I wrote a provisional text so the page works (D12):
+  1. "[The small dot on the screen shows where you are looking.] A picture will appear on the screen, with
+     buttons on each side."
+  2. "You will hear which button to choose, for example "Make the balloons pop!""
+  3. "Look at that button and keep looking at it for about 0.8 seconds. [A ring will fill up around it.]"
+  4. "When it is selected, the picture will come alive. Continue until no more prompts are spoken."
+  - NOTE: "If the button is not selected within 10 seconds, the picture will show what that button does
+    and the next prompt will follow."
+  - Switch version of step 3: "Look at that button, then press the switch. [The button glows while you are
+    looking at it.]"
+  - Question: approve it, or give the wording you want read to the child. **Recommendation:** keep it as a
+    placeholder until the clinician review of all five tests' texts.
+  - **Answer (user, 2026-10-11):** keep the provisional text as a placeholder, to be reviewed by a clinician
+    together with the other four tests' texts. The code comment in `task_instructions.py` now says so.
+- **Confirmed (user, 2026-10-11), D2 of section 8:** on a timeout there is no miss sound, only the modelled
+  effect with its own sound.

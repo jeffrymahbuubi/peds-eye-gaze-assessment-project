@@ -27,6 +27,18 @@ class FeedbackBus(ABC):
     @abstractmethod
     def on_progress(self, x: float, y: float, progress: float) -> None: ...
 
+    # Choice-making's audio (SPEC-scene-cause-effect-task.md section 9, Q2 = A). Optional: a no-op
+    # here, so every other task, ``NullFeedback`` and the headless pipeline are unaffected.
+
+    def on_prompt(self, object_id: str) -> None:  # noqa: B027 - intentional optional no-op hook
+        """The spoken prompt of ``object_id`` starts (``PROMPT_START``)."""
+
+    def on_effect(self, object_id: str, modelled: bool) -> None:  # noqa: B027 - optional no-op
+        """The effect of ``object_id`` starts with its own sound (``EFFECT_START``)."""
+
+    def on_stop_audio(self) -> None:  # noqa: B027 - intentional optional no-op hook
+        """Cut any prompt or effect sound that is playing (a pause, a skip)."""
+
 
 @dataclass
 class NullFeedback(FeedbackBus):

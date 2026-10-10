@@ -18,6 +18,7 @@ from ..inputs.base import Pointer
 from ..inputs.eye_input import DwellConfig, DwellSelector
 from ..inputs.gazepoint_client import ReplayGazeSource
 from ..tasks.base_task import BaseTask
+from ..tasks.choice_making import ChoiceMakingTask
 from ..tasks.click_grid import ClickGridTask
 from ..tasks.click_static import ClickStaticTask
 from ..tasks.follow_moving import FollowMovingTask
@@ -41,6 +42,7 @@ TASK_REGISTRY: dict[str, type[BaseTask]] = {
     "click_grid": ClickGridTask,
     "follow_moving": FollowMovingTask,
     "scanning": ScanningTask,
+    "choice_making": ChoiceMakingTask,
 }
 
 

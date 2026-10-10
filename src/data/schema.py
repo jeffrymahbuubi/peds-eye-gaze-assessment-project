@@ -110,6 +110,14 @@ class TrialRecord:
     on_target_ms: float | None = None
     dist_sum_px: float = 0.0
     dist_n: int = 0
+    # Choice-making (SPEC-scene-cause-effect-task.md 4.9): the object the spoken prompt named and
+    # the side its button is on; the object the child's selection ended the trial on (the prompt
+    # object on a hit, blank on a timeout or a skip); and the reaction time from the END of the
+    # prompt to the selection, ms (None without a hit). All blank for every other task.
+    prompt_object: str = ""
+    button_side: str = ""
+    selected_object: str = ""
+    rt_ms: float | None = None
 
     @property
     def time_on_target_pct(self) -> float | None:
@@ -190,6 +198,10 @@ class TrialRecord:
             "on_target_ms": _blank(_round(self.on_target_ms, 1)),
             "time_on_target_pct": _blank(_round(self.time_on_target_pct)),
             "mean_dist_px": _blank(_round(self.mean_dist_px)),
+            "prompt_object": self.prompt_object,
+            "button_side": self.button_side,
+            "selected_object": self.selected_object,
+            "rt_ms": _blank(_round(self.rt_ms)),
         }
         return row
 
@@ -223,6 +235,10 @@ class TrialRecord:
             "on_target_ms",
             "time_on_target_pct",
             "mean_dist_px",
+            "prompt_object",
+            "button_side",
+            "selected_object",
+            "rt_ms",
         ]
 
 

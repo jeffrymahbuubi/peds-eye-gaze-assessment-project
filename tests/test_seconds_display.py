@@ -155,7 +155,8 @@ def test_the_report_json_keeps_its_milliseconds(tmp_path):
 
 def test_every_time_setting_is_labelled_in_seconds_and_shown_divided_by_a_thousand():
     timed = [s for s in (*LIVE_SETTINGS, *STRUCTURAL_SETTINGS) if s.key.endswith("_ms")]
-    assert {s.key for s in timed} == set(TIME_KEYS)
+    # (plus Choice-making's own "Pause after the animation", which no other task's page has)
+    assert {s.key for s in timed} == set(TIME_KEYS) | {"task.post_effect_ms"}
     for setting in timed:
         assert setting.label.endswith("(s)") and "ms" not in setting.label, setting.key
         assert setting.display_divisor == MS_PER_S == 1000.0

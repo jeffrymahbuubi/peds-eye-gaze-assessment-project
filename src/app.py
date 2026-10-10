@@ -94,6 +94,7 @@ from .tasks.base_task import (
 from .ui.main_window import MainWindow, TaskRunView
 from .ui.run_cursor import RunCursor
 from .ui.run_dialogs import confirm_quit
+from .ui.scene_audio import SceneAudio
 from .ui.settings_registry import apply_live_values_to_config, get_nested, initial_live_values
 from .ui.settings_snapshot import run_settings
 from .ui.task_settings_dialog import TaskSettingsDialog
@@ -130,8 +131,17 @@ class GuiFeedback(FeedbackBus):
     # (SPEC-2026-09-02.md item 4 — short, soft, non-startling cues).
     _VOLUME = 0.6
 
-    def __init__(self, canvas, theme: dict | None = None, feedback_cfg: dict | None = None) -> None:
+    def __init__(
+        self,
+        canvas,
+        theme: dict | None = None,
+        feedback_cfg: dict | None = None,
+        scene_audio: SceneAudio | None = None,
+    ) -> None:
         self.canvas = canvas
+        # Choice-making's prompt and effect sounds (SPEC-scene-cause-effect-task.md Q2 = A);
+        # None for every other task.
+        self._scene_audio = scene_audio
         theme = theme or {}
         feedback_cfg = feedback_cfg or {}
         self._hit_sound = (
@@ -168,6 +178,18 @@ class GuiFeedback(FeedbackBus):
 
     def on_progress(self, x: float, y: float, progress: float) -> None:
         pass
+
+    def on_prompt(self, object_id: str) -> None:
+        if self._scene_audio is not None:
+            self._scene_audio.on_prompt(object_id)
+
+    def on_effect(self, object_id: str, modelled: bool) -> None:
+        if self._scene_audio is not None:
+            self._scene_audio.on_effect(object_id, modelled)
+
+    def on_stop_audio(self) -> None:
+        if self._scene_audio is not None:
+            self._scene_audio.stop()
 
 
 def resolve_calibration_source(
@@ -675,7 +697,10 @@ class AssessmentApp:
         self.recorder.log(f"Loop rate: {self._loop_fps} Hz ({source_text}).")
 
         self.feedback = GuiFeedback(
-            self.canvas, self.theme, self.config.get("task", {}).get("feedback", {})
+            self.canvas,
+            self.theme,
+            self.config.get("task", {}).get("feedback", {}),
+            scene_audio=SceneAudio.from_task_config(self.config.get("task", {})),
         )
         # Before build_task: tasks read the resolved ``radius_px`` (``target``'s,
         # or ``layout``'s for scanning).

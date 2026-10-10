@@ -22,9 +22,11 @@ def qapp():
     return QApplication.instance() or QApplication([])
 
 
-def test_it_lists_the_four_tasks_with_their_names_and_descriptions(qapp):
+def test_it_lists_the_five_tasks_with_their_names_and_descriptions(qapp):
     dialog = AddTestDialog()
-    assert dialog.task_list.count() == len(TASK_REGISTRY) == 4
+    # The fifth is Choice-making (SPEC-scene-cause-effect-task.md A1), offered here only.
+    assert dialog.task_list.count() == len(TASK_REGISTRY) == 5
+    assert "choice_making" in TASK_REGISTRY
     for row, task_id in enumerate(TASK_REGISTRY):
         item = dialog.task_list.item(row)
         assert item.data(Qt.ItemDataRole.UserRole) == task_id

@@ -361,6 +361,7 @@ def test_the_four_columns_follow_the_click_columns_and_are_blank_for_other_tasks
     header = TrialRecord.csv_header()
     assert header[header.index("click_errors") :] == [
         "click_errors", "valid_ms", "on_target_ms", "time_on_target_pct", "mean_dist_px",
+        "prompt_object", "button_side", "selected_object", "rt_ms",  # Choice-making's four
     ]
     other = TrialRecord(0, "click_grid", 0.5, 0.5, 90.0, 0).as_row()
     assert [other[c] for c in ("valid_ms", "on_target_ms", "time_on_target_pct", "mean_dist_px")] == [""] * 4

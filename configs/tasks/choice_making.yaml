@@ -1,0 +1,27 @@
+# Choice-making: a spoken prompt names one of 8 buttons; the chosen object in the scene comes
+# alive (SPEC-scene-cause-effect-task.md). Offered in Add test only, never in the default test list.
+task_id: choice_making
+title: "Choice-making"
+instruction: "Listen to the prompt, then look at the button that makes it happen."
+
+trials: 16                    # any number from 1; balanced as far as the count allows (W5). 16 = each object twice
+timeout_ms: 10000             # time to choose, counted from the END of the spoken prompt
+post_effect_ms: 1000          # pause after the effect (the next prompt never starts during an effect)
+
+scene: park                   # the scene (v1: park only)
+language: en                  # prompt language (v1: English only)
+visual_cue: false             # true = the target button gently pulses until the selection (runs are marked in the report)
+
+grid:
+  # The board is a fixed 7 x 5 grid (the scene in columns 1-5, the 8 buttons in columns 0 and 6),
+  # so there is no rows / cols / target size. Space between neighbouring buttons: standard | wide
+  # 1 deg | extra_wide 2 deg, as for Grid Click (SPEC-grid-cell-gap.md). Wide gaps are a dead zone.
+  gap: standard
+
+feedback:
+  # A correct choice plays the object's own effect and sound, so there is no generic hit sound.
+  hit_sound: false
+  miss_sound: true
+  particles: true
+
+theme: forest
