@@ -1,10 +1,10 @@
 ---
 name: SPEC-grid3-calibration-parklife-feasibility
 title: Feasibility study - Grid 3-style calibration (full replica, built-in icons) and a Park Life-style test on the GP3 HD app
-status: draft 2026-10-10 - feasibility verdicts written; 8 open questions (section 7) wait for the user; live probe (section 6) waits for the GP3 HD
+status: feasibility done 2026-10-10 - Q1-Q8 answered (section 7.1); image tool wired, waiting for the API key; live probe P1-P5 waits for the GP3 HD
 created: 2026-10-10
 last_updated: 2026-10-10
-next_step: the user answers Q1-Q8 (section 7); when the GP3 HD is available, run probe P1-P6 (section 6); then write the two implementation SPECs (section 8)
+next_step: write SPEC-scene-cause-effect-task.md (does not need the GP3 HD); the user adds the OpenRouter key and decides on the image-tool gaps (section 7.2); when the GP3 HD is available, run probe P1-P5, then write SPEC-app-drawn-calibration.md
 related:
   - docs/calibration-video/README.md (Grid 3 calibration recording, frame-timed)
   - docs/grid3/park-life/README.md (Park Life gridset offline analysis + live walk-through, section 9)
@@ -17,9 +17,9 @@ related:
 
 # SPEC-grid3-calibration-parklife-feasibility - can the app do it?
 
-**Status: draft 2026-10-10. This is a feasibility study, not an implementation SPEC. Verdicts
-are in sections 4.2 and 5.2. One calibration item is unproven until the GP3 HD probe (section 6)
-runs. Branch `feature/compass-task-flow` at `5b5cb91`.**
+**Status: feasibility done 2026-10-10, all questions answered (7.1). This is a feasibility study,
+not an implementation SPEC. Verdicts are in sections 4.2 and 5.2. The custom icon (C4, C5) stays
+unproven until the GP3 HD probe (section 6, P1-P5; P6 dropped with stepped mode) runs. Branch `feature/compass-task-flow` at `5b5cb91`.**
 
 ## 1. Origin
 
@@ -251,6 +251,69 @@ own-window calibration), and the script restores `CALIBRATE_SHOW` to the config 
 | Q7 | Prompt language and voice: Traditional Chinese, English, or both; recorded voice or generated speech files? |
 | Q8 | Park Life-style test: only page 2 style (one-word prompt, effect, look-back), or also the sentence / chat layer? |
 
+### 7.1 Answers (user, 2026-10-10)
+
+| # | Answer |
+|---|---|
+| Q1 | **Proposed formula** (4.4): score = round(100 x max(0, 1 - error_deg / 3)); green up to 1 deg, amber up to 2 deg, red above 2 deg or no valid eye. |
+| Q2 | **I-A full re-run.** The results map marks the weak points. |
+| Q3 | **Drop stepped mode.** Continuous only; probe step P6 is no longer needed. |
+| Q4 | **Distance + both eyes:** green = both eyes found and distance in the good range; orange = one eye lost or distance at the edge; red = out of range; grey = no eyes. |
+| Q5 | **Replace, with fallback:** the app-drawn calibration replaces the Setup page calibration; Gazepoint Control's own window is used automatically only if the app-drawn run fails. |
+| Q6 | **AI-generated art**, through the user's own MCP server `mcp-image-openrouter` (github.com/jeffrymahbuubi/openrouter-mcp, folder `mcp-image-openrouter`). It still has to be configured; the user provides the OpenRouter API key later. The model choice is researched with the Parallel search MCP (see the log). Every asset is checked by the user before it ships. |
+| Q7 | **English** prompts for now; Traditional Chinese later (the design must allow a second language). |
+| Q8 | **Page 2 style only:** prompt, selection, effect, look-back. No sentence or chat pages. |
+
+### 7.2 AI art tooling (Q6 follow-up, researched 2026-10-10)
+
+**Tool state.** `resources/mcp-tools/openrouter-mcp/mcp-image-openrouter/` (the user's repo, at
+origin/main `0bfdbb0`):
+
+- `npm install` and `npm run build` succeeded.
+- `npm test`: 192 of 193 pass. The one failure is Windows-only: `security.test.ts` "should allow
+  path within temp directory" expects `\tmp\test-image.png` and gets `D:\tmp\test-image.png`.
+- The server is wired into the root `.mcp.json` as `mcp-image-openrouter`, the same way as
+  `mcp-audio-openrouter`: `OPENROUTER_API_KEY` comes from `${OPENROUTER_API_KEY}` in the root
+  `.env`, and `IMAGE_OUTPUT_DIR` is the tool's own `output/`.
+- It starts cleanly without a key. The bundled skill is installed at `~/.claude/skills/image-generation/`.
+- Live generation is untested: it waits for the user's key and a session restart.
+
+**What the tool sends today.** `src/api/openrouterImageClient.ts` sends only `model`, `prompt`,
+`n: 1`, `aspect_ratio`, `resolution` and `input_references`. Its native-parameter table knows only
+Gemini models; other models get aspect ratio and size folded into the prompt. It does **not** send
+`background` or `output_format`, so it cannot ask for a transparent PNG, and it keeps one image
+per call.
+
+**Models (OpenRouter public API `GET /api/v1/models?output_modalities=image` and
+`/api/v1/images/models`, read 2026-10-10; 60 image models listed).**
+
+| Need | Candidate | Why | Price (OpenRouter, 2026-10-10) |
+|---|---|---|---|
+| Style anchor, scene, drafts | `google/gemini-3-pro-image` (tool's `quality` tier) and `google/gemini-3.1-flash-image` (tool default) | Already supported natively by the tool; reference images (`input_references`) for keeping one style | output image $0.00012 / token (pro), $0.00006 / token (flash) |
+| A consistent style across many assets | `recraft/recraft-v4-styles` (and `-pro`) | Built for "style it once, every image matches". Recraft's own blind test claims 92 % preference; that is a vendor claim, not independent | per-image pricing on Recraft endpoints |
+| Transparent PNG icons and sprites (calibration icons, scene objects) | `openai/gpt-image-1-mini` (cheapest), `openai/gpt-image-2.5-flare`, `openai/gpt-5-image(-mini)`, `sourceful/riverflow-v2.5-pro` | The only models whose endpoint lists `background: transparent` (`openai/gpt-image-2` lists only auto / opaque) | gpt-image-1-mini output image $0.000008 / token; riverflow-v2.5-pro $0.13-0.17 / image |
+| Split one finished scene into separate object layers for animation | `inclusionai/ming-image-0.1-design-layer` | Image-to-image layer decomposition: a flattened picture plus a layer plan gives N transparent RGBA layers (MIT licence, Hugging Face model card) | listed $0 via NovitaAI on OpenRouter (check before use) |
+| Scalable vector icons | `recraft/recraft-v4.1-vector` / `-pro-vector` | SVG output | $0.08 / $0.30 per image |
+
+**Recommended pipeline for the later SPEC.**
+
+1. Make one style anchor with `gemini-3-pro-image` (or Recraft V4 Styles) and have the user approve it.
+2. Make each calibration icon and each scene object as a transparent PNG with a transparent-capable
+   model, using the anchor as `input_references`.
+3. Make the scene background separately.
+4. Fallback for object layers: split a full scene with `ming-image-0.1-design-layer`.
+
+The user approves every asset (Q6).
+
+**Gaps in the tool for that pipeline (the user's repo, so the user decides):**
+
+- (a) Pass `background` and `output_format` through to transparent-capable models.
+- (b) Save all returned images, not one, for the layer model.
+- (c) Add native-parameter entries for the non-Gemini models.
+
+Without (a), the fallback is to generate on a flat key colour and remove it locally (numpy and
+PySide6 are already in `dev/.venv`).
+
 ## 8. Proposed follow-up SPECs
 
 1. `SPEC-app-drawn-calibration.md` - after probe P1-P5 pass: C1-C8, C10-C14, C16-C19, icon set,
@@ -269,3 +332,17 @@ The scene test does not depend on the probe and can be specified first.
   calibration settings greyed out with camera None; dialog closed without saving). User
   decisions U1-U5 recorded (section 3). Verdicts: Part A 10 YES, 3 YES with an adapted part, 2 ADAPT,
   2 NO, 2 PROBE (custom icon C4, animation C5); Part B feasible with no hardware unknowns. Open: Q1-Q8, probe P1-P6.
+- **2026-10-10 (later)** - The user answered Q1-Q8 (section 7.1):
+  - proposed score formula;
+  - full re-run for Improve;
+  - stepped mode dropped (probe P6 no longer needed);
+  - face colours = distance + both eyes;
+  - the app-drawn calibration replaces Setup's, with a Control-window fallback;
+  - AI art via the user's `mcp-image-openrouter`;
+  - English prompts first;
+  - page 2 scope only.
+- Q6 follow-up done (section 7.2):
+  - `mcp-image-openrouter` was built, tested (192 of 193 pass; one Windows-only path test fails), wired into the root `.mcp.json` and smoke-started without a key.
+  - The bundled skill is installed.
+  - Image models were compared from the OpenRouter public API. The tool cannot request transparent PNGs yet.
+  - Live generation waits for the user's API key and a session restart.
