@@ -1,10 +1,10 @@
 ---
 name: SPEC-grid3-calibration-parklife-feasibility
 title: Feasibility study - Grid 3-style calibration (full replica, built-in icons) and a Park Life-style test on the GP3 HD app
-status: feasibility done 2026-10-10 - Q1-Q8 answered (section 7.1); image tool wired, uses the audio server's key (already set), loads after a restart; live probe P1-P5 waits for the GP3 HD
+status: feasibility done 2026-10-10 - Q1-Q8 answered (section 7.1); image tool wired, uses the audio server's key (already set), loads after a restart; probes P1-P3 PASSED without a device 2026-10-11 (section 6.1); P4-P5 wait for the GP3 HD
 created: 2026-10-10
-last_updated: 2026-10-10
-next_step: the scene test continues in SPEC-scene-cause-effect-task.md (approved, step 1 done); the user decides on the image-tool gaps (section 7.2); when the GP3 HD is available, run probe P1-P5, then write SPEC-app-drawn-calibration.md
+last_updated: 2026-10-11
+next_step: the scene test continues in SPEC-scene-cause-effect-task.md (approved, step 1 done); the user decides on the image-tool gaps (section 7.2); P1-P3 done (6.1); SPEC-app-drawn-calibration.md can be drafted now; P4-P5 (accuracy, eye position) when the GP3 HD is available
 related:
   - docs/calibration-video/README.md (Grid 3 calibration recording, frame-timed)
   - docs/grid3/park-life/README.md (Park Life gridset offline analysis + live walk-through, section 9)
@@ -233,6 +233,33 @@ user as the subject. Each step logs every raw line from Control with a timestamp
 | P5 | Read eye position data for 30 s while the subject moves closer / further / tilts | Values change as expected and are usable for the track-status face and distance |
 | P6 | (Optional) `CALIBRATE_START STATE="0"` in the middle of a run | Record what Control does; confirms or rules out a stepped mode |
 
+### 6.1 Results without a device (2026-10-11)
+
+The user found that Gazepoint Control runs a calibration with **no GP3 HD attached**, so the
+message-level probes P1-P3 were run against the running Control (port 4242, two calibrations,
+window hidden). P4 and P5 need real eyes and still wait for the device.
+
+| Probe | Result | Evidence |
+|---|---|---|
+| P1 | **PASS (message flow)** | `CALIBRATE_SHOW STATE="0"` ACKed. Each run: 5 `CALIB_START_PT`, 5 `CALIB_RESULT_PT`, 1 `CALIB_RESULT`. Mid-run screenshots show no Control calibration window. `VALID_POINTS` 0, `AVE_ERROR` 1510.04 and all eye values 0: meaningless without a camera. |
+| P2 | **PASS** | `CALIB_START_PT` 1-5 = (0.1,0.1) (0.9,0.9) (0.9,0.1) (0.1,0.9) (0.5,0.5), the TL, BR, TR, BL, C order sent; `CALIB_RESULT` lists the same points. |
+| P3 | **PASS, +10 to +70 ms per point** | DELAY 0.5 + TIMEOUT 1.5 = 2000 ms: 2050, 2057, 2069, 2053, 2058 ms. DELAY 1.8 + TIMEOUT 0.3 = 2100 ms: 2169, 2121, 2151, 2150, 2112 ms. Start to first point 37 / 73 ms; one point's result to the next start < 0.2 ms; whole run 10.32 / 10.84 s. |
+
+Findings for `SPEC-app-drawn-calibration.md`:
+
+- C4 and C5 are proven **at the message level**: the app can draw its own target at each
+  `CALIB_START_PT` while Control's window stays hidden. Still unproven (needs the device): that a
+  hidden-window calibration is valid (`VALID_POINTS` 5) and its accuracy with a short TIMEOUT (P4).
+- No record marks the end of DELAY inside a point: the app times the glide itself (DELAY seconds
+  after `CALIB_START_PT`), and must allow each point to run up to about 70 ms long.
+- Control sent an extra `CALIB_RESULT_PT` `PT="6"` (no matching start) 62 ms after point 5 in the
+  fast run; `CALIB_RESULT` still listed 5 points. Ignore any PT above the point count; only
+  `CALIB_RESULT` ends a calibration.
+- `CALIBRATE_RESULT_SUMMARY` returned the same `AVE_ERROR` after both runs (retained state): do not
+  use it as the result.
+- Control's current `CALIBRATE_TIMEOUT` is **1.50 s**, not the 1.25 s assumed in P4; settings were
+  restored (SHOW 0, DELAY 0.50, TIMEOUT 1.50) and Control stayed responsive (18-30 ms replies).
+
 Also check after P1-P6: Gazepoint Control is not left stuck (the known issue after its
 own-window calibration), and the script restores `CALIBRATE_SHOW` to the config value.
 
@@ -350,3 +377,7 @@ The scene test does not depend on the probe and can be specified first.
   - `SPEC-scene-cause-effect-task.md` was written (`33fa68d`), approved (`84271e7`), and its step 1 wireframe approved (`16dc79a`).
   - The user said the image server uses the same OpenRouter key as the audio server, and that key is already in the root `.env`, so no new key is needed; the image tools load after a Claude Code restart.
   - Still open: image-tool gaps (section 7.2), probe P1-P5.
+- **2026-10-11** - Probes P1-P3 run against Gazepoint Control with no device (the user found
+  Control calibrates without one): all pass at the message level (section 6.1). New facts: extra
+  `CALIB_RESULT_PT` PT 6, points run 10-70 ms long, no DELAY/TIMEOUT boundary record, stale result
+  summary, Control TIMEOUT 1.50 s. P4-P5 still need the GP3 HD.
