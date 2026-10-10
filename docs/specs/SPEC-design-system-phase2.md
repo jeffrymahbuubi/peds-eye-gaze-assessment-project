@@ -1,10 +1,10 @@
 ---
 name: SPEC-design-system-phase2
 title: Design system v1, phase 2: status badges, alerts with glyphs, and page layout (operator UI)
-status: implemented + live-checked 2026-10-09 on branch design-phase2 (NOT merged); approved 2026-10-08 (V1-V4 user decisions, H1-H12 hub decisions approved by the user; H13 phase-1 carry-overs added by the user 2026-10-08)
+status: implemented + live-checked 2026-10-09 on branch design-phase2 (merged into feature/compass-task-flow 2026-10-10, dbf8dd9, and pushed); approved 2026-10-08 (V1-V4 user decisions, H1-H12 hub decisions approved by the user; H13 phase-1 carry-overs added by the user 2026-10-08)
 created: 2026-10-08
 last_updated: 2026-10-08
-next_step: user merges design-phase2 into feature/compass-task-flow and pushes (then audit-fixes, preview-gaze-pointer, design-phase4); final-look items answered 2026-10-09 and fixed in round 4
+next_step: done; merged and pushed 2026-10-10 (merge f60a601). Design phase 3 continues on its own branch
 related:
   - docs/design/fable-proposal.md (source: §2.3 spacing and widths, §2.5 components, §3.1-§3.6 per-page changes, §5.2 phase 2)
   - SPEC-design-system-phase1.md (tokens, type, component QSS, copy; this phase builds on it and needs its tokens)
@@ -608,3 +608,4 @@ the Start page or the Test List (about 1100 tests in two runs): all pass except 
   columns. Committed on branch design-phase2 (hub, at the user's request).
 - **2026-10-10** — `docs/wireframes/setup.md` updated to round 6 (one card per row, fields fill their card, Address :
   Port 2:1; Display placement note) and `setup.html` re-rendered with wiremd. Committed on branch design-phase2.
+- **2026-10-10** — Merged into feature/compass-task-flow by the hub at the user's request (merges f60a601, b3c71c2, c14c77f, dbf8dd9); full suite on the merged branch **3348 passed, 3 skipped**; pushed `6d2b2cb..dbf8dd9`. Side-branch worktree and branch removed.

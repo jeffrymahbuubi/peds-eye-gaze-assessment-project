@@ -1,10 +1,10 @@
 ---
 name: SPEC-design-system-phase4
 title: Design system v1, phase 4: report Summary, Detailed and PDF (map tokens, widths, Outcome badge, PDF order)
-status: implemented + live-checked (recorded runs) 2026-10-09 on branch design-phase4 (NOT merged); §9 look questions answered by the user 2026-10-09 and done in the fix round
+status: implemented + live-checked (recorded runs) 2026-10-09 on branch design-phase4 (merged into feature/compass-task-flow 2026-10-10, dbf8dd9, and pushed); §9 look questions answered by the user 2026-10-09 and done in the fix round
 created: 2026-10-08
 last_updated: 2026-10-08
-next_step: user merges design-phase2 and design-phase4 into feature/compass-task-flow and pushes
+next_step: done; merged and pushed 2026-10-10 (merge dbf8dd9)
 related:
   - docs/design/fable-proposal.md (source: §2.2 map and data-viz tokens, §3.7-§3.9, §5.2 phase 4)
   - SPEC-design-system-phase1.md (copy, dates, "not recorded"; LEGACY_REPORT_COLOURS frozen there until this phase)
@@ -487,3 +487,4 @@ than "the whole pane height"; drop `above` to 0 in the two `_fit_map()` to get t
   `tests/test_muted_labels.py:77` (`root.show()` + `processEvents()`), a phase-2 test, the same place the implementer
   saw crash in a run without this round's tests: a test-suite object-lifetime flake, not this change; queued for a
   hardening fix. Committed on branch design-phase4.
+- **2026-10-10** — Merged into feature/compass-task-flow by the hub at the user's request (merges f60a601, b3c71c2, c14c77f, dbf8dd9); full suite on the merged branch **3348 passed, 3 skipped**; pushed `6d2b2cb..dbf8dd9`. Side-branch worktree and branch removed.

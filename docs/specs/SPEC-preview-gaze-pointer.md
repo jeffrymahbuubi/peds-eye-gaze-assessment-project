@@ -1,10 +1,10 @@
 ---
 name: SPEC-preview-gaze-pointer
 title: Preview follows the test's Input (real gaze when the tracker is ready); no gaze smoothing on a Mouse pointer
-status: implemented + live-checked (fake tracker) 2026-10-09 on branch preview-gaze-pointer (NOT merged)
+status: implemented + live-checked (fake tracker) 2026-10-09 on branch preview-gaze-pointer (merged into feature/compass-task-flow 2026-10-10, dbf8dd9, and pushed)
 created: 2026-10-08
 last_updated: 2026-10-08
-next_step: user merges design-phase2, audit-fixes, preview-gaze-pointer (in that order) and pushes; optional real-gaze feel of A1 with the GP3 HD
+next_step: done; merged and pushed 2026-10-10 (merge c14c77f); optional real-gaze feel of A1 with the GP3 HD
 related:
   - SPEC-compass-task-flow.md (U6, 4B.6 Preview Test: mouse-driven; this SPEC revises U6 for gaze tests)
   - SPEC-input-selection-and-follow.md (4.2 "Preview's pointer is always the mouse"; H4/H5 Mouse runs; revised here)
@@ -240,3 +240,4 @@ report changes; any design-system phase work.
   smoothing off in a Practice / recorded Mouse run and its `session.log` line (unit tests);
   the real-gaze feel of A1 on the GP3 HD (user's call). Committed on branch
   `preview-gaze-pointer` only.
+- **2026-10-10** — Merged into feature/compass-task-flow by the hub at the user's request (merges f60a601, b3c71c2, c14c77f, dbf8dd9); full suite on the merged branch **3348 passed, 3 skipped**; pushed `6d2b2cb..dbf8dd9`. Side-branch worktree and branch removed.

@@ -1,10 +1,10 @@
 ---
 name: SPEC-audit-fixes
 title: Fix the nine defects of the 2026-10-08 Fable bug audit (F1-F9)
-status: implemented + live-checked 2026-10-09 on branch audit-fixes (NOT merged); §9 answered by the user 2026-10-09 (H9 confirmed, H11 widened, fix round committed)
+status: implemented + live-checked 2026-10-09 on branch audit-fixes (merged into feature/compass-task-flow 2026-10-10, dbf8dd9, and pushed); §9 answered by the user 2026-10-09 (H9 confirmed, H11 widened, fix round committed)
 created: 2026-10-09
 last_updated: 2026-10-09
-next_step: user merges design-phase2 and audit-fixes into feature/compass-task-flow and pushes
+next_step: done; merged and pushed 2026-10-10 (merge b3c71c2)
 related:
   - docs/audits/fable-bug-audit-2026-10-08.md (source: findings F1-F9 with file:line, repro output and fix directions)
   - SPEC-calibration-result-timeout.md (reader-thread race; §6.2 "exactly one reader thread")
@@ -343,3 +343,4 @@ incomplete run; any design-system or Preview change; new features.
   Hub pytest: **5 failed, 3089 passed, 3 skipped** (the 5 known skip-worktree alpha checks; the third skip is a
   symlink test that needs a privilege this PC lacks). Not live-checked: a failed start cannot be provoked from the UI
   without a broken task file; unit tests only (as F9 before). Committed on branch audit-fixes only.
+- **2026-10-10** — Merged into feature/compass-task-flow by the hub at the user's request (merges f60a601, b3c71c2, c14c77f, dbf8dd9); full suite on the merged branch **3348 passed, 3 skipped**; pushed `6d2b2cb..dbf8dd9`. Side-branch worktree and branch removed.
