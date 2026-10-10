@@ -1,10 +1,10 @@
 ---
 name: SPEC-scene-cause-effect-task
 title: A fifth test - an animated scene with 8 side buttons; a spoken prompt names the button; the selected object animates; gaze look-back to the effect is measured
-status: draft 2026-10-10 - design written; hub decisions H1-H14 and questions S1-S8 (section 3) wait for the user
+status: approved 2026-10-10 (H1-H14 approved, S1-S8 answered, section 3.4); test name "Choice-making", task id choice_making
 created: 2026-10-10
 last_updated: 2026-10-10
-next_step: the user approves H1-H14 and answers S1-S8; then step 1 (wireframes, the UI gate) and step 2 (style anchor art, needs the OpenRouter key)
+next_step: step 1 (wireframes, the UI gate) - can start now; step 2 (style anchor art) waits for the OpenRouter key
 related:
   - SPEC-grid3-calibration-parklife-feasibility.md (Part B feasibility, decisions U4, Q6-Q8)
   - docs/grid3/park-life/README.md (reference: layout, effects, timings, object regions - section 9)
@@ -14,9 +14,11 @@ related:
   - SPEC-gazepoint-analysis-export-parity.md (all_gaze.csv, used for look-back)
 ---
 
-# SPEC-scene-cause-effect-task - "Make it happen" scene test
+# SPEC-scene-cause-effect-task - "Choice-making" scene test
 
-**Status: draft 2026-10-10. Not approved. Branch `feature/compass-task-flow` at `9f160c4`.
+**Status: approved 2026-10-10 (H1-H14 approved by the user; S1-S8 answered, section 3.4). The
+test is called "Choice-making" (task id `choice_making`); the file keeps its original name.
+Branch `feature/compass-task-flow` at `33fa68d`.
 Reference design is Smartbox Grid 3 "Park Life" page 2, adapted into a scored test. No
 Smartbox art, sound or text is copied; all assets are our own (AI-generated, user-approved).**
 
@@ -68,19 +70,19 @@ Q7 English first, Traditional Chinese later; Q8 page 2 scope only.
 
 | # | Proposal |
 |---|---|
-| H1 | Task id `scene_cause_effect`; display name **"Make It Happen"**; description "A spoken prompt names one of 8 buttons; the chosen object in the scene comes alive. Cause and effect, with look-back." (S1 may rename it.) |
+| H1 | Task id **`choice_making`**; display name **"Choice-making"** (S1); description "A spoken prompt names one of 8 buttons; the chosen object in the scene comes alive. Cause and effect, with look-back." (Originally proposed as `scene_cause_effect` / "Make It Happen"; changed by S1 and the user's approval.) |
 | H2 | Layout from Park Life page 2: a 7 x 5 grid of equal cells; the **scene** fills columns 1-5, rows 0-4; the **8 buttons** are columns 0 and 6, rows 1-4. Cells (0,0) and (6,0) stay empty (no Back button: the run bar already stops a test). |
 | H3 | **One theme in v1: a park** with 8 objects and effects matching Park Life's kinds (section 4.4). Object identities are ours (S2 may change them). Button-to-object placement keeps Park Life's split: most buttons sit on the opposite side from their object (section 4.2). |
-| H4 | **Prompt = spoken audio only** ("Make the balloons pop!"), played at trial start; the trial's response clock starts **at the end of the prompt audio**. No visual cue on the target button (a lit button would turn the test into Grid Click). S3 asks whether an optional visual cue setting is wanted. |
+| H4 | **Prompt = spoken audio only** ("Make the balloons pop!"), played at trial start; the trial's response clock starts **at the end of the prompt audio**. No visual cue on the target button by default (a lit button would turn the test into Grid Click). **Optional setting `visual_cue` (default off, S3):** the target button gently pulses from the prompt start until the selection or timeout; runs made with the cue are marked in the report. |
 | H5 | **Any button can be selected** with the test's selection method. A completed dwell (or a switch press) on a **non-target button** is a `MISS_CLICK` (attempts + 1); the dwell resets and the trial goes on until a hit or the timeout, as in the existing tests. Looking at the scene or a gap selects nothing. |
 | H6 | **Hit:** the target object's effect plays (section 4.4) together with its effect sound; no generic hit sound. **Miss:** the generic miss sound only; **no effect** for the wrong object (S4 asks whether the wrong object should animate instead). |
 | H7 | **Timeout:** the trial ends unscored-as-hit (`timeout`); the target's effect then plays once as a model, flagged `modelled=true`, so the child still sees cause and effect. Look-back is still measured but reported separately from hit trials. (S5.) |
 | H8 | **Trial count 16**: each of the 8 objects twice, shuffled, with the same object never twice in a row and left / right buttons balanced (8 each). Configurable `trials`, rounded to a multiple of 8. |
 | H9 | **Timing:** `timeout_ms` 10000 (from the end of the prompt); the ITI after a trial = the effect duration (section 4.4) + `post_effect_ms` 1000, so the next prompt never starts during an effect. |
 | H10 | **Look-back AOI** = the object's region in the scene (from the art's layer bounding box), padded by **1 deg** on each side (degrees via the existing px-to-deg geometry). The look-back window opens at effect start and closes at effect end + 500 ms. |
-| H11 | **Look-back measures** per trial (definitions in section 4.6): `lookback` yes / no (at least 100 ms cumulative gaze inside the AOI in the window), `lookback_latency_ms` (effect start to the first valid sample inside the AOI), `lookback_dwell_ms` (cumulative time inside), `lookback_fraction` (inside time / window length). |
+| H11 | **Look-back measures** per trial (definitions in section 4.6): `lookback` yes / no (at least 100 ms cumulative gaze inside the AOI in the window), `lookback_latency_ms` (effect start to the first valid sample inside the AOI), `lookback_dwell_ms` (cumulative time inside), `lookback_fraction` (inside time / window length). **Added by S7:** during the waiting phase (prompt end to selection or timeout) the time with gaze on the scene, on the buttons and elsewhere (`wait_scene_ms`, `wait_buttons_ms`, `wait_other_ms`). |
 | H12 | **Button size:** set by the 7 x 5 grid on the canvas, not by the small / medium / large preset. The configuration page shows the resulting button size in degrees (read-only). Cell gap reuses `SPEC-grid-cell-gap.md` (standard / wide / extra wide). |
-| H13 | **Prompt and effect audio are files** keyed by language: `configs/assets/scenes/park/audio/en/<object>.wav` and later `zh-TW/`. A task setting `language` (only `en` in v1). Prompts generated with `mcp-audio-openrouter` `generate_voice` or recorded (S6); every file approved by the user. |
+| H13 | **Prompt and effect audio are files** keyed by language: `configs/assets/scenes/park/audio/en/<object>.wav` and later `zh-TW/`. A task setting `language` (only `en` in v1). Prompts are **generated speech** with `mcp-audio-openrouter` `generate_voice` (S6); every file approved by the user. |
 | H14 | **Art layering:** one background image (scene without the 8 animated objects) plus one transparent PNG per object state and small extra sprites (bubbles, a pop burst, a fallen apple, a sparkle). All effects are drawn in code from these layers (move, rotate, scale, fade, colour shift), so no video and no per-frame drawings are needed. |
 
 ### 3.3 Questions for the user
@@ -96,13 +98,28 @@ Q7 English first, Traditional Chinese later; Q8 page 2 scope only.
 | S7 | Should gaze on the scene during the waiting phase (looking at the picture instead of the buttons) be reported as a measure? |
 | S8 | Is the test part of the default test list for a new subject, or added only on request (Add test)? |
 
+### 3.4 Answers and approval (user, 2026-10-10)
+
+| # | Answer |
+|---|---|
+| S1 | Name **"Choice-making"**; the user then approved the task id `choice_making` with H1-H14. |
+| S2 | **Park Life kinds:** bike, seesaw, bubbles, swing, rainbow, cloud, balloons, apples, all drawn new. |
+| S3 | **Yes, optional visual cue, default off** (setting `visual_cue`; report marks cued runs). |
+| S4 | **No effect after a miss** (H6 as written). |
+| S5 | **Model the effect after a timeout** (H7 as written). |
+| S6 | **Generated speech** (gpt-audio through `mcp-audio-openrouter`), each file approved. |
+| S7 | **Yes:** report time on scene / buttons / elsewhere during the waiting phase (added to H11, section 4.6). |
+| S8 | **Add on request only:** available in Add test; the default test list for a new subject is unchanged. |
+| H1-H14 | **Approved all** (as updated by S1-S8). |
+
 ---
 
 ## 4. Design
 
 ### 4.1 Task model
 
-- New `src/tasks/scene_cause_effect.py` `SceneCauseEffectTask(BaseTask)`.
+- New `src/tasks/choice_making.py` `ChoiceMakingTask(BaseTask)`, registered as `choice_making`
+  in `TASK_REGISTRY` and `TASK_INFO` ("Choice-making"); not added to the default test list (S8).
 - `build_targets()` returns 16 `TargetSpec`s (H8), each with `slot_index` = the button index 0-7 and
   the button centre as `x_norm` / `y_norm`. Button rectangles come from the 7 x 5 grid on the live
   canvas size (re-computed per frame, as `ClickGridTask` does).
@@ -192,6 +209,9 @@ Computed after the run from `all_gaze.csv` and the effect events (Qt-free module
 - Samples with invalid gaze are excluded; the trial reports `lookback_valid_fraction` (valid samples
   / all samples in W) so a trial with gaze loss is not read as "did not look".
 - Mouse-pointer runs: look-back is computed from the recorded pointer and marked "pointer, not gaze".
+- Waiting-phase distribution (S7): over [`PROMPT_END`, selection or timeout], the cumulative time
+  of valid samples inside `scene_rect` (`wait_scene_ms`), inside any button rectangle
+  (`wait_buttons_ms`) and elsewhere on the canvas (`wait_other_ms`), plus the valid-sample fraction.
 
 ### 4.7 Assets and the scene manifest
 
@@ -215,10 +235,10 @@ Folder `configs/assets/scenes/park/`:
 
 ### 4.8 Configuration
 
-`configs/tasks/scene_cause_effect.yaml`: `trials` 16, `timeout_ms` 10000, `post_effect_ms` 1000,
+`configs/tasks/choice_making.yaml`: `trials` 16, `timeout_ms` 10000, `post_effect_ms` 1000,
 `scene` park, `language` en, `grid.gap` standard, `feedback.miss_sound` true, `visual_cue` false
-(if S3 says yes). Settings registry entries `applies_to=("scene_cause_effect",)`; the per-test
-pointer and selection settings apply as for the other tests.
+(S3). Settings registry entries `applies_to=("choice_making",)`; the per-test pointer and
+selection settings apply as for the other tests. The test is offered in Add test only (S8).
 
 ### 4.9 Data and report
 
@@ -227,9 +247,10 @@ pointer and selection settings apply as for the other tests.
 - Trial record adds: `prompt_object`, `button_side`, `selected_object` (on hit = prompt object),
   `rt_ms` from `PROMPT_END`, and the look-back fields.
 - Report summary: hit rate, timeouts, misses (wrong button), median RT, look-back rate (hit trials;
-  modelled trials separately), median look-back latency, results split by left / right button side.
+  modelled trials separately), median look-back latency, waiting-phase share on scene / buttons /
+  elsewhere (S7), results split by left / right button side; a "visual cue on" marker when used (S3).
 - Per-trial table: trial, prompt object, side, result, selected object, attempts, RT, look-back,
-  latency, dwell, valid fraction.
+  latency, dwell, valid fraction, wait on scene / buttons / elsewhere.
 
 ## 5. Implementation steps
 
@@ -245,7 +266,7 @@ pointer and selection settings apply as for the other tests.
 
 ## 6. Acceptance criteria
 
-- A1 The test appears in Add test with its name and description; a run of 16 trials completes with
+- A1 "Choice-making" appears in Add test (not in the default list) with its description; a run of 16 trials completes with
   Mouse + Dwell and with Gaze + Dwell / Switch.
 - A2 Each object is prompted exactly twice in 16 trials, never twice in a row, 8 left and 8 right.
 - A3 Selection is blocked while the prompt plays; RT is measured from the prompt end.
@@ -270,3 +291,14 @@ pointer and selection settings apply as for the other tests.
   - Task configs live in `configs/tasks/*.yaml`.
 
   Hub proposals H1-H14 and questions S1-S8 wait for the user.
+- **2026-10-10 (later)** - The user answered S1-S8 and approved H1-H14 (section 3.4):
+  - name "Choice-making", id `choice_making`;
+  - Park Life object kinds;
+  - optional visual cue, default off;
+  - no effect after a miss;
+  - modelled effect after a timeout;
+  - generated speech;
+  - waiting-phase gaze distribution reported;
+  - Add test only.
+
+  Updated H1, H4, H11, H13, sections 4.1, 4.6, 4.8, 4.9 and A1 to match. SPEC **approved**. Next: step 1 wireframes (UI gate).
