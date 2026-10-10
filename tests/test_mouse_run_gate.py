@@ -24,6 +24,7 @@ from src.ui.dashboard_flow import Flow
 from src.ui.settings_snapshot import merged_config
 from src.ui.start_test_page import (
     MOUSE_NOTE_ALONGSIDE,
+    MOUSE_NOTE_NO_EYE_DATA,
     MOUSE_NOTE_NO_TRACKER,
     MOUSE_NOTE_NOT_CALIBRATED,
     StartTestPage,
@@ -92,20 +93,24 @@ def test_a_mouse_test_with_no_tracker_can_start_and_practise_and_says_so(qapp):
     assert page.blockers() == [] and page.banner.isHidden()
     assert page.start_button.isEnabled() and page.practice_button.isEnabled()
     assert not page.mouse_note.isHidden()
-    assert page.mouse_note_label.text() == MOUSE_NOTE_NO_TRACKER
-    assert MOUSE_NOTE_NO_TRACKER == "Mouse test. The tracker is not connected, so no eye data will be recorded."
+    assert page.mouse_note_label.text() == MOUSE_NOTE_NO_TRACKER == "Mouse test. The tracker is not connected."
+    # the clause that says what that means for the data is its own sentence, in its own label
+    assert page.mouse_note.emphasis() == MOUSE_NOTE_NO_EYE_DATA == "No eye data will be recorded."
+    assert not page.mouse_note.emphasis_label.isHidden()
 
 
 def test_a_mouse_test_with_a_ready_tracker_says_the_eye_data_is_recorded_alongside(qapp):
     page, _ = page_for(pointer="mouse", blockers=[])
     assert page.start_button.isEnabled() and not page.mouse_note.isHidden()
     assert page.mouse_note_label.text() == MOUSE_NOTE_ALONGSIDE == "Mouse test. Eye data will be recorded alongside."
+    assert page.mouse_note.emphasis() == "" and page.mouse_note.emphasis_label.isHidden()  # nothing to warn of
 
 
 def test_a_connected_but_uncalibrated_tracker_records_nothing_and_the_note_says_that(qapp):
     page, _ = page_for(pointer="mouse", blockers=[CALIBRATION_BLOCKER])
     assert page.start_button.isEnabled()
-    assert page.mouse_note_label.text() == MOUSE_NOTE_NOT_CALIBRATED
+    assert page.mouse_note_label.text() == MOUSE_NOTE_NOT_CALIBRATED == "Mouse test. The tracker is not calibrated."
+    assert page.mouse_note.emphasis() == MOUSE_NOTE_NO_EYE_DATA
 
 
 def test_a_mouse_test_keeps_every_other_blocker(qapp):
@@ -122,6 +127,10 @@ def test_the_note_follows_the_tracker_when_it_drops_or_returns(qapp):
     provider.items = [TRACKER_BLOCKER, CALIBRATION_BLOCKER]  # it dropped
     page.refresh_blockers()
     assert page.mouse_note_label.text() == MOUSE_NOTE_NO_TRACKER and page.start_button.isEnabled()
+    assert page.mouse_note.emphasis() == MOUSE_NOTE_NO_EYE_DATA  # and the second sentence came back
+    provider.items = []  # it returned
+    page.refresh_blockers()
+    assert page.mouse_note_label.text() == MOUSE_NOTE_ALONGSIDE and page.mouse_note.emphasis_label.isHidden()
 
 
 def test_a_new_test_resets_the_gate_to_its_own_pointer(qapp):
@@ -365,6 +374,8 @@ def test_the_start_page_shows_the_mouse_clinician_line(qapp):
     cfg = merged_config(load_task_config("click_grid"), None, {"input": {"pointer": "mouse", "selection": "dwell"}})
     page = StartTestPage()
     page.set_test(test_name="Grid Click 1", task_id="click_grid", cfg=cfg)
-    shown = [label.text() for label in page.card.findChildren(QLabel)]
+    shown = [
+        label.text() for box in (page.card, page.clinician_box) for label in box.findChildren(QLabel)
+    ]
     assert any("Check that the mouse moves the pointer on the screen" in t for t in shown)
     assert not any("Check that the bottom bar says" in t for t in shown)

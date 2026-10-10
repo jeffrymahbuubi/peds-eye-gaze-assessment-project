@@ -14,6 +14,7 @@ Both only ask; the flow in :mod:`src.ui.config_flow` acts on the answer.
 
 from __future__ import annotations
 
+from PySide6.QtCore import Qt
 from PySide6.QtWidgets import (
     QDialog,
     QHBoxLayout,
@@ -25,10 +26,12 @@ from PySide6.QtWidgets import (
 )
 
 from ..engine.settings_profile import validate_config_name
+from .design_tokens import TYPE_HEADING
 from .dialog_theme import apply_dialog_theme
 from .run_dialogs import GHOST, PRIMARY, ask_choice
 
 UPDATE, NEW_NAME, CANCEL = "update", "new", "cancel"
+NAME_FIELD_WIDTH = 320  # the name field by content (SPEC-design-system-phase2.md C7)
 
 STANDARD_INTRO = "Standard cannot be changed. Save these settings as:"
 NEW_NAME_INTRO = "Save these settings as:"
@@ -37,23 +40,29 @@ NEW_NAME_INTRO = "Save these settings as:"
 class ConfigNameDialog(QDialog):
     def __init__(self, intro: str, default: str, parent: QWidget | None = None) -> None:
         super().__init__(parent)
-        apply_dialog_theme(self)
+        apply_dialog_theme(
+            self, f"QLabel#cfgNameHeading {{ font-size: {TYPE_HEADING}px; font-weight: 600; }}"
+        )
         self.setWindowTitle("Save as a new configuration")
         self.setModal(True)
 
         layout = QVBoxLayout(self)
         layout.setContentsMargins(24, 20, 24, 20)
         layout.setSpacing(12)
+        self.heading_label = QLabel("Save as a new configuration")  # the heading step, 20 px
+        self.heading_label.setObjectName("cfgNameHeading")
+        layout.addWidget(self.heading_label)
         self.intro_label = QLabel(intro)
         self.intro_label.setWordWrap(True)
         self.intro_label.setMinimumWidth(380)
         self.name_edit = QLineEdit(default)
         self.name_edit.setObjectName("cfgNewName")
+        self.name_edit.setFixedWidth(NAME_FIELD_WIDTH)
         self.error_label = QLabel("")
         self.error_label.setObjectName("wtmhMuted")
         self.error_label.setWordWrap(True)
         layout.addWidget(self.intro_label)
-        layout.addWidget(self.name_edit)
+        layout.addWidget(self.name_edit, 0, Qt.AlignmentFlag.AlignLeft)
         layout.addWidget(self.error_label)
 
         row = QHBoxLayout()

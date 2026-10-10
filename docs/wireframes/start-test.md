@@ -15,7 +15,7 @@ No calibration yet (Setup page).
 
 :::
 
-> **Design system phase 2** (SPEC-design-system-phase2.md H7): the blocker is a danger alert box, 1200 px wide: a ■ glyph tile, the bold word "Blocked:", then **one missing item per line** at 16 px, and Go to Setup as a secondary button inside the alert at its right edge. No interpunct chain, no amber tint, no left stripe.
+> **Design system phase 2** (SPEC-design-system-phase2.md H7): the blocker is a danger alert box, as wide as the page inside its gutters (no 1200 px column, section 9, 2026-10-09): a ■ glyph tile, the bold word "Blocked:", then **one missing item per line** at 16 px, and Go to Setup as a secondary button inside the alert at its right edge. No interpunct chain, no amber tint, no left stripe.
 
 > **Blocker banner:** shown only when something is missing (the list comes from `SetupPage.run_blockers()`). Start and Practice are disabled while it shows. It is checked again every second, because the tracker can drop. It is hidden when there is nothing to fix.
 
@@ -28,10 +28,10 @@ No calibration yet (Setup page).
 > **Path blocker** (SPEC-subject-data-layout.md H9): before a recorded run, the app works out the longest path the run will write (run files and the PDF). Over 240 characters, this line shows and **Start** is disabled. **Practice stays enabled**, because practice writes nothing. Checked when the page opens; a path cannot change while it is open. With today's layout it appears only when the program folder itself is about 130+ characters deep.
 
 ::: alert info
-ⓘ Note: Mouse test. The tracker is not connected, so no eye data will be recorded.
+ⓘ Note: Mouse test. The tracker is not connected. No eye data will be recorded. (second sentence semi-bold, own line)
 :::
 
-> **Mouse note** (SPEC-input-selection-and-follow.md H5, added 2026-10-07): shown only for a test with Pointer = Mouse, in place of the blocker banner. A Mouse test needs no tracker or calibration, so Start and Practice stay enabled. With the tracker connected (and calibrated) the line reads "Mouse test. Eye data will be recorded alongside." A Gaze test keeps the blocker banner above, unchanged.
+> **Mouse note** (SPEC-input-selection-and-follow.md H5, added 2026-10-07): shown only for a test with Pointer = Mouse, in place of the blocker banner. A Mouse test needs no tracker or calibration, so Start and Practice stay enabled. Not calibrated: "Mouse test. The tracker is not calibrated." with the same semi-bold second line (SPEC-design-system-phase2 §9, 2026-10-09). With the tracker connected (and calibrated) the line reads "Mouse test. Eye data will be recorded alongside." (no second line). A Gaze test keeps the blocker banner above, unchanged.
 
 ::: card
 
@@ -69,7 +69,7 @@ Start records 18 trials. Check that the bottom bar shows "Tracking OK" before yo
 [Start]*{state:disabled} [Practice]{.outline} [Cancel]{.secondary}
 :::
 
-> **Button tiers** (phase 2 H7): Start is always the primary (filled) button, a disabled primary while blocked, so it never changes tier with state; Practice secondary (outlined); Cancel tertiary (text only). The row sits directly under the card, left-aligned at the content edge. The card is 1200 px: the read-aloud block at 16 px on white, the clinician block at 14 px on the page.
+> **Button tiers** (phase 2 H7): Start is always the primary (filled) button, a disabled primary while blocked, so it never changes tier with state; Practice secondary (outlined); Cancel tertiary (text only). The row sits directly under the card, left-aligned at the content edge. The card is as wide as the page inside its gutters, like the alerts above it: the read-aloud block at 16 px on white, the clinician block at 14 px on the page.
 
 > There is no default button, so Enter starts nothing. Esc = Cancel, which goes back to the Test List.
 

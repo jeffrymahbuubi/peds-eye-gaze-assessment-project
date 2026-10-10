@@ -45,8 +45,10 @@ TASKS_WITH_GLOW = ("follow_moving",)
 
 # The two Setup blockers a Mouse test does not need (H5): no tracker, no calibration.
 # The one place their text lives, so ``SetupPage.run_blockers`` and the Start page agree.
-TRACKER_BLOCKER = "The tracker is not connected. Connect it on the Setup page."
-CALIBRATION_BLOCKER = "No calibration yet. Calibrate on the Setup page."
+# Each says what is missing and where to fix it, as one item of the Start page's "Blocked:" list
+# (SPEC-design-system-phase2.md H7, proposal 4).
+TRACKER_BLOCKER = "The tracker is not connected (Setup page)."
+CALIBRATION_BLOCKER = "No calibration yet (Setup page)."
 GAZE_ONLY_BLOCKERS = (TRACKER_BLOCKER, CALIBRATION_BLOCKER)
 
 _MODE_OF = {

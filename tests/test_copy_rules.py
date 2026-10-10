@@ -37,6 +37,7 @@ from src.ui.report_format import started_text, trial_line
 from src.ui.setup_page import SetupPage, calibration_measured_alert_text
 from src.ui.start_test_page import (
     MOUSE_NOTE_ALONGSIDE,
+    MOUSE_NOTE_NO_EYE_DATA,
     MOUSE_NOTE_NO_TRACKER,
     MOUSE_NOTE_NOT_CALIBRATED,
 )
@@ -45,10 +46,10 @@ from tests.report_fixtures import RIG_META
 SRC = Path(__file__).resolve().parent.parent / "src"
 EM_DASH = "—"
 INTERPUNCT = "·"
-# The only modules that still hold an interpunct, each owned by a later phase (SPEC section 9, A1):
-# the Start page's blocker join (phase 2, the Blocked block), the Test List's " · data missing"
-# (phase 2, the status badge) and the map legend sentences (phase 4).
-INTERPUNCT_LATER = {"ui/start_test_page.py", "ui/test_list_table.py", "ui/report_views.py"}
+# The only modules that still hold an interpunct: the Test List's " · data missing", which is
+# now only the hidden text of the Status item (the badge says it, phase 2), and the map legend
+# sentences (phase 4). The Start page's blocker join went with the Blocked alert (phase 2 H7).
+INTERPUNCT_LATER = {"ui/test_list_table.py", "ui/report_views.py"}
 
 
 @pytest.fixture(scope="module")
@@ -79,7 +80,7 @@ def test_the_two_dash_constants_are_the_numeric_and_date_cell_dash():
     assert report_format.DASH is DASH and report_format.NOT_RECORDED == NOT_RECORDED == "not recorded"
 
 
-def test_no_interpunct_is_left_outside_the_three_modules_a_later_phase_owns():
+def test_no_interpunct_is_left_outside_the_two_modules_that_keep_one():
     found = {
         str(path.relative_to(SRC)).replace("\\", "/")
         for path in [*scanned_files(), SRC / "engine" / "tracking_status.py", SRC / "tasks" / "follow_moving.py"]
@@ -209,8 +210,11 @@ def test_the_task_descriptions_are_full_stops_not_dashes():
 
 def test_the_mouse_notes_are_two_sentences():
     assert MOUSE_NOTE_ALONGSIDE == "Mouse test. Eye data will be recorded alongside."
-    assert MOUSE_NOTE_NO_TRACKER == "Mouse test. The tracker is not connected, so no eye data will be recorded."
-    assert MOUSE_NOTE_NOT_CALIBRATED == "Mouse test. The tracker is not calibrated, so no eye data will be recorded."
+    # (section 9, 2026-10-09: the clause "no eye data will be recorded" is a sentence of its own,
+    # in its own label at weight 600)
+    assert MOUSE_NOTE_NO_TRACKER == "Mouse test. The tracker is not connected."
+    assert MOUSE_NOTE_NOT_CALIBRATED == "Mouse test. The tracker is not calibrated."
+    assert MOUSE_NOTE_NO_EYE_DATA == "No eye data will be recorded."
 
 
 class _Result:

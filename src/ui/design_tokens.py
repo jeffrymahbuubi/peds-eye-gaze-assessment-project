@@ -36,6 +36,11 @@ ACCENT_HOVER = "#17507D"  # primary hover and pressed
 ACCENT_FOCUS = "#2D7EB3"  # the 2 px focus border of every focusable control
 ACCENT_SUBTLE = "#E3EEF7"  # accent badge, hovered list row, spin-box stepper
 SLIDER_GROOVE = "#C6C6C6"  # the slider track
+# A disabled primary button (Start, Run Test, Continue to Tests ...) keeps the accent family: the
+# accent at 30 % over white, with a blue-grey text; every other disabled button is DISABLED_FILL
+# grey (SPEC-design-system-phase2.md section 9, user decision 2026-10-09).
+ACCENT_DISABLED_FILL = "#BCD1E2"
+ACCENT_DISABLED_TEXT = "#385A76"
 
 # -- colour: states (Carbon support set) -------------------------------------------------
 
@@ -73,6 +78,7 @@ CONTRAST_PAIRS: tuple[tuple[str, str, float], ...] = (
     (ACCENT_FOCUS, PANEL, 4.42),
     (ACCENT_FOCUS, PAGE, 4.02),
     (ACCENT, ACCENT_SUBTLE, 5.17),
+    (ACCENT_DISABLED_TEXT, ACCENT_DISABLED_FILL, 4.62),  # the disabled primary's text, on its pale blue
     # The proposal prints 4.51, the teal-era figure; with the blue accent it is 3.56 (a track
     # is a non-text part, which needs 3:1).
     (SLIDER_GROOVE, ACCENT, 3.56),

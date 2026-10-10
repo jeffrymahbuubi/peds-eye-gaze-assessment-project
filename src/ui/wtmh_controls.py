@@ -77,6 +77,7 @@ CONTROLS_STYLESHEET = f"""
     min-height: {_FIELD_MIN_H}px;
     max-height: {_FIELD_MIN_H}px;
     padding: 0 {_FIELD_PAD_H}px;
+    outline: 0;
 }}
 {",".join(_TEXT_AREAS)} {{
     background: {PANEL};
@@ -84,6 +85,7 @@ CONTROLS_STYLESHEET = f"""
     border: {_BORDER}px solid {BORDER_STRONG};
     border-radius: {RADIUS}px;
     padding: 5px {_FIELD_PAD_H}px;
+    outline: 0;
 }}
 {",".join(f"{s}:focus" for s in _FIELDS)} {{
     border: {_FOCUS_BORDER}px solid {ACCENT_FOCUS};
@@ -274,11 +276,14 @@ QWidget#wtmhDashboard QRadioButton::indicator:checked:disabled {{
     background: {PANEL};
 }}
 QWidget#wtmhDashboard QRadioButton {{ color: {INK}; }}
+/* No native focus rectangle round the label of a check box or radio: the indicator's own
+   focus border above is the focus mark (H13). */
+QWidget#wtmhDashboard QCheckBox, QWidget#wtmhDashboard QRadioButton {{ outline: 0; }}
 
 /* Themed slider (H5), used by SliderSpinRow: a {SLIDER_GROOVE_PX} px groove, the accent fill, a
    {SLIDER_HANDLE_PX} px handle (a 1 px border inside the size; the focus border takes 1 px of the
    handle's fill). Disabled: the handle and the fill are border-strong. */
-QWidget#wtmhDashboard QSlider:horizontal {{ min-height: {SLIDER_HANDLE_PX}px; }}
+QWidget#wtmhDashboard QSlider:horizontal {{ min-height: {SLIDER_HANDLE_PX}px; outline: 0; }}
 QWidget#wtmhDashboard QSlider::groove:horizontal {{
     height: {SLIDER_GROOVE_PX}px;
     background: {SLIDER_GROOVE};
@@ -317,6 +322,7 @@ QWidget#wtmhDashboard QTableWidget {{
     border: 1px solid {BORDER_SUBTLE};
     border-radius: 0px;
     gridline-color: {BORDER_SUBTLE};
+    outline: 0;
 }}
 QWidget#wtmhDashboard QTableWidget:focus {{ border: {_FOCUS_BORDER}px solid {ACCENT_FOCUS}; }}
 QWidget#wtmhDashboard QTableWidget::item {{ padding: 4px 8px; }}

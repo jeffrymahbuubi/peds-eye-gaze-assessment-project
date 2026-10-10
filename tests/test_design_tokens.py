@@ -35,7 +35,7 @@ from PySide6.QtWidgets import (
 
 from src.engine.config import load_task_config
 from src.ui import design_tokens as tokens
-from src.ui import dialog_theme, frozen_table, run_bar, run_dialogs, wtmh_theme
+from src.ui import alert_box, dialog_theme, frozen_table, run_bar, run_dialogs, wtmh_theme
 from src.ui.dashboard_window import apply_application_font
 from src.ui.design_tokens import CONTRAST_PAIRS, LEGACY_REPORT_COLOURS, TYPE_SCALE
 from src.ui.start_test_page import StartTestPage
@@ -53,6 +53,13 @@ SHEET_MODULES = (
     "config_widgets",
     "frozen_table",
     "rename_editor",
+    # phase 2 (SPEC-design-system-phase2.md): the badge, the alert box and their helpers
+    "alert_box",
+    "status_badge",
+    "glyphs",
+    "page_layout",
+    "setup_status",
+    "config_footer",
 )
 SHEETS = {
     "STYLESHEET": STYLESHEET,
@@ -60,6 +67,7 @@ SHEETS = {
     "run dialogs": run_dialogs._DANGER_STYLE,
     "item views": dialog_theme.ITEM_VIEW_STYLESHEET,
     "frozen table": frozen_table._STYLE,
+    "alert box": alert_box.ALERT_STYLESHEET,
 }
 HEX = re.compile(r"(?<![\w&])#[0-9A-Fa-f]{3,8}\b")
 

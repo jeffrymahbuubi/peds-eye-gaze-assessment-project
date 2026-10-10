@@ -12,7 +12,7 @@ import pytest
 
 os.environ.setdefault("QT_QPA_PLATFORM", "offscreen")
 
-from PySide6.QtWidgets import QApplication, QFormLayout, QLabel, QRadioButton
+from PySide6.QtWidgets import QApplication, QLabel, QRadioButton
 
 from src.engine.calibration import CalibrationResult
 from src.engine.subject_store import ensure_subject
@@ -52,9 +52,10 @@ def subject_folders(tmp_path):
 def test_setup_shows_the_study_code_hint_under_subject_id(page):
     assert page.subject_id_hint.text() == HINT
     assert page.subject_id_hint.objectName() == "wtmhMuted"  # the existing muted caption style
-    form = page.subject_id_edit.parentWidget().layout().findChild(QFormLayout)
-    row, role = form.getWidgetPosition(page.subject_id_edit)
-    assert form.getWidgetPosition(page.subject_id_hint) == (row + 1, role)
+    # directly under the field, in the field's own container (label, field, hint)
+    layout = page.subject_id_edit.parentWidget().layout()
+    index = layout.indexOf(page.subject_id_edit)
+    assert layout.itemAt(index + 1).widget() is page.subject_id_hint
 
 
 def test_the_hint_is_always_there_whatever_is_typed(page):

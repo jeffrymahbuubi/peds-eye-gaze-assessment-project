@@ -16,6 +16,13 @@ from __future__ import annotations
 from PySide6.QtCore import Qt, Signal
 from PySide6.QtWidgets import QDoubleSpinBox, QHBoxLayout, QSlider, QSpinBox, QWidget
 
+# SPEC-design-system-phase2.md H6, C3 (proposal 2.5): a slider over ten steps or fewer is
+# short and shows a tick per step; a longer range gets the longer cap; the spin box is 88 px.
+SHORT_RANGE_STEPS = 10
+SHORT_SLIDER_PX = 240
+LONG_SLIDER_PX = 360
+SPIN_PX = 88
+
 
 def display_decimals(step: float, divisor: float) -> int:
     """Decimals a readout needs to show ``step / divisor`` exactly: 50 ms in seconds is
@@ -63,6 +70,12 @@ class SliderSpinRow(QWidget):
         self._slider = QSlider(Qt.Orientation.Horizontal, self)
         self._slider.setMinimum(0)
         self._slider.setMaximum(int(n_steps))
+        if n_steps <= SHORT_RANGE_STEPS:
+            self._slider.setMaximumWidth(SHORT_SLIDER_PX)
+            self._slider.setTickPosition(QSlider.TickPosition.TicksBelow)
+            self._slider.setTickInterval(1)
+        else:
+            self._slider.setMaximumWidth(LONG_SLIDER_PX)
 
         self._spin: QSpinBox | QDoubleSpinBox
         if kind == "int" and self._divisor == 1.0:
@@ -89,8 +102,9 @@ class SliderSpinRow(QWidget):
 
         layout = QHBoxLayout(self)
         layout.setContentsMargins(0, 0, 0, 0)
+        self._spin.setFixedWidth(SPIN_PX)
         layout.addWidget(self._slider, stretch=1)
-        layout.addWidget(self._spin)
+        layout.addWidget(self._spin)  # a wide card leaves the room right of the spin box
 
     def _is_double(self) -> bool:
         return isinstance(self._spin, QDoubleSpinBox)

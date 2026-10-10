@@ -55,7 +55,8 @@ def test_a_path_error_shows_the_alert_and_disables_start_only(qapp):
     page = make_page()
     page.set_path_error(PATH_TOO_LONG_TEXT)
     assert alert_shown(page) and page.path_alert_label.text() == PATH_TOO_LONG_TEXT
-    assert page.path_alert.objectName() == "wtmhAlertError"
+    assert page.path_alert.objectName() == "wtmhAlert" and page.path_alert.kind() == "danger"
+    assert page.path_alert.action_widget is None  # no Go to Setup: the cause is not a Setup field
     assert not page.start_button.isEnabled()
     assert page.practice_button.isEnabled()  # practice writes nothing
 

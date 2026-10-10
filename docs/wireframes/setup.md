@@ -2,7 +2,7 @@
 
 ## Setup
 
-> **Design system phase 2** (SPEC-design-system-phase2.md H4, V3): the old badge row at the top is gone; each status badge sits in its own card beside its buttons (Tracker, Calibration). Page title 28 px, no "1 ·". Content column at most 1200 px, left-aligned. Field widths by content: Subject ID 320, date 200, Sex 240, Control Address 320, Control Port 120, Point Count 100 px. Every banner is an alert box with a glyph tile (no left stripe, no tint) and never sits inside a card.
+> **Design system phase 2** (SPEC-design-system-phase2.md H4, V3): the old badge row at the top is gone; each status badge sits in its own card beside its buttons (Tracker, Calibration). Page title 28 px, no "1 ·". **Full width** (section 9, 2026-10-09): the page fills the window inside the 32 px gutters, no maximum width. **One card per row** (user, 2026-10-10, as on feature/compass-task-flow; replaces the two columns of 2026-10-09): each card is as wide as the page, 24 px apart, stacked Subject & Session Info, Tracker Connection, Display, Calibration, then Before You Start (a one-line note, not a card); a card's alert sits directly under it; reading and Tab order follow the stack. **Fields fill their card** (no widths by content); labels stay above their fields; Control Address and Control Port share their row 2:1. The calibration buttons and badge wrap onto a second line only in a narrow window. Every banner is an alert box with a glyph tile (no left stripe, no tint) and never sits inside a card.
 
 ---
 
@@ -75,7 +75,7 @@ To change it: Windows Settings → System → Display, set Display resolution to
 > **State B — non-standard:** amber warning with the detected values, plus an **unticked** checkbox. Continue to Tests stays disabled until it is ticked (SPEC §4.4, decision D1).
 > **Live updates:** the card re-checks when the window moves to another monitor, or when resolution/scale change in Windows while the app is open. If the values change, the checkbox **unticks** and must be ticked again. Becoming standard switches to State A.
 > **Recorded:** every session stores resolution, scale, a standard flag and whether this box was ticked, in `metadata.json` and as one `Display:` session-log line (SPEC §4.5).
-> **Placement:** between Tracker Connection and Calibration, so the display is fixed before calibrating (decision D2). Always visible; does not need the tracker to be connected.
+> **Placement:** its own row, under Tracker Connection and above Calibration (reading order Tracker Connection, Display, Calibration), so the display is fixed before calibrating (decision D2). Always visible; does not need the tracker to be connected.
 
 ---
 
@@ -144,5 +144,5 @@ Per-point breakdown
 Needs: Sex, display acknowledgement
 :::
 
-> **Footer** (phase 2 H4, V3): Continue to Tests is 240 px, right-aligned, in a 64 px footer. While it is disabled, a caption under it lists what still blocks it ("Needs: " + the short names of `continue_blockers()`). The tooltip stays.
+> **Footer** (phase 2 H4, V3): Continue to Tests is 240 px, at the right edge of the full-width footer (the window's right gutter), in a 64 px footer. While it is disabled, a caption under it lists what still blocks it ("Needs: " + the short names of `continue_blockers()`). The tooltip stays.
 > **Gate (current, 2026-10-07):** Continue needs Subject ID, Assessment Date and Sex, and a standard display or its ticked acknowledgement. It does **not** wait for the tracker or the calibration: a Mouse test needs neither, and a Gaze test is held back on its own Start page. So the caption never lists the tracker or the calibration. Notes is optional; the "Before You Start" reminder is not part of the gate.

@@ -22,8 +22,10 @@ from src.ui.design_tokens import (
     WARNING_SUBTLE,
     WARNING_TEXT,
 )
+from src.ui.glyphs import GLYPH_CIRCLE, GLYPH_SQUARE, GLYPH_TRIANGLE
 from src.ui.main_window import MainWindow, TaskRunView
 from src.ui.run_bar import BAR_HEIGHT, RunBar
+from src.ui.status_badge import StatusBadge
 
 THEME = {"background": "#e8f5e9", "cursor_color": "#1b5e20", "target_default": "#ff5252"}
 
@@ -139,10 +141,54 @@ def test_each_fact_of_the_status_is_its_own_label_and_the_tracking_state_has_its
     assert bar.tracking_label.text() == "Tracker disconnected"
 
 
-def test_the_tracking_state_is_drawn_in_success_warning_and_danger_text_colours(qapp):
-    sheet = RunBar().styleSheet()
-    for level, colour in ((LEVEL_OK, SUCCESS_TEXT), (LEVEL_WARN, WARNING_TEXT), (LEVEL_ERROR, DANGER_TEXT)):
-        assert f'QLabel#runBarTracking[level="{level}"] {{ color: {colour}; }}' in sheet
+def test_the_tracking_state_is_a_status_badge_with_a_glyph_and_the_word(qapp):
+    """SPEC-design-system-phase2.md H8, Q2: glyph + word in success / warning / danger text
+    colours (7.0 to 7.2:1 on both bar fills), under the name the label had."""
+    bar = RunBar()
+    badge = bar.tracking_label
+    assert isinstance(badge, StatusBadge) and badge.objectName() == "runBarTracking"
+    expected = (
+        (LEVEL_OK, "Tracking OK", "tracking_ok", SUCCESS_TEXT, GLYPH_CIRCLE),
+        (LEVEL_WARN, "No gaze for 3 s", "no_gaze", WARNING_TEXT, GLYPH_TRIANGLE),
+        (LEVEL_ERROR, "Tracker disconnected", "tracker_disconnected", DANGER_TEXT, GLYPH_SQUARE),
+    )
+    for level, word, kind, colour, glyph in expected:
+        bar.set_status(run_status(4, 18, word, level))
+        assert badge.kind() == kind and badge.text() == badge.accessibleName() == word
+        assert (badge.look().text, badge.look().glyph) == (colour, glyph)
+        assert not badge.isHidden() and badge.property("level") == level
+
+
+def test_the_tracking_badge_is_hidden_while_there_is_nothing_to_report(qapp):
+    bar = RunBar()
+    bar.set_status(run_status(1, 3, "", practice=True, mouse=True))  # a Mouse test, no tracker
+    assert bar.tracking_label.isHidden()
+    bar.set_status(run_status(1, 3, "Tracking OK", paused=True))  # paused drops it
+    assert bar.tracking_label.isHidden()
+
+
+def test_the_chip_is_a_fixed_24_px_pill_centred_in_the_bar(qapp):
+    """SPEC-design-system-phase2.md H13 (3): it used to stretch to the bar's height."""
+    bar = RunBar("practice")
+    bar.resize(1400, BAR_HEIGHT)
+    bar.show()
+    for status in (
+        run_status(2, 3, "Tracking OK", practice=True),
+        run_status(2, 3, "", preview=True),
+        run_status(2, 3, "No gaze for 3 s", LEVEL_WARN, practice=True, mouse=True),
+    ):
+        bar.set_status(status)
+        qapp.processEvents()
+        chip = bar.chip_label
+        assert chip.minimumHeight() == chip.maximumHeight() == 24
+        assert chip.height() == 24
+        top = chip.mapTo(bar, chip.rect().topLeft()).y()
+        assert top + 12 == BAR_HEIGHT // 2  # the chip's middle is the bar's middle
+        badge = bar.tracking_label
+        if not badge.isHidden():
+            assert badge.height() == 24
+            assert badge.mapTo(bar, badge.rect().topLeft()).y() + 12 == BAR_HEIGHT // 2
+    bar.close()
 
 
 def test_the_chip_is_a_filled_warning_chip_and_the_practice_bar_is_warning_subtle(qapp):

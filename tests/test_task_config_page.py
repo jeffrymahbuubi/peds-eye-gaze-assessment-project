@@ -119,8 +119,10 @@ def _select(page, name):
 
 
 def _widgets_of_column(page, column):
+    """The cards of a column, top to bottom (not the "Gaze Pointer Settings" title or an alert box)."""
     layout = page.scroll_area.widget().layout().itemAtPosition(0, column).layout()
-    return [layout.itemAt(i).widget() for i in range(layout.count()) if layout.itemAt(i).widget()]
+    widgets = [layout.itemAt(i).widget() for i in range(layout.count()) if layout.itemAt(i).widget()]
+    return [w for w in widgets if w.objectName() == "wtmhCard"]
 
 
 # -- AB1 / AB2: one control per setting, none hidden ---------------------------------------------
@@ -260,7 +262,7 @@ def test_the_cards_scroll_above_a_pinned_footer(qapp):
     for button in (page.preview_button, page.save_button, page.cancel_button):
         assert not scroll.isAncestorOf(button)
         assert not button.autoDefault()  # Enter never saves (4B.5)
-    assert scroll.widget().maximumWidth() == 1500
+    assert scroll.widget().maximumWidth() == (1 << 24) - 1  # no 1500 px cap (section 9, 2026-10-09)
     assert "wtmhConfigScroll" in wtmh_theme.STYLESHEET
     assert "QRadioButton" in wtmh_theme.STYLESHEET
 
@@ -285,7 +287,7 @@ def test_a_new_test_opens_with_standard_and_the_defaults(qapp, task_id):
     assert page._form.config_combo.currentText() == "Standard"
     assert page.loaded_config_name() == "Standard"
     assert page.collect_values()["live"]["dwell.smoothing.alpha"] == 0.22  # the YAML, not 0.35
-    assert page._form.modified_label.isHidden()
+    assert page._form.modified_label.text() == ""
     assert not page.is_dirty() and not page.is_modified()
     assert page.save_problem() is None and page.save_button.isEnabled()
     assert page.standard_values() == settings_snapshot(task_id, config)
@@ -501,7 +503,7 @@ def test_picking_a_saved_name_loads_all_its_values_and_defaults_the_missing_ones
     assert values["live"]["dwell.threshold_ms"] == 1200
     assert page._form.config_combo.currentText() == "Large targets"
     assert page.loaded_config_name() == "Large targets"
-    assert page._form.modified_label.isHidden()
+    assert page._form.modified_label.text() == ""
     assert answers.asked == []  # nothing to replace: not asked
     _select(page, "Standard")
     assert page.collect_values() == settings_snapshot("click_grid", config)
@@ -609,11 +611,11 @@ def test_values_a_hand_edited_file_cannot_give_fall_back_to_the_defaults(qapp):
 def test_the_changed_from_line_names_the_loaded_configuration(qapp):
     page, _ = _page("click_grid")
     modified = page._form.modified_label
-    assert modified.isHidden()
+    assert modified.text() == ""  # always there (C4), empty while nothing changed
     page._form.controls["trials"].setValue(7)
-    assert not modified.isHidden() and modified.text() == "Changed from Standard"
+    assert modified.text() == "Changed from Standard"
     page._form.controls["trials"].setValue(18)
-    assert modified.isHidden()
+    assert modified.text() == ""
     page.load_values(config_name="Large targets", structural={"trials": 9})
     page._form.controls["trials"].setValue(10)
     assert modified.text() == "Changed from Large targets"
@@ -783,7 +785,7 @@ def test_reset_restores_standard_and_the_defaults_but_keeps_name_and_notes(qapp,
     assert page.loaded_config_name() == "Standard"
     assert page._form.test_name_edit.text() == "My test"
     assert page._form.notes_edit.toPlainText() == "kept"
-    assert page._form.modified_label.isHidden()
+    assert page._form.modified_label.text() == ""
     assert page._form.controls["dwell.smoothing.alpha"].isEnabled()  # dependents follow
     assert page.is_dirty()  # unsaved until Save & Continue
     assert answers.asked == []  # reset itself never asks

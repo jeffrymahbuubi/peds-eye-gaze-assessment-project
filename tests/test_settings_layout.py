@@ -39,24 +39,26 @@ SMOOTHING = ["dwell.smoothing.enabled", "dwell.smoothing.alpha"]
 TEST_CARD = ["test.name", "test.config_name", "trials", "test.notes"]
 TIMING = ["task.timeout_ms", "task.inter_trial_interval_ms"]
 
-# (id, column, hint, controls) per card, in order -- 4B.1 and the 4B.2 tables.
+# (id, column, hint, controls) per card, in order -- 4B.1 and the 4B.2 tables, reordered by
+# clinical weight in SPEC-design-system-phase2.md H6 (V4): column A = Test, Input, Target (or
+# Icons); B = the task's own card, Timing, Feedback; C = Dwell, Gaze Smoothing ("Gaze Pointer Settings").
 EXPECTED = {
     "click_static": [
         ("test", 0, None, TEST_CARD),
-        ("feedback", 0, None, FEEDBACK),
-        ("target", 1, None, ["target.size"]),
+        ("input", 0, None, INPUT),
+        ("target", 0, None, ["target.size"]),
         ("timing", 1, None, TIMING),
-        ("input", 2, None, INPUT),
+        ("feedback", 1, None, FEEDBACK),
         ("selection", 2, None, SELECTION),
         ("smoothing", 2, None, SMOOTHING),
     ],
     "click_grid": [
         ("test", 0, None, TEST_CARD),
-        ("feedback", 0, None, FEEDBACK),
-        ("target", 1, None, ["target.size"]),
+        ("input", 0, None, INPUT),
+        ("target", 0, None, ["target.size"]),
         ("grid", 1, HINT_GRID_FIT, ["grid.rows", "grid.cols", "grid.gap"]),
         ("timing", 1, None, TIMING),
-        ("input", 2, None, INPUT),
+        ("feedback", 1, None, FEEDBACK),
         ("selection", 2, None, SELECTION),
         ("smoothing", 2, None, SMOOTHING),
     ],
@@ -65,19 +67,19 @@ EXPECTED = {
     # holds "Trial duration" (same key as the timeout) and the inter-trial interval.
     "follow_moving": [
         ("test", 0, None, TEST_CARD),
-        ("feedback", 0, None, FOLLOW_FEEDBACK),
-        ("target", 1, None, ["target.size"]),
+        ("input", 0, None, ["input.pointer"]),
+        ("target", 0, None, ["target.size"]),
         ("motion", 1, None, ["motion.path", "motion.speed_frac_per_s"]),
         ("timing", 1, None, TIMING),
-        ("input", 2, None, ["input.pointer"]),
+        ("feedback", 1, None, FOLLOW_FEEDBACK),
         ("smoothing", 2, None, SMOOTHING),
     ],
     "scanning": [
         ("test", 0, None, TEST_CARD),
-        ("feedback", 0, None, FEEDBACK),
-        ("icons", 1, HINT_ICON_FIT, ["layout.size", "layout.n_icons"]),
+        ("input", 0, None, INPUT),
+        ("icons", 0, HINT_ICON_FIT, ["layout.size", "layout.n_icons"]),
         ("timing", 1, None, TIMING),
-        ("input", 2, None, INPUT),
+        ("feedback", 1, None, FEEDBACK),
         ("selection", 2, None, SELECTION),
         ("smoothing", 2, None, SMOOTHING),
     ],
@@ -138,7 +140,7 @@ def test_task_specific_controls_appear_only_on_their_task():
 def test_an_unknown_task_still_gets_the_common_cards():
     ids = [g.id for g in config_groups_for_task("not_a_task")]
     # Pointer is on every task, so the Input card is too (Selection is only on three).
-    assert ids == ["test", "feedback", "timing", "input", "selection", "smoothing"]
+    assert ids == ["test", "input", "timing", "feedback", "selection", "smoothing"]
 
 
 # -- widget kinds and dependencies ------------------------------------------------------
