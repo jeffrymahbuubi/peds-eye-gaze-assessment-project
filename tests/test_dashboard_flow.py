@@ -28,8 +28,8 @@ from src.ui.dashboard_flow import (
     TitleBar,
 )
 from src.ui.dashboard_window import DashboardWindow
+from src.ui.design_tokens import TITLE_BAR, TITLE_BAR_TEXT
 from src.ui.test_list_page import SubjectTestListPage
-from src.ui.wtmh_theme import TITLEBAR_BG, TITLEBAR_TEXT
 
 
 @pytest.fixture(scope="module")
@@ -143,9 +143,9 @@ def test_the_title_bar_paints_its_navy_background_so_the_light_text_is_readable(
     win.show()
     QApplication.processEvents()
     image = win.title_bar.grab().toImage()
-    assert image.pixelColor(image.width() // 2, 2) == QColor(TITLEBAR_BG)
-    assert image.pixelColor(2, image.height() // 2) == QColor(TITLEBAR_BG)
-    assert QColor(TITLEBAR_TEXT).lightness() > QColor(TITLEBAR_BG).lightness() + 100  # light on navy
+    assert image.pixelColor(image.width() // 2, 2) == QColor(TITLE_BAR)
+    assert image.pixelColor(2, image.height() // 2) == QColor(TITLE_BAR)
+    assert QColor(TITLE_BAR_TEXT).lightness() > QColor(TITLE_BAR).lightness() + 100  # light on navy
 
 
 def test_the_title_bar_alone_has_the_styled_background_attribute(qapp):

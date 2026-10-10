@@ -232,7 +232,9 @@ def test_a_pdf_that_cannot_be_written_says_so_in_the_footer_and_does_not_crash(q
     assert not page.footer_message.text().startswith("The PDF could not")
 
 
-def test_the_pdf_is_made_from_the_edited_fields_and_the_targets_only_map(qapp, tmp_path, monkeypatch):
+def test_the_pdf_is_made_from_the_edited_fields_and_the_whole_test_map(qapp, tmp_path, monkeypatch):
+    """The map is the whole test with the Targets and the scanpath (gaze was recorded), whatever the
+    screen's switches and the Detailed pane's trial are (the scanpath's pixels: test_report_pdf_phase4.py)."""
     page = make_page(tmp_path, evaluator="Dr. Lin", notes="old notes")
     page.summary.path_check.setChecked(True)
     page.summary.heat_check.setChecked(True)

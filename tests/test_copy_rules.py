@@ -46,10 +46,11 @@ from tests.report_fixtures import RIG_META
 SRC = Path(__file__).resolve().parent.parent / "src"
 EM_DASH = "—"
 INTERPUNCT = "·"
-# The only modules that still hold an interpunct: the Test List's " · data missing", which is
-# now only the hidden text of the Status item (the badge says it, phase 2), and the map legend
-# sentences (phase 4). The Start page's blocker join went with the Blocked alert (phase 2 H7).
-INTERPUNCT_LATER = {"ui/test_list_table.py", "ui/report_views.py"}
+# The only module that still holds an interpunct: the Test List's " · data missing", which is
+# now only the hidden text of the Status item (the badge says it, phase 2). The Start page's
+# blocker join went with the Blocked alert (phase 2 H7) and the map legend sentences were split
+# into two caption lines without one (phase 4 D3).
+INTERPUNCT_LATER = {"ui/test_list_table.py"}
 
 
 @pytest.fixture(scope="module")
@@ -80,7 +81,7 @@ def test_the_two_dash_constants_are_the_numeric_and_date_cell_dash():
     assert report_format.DASH is DASH and report_format.NOT_RECORDED == NOT_RECORDED == "not recorded"
 
 
-def test_no_interpunct_is_left_outside_the_two_modules_that_keep_one():
+def test_no_interpunct_is_left_outside_the_module_that_keeps_one():
     found = {
         str(path.relative_to(SRC)).replace("\\", "/")
         for path in [*scanned_files(), SRC / "engine" / "tracking_status.py", SRC / "tasks" / "follow_moving.py"]
@@ -184,7 +185,8 @@ def test_the_pdf_header_has_the_title_without_a_colon_and_not_recorded_for_what_
     report = {"session": {"subject": "P001", "started_ns": None}, "config": {"rows": []}, "summary": {}, "trials": []}
     html = build_report_html(report, test_name="Grid Click 1", evaluator="", notes="", map_image=None)
     assert "Summary Results, Grid Click 1" in html and "Summary Results:" not in html
-    assert f"Evaluator: <b>{NOT_RECORDED}</b>" in html and f"<p style=\"margin-top:0\">{NOT_RECORDED}</p>" in html
+    assert f"Evaluator: <b>{NOT_RECORDED}</b>" in html
+    assert re.search(rf'>Notes</p><p style="[^"]*">{NOT_RECORDED}</p>', html)  # the Notes text, a paragraph now
     assert EM_DASH not in html.split("<table")[0]  # the header block says words, not a lone dash
 
 

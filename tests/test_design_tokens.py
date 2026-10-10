@@ -35,15 +35,16 @@ from PySide6.QtWidgets import (
 
 from src.engine.config import load_task_config
 from src.ui import design_tokens as tokens
-from src.ui import alert_box, dialog_theme, frozen_table, run_bar, run_dialogs, wtmh_theme
+from src.ui import alert_box, dialog_theme, frozen_table, map_legend, run_bar, run_dialogs, wtmh_theme
 from src.ui.dashboard_window import apply_application_font
-from src.ui.design_tokens import CONTRAST_PAIRS, LEGACY_REPORT_COLOURS, TYPE_SCALE
+from src.ui.design_tokens import CONTRAST_PAIRS, TYPE_SCALE
 from src.ui.start_test_page import StartTestPage
 from src.ui.wtmh_theme import STYLESHEET
 from tests.colour_helpers import contrast
 
 UI = Path(__file__).resolve().parent.parent / "src" / "ui"
-# The operator-UI sheets (P2); the painters of the report map and the PDF are phase 4.
+# The operator-UI sheets (P2) and, since phase 4 (SPEC-design-system-phase4.md H1), the painters of the
+# report map, its legend and the PDF.
 SHEET_MODULES = (
     "wtmh_theme",
     "wtmh_controls",
@@ -60,6 +61,11 @@ SHEET_MODULES = (
     "page_layout",
     "setup_status",
     "config_footer",
+    # phase 4 (SPEC-design-system-phase4.md): the report map, its legend and the PDF
+    "target_map_paint",
+    "target_map_follow",
+    "map_legend",
+    "report_pdf",
 )
 SHEETS = {
     "STYLESHEET": STYLESHEET,
@@ -68,6 +74,7 @@ SHEETS = {
     "item views": dialog_theme.ITEM_VIEW_STYLESHEET,
     "frozen table": frozen_table._STYLE,
     "alert box": alert_box.ALERT_STYLESHEET,
+    "map legend": map_legend.LEGEND_STYLE,
 }
 HEX = re.compile(r"(?<![\w&])#[0-9A-Fa-f]{3,8}\b")
 
@@ -133,22 +140,63 @@ def test_a_built_sheet_has_only_token_colours_and_no_gradient(name):
     assert stray == set(), stray
 
 
-def test_the_report_painters_keep_todays_colours_through_the_legacy_block():
-    from src.ui import map_legend, report_pdf, target_map_follow, target_map_paint
-
-    legacy = LEGACY_REPORT_COLOURS
-    assert (legacy.accent, legacy.ink, legacy.soft_accent) == ("#1F7A9C", "#122B3A", "#DCF0F5")
-    assert map_legend.SOFT_ACCENT == legacy.soft_accent and legacy.soft_accent in map_legend.LEGEND_STYLE
-    assert report_pdf.SOFT_ACCENT_TEXT == legacy.soft_accent_text and report_pdf.WARNING_BG == legacy.warning_bg
-    assert target_map_paint.ACCENT == legacy.accent and target_map_paint.SUCCESS == legacy.success
-    assert target_map_follow.MUTED == legacy.muted
+def test_the_map_and_data_viz_tokens_are_the_values_of_proposal_2_2():
+    """SPEC-design-system-phase4.md H1."""
+    assert (tokens.MAP_HIT_FILL, tokens.MAP_HIT_OUTLINE, tokens.MAP_MISS) == ("#A7F0BA", "#198038", "#DA1E28")
+    assert (tokens.MAP_SKIPPED, tokens.MAP_SLOT) == ("#6F6F6F", "#8D8D8D")
+    assert (tokens.MAP_PATH_DARK, tokens.MAP_PATH_LIGHT, tokens.MAP_FIXATION) == ("#1F669E", "#2D7EB3", "#1F669E")
+    assert (tokens.MAP_OVERLAY, tokens.MAP_OVERLAY_ALPHA, tokens.MAP_SELECT) == ("#1F669E", 200, "#F2B705")
+    assert tokens.MAP_PATH_DARK == tokens.ACCENT and tokens.MAP_PATH_LIGHT == tokens.ACCENT_FOCUS
 
 
-def test_the_old_theme_names_are_aliases_of_the_new_tokens():
-    assert wtmh_theme.BACKGROUND == tokens.PAGE and wtmh_theme.PANEL_BG == tokens.PANEL
-    assert wtmh_theme.BORDER == tokens.BORDER_SUBTLE and wtmh_theme.MUTED == tokens.TEXT_SECONDARY
-    assert wtmh_theme.SOFT_ACCENT == tokens.ACCENT_SUBTLE and wtmh_theme.ACCENT == tokens.ACCENT
-    assert not hasattr(wtmh_theme, "ACCENT_GRADIENT_START") and not hasattr(wtmh_theme, "ACCENT_GRADIENT_END")
+def test_every_map_token_pair_is_in_the_contrast_table_and_the_digits_on_a_hit_are_13_63(qapp):
+    """M-1: the digits on a hit are ink on map-hit-fill, 13.63:1 by computation; and every map mark
+    that is drawn on the canvas has its row (the overlay is the composite over the canvas)."""
+    rows = {(fg, bg): minimum for fg, bg, minimum in CONTRAST_PAIRS}
+    assert rows[(tokens.INK, tokens.MAP_HIT_FILL)] == 13.63
+    assert contrast(QColor(tokens.INK), QColor(tokens.MAP_HIT_FILL)) == pytest.approx(13.63, abs=0.01)
+    for fg in (
+        tokens.MAP_HIT_OUTLINE, tokens.MAP_MISS, tokens.MAP_SKIPPED, tokens.MAP_SLOT,
+        tokens.MAP_PATH_DARK, tokens.MAP_PATH_LIGHT, tokens.MAP_FIXATION, tokens.MAP_OVERLAY_ON_PANEL,
+    ):
+        assert (fg, tokens.PANEL) in rows, fg
+        assert contrast(QColor(fg), QColor(tokens.PANEL)) >= 3.0, fg  # a non-text mark: 3:1
+
+
+def test_the_overlay_composite_is_the_overlay_at_alpha_200_over_the_canvas():
+    overlay, panel = QColor(tokens.MAP_OVERLAY), QColor(tokens.PANEL)
+    alpha = tokens.MAP_OVERLAY_ALPHA / 255
+    blended = QColor(
+        *(round(a * alpha + b * (1 - alpha)) for a, b in zip(overlay.getRgb()[:3], panel.getRgb()[:3], strict=True))
+    )
+    assert blended.name().upper() == tokens.MAP_OVERLAY_ON_PANEL == "#4F87B3"
+    assert contrast(blended, panel) == pytest.approx(3.85, abs=0.01)
+
+
+def test_the_legacy_report_colours_and_the_old_theme_names_are_gone():
+    """SPEC-design-system-phase4.md H1: nothing imports them any more."""
+    assert not hasattr(tokens, "LEGACY_REPORT_COLOURS") and not hasattr(tokens, "LegacyReportColours")
+    for name in (
+        "BACKGROUND", "PANEL_BG", "BORDER", "MUTED", "SOFT_ACCENT", "SOFT_ACCENT_TEXT", "TITLEBAR_BG",
+        "TITLEBAR_TEXT", "NEUTRAL_BADGE_BG", "DISABLED_BG", "DISABLED_BORDER", "DISABLED_TEXT",
+        "CONTROL_BORDER", "BANNER_BORDER", "WARNING_BG", "WARNING_BORDER",
+        "ACCENT_GRADIENT_START", "ACCENT_GRADIENT_END",
+    ):
+        assert not hasattr(wtmh_theme, name), name
+    for path in sorted(UI.glob("*.py")) + sorted((UI.parent.parent / "tests").glob("*.py")):
+        source = path.read_text(encoding="utf-8")
+        if path.name != "test_design_tokens.py":
+            assert "LEGACY_REPORT_COLOURS" not in source, path.name
+
+
+def test_the_painters_draw_with_the_map_tokens():
+    from src.ui import target_map_follow, target_map_paint
+
+    assert (target_map_follow.FOLLOW_ON, target_map_follow.FOLLOW_OFF) == (tokens.MAP_PATH_DARK, tokens.MAP_SKIPPED)
+    assert target_map_follow.TRACK == tokens.MAP_SLOT
+    assert target_map_paint.TRIAL_PATH_DARK.name().upper() == tokens.MAP_PATH_DARK
+    assert target_map_paint.TRIAL_PATH_LIGHT.name().upper() == tokens.MAP_PATH_LIGHT
+    assert tokens.PANEL in map_legend.LEGEND_STYLE and tokens.BORDER_SUBTLE in map_legend.LEGEND_STYLE
 
 
 # -- P3: the type scale -----------------------------------------------------------------------------

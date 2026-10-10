@@ -5,7 +5,8 @@ A state is never carried by colour, bold or tint alone: every badge pairs a pain
 shape with the state word, so it reads the same in grey scale and for a colour-blind
 operator. The Test List's Status cells, the Setup tracker and calibration badges and the
 run bar's tracking state all use this one widget; the report's Outcome cell reuses it in
-phase 4.
+phase 4: its table delegate calls :func:`paint_badge` and :func:`badge_width`, the widget's own
+drawing and size, so a cell paints the same pill without a widget in the cell.
 
 The pill is 24 px high with a full radius, the glyph a 12 px pixmap painted with
 ``QPainter`` (:mod:`~src.ui.glyphs`), a 6 px gap, then the word at the caption step in
@@ -89,6 +90,33 @@ def badge_font() -> QFont:
     return font
 
 
+def badge_width(text: str, font: QFont | None = None) -> int:
+    """The width of a badge that says ``text``: padding, glyph, gap, the word, padding."""
+    word = QFontMetrics(font or badge_font()).horizontalAdvance(text)
+    return BADGE_PADDING + GLYPH_PX + GLYPH_GAP + word + BADGE_PADDING + 1
+
+
+def paint_badge(painter: QPainter, rect: QRectF, kind: str, text: str, dpr: float = 1.0) -> None:
+    """Draw the badge of ``kind`` saying ``text`` in ``rect`` (a pill, the glyph, the word)."""
+    look = LOOKS[kind]
+    painter.save()
+    painter.setRenderHint(QPainter.RenderHint.Antialiasing)
+    painter.setPen(Qt.PenStyle.NoPen)
+    painter.setBrush(QColor(look.fill))
+    painter.drawRoundedRect(rect, BADGE_RADIUS, BADGE_RADIUS)
+    pixmap = glyph_pixmap(look.glyph, look.text, GLYPH_PX, dpr)
+    painter.drawPixmap(QPointF(rect.left() + BADGE_PADDING, rect.top() + (rect.height() - GLYPH_PX) / 2.0), pixmap)
+    painter.setFont(badge_font())
+    painter.setPen(QColor(look.text))
+    left = BADGE_PADDING + GLYPH_PX + GLYPH_GAP
+    painter.drawText(
+        QRectF(rect.left() + left, rect.top(), rect.width() - left, rect.height()),
+        int(Qt.AlignmentFlag.AlignVCenter | Qt.AlignmentFlag.AlignLeft),
+        text,
+    )
+    painter.restore()
+
+
 class StatusBadge(QWidget):
     """A pill with a state glyph and the state word. ``set_state(kind, text)`` changes both;
     ``text`` defaults to the kind's own word ("Not done", "Tracking OK", ...)."""
@@ -126,27 +154,12 @@ class StatusBadge(QWidget):
     # -- size and painting -------------------------------------------------------
 
     def sizeHint(self) -> QSize:  # noqa: N802 (Qt naming)
-        word = QFontMetrics(self._font).horizontalAdvance(self._text)
-        return QSize(BADGE_PADDING + GLYPH_PX + GLYPH_GAP + word + BADGE_PADDING + 1, BADGE_HEIGHT)
+        return QSize(badge_width(self._text, self._font), BADGE_HEIGHT)
 
     def minimumSizeHint(self) -> QSize:  # noqa: N802 (Qt naming)
         return self.sizeHint()
 
     def paintEvent(self, _event: QPaintEvent) -> None:  # noqa: N802 (Qt naming)
-        look = self.look()
         painter = QPainter(self)
-        painter.setRenderHint(QPainter.RenderHint.Antialiasing)
-        painter.setPen(Qt.PenStyle.NoPen)
-        painter.setBrush(QColor(look.fill))
-        painter.drawRoundedRect(QRectF(self.rect()), BADGE_RADIUS, BADGE_RADIUS)
-        pixmap = glyph_pixmap(look.glyph, look.text, GLYPH_PX, self.devicePixelRatioF())
-        painter.drawPixmap(QPointF(BADGE_PADDING, (self.height() - GLYPH_PX) / 2.0), pixmap)
-        painter.setFont(self._font)
-        painter.setPen(QColor(look.text))
-        left = BADGE_PADDING + GLYPH_PX + GLYPH_GAP
-        painter.drawText(
-            QRectF(left, 0, self.width() - left, self.height()),
-            int(Qt.AlignmentFlag.AlignVCenter | Qt.AlignmentFlag.AlignLeft),
-            self._text,
-        )
+        paint_badge(painter, QRectF(self.rect()), self._kind, self._text, self.devicePixelRatioF())
         painter.end()

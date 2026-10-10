@@ -2,9 +2,10 @@
 
 Pure drawing: given a :class:`MapModel` (read once from ``report.json``) and the
 rectangle of the canvas, :func:`paint_map` draws the whole test (target marks, the
-faint layout, each trial's fixation scanpath, the heat map) or one trial (target and
-hitbox rings, the smoothed gaze path dark to light, numbered fixations). Everything is in **canvas-normalized**
-coordinates, so a mark sits where the target was and a circle stays a circle (the
+layout, the fixation scanpaths in one colour, the heat map) or one trial (target and
+hitbox rings, the smoothed gaze path dark to light, numbered fixations). Every colour is a
+:mod:`~src.ui.design_tokens` map token (SPEC-design-system-phase4.md H1-H4). Everything is in
+**canvas-normalized** coordinates, so a mark sits where the target was and a circle stays a circle (the
 rectangle has the canvas's own aspect). Used by :class:`TargetMapWidget` for the
 screen and its ``render_to_image`` for the PDF, so both draw the same.
 
@@ -21,36 +22,43 @@ from typing import Any
 from PySide6.QtCore import QPointF, QRectF, Qt
 from PySide6.QtGui import QColor, QFont, QFontMetricsF, QImage, QPainter, QPen, QPolygonF
 
-from .design_tokens import LEGACY_REPORT_COLOURS as _LEGACY
+from .design_tokens import (
+    BORDER_SUBTLE,
+    INK,
+    MAP_FIXATION,
+    MAP_HIT_FILL,
+    MAP_HIT_OUTLINE,
+    MAP_MISS,
+    MAP_OVERLAY,
+    MAP_OVERLAY_ALPHA,
+    MAP_PATH_DARK,
+    MAP_PATH_LIGHT,
+    MAP_SELECT,
+    MAP_SKIPPED,
+    MAP_SLOT,
+    PANEL,
+    TEXT_SECONDARY,
+)
 from .report_format import hit_tolerance_px
 from .target_map_follow import (
     LINE_KINDS,
+    TRACK,
     paint_line_symbol,
     paint_pointer_runs,
     pointer_runs,
     run_points,
 )
 
-# Phase 4 gives the report map, its legend and the PDF the design tokens; until then they keep
-# today's colours (SPEC-design-system-phase1.md H2).
-ACCENT, BORDER, DANGER, INK, MUTED, PANEL_BG, SUCCESS = (
-    _LEGACY.accent,
-    _LEGACY.border,
-    _LEGACY.danger,
-    _LEGACY.ink,
-    _LEGACY.muted,
-    _LEGACY.panel_bg,
-    _LEGACY.success,
-)
-
 DEFAULT_ASPECT = 16 / 9
 MIN_RADIUS = 0.02  # canvas-x units, for a mark whose radius the folder lacks
 HEAT_FLOOR = 0.05  # heat values below this are transparent (4D.5)
-PATH_COLOURS = ("#1F77B4", "#E08A00", "#7B52AB", "#8C564B", "#D6479A", "#17A2B8")
-# The path of one trial runs from the first colour to the second with time. The second is still a
-# strong teal (3:1 against white), so the newest end of the path does not wash out on the canvas.
-TRIAL_PATH_DARK, TRIAL_PATH_LIGHT = QColor("#0F3D52"), QColor("#2B8CB0")
+# The path of one trial runs from the first colour to the second with time; the light end is 4.4:1
+# against white, so the newest end of the path does not wash out on the canvas.
+TRIAL_PATH_DARK, TRIAL_PATH_LIGHT = QColor(MAP_PATH_DARK), QColor(MAP_PATH_LIGHT)
 BADGE_PAD = 0.25  # a number badge reaches this fraction of the font's pixel size past its digits
+FIXATION_NUMBER_MIN_PX = 11.0  # a fixation's number is never drawn smaller (D3)
+SCANPATH_DOT_PX = 3.0  # the Summary scanpath's dot radius and line width, in design px (X1)
+SCANPATH_LINE_PX = 1.5
 
 
 @dataclass
@@ -236,24 +244,22 @@ def _paint_mark(p: QPainter, rect: QRectF, mark: dict[str, Any], unit: float) ->
     outcome = {"followed": "hit", "not_followed": "timeout"}.get(outcome, outcome)  # Follow the Target
     badge = None
     p.setBrush(Qt.BrushStyle.NoBrush)
+    text_colour = INK  # the digits are ink on every mark (13.6:1 on the hit fill)
     if outcome == "hit":
-        p.setPen(_pen(SUCCESS, 2 * unit))
-        p.setBrush(_alpha(SUCCESS, 150))
+        p.setPen(_pen(MAP_HIT_OUTLINE, 2 * unit))
+        p.setBrush(QColor(MAP_HIT_FILL))
         _circle(p, centre, radius)
-        text_colour = "#FFFFFF"
     elif outcome == "timeout":
-        p.setPen(_pen(_alpha(DANGER, 110), unit))
+        p.setPen(_pen(MAP_MISS, 2 * unit))
         _circle(p, centre, radius)
-        p.setPen(_pen(DANGER, 3 * unit))
+        p.setPen(_pen(MAP_MISS, 3 * unit))
         d = radius * 0.7
         p.drawLine(QPointF(centre.x() - d, centre.y() - d), QPointF(centre.x() + d, centre.y() + d))
         p.drawLine(QPointF(centre.x() - d, centre.y() + d), QPointF(centre.x() + d, centre.y() - d))
-        text_colour = INK
-        badge = (PANEL_BG, _alpha(DANGER, 170))  # drawn after the X: the number stays readable
+        badge = (PANEL, MAP_MISS)  # drawn after the X: the number stays readable
     else:  # skipped (or an outcome the report could not tell): a dashed grey ring
-        p.setPen(_pen(MUTED, 2 * unit, Qt.PenStyle.DashLine))
+        p.setPen(_pen(MAP_SKIPPED, 2 * unit, Qt.PenStyle.DashLine))
         _circle(p, centre, radius)
-        text_colour = INK
     p.setBrush(Qt.BrushStyle.NoBrush)
     size = min(26 * unit, max(9.0, radius * 0.75))
     _label(p, centre, str(mark.get("label", "")), text_colour, 1.7 * radius, size, badge)
@@ -261,7 +267,7 @@ def _paint_mark(p: QPainter, rect: QRectF, mark: dict[str, Any], unit: float) ->
 
 def _paint_slots(p: QPainter, rect: QRectF, model: MapModel, unit: float) -> None:
     p.setBrush(Qt.BrushStyle.NoBrush)
-    p.setPen(_pen(_alpha(MUTED, 90), unit, Qt.PenStyle.DashLine))
+    p.setPen(_pen(MAP_SLOT, unit, Qt.PenStyle.DashLine))
     for x, y in model.slots:
         _circle(p, _point(rect, x, y), model.slot_radius * rect.width())
 
@@ -269,28 +275,29 @@ def _paint_slots(p: QPainter, rect: QRectF, model: MapModel, unit: float) -> Non
 def _paint_track(p: QPainter, rect: QRectF, track: list[list[float]], unit: float) -> None:
     if len(track) < 2:
         return
-    p.setPen(_pen(_alpha(MUTED, 120), 2 * unit))
+    p.setPen(_pen(TRACK, 2 * unit))
     p.drawPolyline(QPolygonF([_point(rect, x, y) for x, y in track]))
 
 
 def _paint_scanpaths(p: QPainter, rect: QRectF, model: MapModel, unit: float) -> None:
     """The whole test's fixation scanpaths (V2): per trial, one dot at each fixation's
-    centroid, joined by straight lines in time order, in the trial's own colour. It is not
-    the raw gaze, so fixational tremor does not scribble the map."""
+    centroid, joined by straight lines in time order, **all trials in one colour** (X1: the
+    hit and miss marks and their numbers stay readable; a trial's own colour is the Detailed
+    view's). It is not the raw gaze, so fixational tremor does not scribble the map."""
+    colour = _alpha(MAP_OVERLAY, MAP_OVERLAY_ALPHA)
     for trial in model.trials:
-        colour = PATH_COLOURS[(int(trial.get("trial") or 1) - 1) % len(PATH_COLOURS)]
         points = [
             _point(rect, pt[0], pt[1])
             for pt in trial.get("scanpath") or []
             if isinstance(pt, (list, tuple)) and len(pt) >= 2
         ]
         if len(points) >= 2:
-            p.setPen(_pen(_alpha(colour, 190), 1.5 * unit))
+            p.setPen(_pen(colour, SCANPATH_LINE_PX * unit))
             p.drawPolyline(QPolygonF(points))
-        p.setPen(_pen("#FFFFFF", unit))
-        p.setBrush(QColor(colour))
+        p.setPen(_pen(PANEL, unit))
+        p.setBrush(colour)
         for point in points:
-            _circle(p, point, max(4.5 * unit, 3.0))
+            _circle(p, point, max(SCANPATH_DOT_PX * unit, 2.0))
         p.setBrush(Qt.BrushStyle.NoBrush)
 
 
@@ -323,8 +330,8 @@ def _paint_trial(
     """One trial: the target with its dashed hitbox ring, the gaze path dark to light by
     time, fixation circles (radius grows with duration) numbered in order, the onset
     (S) and, for a hit, the selection (star) at the path's two ends. With ``runs`` (Follow
-    the Target) the pointer path is drawn as they say instead: dark on the target, lighter
-    and thinner off it."""
+    the Target) the pointer path is drawn as they say instead: dark on the target, grey,
+    thinner and dashed off it."""
     target = trial.get("target", {})
     outcome = trial.get("outcome")
     outcome_hit = outcome in ("hit", "followed")
@@ -336,13 +343,15 @@ def _paint_trial(
     if x is not None and y is not None:
         centre = _point(rect, x, y)
         radius = max(target.get("radius_norm_x") or 0.0, MIN_RADIUS) * rect.width()
-        colour = SUCCESS if outcome_hit else DANGER if outcome in ("timeout", "not_followed") else MUTED
-        p.setBrush(_alpha(colour, 60) if outcome_hit else Qt.BrushStyle.NoBrush)
+        colour = (
+            MAP_HIT_OUTLINE if outcome_hit else MAP_MISS if outcome in ("timeout", "not_followed") else MAP_SKIPPED
+        )
+        p.setBrush(QColor(MAP_HIT_FILL) if outcome_hit else Qt.BrushStyle.NoBrush)
         p.setPen(_pen(colour, 2.5 * unit))
         _circle(p, centre, radius)
         if model.tolerance_norm is not None:
             p.setBrush(Qt.BrushStyle.NoBrush)
-            p.setPen(_pen(MUTED, 1.5 * unit, Qt.PenStyle.DashLine))
+            p.setPen(_pen(MAP_SLOT, 1.5 * unit, Qt.PenStyle.DashLine))
             _circle(p, centre, radius + model.tolerance_norm * rect.width())
 
     if runs:
@@ -365,24 +374,27 @@ def _paint_trial(
         # Opaque white under the tint, so the gaze path (drawn before) never shows through
         # a fixation, and a badge behind the number, so the number never sits on the path.
         p.setPen(Qt.PenStyle.NoPen)
-        p.setBrush(QColor(PANEL_BG))
+        p.setBrush(QColor(PANEL))
         _circle(p, centre, radius)
-        p.setPen(_pen(ACCENT, 1.5 * unit))
-        p.setBrush(_alpha(ACCENT, 70))
+        p.setPen(_pen(MAP_FIXATION, 1.5 * unit))
+        p.setBrush(_alpha(MAP_FIXATION, 70))
         _circle(p, centre, radius)
-        # The badge may be wider than a short fixation's circle, so its number is not shrunk to it.
-        _label(p, centre, str(number), INK, max(1.8 * radius, 12.0), max(9.0, radius), (PANEL_BG, ACCENT))
+        # The badge may be wider than a short fixation's circle, so its number is not shrunk to it
+        # (nor below FIXATION_NUMBER_MIN_PX: the width allowed is that of the digits at that size).
+        text = str(number)
+        size = max(FIXATION_NUMBER_MIN_PX, radius)
+        _label(p, centre, text, INK, max(1.8 * radius, 0.75 * size * len(text)), size, (PANEL, MAP_FIXATION))
 
     if points:
         start = _point(rect, *points[0])
         s_radius = max(13 * unit, 10.0)  # big enough for a legible letter (it was 8 design px)
         p.setPen(_pen(INK, 2 * unit))
-        p.setBrush(QColor(PANEL_BG))
+        p.setBrush(QColor(PANEL))
         _circle(p, start, s_radius)
         _label(p, start, "S", INK, 1.7 * s_radius, max(17 * unit, 13.0))
         if outcome == "hit" and len(points) > 1:  # a selection: Follow the Target has none
             p.setPen(_pen(INK, unit))
-            p.setBrush(QColor("#F2B705"))
+            p.setBrush(QColor(MAP_SELECT))
             p.drawPolygon(_star(_point(rect, *points[-1]), 11 * unit))
     p.setBrush(Qt.BrushStyle.NoBrush)
 
@@ -391,10 +403,10 @@ LEGEND_KINDS = ("hit", "timeout", "skipped", "slot")
 
 
 def paint_symbol(p: QPainter, rect: QRectF, kind: str) -> None:
-    """One of the map's four marks, centred in ``rect`` (the legend's icon): ``hit`` (green
-    circle), ``timeout`` (red X), ``skipped`` (dashed ring) or ``slot`` (a faint layout
-    circle). The first three are the map's own drawing (:func:`_paint_mark`, no number); the
-    layout circle is the map's too, a little stronger because it is alone on the box."""
+    """One of the map's four marks, centred in ``rect`` (the legend's icon): ``hit`` (pale green
+    circle), ``timeout`` (red X), ``skipped`` (dashed ring) or ``slot`` (a layout circle). The
+    first three are the map's own drawing (:func:`_paint_mark`, no number); the layout circle is
+    the map's too, a little heavier because it is alone on the box."""
     unit = max(0.5, min(rect.width(), rect.height()) / 40.0)  # a map is 900 px wide for unit 1
     side = min(rect.width(), rect.height())
     centre = rect.center()
@@ -405,7 +417,7 @@ def paint_symbol(p: QPainter, rect: QRectF, kind: str) -> None:
         paint_line_symbol(p, square, kind, _pen)
     elif kind == "slot":
         p.setBrush(Qt.BrushStyle.NoBrush)
-        p.setPen(_pen(_alpha(MUTED, 150), 1.4 * unit, Qt.PenStyle.DashLine))
+        p.setPen(_pen(MAP_SLOT, 1.4 * unit, Qt.PenStyle.DashLine))
         _circle(p, centre, 0.42 * side)
     else:
         _paint_mark(p, square, {"x": 0.5, "y": 0.5, "r": 0.42, "outcome": kind, "label": ""}, unit)
@@ -432,7 +444,7 @@ def paint_map(
     p.save()
     p.setRenderHint(QPainter.RenderHint.Antialiasing)
     p.setRenderHint(QPainter.RenderHint.SmoothPixmapTransform)
-    p.fillRect(rect, QColor(PANEL_BG))
+    p.fillRect(rect, QColor(PANEL))
     p.setClipRect(rect)
     one = model.trials[trial] if trial is not None and 0 <= trial < len(model.trials) else None
     if one is not None:
@@ -453,10 +465,12 @@ def paint_map(
             for mark in model.marks:
                 _paint_mark(p, rect, mark, unit)
         if heat and model.heat_image is None:
-            _label(p, rect.center(), "No gaze on the canvas for the heat map", MUTED, rect.width() * 0.8, 14 * unit)
+            _label(
+                p, rect.center(), "No gaze on the canvas for the heat map", TEXT_SECONDARY, rect.width() * 0.8, 14 * unit
+            )
     p.setClipping(False)
     p.setBrush(Qt.BrushStyle.NoBrush)
-    p.setPen(_pen(BORDER, 1))
+    p.setPen(_pen(BORDER_SUBTLE, 1))
     p.drawRect(rect)
     p.restore()
 

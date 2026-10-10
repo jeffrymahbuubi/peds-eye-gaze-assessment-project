@@ -16,6 +16,7 @@ from PySide6.QtGui import QColor, QImage, QPainter, QTextDocument, QTextTable
 from PySide6.QtWidgets import QApplication
 
 from src.data.report_cache import build_report
+from src.ui.design_tokens import MAP_PATH_DARK, MAP_SKIPPED
 from src.ui.map_legend import (
     FOLLOW_LEGEND_ENTRIES,
     LEGEND_ENTRIES,
@@ -36,7 +37,7 @@ from src.ui.report_layout import FOLLOW, SELECTION, layout_kind, trial_columns, 
 from src.ui.report_page import ReportPage
 from src.ui.report_pdf import build_report_html, export_report_pdf
 from src.ui.target_map import TargetMapWidget
-from src.ui.target_map_follow import FOLLOW_OFF, FOLLOW_ON, LINE_KINDS, paint_line_symbol
+from src.ui.target_map_follow import FOLLOW_OFF, FOLLOW_ON, LINE_KINDS, paint_line_symbol, paint_pointer_runs
 from src.ui.target_map_paint import _pen
 from tests.follow_fixtures import folder, legacy_folder, mouse_folder
 
@@ -235,10 +236,12 @@ def test_the_page_shows_the_metric_table_the_follow_legend_and_the_columns(qapp,
     assert "nothing is selected" in summary.task_label.text()
     detailed = page.detailed
     header = detailed.table
-    assert [header.horizontalHeaderItem(c).text() for c in range(header.columnCount())] == list(FOLLOW_TRIAL_COLUMNS)
+    # the headers are on two lines (a newline at a space), the words as the report's
+    shown = [header.horizontalHeaderItem(c).text() for c in range(header.columnCount())]
+    assert [label.replace("\n", " ") for label in shown] == list(FOLLOW_TRIAL_COLUMNS)
     assert [header.item(r, 2).text() for r in range(3)] == ["Followed", "Followed", "Not followed"]
     assert detailed.legend.entries() == list(POINTER_LEGEND_ENTRIES) and not detailed.legend.isHidden()
-    assert "light where it was off it" in detailed.trial_legend.text()
+    assert "dashed grey where it was off it" in detailed.trial_legend.text()
 
 
 def test_a_selection_report_after_a_follow_one_gets_its_own_tables_and_legend_back(qapp, report, tmp_path):
@@ -285,16 +288,51 @@ def render_trial(report, trial: int | None) -> QImage:
     return widget.render_to_image(QSize(1600, round(1600 / widget.aspect)), {"targets": True})
 
 
+def run_midpoints(report, trial: int) -> dict[bool, list[tuple[float, float]]]:
+    """The canvas-normalized middle of every segment of the trial's pointer path, by whether the
+    pointer was on the target there (the off colour is a grey now, so it cannot be told from the
+    antialiasing of the ink marks by counting pixels: it is read where the path was drawn)."""
+    marks: dict[bool, list[tuple[float, float]]] = {True: [], False: []}
+    for run in report["follow"]["trials"][trial]["pointer_path"]:
+        pts = run["pts"]
+        for (x0, y0), (x1, y1) in zip(pts, pts[1:], strict=False):
+            marks[run["on"] is not False].append(((x0 + x1) / 2, (y0 + y1) / 2))
+    return marks
+
+
+def path_colours(report, trial: int) -> tuple[list[QColor], list[QColor]]:
+    """The pixel colours at the middle of the trial's on-target and off-target segments."""
+    widget = TargetMapWidget()
+    widget.set_report(report)
+    widget.set_trial(trial)
+    image = widget.render_to_image(QSize(1800, round(1800 / widget.aspect)), {"targets": True})
+    rect = widget.canvas_rect(QRectF(image.rect()))
+    marks = run_midpoints(report, trial)
+
+    def pixel(x: float, y: float) -> QColor:
+        return image.pixelColor(round(rect.left() + x * rect.width()), round(rect.top() + y * rect.height()))
+
+    return [pixel(*m) for m in marks[True]], [pixel(*m) for m in marks[False]]
+
+
+def is_colour(pixel: QColor, colour: str, tolerance: int = 12) -> bool:
+    want = QColor(colour)
+    return all(abs(a - b) <= tolerance for a, b in zip(pixel.getRgb()[:3], want.getRgb()[:3], strict=True))
+
+
 def test_a_trial_on_target_all_along_draws_only_the_dark_path(report):
-    on_all_along = render_trial(report, 0)
-    assert near(on_all_along, FOLLOW_ON) > 300
-    assert near(on_all_along, FOLLOW_OFF) == 0
+    on, off = path_colours(report, 0)
+    assert off == [] and len(on) > 3  # the report's own runs: all on target
+    assert sum(is_colour(c, FOLLOW_ON) for c in on) >= len(on) // 2
+    assert not any(is_colour(c, FOLLOW_OFF, 4) for c in on)
 
 
-def test_a_trial_that_left_the_target_draws_its_off_stretch_lighter(report):
-    left = render_trial(report, 2)
-    assert near(left, FOLLOW_ON) > 300
-    assert near(left, FOLLOW_OFF) > 150  # the stretch after the pointer moved away from the target
+def test_a_trial_that_left_the_target_draws_its_off_stretch_in_the_skipped_grey(report):
+    on, off = path_colours(report, 2)
+    assert len(on) > 1 and len(off) > 1  # the stretch after the pointer moved away from the target
+    assert any(is_colour(c, FOLLOW_ON) for c in on)
+    assert any(is_colour(c, FOLLOW_OFF) for c in off)
+    assert (FOLLOW_ON, FOLLOW_OFF) == (MAP_PATH_DARK, MAP_SKIPPED)  # the selection tasks' tokens (H4)
 
 
 def test_the_runs_the_map_draws_are_the_reports_own(report):
@@ -361,6 +399,105 @@ def test_the_track_icon_is_a_faint_line_and_every_line_kind_draws(qapp):
         assert any(image.pixelColor(x, 30).alpha() > 0 for x in range(60)), kind
 
 
+# -- on and off the target read without colour: the off stretches are dashed (the user's answer of 2026-10-09) -----
+
+
+def gaps_along(image: QImage, y: int, x0: int, x1: int) -> int:
+    """How many gaps the line through row ``y`` has between its first and its last painted pixel in
+    columns ``x0`` to ``x1``; a solid line has none, a dashed one a gap between every two dashes.
+    Painted is opaque and not light (a white page) or any opacity at all on a transparent image."""
+
+    def painted(x: int, yy: int) -> bool:
+        c = image.pixelColor(x, yy)
+        return c.alpha() > 0 and c.lightness() < 200
+
+    row = [any(painted(x, yy) for yy in range(y - 2, y + 3)) for x in range(x0, x1)]
+    if True not in row:
+        return 0
+    inside = row[row.index(True) : len(row) - row[::-1].index(True)]
+    return sum(1 for a, b in zip(inside, inside[1:], strict=False) if a and not b)
+
+
+def straight_run(on: bool) -> QImage:
+    image = QImage(QSize(600, 80), QImage.Format.Format_ARGB32)
+    image.fill(QColor("white"))
+    painter = QPainter(image)
+    paint_pointer_runs(painter, QRectF(image.rect()), [{"on": on, "pts": [[0.05, 0.5], [0.95, 0.5]]}], 1.0, _pen)
+    painter.end()
+    return image
+
+
+def test_an_off_target_stretch_is_a_dashed_line_and_an_on_target_one_is_solid(qapp):
+    off, on = straight_run(False), straight_run(True)
+    assert gaps_along(off, 40, 30, 570) >= 20  # dash, gap, dash ... along the whole stretch
+    assert gaps_along(on, 40, 30, 570) == 0  # one unbroken stroke
+    assert any(is_colour(off.pixelColor(x, 40), FOLLOW_OFF, 4) for x in range(30, 570))  # still the skipped grey
+    assert all(is_colour(on.pixelColor(x, 40), FOLLOW_ON, 4) for x in range(40, 560))
+
+
+def test_the_dashes_are_wide_enough_to_read_with_gaps_that_stay_open(qapp):
+    """Flat caps: a round cap would have grown every dash by half a pen width at both ends and
+    closed the gaps of a line this thin."""
+    off = straight_run(False)
+    row = [off.pixelColor(x, 40).lightness() < 200 for x in range(30, 570)]
+    dashes, gaps, run, painted = [], [], 0, row[0]
+    for value in row:
+        if value == painted:
+            run += 1
+        else:
+            (dashes if painted else gaps).append(run)
+            run, painted = 1, value
+    dashes, gaps = dashes[1:-1], gaps[1:-1]  # the ends are cut by the stretch itself
+    assert dashes and gaps
+    assert min(dashes) >= 6 and max(dashes) <= 10  # 4 pen widths of 2 px
+    assert min(gaps) >= 4 and max(gaps) <= 8  # 3 pen widths of 2 px: open, not a speckle
+
+
+def test_the_maps_off_target_stretch_is_dashed_where_the_report_says_the_pointer_left(qapp, report):
+    """The report's own runs, drawn by the map: on target solid, off target dashed (a run away from
+    the target's own path line, which would show through the gaps)."""
+    report["follow"]["trials"][2]["pointer_path"] = [
+        {"on": True, "pts": [[0.1, 0.8], [0.3, 0.8]]},
+        {"on": False, "pts": [[0.3, 0.8], [0.9, 0.8]]},
+    ]
+    widget = TargetMapWidget()
+    widget.set_report(report)
+    widget.set_trial(2)
+    image = widget.render_to_image(QSize(1800, round(1800 / widget.aspect)), {"targets": True})
+    rect = widget.canvas_rect(QRectF(image.rect()))
+    y = round(rect.top() + 0.8 * rect.height())
+
+    def column(x: float) -> int:
+        return round(rect.left() + x * rect.width())
+
+    assert gaps_along(image, y, column(0.35), column(0.85)) >= 15
+    assert gaps_along(image, y, column(0.12), column(0.28)) == 0
+
+
+def test_the_legend_icon_of_the_off_target_line_is_dashed_and_the_others_are_solid(qapp):
+    off, on, track = symbol_image("off"), symbol_image("on"), symbol_image("track")
+    assert gaps_along(off, 48, 0, 96) >= 1  # a dash, a gap, a dash
+    assert gaps_along(on, 48, 0, 96) == 0 and gaps_along(track, 48, 0, 96) == 0
+    assert near(off, FOLLOW_OFF, 6) > 100  # in the colour of the line it names
+
+
+def test_the_target_path_line_stays_solid_in_the_slot_grey(qapp, report):
+    """Only the pointer's off-target stretches are dashed: the path of the target is not."""
+    from src.ui.design_tokens import MAP_SLOT
+    from src.ui.target_map_follow import TRACK
+
+    assert TRACK == MAP_SLOT
+    report["trials"][2]["track"] = [[0.1, 0.8], [0.9, 0.8]]
+    report["follow"]["trials"][2]["pointer_path"] = []
+    widget = TargetMapWidget()
+    widget.set_report(report)
+    widget.set_trial(2)
+    image = widget.render_to_image(QSize(1800, round(1800 / widget.aspect)), {"targets": True})
+    rect = widget.canvas_rect(QRectF(image.rect()))
+    y = round(rect.top() + 0.8 * rect.height())
+    assert gaps_along(image, y, round(rect.left() + 0.15 * rect.width()), round(rect.left() + 0.85 * rect.width())) == 0
+
+
 def test_the_pdf_legend_html_takes_the_follow_entries(qapp):
     html = legend_html(600, entries=FOLLOW_LEGEND_ENTRIES)
     for _kind, text in FOLLOW_LEGEND_ENTRIES:
@@ -387,7 +524,8 @@ def test_the_pdf_prints_the_metric_table_the_follow_columns_and_the_follow_defin
     ]
     assert printed == follow_summary_rows(report)
     _doc, table = html_table(html, 14)
-    assert [table.cellAt(0, c).firstCursorPosition().block().text() for c in range(14)] == list(FOLLOW_TRIAL_COLUMNS)
+    header = [table.cellAt(0, c).firstCursorPosition().block().text() for c in range(14)]
+    assert [label.replace("\u2060", "") for label in header] == list(FOLLOW_TRIAL_COLUMNS)  # minus the word joiners
     for r, cells in enumerate(trial_rows(report), start=1):
         assert [table.cellAt(r, c).firstCursorPosition().block().text() for c in range(14)] == [c.text for c in cells]
     for text in FOLLOW_DEFINITIONS:

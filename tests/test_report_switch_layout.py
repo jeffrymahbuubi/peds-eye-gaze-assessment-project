@@ -158,9 +158,8 @@ def test_the_page_shows_the_click_columns_in_both_views(qapp, tmp_path):
     assert summary.texts()[0][5:] == ["1.0", "0.0"] and summary.texts()[3][5:] == ["2.0", "1.0"]
     assert "Clicks = switch presses" in page.summary.note.text()
     detailed = page.detailed.table
-    assert [detailed.horizontalHeaderItem(c).text() for c in range(detailed.columnCount())] == list(
-        SWITCH_TRIAL_COLUMNS
-    )
+    shown = [detailed.horizontalHeaderItem(c).text() for c in range(detailed.columnCount())]
+    assert [label.replace("\n", " ") for label in shown] == list(SWITCH_TRIAL_COLUMNS)  # on two lines
     assert [detailed.item(r, CLICKS).text() for r in range(detailed.rowCount())] == [
         "1", "4", "3", DASH, "1", "1",
     ]
@@ -202,7 +201,7 @@ def test_the_pdf_prints_the_click_columns_and_their_definitions(qapp, tmp_path):
     html = build_report_html(report, test_name="Grid Click 1", evaluator="", notes="", map_image=None)
     doc, table = html_table(html, 15)
     header = [table.cellAt(0, c).firstCursorPosition().block().text() for c in range(15)]
-    assert header == list(SWITCH_TRIAL_COLUMNS)
+    assert [label.replace("\u2060", "") for label in header] == list(SWITCH_TRIAL_COLUMNS)  # minus the word joiners
     for r, cells in enumerate(trial_rows(report), start=1):
         printed = [table.cellAt(r, c).firstCursorPosition().block().text() for c in range(15)]
         assert printed == [cell.text for cell in cells]

@@ -4,7 +4,7 @@
 
 ### Grid Click 1
 
-> **Design system phases 1 and 4** (SPEC-design-system-phase1.md, SPEC-design-system-phase4.md H1-H9, X1): title without the colon, the test name under it at 20 px. Main column at most 1100 px, sidebar 460 px. Test Name field 480 px, Evaluator 320 px, Notes 84 px tall. Dates read yyyy-MM-dd HH:mm.
+> **Design system phases 1 and 4** (SPEC-design-system-phase1.md, SPEC-design-system-phase4.md H1-H9, X1): title without the colon, the test name under it at 20 px. Sidebar 460 px; the main column takes all the width the window leaves beside it (the 1100 px cap is lifted, the user's decision of 2026-10-09: no empty space at the right). Test Name field 480 px, Evaluator 320 px, Notes 84 px tall. Dates read yyyy-MM-dd HH:mm.
 
 > SPEC-compass-task-flow.md 4D.2–4D.3 and 4D.7–4D.8 (U9–U11). It opens from View Report on the Test List, or from "Save and View Report" in the Test Complete dialog. It replaces the old Results tab (`results.md`, superseded). The numbers come from `report.json`, which P4 built at the end of the run. The nav is locked while the report shows. Compass reference: `docs/compass/screenshots/08a-*.png`.
 
@@ -147,10 +147,12 @@ Numbers = trials shown at that place
 
 :::
 
+> **Size of the map** (the user's decision of 2026-10-09, after testing the try-all build: "empty space"): on screen the map grows to fill its column, as wide as the column at the canvas's aspect (16:9 for the standard canvas), but never taller than the pane shows, so the "Target Map" heading, the three switches and the whole map are in view together once the page is scrolled to them. It never gets smaller than 720 x 405 px and it follows the window. The legend box under it is as wide as the map. The ASCII picture above is only the layout. The PDF keeps its own fixed size.
+>
 > **Overlays:**
 > - Scanpath draws one dot (3 px) per fixation, joined by straight lines (1.5 px) in time order, **all trials in one blue** (#1F669E, alpha 200; phase 4 X1), so the hit and miss marks and the trial numbers stay readable. Per-trial colour lives only in the Detailed view's selected trial. The Detailed per-trial view draws the full gaze path smoothed like the on-screen cursor (the run's smoothing alpha), with numbered fixation circles.
 > - Heat map is an alpha ramp over the whole test (unchanged: the Gazepoint Analysis ramp).
-> - Follow the Target also shows the target's track as a faint line, with the mark at its end position. Its legend adds "on target" (dark path) and "off target" (light path) entries.
+> - Follow the Target also shows the target's track as a faint line, with the mark at its end position. Its legend adds "on target" (solid dark path) and "off target" (dashed grey path) entries.
 > - A Mouse run draws the mouse path (from `pointer_stream.csv`) in place of the gaze path; Scanpath and Heat map are disabled with "not recorded" when no gaze was recorded.
 
 #### Eye Metrics
@@ -185,5 +187,5 @@ Numbers = trials shown at that place
 > **Footer:**
 > - **Save & Continue** keeps Test Name, Evaluator and Notes (the only editable fields), then returns to the Test List.
 > - **Cancel** drops those edits.
-> - **Print Report** exports a PDF (A4 portrait) to `<subject>/reports/2026-10-06_Grid Click 1.pdf` (SPEC-subject-data-layout.md H7). One stacked column (phase 4 H8): **page 1 holds the header, configuration, summary and Eye Metrics**; the map with Targets only and its legend box start page 2; then the Trial-by-Trial table and the definitions. Title "Summary Results, Grid Click 1"; body 9.5 pt, trial table 8 pt, definitions 8.5 pt; table headers grey with dark text; a missing text value prints "not recorded".
+> - **Print Report** exports a PDF (A4 portrait) to `<subject>/reports/2026-10-06_Grid Click 1.pdf` (SPEC-subject-data-layout.md H7). One stacked column (phase 4 H8): **page 1 holds the header, configuration, summary and Eye Metrics**; the map (the Targets, plus the Scanpath when gaze was recorded) and its legend box start page 2; then the Trial-by-Trial table and the definitions. Title "Summary Results, Grid Click 1"; body 9.5 pt, trial table 8 pt, definitions 8.5 pt; table headers grey with dark text; a missing text value prints "not recorded".
 > - The run data itself is never editable.

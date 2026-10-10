@@ -139,7 +139,8 @@ def test_the_header_left_column_and_footer_are_the_same_in_both_views(qapp, tmp_
 def test_the_trial_table_has_the_wireframe_columns_and_a_row_per_trial(qapp, tmp_path):
     page = make_page(tmp_path)
     table = page.detailed.table
-    assert [table.horizontalHeaderItem(c).text() for c in range(table.columnCount())] == list(TRIAL_COLUMNS)
+    shown = [table.horizontalHeaderItem(c).text() for c in range(table.columnCount())]
+    assert [label.replace("\n", " ") for label in shown] == list(TRIAL_COLUMNS)  # two-line headers (H7)
     assert table.rowCount() == 6 and shown_trials(page) == ["1", "2", "3", "4", "5", "6"]
     assert column(page, OUTCOME_COLUMN) == ["Hit", "Not selected", "Hit", "Skipped", "Hit", "Hit"]
 
@@ -241,8 +242,10 @@ def test_the_map_overlay_switches_start_targets_on_and_drive_the_map(qapp, tmp_p
 
 def test_the_summary_map_shows_the_whole_test_and_the_pane_map_one_trial(qapp, tmp_path):
     page = make_page(tmp_path)
-    assert page.summary.map.trial() is None and page.summary.map.hasHeightForWidth()
-    assert page.detailed.map.trial() == 0 and not page.detailed.map.hasHeightForWidth()
+    assert page.summary.map.trial() is None and page.detailed.map.trial() == 0
+    for view in (page.summary, page.detailed):  # both fill their column by an explicit size (fit_within)
+        assert not view.map.hasHeightForWidth()
+        assert view.map.minimumSize() == view.map.maximumSize()
     assert page.summary.map.aspect == pytest.approx(1640 / 957, abs=1e-4)
     assert len(page.summary.map.model.marks) >= 1 and len(page.detailed.map.model.trials) == 6
 

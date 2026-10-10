@@ -1,11 +1,13 @@
-"""The report's Target Map (SPEC-compass-task-flow.md 4D.7; AD8, AD9): marks sit at the
-targets' canvas-normalized positions at the canvas's own aspect, the overlays switch
-independently, a trial can be shown alone, and the PDF's image is the same drawing.
-Offscreen Qt; pixels are checked by colour class, never by size (no fonts offscreen)."""
+"""The report's Target Map (SPEC-compass-task-flow.md 4D.7; AD8, AD9; SPEC-design-system-phase4.md
+H1-H3, H10): marks sit at the targets' canvas-normalized positions at the canvas's own aspect, the
+overlays switch independently, a trial can be shown alone, and the PDF's image is the same drawing.
+Offscreen Qt; pixels are checked by colour (of a mark, never of its size: no fonts offscreen, so
+the digits' colour is read from what the painter is asked to draw)."""
 
 from __future__ import annotations
 
 import copy
+import math
 import os
 
 import pytest
@@ -16,6 +18,18 @@ from PySide6.QtCore import QPointF, QRectF, QSize
 from PySide6.QtGui import QColor, QFont, QImage, QPainter
 from PySide6.QtWidgets import QApplication
 
+from src.ui import target_map_paint
+from src.ui.design_tokens import (
+    INK,
+    MAP_HIT_FILL,
+    MAP_HIT_OUTLINE,
+    MAP_MISS,
+    MAP_OVERLAY_ON_PANEL,
+    MAP_PATH_DARK,
+    MAP_PATH_LIGHT,
+    MAP_SKIPPED,
+    PANEL,
+)
 from src.ui.target_map import TargetMapWidget
 from src.ui.target_map_paint import (
     BADGE_PAD,
@@ -70,6 +84,16 @@ def greenish(colour: QColor) -> bool:
 
 def reddish(colour: QColor) -> bool:
     return colour.red() > colour.green() + 60 and colour.red() > colour.blue() + 60
+
+
+def close(colour: QColor, expected: str, tolerance: int = 8) -> bool:
+    """Is ``colour`` within ``tolerance`` of ``expected`` on every channel?"""
+    want = QColor(expected)
+    return (
+        abs(colour.red() - want.red()) <= tolerance
+        and abs(colour.green() - want.green()) <= tolerance
+        and abs(colour.blue() - want.blue()) <= tolerance
+    )
 
 
 def ink_in(image: QImage, rect: QRectF, x: float, y: float, half: int = 6) -> bool:
@@ -179,6 +203,62 @@ def test_a_hit_is_a_green_circle_at_the_targets_position_with_its_real_radius(qa
     assert is_white(at(image, rect, 0.5, 0.25))  # nowhere near a target
 
 
+def test_a_hit_is_the_pale_green_fill_inside_a_green_edge(qapp):
+    """H2: the fill is map-hit-fill (opaque, not the green at alpha 150) and the edge map-hit-outline."""
+    image, rect = render(synthetic_map_report(), size=(1800, 1050))  # the stroke is 4 px wide here
+    r_px = 0.05 * rect.width()
+    assert close(at(image, rect, 0.65, 0.5, 0.6 * r_px, 0), MAP_HIT_FILL, 1)
+    assert close(at(image, rect, 0.65, 0.5, 0, -0.6 * r_px), MAP_HIT_FILL, 1)
+    for dx, dy in ((r_px, 0), (-r_px, 0), (0, r_px), (0, -r_px)):  # on the edge
+        assert close(at(image, rect, 0.65, 0.5, dx, dy), MAP_HIT_OUTLINE, 12), (dx, dy)
+
+
+def test_the_digits_on_every_mark_are_ink_and_a_miss_keeps_its_white_pill(qapp, monkeypatch):
+    """H2: the digits were white on the translucent green (about 2.0:1); they are ink on every mark
+    (13.6:1 on the hit fill, 18:1 on the pill). Read from the label call: no fonts offscreen."""
+    seen: list[tuple[str, str, object]] = []
+    real = target_map_paint._label
+
+    def spy(p, centre, text, colour, max_width, size, badge=None):
+        seen.append((text, colour, badge))
+        return real(p, centre, text, colour, max_width, size, badge)
+
+    monkeypatch.setattr(target_map_paint, "_label", spy)
+    report = synthetic_map_report()
+    report["map"]["marks"].append({"x": 0.2, "y": 0.2, "r": 0.05, "outcome": "skipped", "trials": [3], "label": "3"})
+    render(report)
+    by_text = {text: (colour, badge) for text, colour, badge in seen}
+    assert by_text["1"] == (INK, None)  # the hit: ink, no pill
+    assert by_text["3"] == (INK, None)  # the skipped ring
+    assert by_text["2"] == (INK, (PANEL, MAP_MISS))  # the miss: ink on a white pill with a red edge
+    assert contrast(QColor(INK), QColor(MAP_HIT_FILL)) >= 13.6
+
+
+def test_a_miss_is_a_red_x_inside_a_red_ring(qapp):
+    image, rect = render(synthetic_map_report(), size=(1800, 1050))
+    r_px = 0.05 * rect.width()
+    d = 0.5 * r_px
+    for dx, dy in ((d, d), (-d, d), (d, -d), (-d, -d)):  # the X's four arms
+        assert close(at(image, rect, 0.3, 0.7, dx, dy), MAP_MISS, 8), (dx, dy)
+    for dx, dy in ((r_px, 0), (-r_px, 0), (0, r_px), (0, -r_px)):  # the ring, a full red (it was alpha 110)
+        assert close(at(image, rect, 0.3, 0.7, dx, dy), MAP_MISS, 12), (dx, dy)
+
+
+def test_a_skipped_trial_is_a_ring_in_the_skipped_grey_not_green_or_red(qapp):
+    report = synthetic_map_report()
+    report["map"]["marks"][1]["outcome"] = "skipped"
+    image, rect = render(report, size=(1800, 1050))
+    r_px = 0.05 * rect.width()
+    ring = [
+        at(image, rect, 0.3, 0.7, r_px * math.cos(a * math.pi / 18), r_px * math.sin(a * math.pi / 18))
+        for a in range(36)
+    ]
+    on_ring = [c for c in ring if not is_white(c)]
+    assert on_ring and any(close(c, MAP_SKIPPED, 12) for c in on_ring)
+    assert not any(greenish(c) or reddish(c) for c in ring)
+    assert is_white(at(image, rect, 0.3, 0.7, 0.5 * r_px, 0.5 * r_px))  # hollow
+
+
 def test_a_not_selected_trial_is_a_red_x_not_a_filled_circle(qapp):
     image, rect = render(synthetic_map_report())
     r_px = 0.05 * rect.width()
@@ -244,7 +324,7 @@ def test_a_shared_place_draws_each_outcome_once_with_the_report_label(qapp):
 # -- scanpath and heat map overlays ------------------------------------------------------------------
 
 
-def test_the_scanpath_overlay_is_off_by_default_and_draws_each_trial_in_its_colour(qapp):
+def test_the_scanpath_overlay_is_off_by_default_and_draws_every_trial_in_the_one_overlay_blue(qapp):
     report = synthetic_map_report()
     report["trials"][0]["scanpath"] = [[0.1, 0.1], [0.5, 0.1], [0.9, 0.1]]
     report["trials"][1]["scanpath"] = [[0.1, 0.9], [0.5, 0.9], [0.9, 0.9]]
@@ -253,8 +333,49 @@ def test_the_scanpath_overlay_is_off_by_default_and_draws_each_trial_in_its_colo
     on, rect = render(report, targets=False, path=True)
     first, second = at(on, rect, 0.3, 0.1), at(on, rect, 0.3, 0.9)  # on the line between two dots
     assert not is_white(first) and not is_white(second)
-    assert first.blue() > first.red()  # trial 1: the cycle's blue
-    assert first.rgb() != second.rgb()  # trial 2 has another colour
+    assert first.blue() > first.red() and second.blue() > second.red()  # the overlay blue (X1) ...
+    assert abs(first.red() - second.red()) < 20 and abs(first.blue() - second.blue()) < 20  # ... for both trials
+
+
+def test_every_trial_of_the_scanpath_is_the_one_overlay_colour_at_alpha_200(qapp):
+    """X1: a dot of the first trial and a dot of the second are the same pixel colour, the overlay
+    blue at alpha 200 over the canvas (4F87B3, 3.85:1)."""
+    report = synthetic_map_report()
+    report["trials"][0]["scanpath"] = [[0.1, 0.1]]
+    report["trials"][1]["scanpath"] = [[0.1, 0.9]]
+    image, rect = render(report, targets=False, path=True)
+    first, second = at(image, rect, 0.1, 0.1), at(image, rect, 0.1, 0.9)
+    assert close(first, MAP_OVERLAY_ON_PANEL, 2) and close(second, MAP_OVERLAY_ON_PANEL, 2)
+    assert first.rgb() == second.rgb()
+
+
+def test_the_scanpath_dots_are_three_design_pixels_and_the_lines_one_and_a_half(qapp):
+    assert target_map_paint.SCANPATH_DOT_PX == 3.0 and target_map_paint.SCANPATH_LINE_PX == 1.5
+    report = synthetic_map_report()
+    report["trials"][0]["scanpath"] = [[0.5, 0.5]]
+    image, rect = render(report, size=(1800, 1050), targets=False, path=True)
+    unit = rect.width() / 900.0
+    cx, cy = round(rect.left() + 0.5 * rect.width()), round(rect.top() + 0.5 * rect.height())
+    inside = image.pixelColor(cx + round(1.2 * unit), cy)  # within the 3-unit radius
+    outside = image.pixelColor(cx + round(4.2 * unit), cy)  # past it and its 1-unit white edge
+    assert not is_white(inside) and is_white(outside)
+
+
+def test_the_scanpath_is_drawn_under_the_marks_so_every_trial_number_reads(qapp):
+    """M-2: the overlay never covers a number; the marks (and their digits) come after it."""
+    report = synthetic_map_report()
+    report["trials"][0]["scanpath"] = [[0.1, 0.1], [0.65, 0.5]]
+    calls: list[str] = []
+    widget = TargetMapWidget()
+    widget.set_report(report)
+    real_path, real_mark = target_map_paint._paint_scanpaths, target_map_paint._paint_mark
+    target_map_paint._paint_scanpaths = lambda *a, **k: (calls.append("path"), real_path(*a, **k))[1]
+    target_map_paint._paint_mark = lambda *a, **k: (calls.append("mark"), real_mark(*a, **k))[1]
+    try:
+        widget.render_to_image(QSize(1000, 584), {"targets": True, "path": True})
+    finally:
+        target_map_paint._paint_scanpaths, target_map_paint._paint_mark = real_path, real_mark
+    assert calls == ["path", "mark", "mark"]
 
 
 def test_the_scanpath_is_a_dot_per_fixation_joined_by_straight_lines_in_time_order(qapp):
@@ -443,6 +564,56 @@ def test_fixation_circles_grow_with_duration_and_the_path_runs_dark_to_light(qap
     assert early.red() + early.green() + early.blue() < late.red() + late.green() + late.blue()
 
 
+def test_the_trial_path_runs_from_map_path_dark_to_map_path_light(qapp):
+    """H3: the selected trial keeps a dark-to-light path, now the tokens (1F669E to 2D7EB3)."""
+    assert TRIAL_PATH_DARK == QColor(MAP_PATH_DARK) and TRIAL_PATH_LIGHT == QColor(MAP_PATH_LIGHT)
+    report = synthetic_map_report()
+    report["trials"][0]["fixations"]["items"] = []
+    report["trials"][0]["path"] = [[[0.05 + 0.9 * i / 29, 0.8] for i in range(30)]]
+    image, rect = render(report, size=(1800, 1050), trial=0)
+    for k in (5, 25):  # the middle of the sixth and the twenty-sixth of 29 segments, clear of the S and star
+        got = at(image, rect, 0.05 + 0.9 * (k + 0.5) / 29, 0.8)
+        assert close(got, target_map_paint._blend(k / 29).name(), 6), k
+    dark_end, light_end = target_map_paint._blend(0.0), target_map_paint._blend(1.0)
+    assert close(dark_end, MAP_PATH_DARK, 1) and close(light_end, MAP_PATH_LIGHT, 1)
+    assert at(image, rect, 0.05 + 0.9 * 5.5 / 29, 0.8).red() < at(image, rect, 0.05 + 0.9 * 25.5 / 29, 0.8).red()
+
+
+def test_the_target_ring_of_a_trial_uses_the_hit_and_miss_tokens(qapp):
+    report = synthetic_map_report()
+    report["trials"][0]["path"] = []
+    report["trials"][0]["fixations"]["items"] = []
+    hit, rect = render(report, size=(1800, 1050), trial=0)
+    r_px = 0.05 * rect.width()
+    assert close(at(hit, rect, 0.65, 0.5, 0.6 * r_px, 0), MAP_HIT_FILL, 1)  # the same fill as the Summary
+    assert close(at(hit, rect, 0.65, 0.5, r_px, 0), MAP_HIT_OUTLINE, 12)
+    miss, rect = render(report, size=(1800, 1050), trial=1)
+    assert close(at(miss, rect, 0.3, 0.7, r_px, 0), MAP_MISS, 12)
+
+
+def test_a_fixation_number_is_never_drawn_smaller_than_11_px(qapp, monkeypatch):
+    """D3: the numbers of the selected trial's fixations, 1 digit or 3, short fixation or long."""
+    seen: list[tuple[str, float, float]] = []
+    real = target_map_paint._label
+
+    def spy(p, centre, text, colour, max_width, size, badge=None):
+        if badge == (PANEL, target_map_paint.MAP_FIXATION):
+            seen.append((text, max_width, size))
+        return real(p, centre, text, colour, max_width, size, badge)
+
+    monkeypatch.setattr(target_map_paint, "_label", spy)
+    report = synthetic_map_report()
+    report["trials"][0]["fixations"]["items"] = [
+        [0.05 + 0.9 * (i % 20) / 20, 0.1 + 0.8 * (i // 20) / 7, 60 + 30 * (i % 5)] for i in range(120)
+    ]
+    render(report, size=(720, 405), trial=0)
+    assert [t for t, *_ in seen][:3] == ["1", "2", "3"] and seen[-1][0] == "120"
+    for text, max_width, size in seen:
+        assert size >= target_map_paint.FIXATION_NUMBER_MIN_PX == 11.0, text
+        # room for the digits at that size (a bold digit is under 0.75 em), so the fit keeps it
+        assert max_width >= 0.75 * size * len(text), text
+
+
 def test_the_trial_view_of_a_trial_with_no_gaze_still_shows_its_target(qapp):
     report = synthetic_map_report()
     report["trials"][0]["path"] = []
@@ -533,7 +704,7 @@ def test_the_number_of_a_missed_target_sits_on_a_white_badge_drawn_after_the_x(q
 def test_a_hit_label_keeps_its_green_disc_with_no_badge(qapp):
     image, rect = render(synthetic_map_report())
     r_px = 0.05 * rect.width()
-    assert greenish(at(image, rect, 0.65, 0.5, 0.25 * r_px, 0.25 * r_px))  # the number is white on green
+    assert greenish(at(image, rect, 0.65, 0.5, 0.25 * r_px, 0.25 * r_px))  # the number is ink on the pale fill
 
 
 def test_label_draws_its_badge_behind_the_text_and_only_when_asked(qapp):
