@@ -1,0 +1,781 @@
+<Grid xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">
+  <BackgroundColour>#D7CBE8FF</BackgroundColour>
+  <GridGuid>4223af6f-933b-4581-9308-d1b4cb96f287</GridGuid>
+  <ColumnDefinitions>
+    <ColumnDefinition />
+    <ColumnDefinition />
+    <ColumnDefinition />
+    <ColumnDefinition />
+    <ColumnDefinition />
+    <ColumnDefinition />
+    <ColumnDefinition />
+  </ColumnDefinitions>
+  <RowDefinitions>
+    <RowDefinition />
+    <RowDefinition />
+    <RowDefinition />
+    <RowDefinition />
+    <RowDefinition />
+  </RowDefinitions>
+  <AutoContentCommands>
+    <AutoContentCommandCollection AutoContentType="WordList">
+      <Commands>
+        <Command ID="AutoContent.Activate">
+          <Parameter Key="autocontenttype">WordList</Parameter>
+        </Command>
+      </Commands>
+    </AutoContentCommandCollection>
+    <AutoContentCommandCollection AutoContentType="Chat.History">
+      <Commands>
+        <Command ID="AutoContent.Activate">
+          <Parameter Key="autocontenttype">Chat.History</Parameter>
+        </Command>
+      </Commands>
+    </AutoContentCommandCollection>
+  </AutoContentCommands>
+  <Cells>
+    <Cell>
+      <Content>
+        <Commands>
+          <Command ID="Jump.Back" />
+        </Commands>
+        <CaptionAndImage>
+          <Caption>Back</Caption>
+          <Image>[GRID3X]jump_back.wmf</Image>
+        </CaptionAndImage>
+        <Style>
+          <BasedOnStyle>Navigation category style</BasedOnStyle>
+        </Style>
+      </Content>
+    </Cell>
+    <Cell X="1" ColumnSpan="5">
+      <Content>
+        <ContentType>Workspace</ContentType>
+        <ContentSubType>Chat</ContentSubType>
+        <Style>
+          <BasedOnStyle>Workspace</BasedOnStyle>
+        </Style>
+      </Content>
+    </Cell>
+    <Cell X="1" Y="2">
+      <Content>
+        <Commands>
+          <Command ID="Action.InsertText">
+            <Parameter Key="indicatorenabled">1</Parameter>
+            <Parameter Key="text">
+              <p>
+                <s>
+                  <r>The</r>
+                </s>
+                <s>
+                  <r><![CDATA[ ]]></r>
+                </s>
+                <s Image="[widgit]widgit rebus\t\teen girl.emf">
+                  <r>girl</r>
+                </s>
+                <s>
+                  <r><![CDATA[ ]]></r>
+                </s>
+              </p>
+            </Parameter>
+            <Parameter Key="pos">Unknown</Parameter>
+          </Command>
+        </Commands>
+        <CaptionAndImage>
+          <Caption>The girl</Caption>
+          <Image>[sstix#]7329.emf</Image>
+        </CaptionAndImage>
+        <Style>
+          <BasedOnStyle>style 5</BasedOnStyle>
+        </Style>
+      </Content>
+    </Cell>
+    <Cell X="1" Y="3">
+      <Content>
+        <Commands>
+          <Command ID="Action.InsertText">
+            <Parameter Key="indicatorenabled">1</Parameter>
+            <Parameter Key="text">
+              <p>
+                <s>
+                  <r>The</r>
+                </s>
+                <s>
+                  <r><![CDATA[ ]]></r>
+                </s>
+                <s Image="[widgit]widgit rebus\b\boy.emf">
+                  <r>boy</r>
+                </s>
+                <s>
+                  <r><![CDATA[ ]]></r>
+                </s>
+              </p>
+            </Parameter>
+            <Parameter Key="pos">Unknown</Parameter>
+          </Command>
+        </Commands>
+        <CaptionAndImage>
+          <Caption>The boy</Caption>
+          <Image>[sstix#]7139.emf</Image>
+        </CaptionAndImage>
+        <Style>
+          <BasedOnStyle>style 5</BasedOnStyle>
+        </Style>
+      </Content>
+    </Cell>
+    <Cell Y="2">
+      <Content>
+        <Commands>
+          <Command ID="Action.InsertText">
+            <Parameter Key="indicatorenabled">1</Parameter>
+            <Parameter Key="text">
+              <p>
+                <s>
+                  <r>The</r>
+                </s>
+                <s>
+                  <r><![CDATA[ ]]></r>
+                </s>
+                <s Image="[widgit]widgit rebus\r\rainbow.emf">
+                  <r>rainbow</r>
+                </s>
+                <s>
+                  <r><![CDATA[ ]]></r>
+                </s>
+              </p>
+            </Parameter>
+            <Parameter Key="pos">Unknown</Parameter>
+          </Command>
+        </Commands>
+        <CaptionAndImage>
+          <Caption>The rainbow</Caption>
+          <Image>[sstix#]6189.emf</Image>
+        </CaptionAndImage>
+        <Style>
+          <BasedOnStyle>style 5</BasedOnStyle>
+        </Style>
+      </Content>
+    </Cell>
+    <Cell Y="3">
+      <Content>
+        <Commands>
+          <Command ID="Action.InsertText">
+            <Parameter Key="indicatorenabled">1</Parameter>
+            <Parameter Key="text">
+              <p>
+                <s>
+                  <r>The</r>
+                </s>
+                <s>
+                  <r><![CDATA[ ]]></r>
+                </s>
+                <s Image="[widgit]widgit rebus\b\boy girl.emf">
+                  <r>children</r>
+                </s>
+                <s>
+                  <r><![CDATA[ ]]></r>
+                </s>
+              </p>
+            </Parameter>
+            <Parameter Key="pos">Unknown</Parameter>
+          </Command>
+        </Commands>
+        <CaptionAndImage>
+          <Caption>The children</Caption>
+          <Image>[sstix#]7188.emf</Image>
+        </CaptionAndImage>
+        <Style>
+          <BasedOnStyle>style 5</BasedOnStyle>
+        </Style>
+      </Content>
+    </Cell>
+    <Cell Y="1">
+      <Content>
+        <Commands>
+          <Command ID="Action.InsertText">
+            <Parameter Key="indicatorenabled">1</Parameter>
+            <Parameter Key="text">
+              <p>
+                <s>
+                  <r>The</r>
+                </s>
+                <s>
+                  <r><![CDATA[ ]]></r>
+                </s>
+                <s Image="[widgit]widgit rebus\b\balloon.emf">
+                  <r>balloons</r>
+                </s>
+                <s>
+                  <r><![CDATA[ ]]></r>
+                </s>
+              </p>
+            </Parameter>
+            <Parameter Key="pos">Unknown</Parameter>
+          </Command>
+        </Commands>
+        <CaptionAndImage>
+          <Caption>The balloons</Caption>
+          <Image>[sstix#]11049.emf</Image>
+        </CaptionAndImage>
+        <Style>
+          <BasedOnStyle>style 5</BasedOnStyle>
+        </Style>
+      </Content>
+    </Cell>
+    <Cell X="1" Y="1">
+      <Content>
+        <Commands>
+          <Command ID="Action.InsertText">
+            <Parameter Key="indicatorenabled">1</Parameter>
+            <Parameter Key="text">
+              <p>
+                <s>
+                  <r>The</r>
+                </s>
+                <s>
+                  <r><![CDATA[ ]]></r>
+                </s>
+                <s Image="[widgit]widgit rebus\c\cloud.emf">
+                  <r>cloud</r>
+                </s>
+                <s>
+                  <r><![CDATA[ ]]></r>
+                </s>
+              </p>
+            </Parameter>
+            <Parameter Key="pos">Unknown</Parameter>
+          </Command>
+        </Commands>
+        <CaptionAndImage>
+          <Caption>The cloud</Caption>
+          <Image>[sstix#]6074.emf</Image>
+        </CaptionAndImage>
+        <Style>
+          <BasedOnStyle>style 5</BasedOnStyle>
+        </Style>
+      </Content>
+    </Cell>
+    <Cell Y="4">
+      <Content>
+        <Commands>
+          <Command ID="Action.InsertText">
+            <Parameter Key="indicatorenabled">1</Parameter>
+            <Parameter Key="text">
+              <p>
+                <s>
+                  <r>The</r>
+                </s>
+                <s>
+                  <r><![CDATA[ ]]></r>
+                </s>
+                <s Image="[widgit]widgit rebus\a\apples.emf">
+                  <r>apples</r>
+                </s>
+                <s>
+                  <r><![CDATA[ ]]></r>
+                </s>
+              </p>
+            </Parameter>
+            <Parameter Key="pos">Unknown</Parameter>
+          </Command>
+        </Commands>
+        <CaptionAndImage>
+          <Caption>The apples</Caption>
+          <Image>[sstix#]3262.emf</Image>
+        </CaptionAndImage>
+        <Style>
+          <BasedOnStyle>style 5</BasedOnStyle>
+        </Style>
+      </Content>
+    </Cell>
+    <Cell X="1" Y="4">
+      <Content>
+        <Style>
+          <BasedOnStyle>Default</BasedOnStyle>
+        </Style>
+      </Content>
+    </Cell>
+    <Cell X="2" Y="1">
+      <Content>
+        <Commands>
+          <Command ID="Action.InsertText">
+            <Parameter Key="indicatorenabled">1</Parameter>
+            <Parameter Key="text">
+              <p>
+                <s Image="[widgit]widgit rebus\i\is.emf">
+                  <r>is</r>
+                </s>
+                <s>
+                  <r><![CDATA[ ]]></r>
+                </s>
+              </p>
+            </Parameter>
+            <Parameter Key="pos">Unknown</Parameter>
+          </Command>
+        </Commands>
+        <CaptionAndImage>
+          <Caption>is</Caption>
+          <Image>[widgit]widgit rebus\i\is.emf</Image>
+        </CaptionAndImage>
+        <Style>
+          <BasedOnStyle>style 7</BasedOnStyle>
+        </Style>
+      </Content>
+    </Cell>
+    <Cell X="2" Y="2">
+      <Content>
+        <Commands>
+          <Command ID="Action.InsertText">
+            <Parameter Key="indicatorenabled">1</Parameter>
+            <Parameter Key="text">
+              <p>
+                <s Image="[widgit]widgit rebus\e\equal.emf">
+                  <r>are</r>
+                </s>
+                <s>
+                  <r><![CDATA[ ]]></r>
+                </s>
+              </p>
+            </Parameter>
+            <Parameter Key="pos">Unknown</Parameter>
+          </Command>
+        </Commands>
+        <CaptionAndImage>
+          <Caption>are</Caption>
+          <Image>[widgit]widgit rebus\e\equal.emf</Image>
+        </CaptionAndImage>
+        <Style>
+          <BasedOnStyle>style 7</BasedOnStyle>
+        </Style>
+      </Content>
+    </Cell>
+    <Cell X="2" Y="3">
+      <Content>
+        <Commands>
+          <Command ID="Action.InsertText">
+            <Parameter Key="indicatorenabled">1</Parameter>
+            <Parameter Key="text">
+              <p>
+                <s Image="[widgit]widgit rebus 04\symbols a\and 1.emf">
+                  <r>and</r>
+                </s>
+                <s>
+                  <r><![CDATA[ ]]></r>
+                </s>
+              </p>
+            </Parameter>
+            <Parameter Key="pos">Unknown</Parameter>
+          </Command>
+        </Commands>
+        <CaptionAndImage>
+          <Caption>and</Caption>
+          <Image>[widgit]widgit rebus 04\symbols a\and 1.emf</Image>
+        </CaptionAndImage>
+        <Style>
+          <BasedOnStyle>style 7</BasedOnStyle>
+        </Style>
+      </Content>
+    </Cell>
+    <Cell X="2" Y="4">
+      <Content>
+        <Style>
+          <BasedOnStyle>Default</BasedOnStyle>
+        </Style>
+      </Content>
+    </Cell>
+    <Cell X="6">
+      <Content>
+        <Commands>
+          <Command ID="Settings.RestAll">
+            <Parameter Key="indicatorenabled">1</Parameter>
+            <Parameter Key="action">Toggle</Parameter>
+          </Command>
+        </Commands>
+        <CaptionAndImage>
+          <Caption>Rest</Caption>
+          <Image>[GRID3X]rest.wmf</Image>
+        </CaptionAndImage>
+        <Style>
+          <BasedOnStyle>Actions category style</BasedOnStyle>
+        </Style>
+      </Content>
+    </Cell>
+    <Cell X="6" Y="2">
+      <Content>
+        <Commands>
+          <Command ID="Action.Clear" />
+        </Commands>
+        <CaptionAndImage>
+          <Caption>Clear</Caption>
+          <Image>[GRID3X]clear.wmf</Image>
+        </CaptionAndImage>
+        <Style>
+          <BasedOnStyle>Actions category style</BasedOnStyle>
+        </Style>
+      </Content>
+    </Cell>
+    <Cell X="6" Y="1">
+      <Content>
+        <Commands>
+          <Command ID="Action.DeleteWord" />
+        </Commands>
+        <CaptionAndImage>
+          <Caption>Delete word</Caption>
+          <Image>[GRID3X]delete_word.wmf</Image>
+        </CaptionAndImage>
+        <Style>
+          <BasedOnStyle>Actions category style</BasedOnStyle>
+        </Style>
+      </Content>
+    </Cell>
+    <Cell X="6" Y="4">
+      <Content>
+        <Commands>
+          <Command ID="Jump.To">
+            <Parameter Key="grid">Interactive Visual Scene Opinions</Parameter>
+          </Command>
+        </Commands>
+        <CaptionAndImage>
+          <Caption>Opinions</Caption>
+          <Image>[sstix#]2321.emf</Image>
+        </CaptionAndImage>
+        <Style>
+          <BasedOnStyle>Navigation category style</BasedOnStyle>
+        </Style>
+      </Content>
+    </Cell>
+    <Cell X="6" Y="3">
+      <Content>
+        <Style>
+          <BasedOnStyle>Default</BasedOnStyle>
+        </Style>
+      </Content>
+    </Cell>
+    <Cell X="3" Y="1">
+      <Content>
+        <Commands>
+          <Command ID="Action.InsertText">
+            <Parameter Key="indicatorenabled">1</Parameter>
+            <Parameter Key="text">
+              <p>
+                <s Image="[widgit]widgit rebus\b\burst.emf">
+                  <r>popping</r>
+                </s>
+                <s>
+                  <r><![CDATA[ ]]></r>
+                </s>
+              </p>
+            </Parameter>
+            <Parameter Key="pos">Unknown</Parameter>
+          </Command>
+        </Commands>
+        <CaptionAndImage>
+          <Caption>popping</Caption>
+          <Image>[sstix#]422.emf</Image>
+        </CaptionAndImage>
+        <Style>
+          <BasedOnStyle>Vocab cell</BasedOnStyle>
+        </Style>
+      </Content>
+    </Cell>
+    <Cell X="4" Y="1">
+      <Content>
+        <Commands>
+          <Command ID="Action.InsertText">
+            <Parameter Key="indicatorenabled">1</Parameter>
+            <Parameter Key="text">
+              <p>
+                <s Image="[sstix#]6227.emf">
+                  <r>twinkling</r>
+                </s>
+                <s>
+                  <r><![CDATA[ ]]></r>
+                </s>
+              </p>
+            </Parameter>
+            <Parameter Key="pos">Unknown</Parameter>
+          </Command>
+        </Commands>
+        <CaptionAndImage>
+          <Caption>twinkling</Caption>
+          <Image>[sstix#]50476.emf</Image>
+        </CaptionAndImage>
+        <Style>
+          <BasedOnStyle>Vocab cell</BasedOnStyle>
+        </Style>
+      </Content>
+    </Cell>
+    <Cell X="5" Y="1">
+      <Content>
+        <Commands>
+          <Command ID="Action.InsertText">
+            <Parameter Key="indicatorenabled">1</Parameter>
+            <Parameter Key="text">
+              <p>
+                <s>
+                  <r>on</r>
+                </s>
+                <s>
+                  <r><![CDATA[ ]]></r>
+                </s>
+                <s>
+                  <r>the</r>
+                </s>
+                <s>
+                  <r><![CDATA[ ]]></r>
+                </s>
+                <s Image="[widgit]widgit rebus\s\seesaw 1.emf">
+                  <r>seesaw</r>
+                </s>
+                <s>
+                  <r><![CDATA[ ]]></r>
+                </s>
+              </p>
+            </Parameter>
+            <Parameter Key="pos">Unknown</Parameter>
+          </Command>
+        </Commands>
+        <CaptionAndImage>
+          <Caption>on the seesaw</Caption>
+          <Image>[sstix#]11197.emf</Image>
+        </CaptionAndImage>
+        <Style>
+          <BasedOnStyle>Vocab cell</BasedOnStyle>
+        </Style>
+      </Content>
+    </Cell>
+    <Cell X="3" Y="2">
+      <Content>
+        <Commands>
+          <Command ID="Action.InsertText">
+            <Parameter Key="indicatorenabled">1</Parameter>
+            <Parameter Key="text">
+              <p>
+                <s Image="[widgit]widgit rebus\f\fall.emf">
+                  <r>falling</r>
+                </s>
+                <s>
+                  <r><![CDATA[ ]]></r>
+                </s>
+                <s Image="[widgit]widgit rebus\o\off.emf">
+                  <r>off</r>
+                </s>
+                <s>
+                  <r><![CDATA[ ]]></r>
+                </s>
+                <s>
+                  <r>the</r>
+                </s>
+                <s>
+                  <r><![CDATA[ ]]></r>
+                </s>
+                <s Image="[widgit]widgit rebus\t\tree.emf">
+                  <r>tree</r>
+                </s>
+                <s>
+                  <r><![CDATA[ ]]></r>
+                </s>
+              </p>
+            </Parameter>
+            <Parameter Key="pos">Unknown</Parameter>
+          </Command>
+        </Commands>
+        <CaptionAndImage>
+          <Caption>falling off the tree</Caption>
+          <Image>[sstix#]6242.emf</Image>
+        </CaptionAndImage>
+        <Style>
+          <BasedOnStyle>Vocab cell</BasedOnStyle>
+        </Style>
+      </Content>
+    </Cell>
+    <Cell X="4" Y="2">
+      <Content>
+        <Commands>
+          <Command ID="Action.InsertText">
+            <Parameter Key="indicatorenabled">1</Parameter>
+            <Parameter Key="text">
+              <p>
+                <s Image="[widgit]widgit rebus\m\move.emf">
+                  <r>moving</r>
+                </s>
+                <s>
+                  <r><![CDATA[ ]]></r>
+                </s>
+                <s>
+                  <r>in</r>
+                </s>
+                <s>
+                  <r><![CDATA[ ]]></r>
+                </s>
+                <s>
+                  <r>the</r>
+                </s>
+                <s>
+                  <r><![CDATA[ ]]></r>
+                </s>
+                <s Image="[widgit]widgit rebus\s\sky.emf">
+                  <r>sky</r>
+                </s>
+                <s>
+                  <r><![CDATA[ ]]></r>
+                </s>
+              </p>
+            </Parameter>
+            <Parameter Key="pos">Unknown</Parameter>
+          </Command>
+        </Commands>
+        <CaptionAndImage>
+          <Caption>moving in the sky</Caption>
+          <Image>[widgit]widgit rebus\s\sky.emf</Image>
+        </CaptionAndImage>
+        <Style>
+          <BasedOnStyle>Vocab cell</BasedOnStyle>
+        </Style>
+      </Content>
+    </Cell>
+    <Cell X="5" Y="2">
+      <Content>
+        <Commands>
+          <Command ID="Action.InsertText">
+            <Parameter Key="indicatorenabled">1</Parameter>
+            <Parameter Key="text">
+              <p>
+                <s Image="[widgit]widgit rebus\b\blow.emf">
+                  <r>blowing</r>
+                </s>
+                <s>
+                  <r><![CDATA[ ]]></r>
+                </s>
+                <s Image="[widgit]widgit rebus\b\bubble.emf">
+                  <r>bubbles</r>
+                </s>
+                <s>
+                  <r><![CDATA[ ]]></r>
+                </s>
+              </p>
+            </Parameter>
+            <Parameter Key="pos">Unknown</Parameter>
+          </Command>
+        </Commands>
+        <CaptionAndImage>
+          <Caption>blowing bubbles</Caption>
+          <Image>[sstix#]30.emf</Image>
+        </CaptionAndImage>
+        <Style>
+          <BasedOnStyle>Vocab cell</BasedOnStyle>
+        </Style>
+      </Content>
+    </Cell>
+    <Cell X="5" Y="3">
+      <Content>
+        <Style>
+          <BasedOnStyle>Default</BasedOnStyle>
+        </Style>
+      </Content>
+    </Cell>
+    <Cell X="3" Y="4">
+      <Content>
+        <Style>
+          <BasedOnStyle>Default</BasedOnStyle>
+        </Style>
+      </Content>
+    </Cell>
+    <Cell X="3" Y="3">
+      <Content>
+        <Commands>
+          <Command ID="Action.InsertText">
+            <Parameter Key="indicatorenabled">1</Parameter>
+            <Parameter Key="text">
+              <p>
+                <s>
+                  <r>riding</r>
+                </s>
+                <s>
+                  <r><![CDATA[ ]]></r>
+                </s>
+                <s>
+                  <r>the</r>
+                </s>
+                <s>
+                  <r><![CDATA[ ]]></r>
+                </s>
+                <s Image="[widgit]widgit rebus\c\cycle.emf">
+                  <r>bike</r>
+                </s>
+                <s>
+                  <r><![CDATA[ ]]></r>
+                </s>
+              </p>
+            </Parameter>
+            <Parameter Key="pos">Unknown</Parameter>
+          </Command>
+        </Commands>
+        <CaptionAndImage>
+          <Caption>riding the bike</Caption>
+          <Image>[sstix#]8663.emf</Image>
+        </CaptionAndImage>
+        <Style>
+          <BasedOnStyle>Vocab cell</BasedOnStyle>
+        </Style>
+      </Content>
+    </Cell>
+    <Cell X="4" Y="3">
+      <Content>
+        <Commands>
+          <Command ID="Action.InsertText">
+            <Parameter Key="indicatorenabled">1</Parameter>
+            <Parameter Key="text">
+              <p>
+                <s Image="[widgit]widgit rebus\o\on.emf">
+                  <r>on</r>
+                </s>
+                <s>
+                  <r><![CDATA[ ]]></r>
+                </s>
+                <s>
+                  <r>the</r>
+                </s>
+                <s>
+                  <r><![CDATA[ ]]></r>
+                </s>
+                <s Image="[widgit]widgit rebus\s\swing.emf">
+                  <r>swing</r>
+                </s>
+                <s>
+                  <r><![CDATA[ ]]></r>
+                </s>
+              </p>
+            </Parameter>
+            <Parameter Key="pos">Unknown</Parameter>
+          </Command>
+        </Commands>
+        <CaptionAndImage>
+          <Caption>on the swing</Caption>
+          <Image>[sstix#]599.emf</Image>
+        </CaptionAndImage>
+        <Style>
+          <BasedOnStyle>Vocab cell</BasedOnStyle>
+        </Style>
+      </Content>
+    </Cell>
+    <Cell X="4" Y="4">
+      <Content>
+        <Style>
+          <BasedOnStyle>Default</BasedOnStyle>
+        </Style>
+      </Content>
+    </Cell>
+    <Cell X="5" Y="4">
+      <Content>
+        <Style>
+          <BasedOnStyle>Default</BasedOnStyle>
+        </Style>
+      </Content>
+    </Cell>
+  </Cells>
+  <ScanBlockAudioDescriptions />
+  <WordList>
+    <Items />
+  </WordList>
+</Grid>

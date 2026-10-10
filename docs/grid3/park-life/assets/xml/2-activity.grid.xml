@@ -1,0 +1,251 @@
+<Grid xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">
+  <BackgroundColour>#000000FF</BackgroundColour>
+  <GridGuid>3cea6c8e-4042-4345-ae56-c8dae535818f</GridGuid>
+  <ColumnDefinitions>
+    <ColumnDefinition />
+    <ColumnDefinition />
+    <ColumnDefinition />
+    <ColumnDefinition />
+    <ColumnDefinition />
+    <ColumnDefinition />
+    <ColumnDefinition />
+  </ColumnDefinitions>
+  <RowDefinitions>
+    <RowDefinition />
+    <RowDefinition />
+    <RowDefinition />
+    <RowDefinition />
+    <RowDefinition />
+  </RowDefinitions>
+  <AutoContentCommands />
+  <Cells>
+    <Cell X="1" ColumnSpan="5" RowSpan="5">
+      <Content>
+        <ContentType>LiveCell</ContentType>
+        <ContentSubType>Animation</ContentSubType>
+        <ContentSubSubType>parklife</ContentSubSubType>
+        <Style>
+          <BasedOnStyle>InteractiveLearning category style</BasedOnStyle>
+          <BackColour>#FFFFFF00</BackColour>
+        </Style>
+      </Content>
+    </Cell>
+    <Cell Y="1">
+      <Content>
+        <Commands>
+          <Command ID="Interactive.Action">
+            <Parameter Key="Action">7</Parameter>
+          </Command>
+          <Command ID="Speech.SpeakNow">
+            <Parameter Key="text">balloons</Parameter>
+            <Parameter Key="wait">1</Parameter>
+            <Parameter Key="useauditoryvoice">0</Parameter>
+          </Command>
+        </Commands>
+        <CaptionAndImage>
+          <Caption>Balloons</Caption>
+          <AudioDescription>Animation action</AudioDescription>
+          <Image>[widgit]widgit rebus\b\balloon.emf</Image>
+        </CaptionAndImage>
+        <Style>
+          <BasedOnStyle>InteractiveLearning category style</BasedOnStyle>
+          <BackColour>#FF2852FF</BackColour>
+          <FontSize>16</FontSize>
+        </Style>
+      </Content>
+    </Cell>
+    <Cell Y="2">
+      <Content>
+        <Commands>
+          <Command ID="Interactive.Action">
+            <Parameter Key="Action">5</Parameter>
+          </Command>
+          <Command ID="Speech.SpeakNow">
+            <Parameter Key="text" xml:space="preserve">rainbow </Parameter>
+            <Parameter Key="wait">1</Parameter>
+            <Parameter Key="useauditoryvoice">0</Parameter>
+          </Command>
+        </Commands>
+        <CaptionAndImage>
+          <Caption>Rainbow</Caption>
+          <AudioDescription>Animation action</AudioDescription>
+          <Image>[widgit]widgit rebus\r\rainbow.emf</Image>
+        </CaptionAndImage>
+        <Style>
+          <BasedOnStyle>InteractiveLearning category style</BasedOnStyle>
+          <BackColour>#FF2852FF</BackColour>
+          <FontSize>16</FontSize>
+        </Style>
+      </Content>
+    </Cell>
+    <Cell Y="3">
+      <Content>
+        <Commands>
+          <Command ID="Interactive.Action">
+            <Parameter Key="Action">2</Parameter>
+          </Command>
+          <Command ID="Speech.SpeakNow">
+            <Parameter Key="text">seesaw</Parameter>
+            <Parameter Key="wait">1</Parameter>
+            <Parameter Key="useauditoryvoice">0</Parameter>
+          </Command>
+        </Commands>
+        <CaptionAndImage>
+          <Caption>Seesaw</Caption>
+          <AudioDescription>Animation action</AudioDescription>
+          <Image>[sstix#]11197.emf</Image>
+        </CaptionAndImage>
+        <Style>
+          <BasedOnStyle>InteractiveLearning category style</BasedOnStyle>
+          <BackColour>#FF2852FF</BackColour>
+          <FontSize>16</FontSize>
+        </Style>
+      </Content>
+    </Cell>
+    <Cell Y="4">
+      <Content>
+        <Commands>
+          <Command ID="Interactive.Action">
+            <Parameter Key="Action">8</Parameter>
+          </Command>
+          <Command ID="Speech.SpeakNow">
+            <Parameter Key="text">apples</Parameter>
+            <Parameter Key="wait">1</Parameter>
+            <Parameter Key="useauditoryvoice">0</Parameter>
+          </Command>
+        </Commands>
+        <CaptionAndImage>
+          <Caption>Apples</Caption>
+          <AudioDescription>Animation action</AudioDescription>
+          <Image>[sstix#]3262.emf</Image>
+        </CaptionAndImage>
+        <Style>
+          <BasedOnStyle>InteractiveLearning category style</BasedOnStyle>
+          <BackColour>#FF2852FF</BackColour>
+          <FontSize>16</FontSize>
+        </Style>
+      </Content>
+    </Cell>
+    <Cell>
+      <Content>
+        <Commands>
+          <Command ID="Jump.Back" />
+        </Commands>
+        <CaptionAndImage>
+          <Caption>Back</Caption>
+          <Image>[GRID3X]jump_back.wmf</Image>
+        </CaptionAndImage>
+        <Style>
+          <BasedOnStyle>style 1</BasedOnStyle>
+        </Style>
+      </Content>
+    </Cell>
+    <Cell X="6">
+      <Content>
+        <Style>
+          <BasedOnStyle>Default</BasedOnStyle>
+        </Style>
+      </Content>
+    </Cell>
+    <Cell X="6" Y="4">
+      <Content>
+        <Commands>
+          <Command ID="Interactive.Action">
+            <Parameter Key="Action">4</Parameter>
+          </Command>
+          <Command ID="Speech.SpeakNow">
+            <Parameter Key="text">swing</Parameter>
+            <Parameter Key="wait">1</Parameter>
+            <Parameter Key="useauditoryvoice">0</Parameter>
+          </Command>
+        </Commands>
+        <CaptionAndImage>
+          <Caption>Swing</Caption>
+          <AudioDescription>Animation action</AudioDescription>
+          <Image>[sstix#]599.emf</Image>
+        </CaptionAndImage>
+        <Style>
+          <BasedOnStyle>InteractiveLearning category style</BasedOnStyle>
+          <BackColour>#FF2852FF</BackColour>
+          <FontSize>16</FontSize>
+        </Style>
+      </Content>
+    </Cell>
+    <Cell X="6" Y="2">
+      <Content>
+        <Commands>
+          <Command ID="Interactive.Action">
+            <Parameter Key="Action">3</Parameter>
+          </Command>
+          <Command ID="Speech.SpeakNow">
+            <Parameter Key="text">bubbles</Parameter>
+            <Parameter Key="wait">1</Parameter>
+            <Parameter Key="useauditoryvoice">0</Parameter>
+          </Command>
+        </Commands>
+        <CaptionAndImage>
+          <Caption>Bubbles</Caption>
+          <AudioDescription>Animation action</AudioDescription>
+          <Image>[sstix#]11059.emf</Image>
+        </CaptionAndImage>
+        <Style>
+          <BasedOnStyle>InteractiveLearning category style</BasedOnStyle>
+          <BackColour>#FF2852FF</BackColour>
+          <FontSize>16</FontSize>
+        </Style>
+      </Content>
+    </Cell>
+    <Cell X="6" Y="1">
+      <Content>
+        <Commands>
+          <Command ID="Interactive.Action">
+            <Parameter Key="Action">6</Parameter>
+          </Command>
+          <Command ID="Speech.SpeakNow">
+            <Parameter Key="text">cloud</Parameter>
+            <Parameter Key="wait">1</Parameter>
+            <Parameter Key="useauditoryvoice">0</Parameter>
+          </Command>
+        </Commands>
+        <CaptionAndImage>
+          <Caption>Cloud</Caption>
+          <AudioDescription>Animation action</AudioDescription>
+          <Image>[sstix#]6074.emf</Image>
+        </CaptionAndImage>
+        <Style>
+          <BasedOnStyle>InteractiveLearning category style</BasedOnStyle>
+          <BackColour>#FF2852FF</BackColour>
+          <FontSize>16</FontSize>
+        </Style>
+      </Content>
+    </Cell>
+    <Cell X="6" Y="3">
+      <Content>
+        <Commands>
+          <Command ID="Interactive.Action">
+            <Parameter Key="Action">1</Parameter>
+          </Command>
+          <Command ID="Speech.SpeakNow">
+            <Parameter Key="text">bike</Parameter>
+            <Parameter Key="wait">1</Parameter>
+            <Parameter Key="useauditoryvoice">0</Parameter>
+          </Command>
+        </Commands>
+        <CaptionAndImage>
+          <Caption>Bike</Caption>
+          <AudioDescription>Animation action</AudioDescription>
+          <Image>[sstix#]8663.emf</Image>
+        </CaptionAndImage>
+        <Style>
+          <BasedOnStyle>InteractiveLearning category style</BasedOnStyle>
+          <BackColour>#FF2852FF</BackColour>
+          <FontSize>16</FontSize>
+        </Style>
+      </Content>
+    </Cell>
+  </Cells>
+  <ScanBlockAudioDescriptions />
+  <WordList>
+    <Items />
+  </WordList>
+</Grid>

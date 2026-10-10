@@ -1,0 +1,259 @@
+<Grid xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">
+  <BackgroundColour>#000000FF</BackgroundColour>
+  <GridGuid>ca419d10-df99-4d0a-919f-56ef03f6856b</GridGuid>
+  <ColumnDefinitions>
+    <ColumnDefinition />
+    <ColumnDefinition />
+    <ColumnDefinition />
+    <ColumnDefinition />
+    <ColumnDefinition />
+    <ColumnDefinition />
+    <ColumnDefinition />
+  </ColumnDefinitions>
+  <RowDefinitions>
+    <RowDefinition />
+    <RowDefinition />
+    <RowDefinition />
+    <RowDefinition />
+    <RowDefinition />
+  </RowDefinitions>
+  <AutoContentCommands />
+  <Cells>
+    <Cell Y="1">
+      <Content>
+        <Commands>
+          <Command ID="Interactive.Action">
+            <Parameter Key="Action">7</Parameter>
+          </Command>
+          <Command ID="Speech.SpeakNow">
+            <Parameter Key="text">The balloons are popping.</Parameter>
+            <Parameter Key="wait">1</Parameter>
+            <Parameter Key="useauditoryvoice">0</Parameter>
+          </Command>
+        </Commands>
+        <CaptionAndImage>
+          <Caption>Balloons</Caption>
+          <AudioDescription>Animation action</AudioDescription>
+          <Image>[widgit]widgit rebus\b\balloon.emf</Image>
+        </CaptionAndImage>
+        <Style>
+          <BasedOnStyle>style 4</BasedOnStyle>
+          <BackColour>#FF7591FF</BackColour>
+          <FontColour>#FFFFFFFF</FontColour>
+          <FontSize>16</FontSize>
+        </Style>
+      </Content>
+    </Cell>
+    <Cell Y="2">
+      <Content>
+        <Commands>
+          <Command ID="Interactive.Action">
+            <Parameter Key="Action">5</Parameter>
+          </Command>
+          <Command ID="Speech.SpeakNow">
+            <Parameter Key="text">The rainbow is twinkling</Parameter>
+            <Parameter Key="wait">1</Parameter>
+            <Parameter Key="useauditoryvoice">0</Parameter>
+          </Command>
+        </Commands>
+        <CaptionAndImage>
+          <Caption>Rainbow</Caption>
+          <AudioDescription>Animation action</AudioDescription>
+          <Image>[widgit]widgit rebus\r\rainbow.emf</Image>
+        </CaptionAndImage>
+        <Style>
+          <BasedOnStyle>style 4</BasedOnStyle>
+          <BackColour>#FF7591FF</BackColour>
+          <FontColour>#FFFFFFFF</FontColour>
+          <FontSize>16</FontSize>
+        </Style>
+      </Content>
+    </Cell>
+    <Cell Y="3">
+      <Content>
+        <Commands>
+          <Command ID="Interactive.Action">
+            <Parameter Key="Action">2</Parameter>
+          </Command>
+          <Command ID="Speech.SpeakNow">
+            <Parameter Key="text">The children are on the seesaw</Parameter>
+            <Parameter Key="wait">1</Parameter>
+            <Parameter Key="useauditoryvoice">0</Parameter>
+          </Command>
+        </Commands>
+        <CaptionAndImage>
+          <Caption>Seesaw</Caption>
+          <AudioDescription>Animation action</AudioDescription>
+          <Image>[sstix#]11197.emf</Image>
+        </CaptionAndImage>
+        <Style>
+          <BasedOnStyle>style 4</BasedOnStyle>
+          <BackColour>#FF7591FF</BackColour>
+          <FontColour>#FFFFFFFF</FontColour>
+          <FontSize>16</FontSize>
+        </Style>
+      </Content>
+    </Cell>
+    <Cell Y="4">
+      <Content>
+        <Commands>
+          <Command ID="Interactive.Action">
+            <Parameter Key="Action">8</Parameter>
+          </Command>
+          <Command ID="Speech.SpeakNow">
+            <Parameter Key="text">The apples are falling off the tree</Parameter>
+            <Parameter Key="wait">1</Parameter>
+            <Parameter Key="useauditoryvoice">0</Parameter>
+          </Command>
+        </Commands>
+        <CaptionAndImage>
+          <Caption>Apples</Caption>
+          <AudioDescription>Animation action</AudioDescription>
+          <Image>[sstix#]3262.emf</Image>
+        </CaptionAndImage>
+        <Style>
+          <BasedOnStyle>style 4</BasedOnStyle>
+          <BackColour>#FF7591FF</BackColour>
+          <FontColour>#FFFFFFFF</FontColour>
+          <FontSize>16</FontSize>
+        </Style>
+      </Content>
+    </Cell>
+    <Cell X="1" ColumnSpan="5" RowSpan="5">
+      <Content>
+        <ContentType>LiveCell</ContentType>
+        <ContentSubType>Animation</ContentSubType>
+        <ContentSubSubType>parklife</ContentSubSubType>
+        <Style>
+          <BasedOnStyle>InteractiveLearning category style</BasedOnStyle>
+          <BackColour>#FFFFFF00</BackColour>
+        </Style>
+      </Content>
+    </Cell>
+    <Cell>
+      <Content>
+        <Commands>
+          <Command ID="Jump.Back" />
+        </Commands>
+        <CaptionAndImage>
+          <Caption>Back</Caption>
+          <Image>[GRID3X]jump_back.wmf</Image>
+        </CaptionAndImage>
+        <Style>
+          <BasedOnStyle>style 1</BasedOnStyle>
+        </Style>
+      </Content>
+    </Cell>
+    <Cell X="6" Y="1">
+      <Content>
+        <Commands>
+          <Command ID="Interactive.Action">
+            <Parameter Key="Action">6</Parameter>
+          </Command>
+          <Command ID="Speech.SpeakNow">
+            <Parameter Key="text">The cloud is moving in the sky</Parameter>
+            <Parameter Key="wait">1</Parameter>
+            <Parameter Key="useauditoryvoice">0</Parameter>
+          </Command>
+        </Commands>
+        <CaptionAndImage>
+          <Caption>Clouds</Caption>
+          <AudioDescription>Animation action</AudioDescription>
+          <Image>[sstix#]50385.emf</Image>
+        </CaptionAndImage>
+        <Style>
+          <BasedOnStyle>style 4</BasedOnStyle>
+          <BackColour>#FF7591FF</BackColour>
+          <FontColour>#FFFFFFFF</FontColour>
+          <FontSize>16</FontSize>
+        </Style>
+      </Content>
+    </Cell>
+    <Cell X="6">
+      <Content>
+        <Style>
+          <BasedOnStyle>Default</BasedOnStyle>
+        </Style>
+      </Content>
+    </Cell>
+    <Cell X="6" Y="4">
+      <Content>
+        <Commands>
+          <Command ID="Interactive.Action">
+            <Parameter Key="Action">4</Parameter>
+          </Command>
+          <Command ID="Speech.SpeakNow">
+            <Parameter Key="text">The girl is on the swing</Parameter>
+            <Parameter Key="wait">1</Parameter>
+            <Parameter Key="useauditoryvoice">0</Parameter>
+          </Command>
+        </Commands>
+        <CaptionAndImage>
+          <Caption>Swing</Caption>
+          <AudioDescription>Animation action</AudioDescription>
+          <Image>[sstix#]599.emf</Image>
+        </CaptionAndImage>
+        <Style>
+          <BasedOnStyle>style 4</BasedOnStyle>
+          <BackColour>#FF7591FF</BackColour>
+          <FontColour>#FFFFFFFF</FontColour>
+          <FontSize>16</FontSize>
+        </Style>
+      </Content>
+    </Cell>
+    <Cell X="6" Y="2">
+      <Content>
+        <Commands>
+          <Command ID="Interactive.Action">
+            <Parameter Key="Action">3</Parameter>
+          </Command>
+          <Command ID="Speech.SpeakNow">
+            <Parameter Key="text">The girl is blowing bubbles</Parameter>
+            <Parameter Key="wait">1</Parameter>
+            <Parameter Key="useauditoryvoice">0</Parameter>
+          </Command>
+        </Commands>
+        <CaptionAndImage>
+          <Caption>Bubbles</Caption>
+          <AudioDescription>Animation action</AudioDescription>
+          <Image>[sstix#]11059.emf</Image>
+        </CaptionAndImage>
+        <Style>
+          <BasedOnStyle>style 4</BasedOnStyle>
+          <BackColour>#FF7591FF</BackColour>
+          <FontColour>#FFFFFFFF</FontColour>
+          <FontSize>16</FontSize>
+        </Style>
+      </Content>
+    </Cell>
+    <Cell X="6" Y="3">
+      <Content>
+        <Commands>
+          <Command ID="Interactive.Action">
+            <Parameter Key="Action">1</Parameter>
+          </Command>
+          <Command ID="Speech.SpeakNow">
+            <Parameter Key="text">The boy is riding the bike</Parameter>
+            <Parameter Key="wait">1</Parameter>
+            <Parameter Key="useauditoryvoice">0</Parameter>
+          </Command>
+        </Commands>
+        <CaptionAndImage>
+          <Caption>Bike</Caption>
+          <AudioDescription>Animation action</AudioDescription>
+          <Image>[sstix#]8663.emf</Image>
+        </CaptionAndImage>
+        <Style>
+          <BasedOnStyle>style 4</BasedOnStyle>
+          <BackColour>#FF7591FF</BackColour>
+          <FontColour>#FFFFFFFF</FontColour>
+          <FontSize>16</FontSize>
+        </Style>
+      </Content>
+    </Cell>
+  </Cells>
+  <ScanBlockAudioDescriptions />
+  <WordList>
+    <Items />
+  </WordList>
+</Grid>

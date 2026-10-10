@@ -1,0 +1,548 @@
+<Grid xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">
+  <BackgroundColour>#DACFEAFF</BackgroundColour>
+  <GridGuid>d1c48242-c34d-421a-8935-88d4027087c9</GridGuid>
+  <ColumnDefinitions>
+    <ColumnDefinition />
+    <ColumnDefinition />
+    <ColumnDefinition />
+    <ColumnDefinition />
+    <ColumnDefinition />
+    <ColumnDefinition />
+    <ColumnDefinition />
+  </ColumnDefinitions>
+  <RowDefinitions>
+    <RowDefinition />
+    <RowDefinition />
+    <RowDefinition />
+    <RowDefinition />
+    <RowDefinition />
+  </RowDefinitions>
+  <AutoContentCommands>
+    <AutoContentCommandCollection AutoContentType="WordList">
+      <Commands>
+        <Command ID="AutoContent.Activate">
+          <Parameter Key="autocontenttype">WordList</Parameter>
+        </Command>
+      </Commands>
+    </AutoContentCommandCollection>
+  </AutoContentCommands>
+  <Cells>
+    <Cell>
+      <Content>
+        <Commands>
+          <Command ID="Jump.Back" />
+        </Commands>
+        <CaptionAndImage>
+          <Caption>Back</Caption>
+          <Image>[GRID3X]jump_back.wmf</Image>
+        </CaptionAndImage>
+        <Style>
+          <BasedOnStyle>Navigation category style</BasedOnStyle>
+        </Style>
+      </Content>
+    </Cell>
+    <Cell X="1" ColumnSpan="5">
+      <Content>
+        <ContentType>Workspace</ContentType>
+        <ContentSubType>Chat</ContentSubType>
+        <Style>
+          <BasedOnStyle>Workspace</BasedOnStyle>
+          <BorderColour>#FFFFFF00</BorderColour>
+        </Style>
+      </Content>
+    </Cell>
+    <Cell Y="1">
+      <Content>
+        <Commands>
+          <Command ID="Action.InsertText">
+            <Parameter Key="indicatorenabled">1</Parameter>
+            <Parameter Key="text">
+              <p>
+                <s>
+                  <r>I</r>
+                </s>
+                <s>
+                  <r><![CDATA[ ]]></r>
+                </s>
+                <s Image="[widgit]widgit rebus\t\think.emf">
+                  <r>think</r>
+                </s>
+                <s>
+                  <r><![CDATA[ ]]></r>
+                </s>
+                <s>
+                  <r>it</r>
+                </s>
+                <s>
+                  <r><![CDATA[ ]]></r>
+                </s>
+                <s>
+                  <r>is</r>
+                </s>
+                <s>
+                  <r><![CDATA[ ]]></r>
+                </s>
+                <s>
+                  <r><![CDATA[ ]]></r>
+                </s>
+              </p>
+            </Parameter>
+            <Parameter Key="pos">Unknown</Parameter>
+          </Command>
+        </Commands>
+        <CaptionAndImage>
+          <Caption>I think it's</Caption>
+          <Image>[sstix#]2321.emf</Image>
+        </CaptionAndImage>
+        <Style>
+          <BasedOnStyle>style 5</BasedOnStyle>
+        </Style>
+      </Content>
+    </Cell>
+    <Cell X="1" Y="1">
+      <Content>
+        <ContentType>AutoContent</ContentType>
+        <ContentSubType>WordList</ContentSubType>
+        <CaptionAndImage xsi:nil="true" />
+        <Style>
+          <BasedOnStyle>Vocab cell</BasedOnStyle>
+        </Style>
+      </Content>
+    </Cell>
+    <Cell Y="2">
+      <Content>
+        <Commands>
+          <Command ID="Action.InsertText">
+            <Parameter Key="indicatorenabled">1</Parameter>
+            <Parameter Key="text">
+              <p>
+                <s Image="[widgit]widgit rebus\d\do.emf">
+                  <r>Do</r>
+                </s>
+                <s>
+                  <r><![CDATA[ ]]></r>
+                </s>
+                <s Image="[widgit]widgit rebus\y\you plural.emf">
+                  <r>you</r>
+                </s>
+                <s>
+                  <r><![CDATA[ ]]></r>
+                </s>
+                <s Image="[widgit]widgit rebus\t\think.emf">
+                  <r>think</r>
+                </s>
+                <s>
+                  <r><![CDATA[ ]]></r>
+                </s>
+                <s>
+                  <r>it</r>
+                </s>
+                <s>
+                  <r><![CDATA[ ]]></r>
+                </s>
+                <s>
+                  <r>is</r>
+                </s>
+                <s>
+                  <r><![CDATA[ ]]></r>
+                </s>
+              </p>
+            </Parameter>
+            <Parameter Key="pos">Unknown</Parameter>
+          </Command>
+        </Commands>
+        <CaptionAndImage>
+          <Caption>Do you think it is</Caption>
+          <Image>[sstix#]2149.emf</Image>
+        </CaptionAndImage>
+        <Style>
+          <BasedOnStyle>style 5</BasedOnStyle>
+        </Style>
+      </Content>
+    </Cell>
+    <Cell Y="3">
+      <Content>
+        <Style>
+          <BasedOnStyle>Default</BasedOnStyle>
+        </Style>
+      </Content>
+    </Cell>
+    <Cell X="6" Y="3">
+      <Content>
+        <Commands>
+          <Command ID="Action.InsertText">
+            <Parameter Key="indicatorenabled">1</Parameter>
+            <Parameter Key="text">
+              <p>
+                <s Image="[widgit]widgit rebus 04\symbols a\and 1.emf">
+                  <r>and</r>
+                </s>
+                <s>
+                  <r><![CDATA[ ]]></r>
+                </s>
+              </p>
+            </Parameter>
+            <Parameter Key="pos">Unknown</Parameter>
+          </Command>
+        </Commands>
+        <CaptionAndImage>
+          <Caption>and</Caption>
+          <Image>[widgit]widgit rebus 04\symbols a\and 1.emf</Image>
+        </CaptionAndImage>
+        <Style>
+          <BasedOnStyle>Vocab cell</BasedOnStyle>
+        </Style>
+      </Content>
+    </Cell>
+    <Cell X="6">
+      <Content>
+        <Commands>
+          <Command ID="Settings.RestAll">
+            <Parameter Key="indicatorenabled">1</Parameter>
+            <Parameter Key="action">Toggle</Parameter>
+          </Command>
+        </Commands>
+        <CaptionAndImage>
+          <Caption>Rest</Caption>
+          <Image>[GRID3X]rest.wmf</Image>
+        </CaptionAndImage>
+        <Style>
+          <BasedOnStyle>Actions category style</BasedOnStyle>
+        </Style>
+      </Content>
+    </Cell>
+    <Cell X="6" Y="1">
+      <Content>
+        <Commands>
+          <Command ID="Action.DeleteWord" />
+        </Commands>
+        <CaptionAndImage>
+          <Caption>Delete word</Caption>
+          <Image>[GRID3X]delete_word.wmf</Image>
+        </CaptionAndImage>
+        <Style>
+          <BasedOnStyle>Actions category style</BasedOnStyle>
+        </Style>
+      </Content>
+    </Cell>
+    <Cell X="6" Y="2">
+      <Content>
+        <Commands>
+          <Command ID="Action.Clear" />
+        </Commands>
+        <CaptionAndImage>
+          <Caption>Clear</Caption>
+          <Image>[GRID3X]clear.wmf</Image>
+        </CaptionAndImage>
+        <Style>
+          <BasedOnStyle>Actions category style</BasedOnStyle>
+        </Style>
+      </Content>
+    </Cell>
+    <Cell Y="4">
+      <Content>
+        <Style>
+          <BasedOnStyle>Default</BasedOnStyle>
+        </Style>
+      </Content>
+    </Cell>
+    <Cell X="6" Y="4">
+      <Content>
+        <Style>
+          <BasedOnStyle>Default</BasedOnStyle>
+        </Style>
+      </Content>
+    </Cell>
+    <Cell X="1" Y="2">
+      <Content>
+        <ContentType>AutoContent</ContentType>
+        <ContentSubType>WordList</ContentSubType>
+        <CaptionAndImage xsi:nil="true" />
+        <Style>
+          <BasedOnStyle>Vocab cell</BasedOnStyle>
+        </Style>
+      </Content>
+    </Cell>
+    <Cell X="1" Y="3">
+      <Content>
+        <ContentType>AutoContent</ContentType>
+        <ContentSubType>WordList</ContentSubType>
+        <CaptionAndImage xsi:nil="true" />
+        <Style>
+          <BasedOnStyle>Vocab cell</BasedOnStyle>
+        </Style>
+      </Content>
+    </Cell>
+    <Cell X="1" Y="4">
+      <Content>
+        <ContentType>AutoContent</ContentType>
+        <ContentSubType>WordList</ContentSubType>
+        <CaptionAndImage xsi:nil="true" />
+        <Style>
+          <BasedOnStyle>Vocab cell</BasedOnStyle>
+        </Style>
+      </Content>
+    </Cell>
+    <Cell X="2" Y="1">
+      <Content>
+        <ContentType>AutoContent</ContentType>
+        <ContentSubType>WordList</ContentSubType>
+        <CaptionAndImage xsi:nil="true" />
+        <Style>
+          <BasedOnStyle>Vocab cell</BasedOnStyle>
+        </Style>
+      </Content>
+    </Cell>
+    <Cell X="3" Y="1">
+      <Content>
+        <ContentType>AutoContent</ContentType>
+        <ContentSubType>WordList</ContentSubType>
+        <CaptionAndImage xsi:nil="true" />
+        <Style>
+          <BasedOnStyle>Vocab cell</BasedOnStyle>
+        </Style>
+      </Content>
+    </Cell>
+    <Cell X="4" Y="1">
+      <Content>
+        <ContentType>AutoContent</ContentType>
+        <ContentSubType>WordList</ContentSubType>
+        <CaptionAndImage xsi:nil="true" />
+        <Style>
+          <BasedOnStyle>Vocab cell</BasedOnStyle>
+        </Style>
+      </Content>
+    </Cell>
+    <Cell X="5" Y="2">
+      <Content>
+        <ContentType>AutoContent</ContentType>
+        <ContentSubType>WordList</ContentSubType>
+        <CaptionAndImage xsi:nil="true" />
+        <Style>
+          <BasedOnStyle>Vocab cell</BasedOnStyle>
+        </Style>
+      </Content>
+    </Cell>
+    <Cell X="2" Y="2">
+      <Content>
+        <ContentType>AutoContent</ContentType>
+        <ContentSubType>WordList</ContentSubType>
+        <CaptionAndImage xsi:nil="true" />
+        <Style>
+          <BasedOnStyle>Vocab cell</BasedOnStyle>
+        </Style>
+      </Content>
+    </Cell>
+    <Cell X="3" Y="2">
+      <Content>
+        <ContentType>AutoContent</ContentType>
+        <ContentSubType>WordList</ContentSubType>
+        <CaptionAndImage xsi:nil="true" />
+        <Style>
+          <BasedOnStyle>Vocab cell</BasedOnStyle>
+        </Style>
+      </Content>
+    </Cell>
+    <Cell X="4" Y="2">
+      <Content>
+        <ContentType>AutoContent</ContentType>
+        <ContentSubType>WordList</ContentSubType>
+        <CaptionAndImage xsi:nil="true" />
+        <Style>
+          <BasedOnStyle>Vocab cell</BasedOnStyle>
+        </Style>
+      </Content>
+    </Cell>
+    <Cell X="5" Y="1">
+      <Content>
+        <ContentType>AutoContent</ContentType>
+        <ContentSubType>WordList</ContentSubType>
+        <CaptionAndImage xsi:nil="true" />
+        <Style>
+          <BasedOnStyle>Vocab cell</BasedOnStyle>
+        </Style>
+      </Content>
+    </Cell>
+    <Cell X="2" Y="3">
+      <Content>
+        <ContentType>AutoContent</ContentType>
+        <ContentSubType>WordList</ContentSubType>
+        <CaptionAndImage xsi:nil="true" />
+        <Style>
+          <BasedOnStyle>Vocab cell</BasedOnStyle>
+        </Style>
+      </Content>
+    </Cell>
+    <Cell X="3" Y="3">
+      <Content>
+        <ContentType>AutoContent</ContentType>
+        <ContentSubType>WordList</ContentSubType>
+        <CaptionAndImage xsi:nil="true" />
+        <Style>
+          <BasedOnStyle>Vocab cell</BasedOnStyle>
+        </Style>
+      </Content>
+    </Cell>
+    <Cell X="4" Y="3">
+      <Content>
+        <ContentType>AutoContent</ContentType>
+        <ContentSubType>WordList</ContentSubType>
+        <CaptionAndImage xsi:nil="true" />
+        <Style>
+          <BasedOnStyle>Vocab cell</BasedOnStyle>
+        </Style>
+      </Content>
+    </Cell>
+    <Cell X="5" Y="4">
+      <Content>
+        <ContentType>AutoContent</ContentType>
+        <ContentSubType>WordList</ContentSubType>
+        <CaptionAndImage xsi:nil="true" />
+        <Style>
+          <BasedOnStyle>Vocab cell</BasedOnStyle>
+        </Style>
+      </Content>
+    </Cell>
+    <Cell X="2" Y="4">
+      <Content>
+        <ContentType>AutoContent</ContentType>
+        <ContentSubType>WordList</ContentSubType>
+        <CaptionAndImage xsi:nil="true" />
+        <Style>
+          <BasedOnStyle>Vocab cell</BasedOnStyle>
+        </Style>
+      </Content>
+    </Cell>
+    <Cell X="3" Y="4">
+      <Content>
+        <ContentType>AutoContent</ContentType>
+        <ContentSubType>WordList</ContentSubType>
+        <CaptionAndImage xsi:nil="true" />
+        <Style>
+          <BasedOnStyle>Vocab cell</BasedOnStyle>
+        </Style>
+      </Content>
+    </Cell>
+    <Cell X="4" Y="4">
+      <Content>
+        <ContentType>AutoContent</ContentType>
+        <ContentSubType>WordList</ContentSubType>
+        <CaptionAndImage xsi:nil="true" />
+        <Style>
+          <BasedOnStyle>Vocab cell</BasedOnStyle>
+        </Style>
+      </Content>
+    </Cell>
+    <Cell X="5" Y="3">
+      <Content>
+        <ContentType>AutoContent</ContentType>
+        <ContentSubType>WordList</ContentSubType>
+        <CaptionAndImage xsi:nil="true" />
+        <Style>
+          <BasedOnStyle>Vocab cell</BasedOnStyle>
+        </Style>
+      </Content>
+    </Cell>
+  </Cells>
+  <ScanBlockAudioDescriptions />
+  <WordList>
+    <Items>
+      <WordListItem>
+        <Text>
+          <s Image="[sstix#]2532.emf">
+            <r>amazing</r>
+          </s>
+        </Text>
+        <Image>[sstix#]2532.emf</Image>
+      </WordListItem>
+      <WordListItem>
+        <Text>
+          <s Image="[sstix#]2544.emf">
+            <r>awesome</r>
+          </s>
+        </Text>
+        <Image>[sstix#]2544.emf</Image>
+      </WordListItem>
+      <WordListItem>
+        <Text>
+          <s Image="[sstix#]2566.emf">
+            <r>boring</r>
+          </s>
+        </Text>
+        <Image>[sstix#]2566.emf</Image>
+      </WordListItem>
+      <WordListItem>
+        <Text>
+          <s Image="[sstix#]2597.emf">
+            <r>cool</r>
+          </s>
+        </Text>
+        <Image>[sstix#]2597.emf</Image>
+      </WordListItem>
+      <WordListItem>
+        <Text>
+          <s Image="[sstix#]2604.emf">
+            <r>crazy</r>
+          </s>
+        </Text>
+        <Image>[sstix#]2604.emf</Image>
+      </WordListItem>
+      <WordListItem>
+        <Text>
+          <s Image="[sstix#]312.emf">
+            <r>funny</r>
+          </s>
+        </Text>
+        <Image>[sstix#]312.emf</Image>
+      </WordListItem>
+      <WordListItem>
+        <Text>
+          <s Image="[sstix#]2689.emf">
+            <r>great</r>
+          </s>
+        </Text>
+        <Image>[sstix#]2689.emf</Image>
+      </WordListItem>
+      <WordListItem>
+        <Text>
+          <s Image="[sstix#]2914.emf">
+            <r>gross</r>
+          </s>
+        </Text>
+        <Image>[sstix#]2914.emf</Image>
+      </WordListItem>
+      <WordListItem>
+        <Text>
+          <s Image="[sstix#]2278.emf">
+            <r>OK</r>
+          </s>
+        </Text>
+        <Image>[sstix#]2278.emf</Image>
+      </WordListItem>
+      <WordListItem>
+        <Text>
+          <s Image="[sstix#]2913.emf">
+            <r>bad</r>
+          </s>
+        </Text>
+        <Image>[sstix#]2913.emf</Image>
+      </WordListItem>
+      <WordListItem>
+        <Text>
+          <s Image="[sstix#]4510.emf">
+            <r>garbage</r>
+          </s>
+        </Text>
+        <Image>[sstix#]4510.emf</Image>
+      </WordListItem>
+      <WordListItem>
+        <Text>
+          <s Image="[sstix#]52917.emf">
+            <r>terrible</r>
+          </s>
+        </Text>
+        <Image>[sstix#]52917.emf</Image>
+      </WordListItem>
+    </Items>
+  </WordList>
+</Grid>

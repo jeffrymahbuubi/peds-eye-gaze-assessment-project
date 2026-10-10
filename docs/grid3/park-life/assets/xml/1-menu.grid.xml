@@ -1,0 +1,406 @@
+<Grid xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">
+  <BackgroundColour>#FFE5EBFF</BackgroundColour>
+  <GridGuid>552e9dff-e1f8-4cd3-bde5-1fcde4669240</GridGuid>
+  <ColumnDefinitions>
+    <ColumnDefinition />
+    <ColumnDefinition />
+    <ColumnDefinition />
+    <ColumnDefinition />
+    <ColumnDefinition />
+    <ColumnDefinition />
+    <ColumnDefinition />
+    <ColumnDefinition />
+    <ColumnDefinition />
+    <ColumnDefinition />
+  </ColumnDefinitions>
+  <RowDefinitions>
+    <RowDefinition />
+    <RowDefinition />
+    <RowDefinition />
+    <RowDefinition />
+    <RowDefinition />
+    <RowDefinition />
+    <RowDefinition />
+  </RowDefinitions>
+  <AutoContentCommands />
+  <Cells>
+    <Cell X="1" ColumnSpan="8" RowSpan="2">
+      <Content>
+        <CaptionAndImage>
+          <Caption>Park Life</Caption>
+        </CaptionAndImage>
+        <Style>
+          <BasedOnStyle>style 3</BasedOnStyle>
+          <BorderColour>#FF2650FF</BorderColour>
+          <FontColour>#FF2751FF</FontColour>
+        </Style>
+      </Content>
+    </Cell>
+    <Cell Y="1">
+      <Content>
+        <Style>
+          <BasedOnStyle>Default</BasedOnStyle>
+        </Style>
+      </Content>
+    </Cell>
+    <Cell X="1" Y="3" ColumnSpan="2" RowSpan="2">
+      <Content>
+        <Commands>
+          <Command ID="Jump.To">
+            <Parameter Key="grid">Interactive Visual Scene Park Life Activity</Parameter>
+          </Command>
+        </Commands>
+        <CaptionAndImage>
+          <Caption>Start</Caption>
+          <Image>[interl]parklife.emf</Image>
+        </CaptionAndImage>
+        <Style>
+          <BasedOnStyle>Navigation category style</BasedOnStyle>
+          <BackColour>#FF254FFF</BackColour>
+        </Style>
+      </Content>
+    </Cell>
+    <Cell Y="3">
+      <Content>
+        <Style>
+          <BasedOnStyle>Default</BasedOnStyle>
+        </Style>
+      </Content>
+    </Cell>
+    <Cell Y="4">
+      <Content>
+        <Style>
+          <BasedOnStyle>Default</BasedOnStyle>
+        </Style>
+      </Content>
+    </Cell>
+    <Cell Y="2">
+      <Content>
+        <Style>
+          <BasedOnStyle>Default</BasedOnStyle>
+        </Style>
+      </Content>
+    </Cell>
+    <Cell X="1" Y="2">
+      <Content>
+        <Style>
+          <BasedOnStyle>Default</BasedOnStyle>
+        </Style>
+      </Content>
+    </Cell>
+    <Cell X="2" Y="2">
+      <Content>
+        <Style>
+          <BasedOnStyle>Default</BasedOnStyle>
+        </Style>
+      </Content>
+    </Cell>
+    <Cell X="9">
+      <Content>
+        <Commands>
+          <Command ID="Settings.RestAll">
+            <Parameter Key="indicatorenabled">1</Parameter>
+            <Parameter Key="action">Toggle</Parameter>
+          </Command>
+        </Commands>
+        <CaptionAndImage>
+          <Caption>Rest</Caption>
+          <Image>[GRID3X]rest.wmf</Image>
+        </CaptionAndImage>
+        <Style>
+          <BasedOnStyle>Access category style</BasedOnStyle>
+        </Style>
+      </Content>
+    </Cell>
+    <Cell X="9" Y="1">
+      <Content>
+        <Style>
+          <BasedOnStyle>Default</BasedOnStyle>
+        </Style>
+      </Content>
+    </Cell>
+    <Cell X="6" Y="3">
+      <Content>
+        <Style>
+          <BasedOnStyle>Default</BasedOnStyle>
+        </Style>
+      </Content>
+    </Cell>
+    <Cell X="9" Y="3">
+      <Content>
+        <Style>
+          <BasedOnStyle>Default</BasedOnStyle>
+        </Style>
+      </Content>
+    </Cell>
+    <Cell X="6" Y="4">
+      <Content>
+        <Style>
+          <BasedOnStyle>Default</BasedOnStyle>
+        </Style>
+      </Content>
+    </Cell>
+    <Cell X="9" Y="4">
+      <Content>
+        <Style>
+          <BasedOnStyle>Default</BasedOnStyle>
+        </Style>
+      </Content>
+    </Cell>
+    <Cell X="6" Y="2">
+      <Content>
+        <Style>
+          <BasedOnStyle>Default</BasedOnStyle>
+        </Style>
+      </Content>
+    </Cell>
+    <Cell X="5" Y="2">
+      <Content>
+        <Style>
+          <BasedOnStyle>Default</BasedOnStyle>
+        </Style>
+      </Content>
+    </Cell>
+    <Cell X="7" Y="3" ColumnSpan="2" RowSpan="2">
+      <Content>
+        <Commands>
+          <Command ID="Jump.To">
+            <Parameter Key="grid">Interactive Visual Scene Park Life Chat</Parameter>
+          </Command>
+        </Commands>
+        <CaptionAndImage>
+          <Caption>Chat</Caption>
+          <Image>[grid3x]chat-1.wmf</Image>
+        </CaptionAndImage>
+        <Style>
+          <BasedOnStyle>Navigation category style</BasedOnStyle>
+          <BackColour>#FF254FFF</BackColour>
+        </Style>
+      </Content>
+    </Cell>
+    <Cell X="7" Y="2">
+      <Content>
+        <Style>
+          <BasedOnStyle>Default</BasedOnStyle>
+        </Style>
+      </Content>
+    </Cell>
+    <Cell X="8" Y="2">
+      <Content>
+        <Style>
+          <BasedOnStyle>Default</BasedOnStyle>
+        </Style>
+      </Content>
+    </Cell>
+    <Cell X="9" Y="2">
+      <Content>
+        <Style>
+          <BasedOnStyle>Default</BasedOnStyle>
+        </Style>
+      </Content>
+    </Cell>
+    <Cell X="4" Y="2">
+      <Content>
+        <Style>
+          <BasedOnStyle>Default</BasedOnStyle>
+        </Style>
+      </Content>
+    </Cell>
+    <Cell X="3" Y="2">
+      <Content>
+        <Style>
+          <BasedOnStyle>Default</BasedOnStyle>
+        </Style>
+      </Content>
+    </Cell>
+    <Cell X="3" Y="3">
+      <Content>
+        <Style>
+          <BasedOnStyle>Default</BasedOnStyle>
+        </Style>
+      </Content>
+    </Cell>
+    <Cell X="3" Y="4">
+      <Content>
+        <Style>
+          <BasedOnStyle>Default</BasedOnStyle>
+        </Style>
+      </Content>
+    </Cell>
+    <Cell X="4" Y="3" ColumnSpan="2" RowSpan="2">
+      <Content>
+        <Commands>
+          <Command ID="Jump.To">
+            <Parameter Key="grid">Interactive Visual Scene Park Life Activity Descriptions</Parameter>
+          </Command>
+        </Commands>
+        <CaptionAndImage>
+          <Caption>Start with descriptions</Caption>
+          <Image>[interl]parklife_a3.emf</Image>
+        </CaptionAndImage>
+        <Style>
+          <BasedOnStyle>Navigation category style</BasedOnStyle>
+          <BackColour>#FF254FFF</BackColour>
+        </Style>
+      </Content>
+    </Cell>
+    <Cell Y="6">
+      <Content>
+        <Style>
+          <BasedOnStyle>Default</BasedOnStyle>
+        </Style>
+      </Content>
+    </Cell>
+    <Cell X="9" Y="6">
+      <Content>
+        <Style>
+          <BasedOnStyle>Default</BasedOnStyle>
+        </Style>
+      </Content>
+    </Cell>
+    <Cell X="8" Y="6">
+      <Content>
+        <Style>
+          <BasedOnStyle>Default</BasedOnStyle>
+        </Style>
+      </Content>
+    </Cell>
+    <Cell X="7" Y="6">
+      <Content>
+        <Style>
+          <BasedOnStyle>Default</BasedOnStyle>
+        </Style>
+      </Content>
+    </Cell>
+    <Cell X="6" Y="6">
+      <Content>
+        <Style>
+          <BasedOnStyle>Default</BasedOnStyle>
+        </Style>
+      </Content>
+    </Cell>
+    <Cell X="5" Y="6">
+      <Content>
+        <Style>
+          <BasedOnStyle>Default</BasedOnStyle>
+        </Style>
+      </Content>
+    </Cell>
+    <Cell X="3" Y="6">
+      <Content>
+        <Style>
+          <BasedOnStyle>Default</BasedOnStyle>
+        </Style>
+      </Content>
+    </Cell>
+    <Cell X="4" Y="6">
+      <Content>
+        <Style>
+          <BasedOnStyle>Default</BasedOnStyle>
+        </Style>
+      </Content>
+    </Cell>
+    <Cell X="1" Y="6">
+      <Content>
+        <Style>
+          <BasedOnStyle>Default</BasedOnStyle>
+        </Style>
+      </Content>
+    </Cell>
+    <Cell X="2" Y="6">
+      <Content>
+        <Style>
+          <BasedOnStyle>Default</BasedOnStyle>
+        </Style>
+      </Content>
+    </Cell>
+    <Cell Y="5">
+      <Content>
+        <Style>
+          <BasedOnStyle>Default</BasedOnStyle>
+        </Style>
+      </Content>
+    </Cell>
+    <Cell X="1" Y="5">
+      <Content>
+        <Style>
+          <BasedOnStyle>Default</BasedOnStyle>
+        </Style>
+      </Content>
+    </Cell>
+    <Cell X="2" Y="5">
+      <Content>
+        <Style>
+          <BasedOnStyle>Default</BasedOnStyle>
+        </Style>
+      </Content>
+    </Cell>
+    <Cell X="3" Y="5">
+      <Content>
+        <Style>
+          <BasedOnStyle>Default</BasedOnStyle>
+        </Style>
+      </Content>
+    </Cell>
+    <Cell X="4" Y="5">
+      <Content>
+        <Style>
+          <BasedOnStyle>Default</BasedOnStyle>
+        </Style>
+      </Content>
+    </Cell>
+    <Cell X="5" Y="5">
+      <Content>
+        <Style>
+          <BasedOnStyle>Default</BasedOnStyle>
+        </Style>
+      </Content>
+    </Cell>
+    <Cell X="6" Y="5">
+      <Content>
+        <Style>
+          <BasedOnStyle>Default</BasedOnStyle>
+        </Style>
+      </Content>
+    </Cell>
+    <Cell X="7" Y="5">
+      <Content>
+        <Style>
+          <BasedOnStyle>Default</BasedOnStyle>
+        </Style>
+      </Content>
+    </Cell>
+    <Cell X="8" Y="5">
+      <Content>
+        <Style>
+          <BasedOnStyle>Default</BasedOnStyle>
+        </Style>
+      </Content>
+    </Cell>
+    <Cell X="9" Y="5">
+      <Content>
+        <Style>
+          <BasedOnStyle>Default</BasedOnStyle>
+        </Style>
+      </Content>
+    </Cell>
+    <Cell>
+      <Content>
+        <Commands>
+          <Command ID="Settings.GridExplorer" />
+        </Commands>
+        <CaptionAndImage>
+          <Caption>Grid Explorer</Caption>
+          <Image>[GRID3X]jump_back.wmf</Image>
+        </CaptionAndImage>
+        <Style>
+          <BasedOnStyle>style 1</BasedOnStyle>
+        </Style>
+      </Content>
+    </Cell>
+  </Cells>
+  <ScanBlockAudioDescriptions />
+  <WordList>
+    <Items />
+  </WordList>
+</Grid>

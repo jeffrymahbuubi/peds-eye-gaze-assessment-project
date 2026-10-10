@@ -1,0 +1,22 @@
+<GridSetSettings xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">
+  <PictureSearch>
+    <PictureSearchKeys>
+      <PictureSearchKey>sstix#</PictureSearchKey>
+      <PictureSearchKey>widgit</PictureSearchKey>
+      <PictureSearchKey>ssnaps</PictureSearchKey>
+    </PictureSearchKeys>
+  </PictureSearch>
+  <Appearance>
+    <Theme>Kids</Theme>
+  </Appearance>
+  <StartGrid>Visual Scene Park Life Menu</StartGrid>
+  <Description>Explore the park scene and play with balloons, bubbles and more.
+This grid set helps teach cause and effect as well as early language skills. Interactive Learning activities are designed to be motivating and fun while teaching key access skills.
+The included chat grids enable you to talk about what you have achieved, helping progress towards alternative communication.</Description>
+  <Language>en-US</Language>
+  <ThumbnailBackground>#1ABC9CFF</ThumbnailBackground>
+  <Thumbnail>[interl]parklife.emf</Thumbnail>
+  <GridSetFileFormatVersion>1</GridSetFileFormatVersion>
+  <DocumentationSlug>/interactive-learning</DocumentationSlug>
+  <VersioningId>1eab2e7e-ef60-4519-bdc8-4b87889ad823</VersioningId>
+</GridSetSettings>

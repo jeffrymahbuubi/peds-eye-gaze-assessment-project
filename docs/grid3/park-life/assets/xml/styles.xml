@@ -1,0 +1,99 @@
+<StyleData xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">
+  <Styles>
+    <Style Key="Default">
+      <BackColour>#FFFFFFFF</BackColour>
+      <BorderColour>#FFFFFF00</BorderColour>
+      <BackgroundShape>1</BackgroundShape>
+    </Style>
+    <Style Key="InteractiveLearning category style">
+      <BackColour>#56C8F9FF</BackColour>
+      <BorderColour>#FFFFFF00</BorderColour>
+      <FontColour>#FFFFFFFF</FontColour>
+      <FontSize>14</FontSize>
+    </Style>
+    <Style Key="Navigation category style">
+      <BackColour>#9DC1E8FF</BackColour>
+      <BorderColour>#FFFFFF00</BorderColour>
+      <FontColour>#FFFFFFFF</FontColour>
+      <FontSize>12</FontSize>
+      <BackgroundShape>1</BackgroundShape>
+    </Style>
+    <Style Key="Access category style">
+      <BackColour>#1ABC9CFF</BackColour>
+      <BorderColour>#FFFFFF00</BorderColour>
+      <FontColour>#FFFFFFFF</FontColour>
+      <FontName>Medrano</FontName>
+      <BackgroundShape>9</BackgroundShape>
+    </Style>
+    <Style Key="style 1">
+      <Name>Jumps 2</Name>
+      <BackColour>#1ABC9CFF</BackColour>
+      <BorderColour>#FFFFFF00</BorderColour>
+      <FontColour>#FFFFFFFF</FontColour>
+      <FontName>Medrano</FontName>
+      <FontSize>12</FontSize>
+      <BackgroundShape>9</BackgroundShape>
+    </Style>
+    <Style Key="style 2">
+      <Name>Jumps 3</Name>
+      <BackColour>#9365B8FF</BackColour>
+      <BorderColour>#FFFFFF00</BorderColour>
+      <FontColour>#FFFFFFFF</FontColour>
+      <FontName>Medrano</FontName>
+      <FontSize>20</FontSize>
+      <BackgroundShape>1</BackgroundShape>
+    </Style>
+    <Style Key="style 3">
+      <Name>Activity title</Name>
+      <BorderColour>#00A885FF</BorderColour>
+      <FontColour>#41A85FFF</FontColour>
+      <FontName>Medrano</FontName>
+      <FontSize>96</FontSize>
+    </Style>
+    <Style Key="Actions category style">
+      <BackColour>#EFA39FFF</BackColour>
+      <BorderColour>#FFFFFF00</BorderColour>
+      <FontColour>#FFFFFFFF</FontColour>
+      <FontSize>12</FontSize>
+      <BackgroundShape>1</BackgroundShape>
+    </Style>
+    <Style Key="style 4">
+      <Name>Interactive learning 2</Name>
+      <BackColour>#BBDEEDFF</BackColour>
+      <BorderColour>#FFFFFF00</BorderColour>
+      <FontColour>#000000FF</FontColour>
+      <FontSize>14</FontSize>
+    </Style>
+    <Style Key="style 5">
+      <Name>Sentence starter</Name>
+      <BackColour>#9FED9CFF</BackColour>
+      <BorderColour>#FFFFFF00</BorderColour>
+      <FontColour>#000000FF</FontColour>
+      <FontSize>12</FontSize>
+      <BackgroundShape>1</BackgroundShape>
+    </Style>
+    <Style Key="Workspace">
+      <BackColour>#FFFFFFFF</BackColour>
+      <BorderColour>#FFFFFF00</BorderColour>
+      <FontColour>#000000FF</FontColour>
+    </Style>
+    <Style Key="style 7">
+      <Name>Small words</Name>
+      <BackColour>#BBDEEDFF</BackColour>
+      <BorderColour>#FFFFFF00</BorderColour>
+      <FontColour>#000000FF</FontColour>
+      <BackgroundShape>1</BackgroundShape>
+    </Style>
+    <Style Key="Vocab cell">
+      <BorderColour>#FFFFFF00</BorderColour>
+      <FontColour>#000000FF</FontColour>
+      <FontSize>12</FontSize>
+      <BackgroundShape>1</BackgroundShape>
+    </Style>
+    <Style Key="Grid3 category style">
+      <BackColour>#475577FF</BackColour>
+      <BorderColour>#475577FF</BorderColour>
+      <FontColour>#FFFFFFFF</FontColour>
+    </Style>
+  </Styles>
+</StyleData>
