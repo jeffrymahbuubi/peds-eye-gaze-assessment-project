@@ -21,6 +21,7 @@ from typing import Any
 
 from ..engine.input_choice import (
     POINTER_GAZE,
+    POINTER_MOUSE,
     SELECTION_DWELL,
     SELECTION_SWITCH,
     TASKS_WITHOUT_SELECTION,
@@ -426,10 +427,15 @@ _DEPENDS_ON = {"dwell.smoothing.alpha": "dwell.smoothing.enabled"}
 # 4.1, greyed in place the same way, but by what Selection says: Switch has no dwell
 # threshold and no dwell ring; Dwell has no glow. The refractory period and the jitter
 # tolerance stay active under Switch -- the debounce and the hitbox apply to it too.
+# A Mouse pointer is never smoothed (SPEC-preview-gaze-pointer.md P2, H6), so both smoothing
+# controls are greyed by Pointer = Mouse; the alpha is also in ``_DEPENDS_ON``, and the page
+# greys it when either rule says so (H7).
 _GREYED_BY = {
     "dwell.threshold_ms": ("input.selection", SELECTION_SWITCH),
     "dwell.progress_ring": ("input.selection", SELECTION_SWITCH),
     "feedback.target_glow": ("input.selection", SELECTION_DWELL),
+    "dwell.smoothing.enabled": ("input.pointer", POINTER_MOUSE),
+    "dwell.smoothing.alpha": ("input.pointer", POINTER_MOUSE),
 }
 # The cards in order of clinical weight (SPEC-design-system-phase2.md H6, V4): (id, title,
 # column, hint, control keys in order). Column 0 holds what the clinician sets first (the

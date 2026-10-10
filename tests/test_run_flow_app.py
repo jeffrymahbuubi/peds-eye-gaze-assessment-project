@@ -187,7 +187,13 @@ def test_practice_marks_the_status_and_turns_the_bar_amber(make_app):
 
 def test_a_preview_names_the_mouse_and_its_chip_says_nothing_is_recorded(make_app):
     mouse = MouseGazeSource()
-    app = make_app(run_mode="preview", client=mouse, replay=False, structural_overrides={"trials": 3})
+    # A Mouse test (a Gaze test on the mouse says the tracker was not ready: H4).
+    app = make_app(
+        run_mode="preview",
+        client=mouse,
+        replay=False,
+        structural_overrides={"trials": 3, "input": {"pointer": "mouse", "selection": "dwell"}},
+    )
     mouse.bind_canvas(app.canvas)
     app._tick()
     assert app.view.run_bar.status_text() == "PREVIEW, Trial 1 of 3, Mouse pointer"

@@ -258,10 +258,13 @@ def test_preview_works_with_no_tracker_and_no_calibration(win):
 
 
 def test_preview_never_touches_the_setup_pages_client(win):
+    # A Mouse test's preview leaves even a connected, calibrated tracker alone (H1); a Gaze
+    # test's preview on it is in test_preview_gaze_pointer.py.
     fake = FakeClient()
     win.setup_page._client = fake
     win.setup_page._calibration_result = CalibrationResult(n_points=5, mean_error_px=10.0, valid=True)
     _test, page = fast_page(win)
+    control(page, "input.pointer").setValue("mouse")
     app = start_preview(win, page)
     assert app.client is not fake
     pointing = Pointing()

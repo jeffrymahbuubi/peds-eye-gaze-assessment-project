@@ -1,10 +1,10 @@
 ---
 name: SPEC-preview-gaze-pointer
 title: Preview follows the test's Input (real gaze when the tracker is ready); no gaze smoothing on a Mouse pointer
-status: approved 2026-10-08 (user decisions P1-P3; hub decisions H1-H9 approved by the user)
+status: implemented + live-checked (fake tracker) 2026-10-09 on branch preview-gaze-pointer (NOT merged)
 created: 2026-10-08
 last_updated: 2026-10-08
-next_step: /spec-run after SPEC-design-system-phase2 is merged AND SPEC-audit-fixes is done (user order 2026-10-09; all three touch shared files, app.py with audit-fixes)
+next_step: user merges design-phase2, audit-fixes, preview-gaze-pointer (in that order) and pushes; optional real-gaze feel of A1 with the GP3 HD
 related:
   - SPEC-compass-task-flow.md (U6, 4B.6 Preview Test: mouse-driven; this SPEC revises U6 for gaze tests)
   - SPEC-input-selection-and-follow.md (4.2 "Preview's pointer is always the mouse"; H4/H5 Mouse runs; revised here)
@@ -119,14 +119,94 @@ report changes; any design-system phase work.
 | Step | Content | Gate |
 |---|---|---|
 | 0 | SPEC approved by the user (DONE 2026-10-08) | user |
-| 1 | spec-implementer in a worktree based on the merged design-system phase 2: H1-H9 | — |
-| 2 | Hub review + full pytest; §9 questions | — |
-| 3 | Live check: A2/A3 and the wiring of A1 with `tools/fake_gazepoint_server.py` (connected + calibrated); the real feel of A1 with the GP3 HD and the user as subject (optional, user's call) | user |
-| 4 | Commit on the user's OK | user |
+| 1 | spec-implementer in a worktree based on the merged design-system phase 2: H1-H9 (DONE 2026-10-09, worktree from audit-fixes d023556) | — |
+| 2 | Hub review + full pytest; §9 questions (DONE 2026-10-09; §9 empty; one hub fix round) | — |
+| 3 | Live check: A2/A3 and the wiring of A1 with `tools/fake_gazepoint_server.py` (connected + calibrated); the real feel of A1 with the GP3 HD and the user as subject (optional, user's call) (fake-tracker part DONE 2026-10-09, unattended run authorized by the user; GP3 HD feel still open) | user |
+| 4 | Commit on the user's OK (DONE 2026-10-09: committed on side branch preview-gaze-pointer only, per the unattended-run authorization; no merge, no push) | user |
 
 ## 8. Impl log
 
-(empty)
+- **2026-10-09** — Implemented H1-H9 in the worktree `preview-gaze-pointer` (based on `d023556`).
+  Model: `claude-sonnet-5-5`. Nothing committed or staged; `configs/default.yaml` and
+  `configs/local_state.json` untouched.
+  - **Files changed:** `src/app.py` (new `preview_pointer` argument; pointer rule; H2 guard;
+    smoothing off for a Mouse test; the session.log line; run bar flags), `src/ui/config_flow.py`
+    (`_on_preview` decides from the unsaved form's `input.pointer` + `setup.tracker_ready()`),
+    `src/engine/tracking_status.py` (`run_status`, new `tracker_not_ready` flag; the preview
+    wording), `src/ui/settings_registry.py` (`_GREYED_BY` gets both smoothing controls),
+    `src/ui/task_config_page.py` (`_refresh` now collects what any rule greys and sets each
+    widget once, so the alpha is greyed if either its check box is off or the Pointer is Mouse),
+    `src/ui/config_form.py` (comment only).
+  - **Behaviour:** Gaze form + `tracker_ready()` both true: `client=setup.client`,
+    `preset_calibration_result` / `_source` / `_file` from Setup, `preview_pointer="gaze"` (the
+    `Calibration` branch and `GazepointClient` are never reached; `_gaze_recorded` stays False;
+    NullRecorder). Any other case: `MouseGazeSource` bound to the canvas as before,
+    `preview_pointer="mouse"` (a Mouse test never calls `tracker_ready()`, so the Setup client is
+    not touched at all). `AssessmentApp` raises `ValueError` for a gaze Preview given no client or
+    no calibration (H2 enforced, not just conventional) and for an unknown `preview_pointer`.
+    Smoothing: `SmoothingConfig.enabled = configured and not input_choice.is_mouse` (the test's
+    pointer, so a Gaze test on the fallback keeps it); `metadata.settings` unchanged; one
+    `Gaze smoothing: off (mouse pointer).` line for a run whose test pointer is Mouse (it reaches
+    session.log for a recorded run; a Practice or Preview NullRecorder discards it).
+  - **Tests added:** new `tests/test_preview_gaze_pointer.py` (38 tests: wording through the app,
+    pointer rule and H2 guards, Gaze+Switch cursor, smoothing off/on per run mode incl. a raw-vs-
+    smoothed jump, session.log line, page greying incl. the alpha 2x2 matrix and values kept,
+    Preview from the configuration page for ready / not connected / not calibrated / no tracker /
+    Mouse test / unsaved-pointer-decides / Switch / cannot-start); `tests/test_tracking_status.py`
+    +2; `tests/test_copy_rules.py` +1 parametrised case.
+  - **Existing tests updated (none deleted):** `test_config_preview.py::
+    test_preview_never_touches_the_setup_pages_client` (now a Mouse test, as a ready tracker means
+    a gaze preview), `test_run_flow_app.py::test_a_preview_names_the_mouse_and_its_chip_says_
+    nothing_is_recorded` (now a Mouse test), `test_input_settings.py::test_the_greying_rules_of_4_1`
+    (smoothing entries; alpha is the one control with both rules) and `test_pointer_mouse_greys_
+    nothing` (renamed `test_pointer_mouse_greys_only_the_two_smoothing_controls`).
+  - **pytest** (`-p no:cacheprovider -o addopts="" -q -rfE`): `5 failed, 3116 passed, 2 skipped in
+    549.21s`. The 5 failures are the known alpha 0.22 vs 0.35 ones
+    (`test_config_flow::test_a_new_test_opens_at_standard_with_the_task_defaults` and the 4
+    `test_task_config_page::test_a_new_test_opens_with_standard_and_the_defaults[...]`). Two
+    mutation checks (smoothing rule removed; alpha check-box rule removed) each fail the new tests.
+  - **Deviations:**
+    1. **H4 wording adapted to the current format.** §2 names `run_status_line` and the old
+       `PREVIEW · Trial i/N · mouse pointer · nothing is recorded` line; the code (design-system
+       phase 1 H9) is `run_status` with comma-separated facts and the chip meaning "nothing is
+       recorded". The three cases are therefore `PREVIEW, Trial i of N, Gaze pointer, <tracking>`,
+       `PREVIEW, Trial i of N, Mouse pointer (tracker not ready)` and `PREVIEW, Trial i of N,
+       Mouse pointer`. The real-gaze one keeps the tracker's state text/colour (H1: "no gaze" /
+       "tracker disconnected" as in Practice). `PREVIEW, Paused` is unchanged.
+    2. `preview_pointer=None` in a Preview means the mouse (what every earlier caller and test
+       relied on); the SPEC left that default open.
+    3. Touched `task_config_page.py` and `config_form.py`, not in the §5 file list: the alpha
+       double rule (H7) can only be combined where `_refresh` runs.
+    4. `src/engine/run_mode.py`'s module docstring still calls a preview "the mouse-driven look at
+       a configuration" (out of scope, left as is).
+  - **Notes for review:** a gaze Preview calls `start_streaming()` (idempotent) on the Setup client
+    and, while paused, `drain_raw()`, exactly as a Practice does; it does not call `clear_raw()` or
+    `stop()`. While running unpaused it does not drain the client's raw queue (a bounded deque, and
+    the next recorded run clears it at its start). The live check (§7 step 3) is not done.
+  - **Left undone:** the live check with `tools/fake_gazepoint_server.py` and the GP3 HD.
+- **2026-10-09 (second pass)** — Hub review fix: a gaze Preview while a Setup thread is busy.
+  Model: `claude-sonnet-5-5`. SPEC-audit-fixes H1 locks Setup while a Connect, Test Connection,
+  Re-check or Do Calibration thread owns the device socket, but the Config page stays reachable and
+  `tracker_ready()` can still say (True, True) from an earlier calibration.
+  - **Files changed:** `src/ui/setup_page.py` (new public `SetupPage.device_busy()`, a one-line
+    wrapper over `_busy()`; `_busy` itself and its call sites are untouched, so no rename churn
+    for the parallel branches), `src/ui/config_flow.py` (`_on_preview` treats a busy Setup as
+    "tracker not ready": `tracker_ready()` is not even asked, so the client is not read; the
+    Preview falls back to the mouse with the `(tracker not ready)` wording; module docstring),
+    `tests/test_preview_gaze_pointer.py`.
+  - **Tests added (6, in `test_preview_gaze_pointer.py`):** `device_busy()` is False idle and True
+    for each of the three thread attributes; a Gaze test previewed during a real (stand-in)
+    calibration thread, and during a real (stand-in) connect thread, gets the mouse with
+    `PREVIEW, Trial 1 of 3, Mouse pointer (tracker not ready)`, never calls `Calibration`, and the
+    Setup tracker records no `start_streaming` / `clear_raw` / `stop` / `connect`; after the thread
+    is released the same test previews on the real gaze again (with the new client after a
+    connect); a parametrised case over `_connect_thread` / `_recheck_thread` / `_calibration_thread`
+    covers Test Connection and Re-check (they share the attributes). `save_local_state` is replaced
+    in these tests, so `configs/local_state.json` is not written. A mutation check (busy rule
+    removed) fails 5 of them.
+  - **pytest** (same flags): `5 failed, 3122 passed, 2 skipped in 528.69s`; the 5 are the known
+    alpha 0.22 vs 0.35 ones.
+  - **Deviations:** none. Open questions: none.
 
 ## 9. Implementer open questions
 
@@ -142,3 +222,21 @@ report changes; any design-system phase work.
   Queued after design-system phase 2 (shared files: settings_registry, configuration page).
 - **2026-10-08** — The user approved H1-H9 as written. SPEC committed on `feature/compass-task-flow`. Next: /spec-run this SPEC after design-system phase 2 is merged.
 - **2026-10-09** — Order changed by the user: SPEC-audit-fixes (Fable audit F1-F9) runs first, then this SPEC.
+- **2026-10-09** — Hub review, during an unattended run the user authorized (side-branch commit
+  only). Scope matches H1-H9. Accepted deviations: the H4 wording follows the run bar's
+  comma format from phase 1 ("Gaze pointer", "Mouse pointer (tracker not ready)", "Mouse
+  pointer"); `preview_pointer=None` means mouse; `task_config_page.py` and `config_form.py`
+  touched (H7 needs the two greying rules combined in `_refresh`). Hub fix round: SPEC-audit-fixes
+  H1 locks Setup during a connect or calibration, so a gaze Preview while a Setup thread runs now
+  falls back to the mouse (`SetupPage.device_busy()`); 6 tests. Hub pytest: **5 failed, 3122
+  passed, 2 skipped** (the 5 are the known skip-worktree alpha checks). Live check, worktree code,
+  fake tracker on 4343: A2 Gaze test with no tracker shows "PREVIEW, Trial i of 3, Mouse pointer
+  (tracker not ready)"; A3 Input = Mouse greys the Gaze Smoothing card in place, values kept
+  (ticked, 0.35), active again on Gaze, and its Preview says "Mouse pointer"; A1 after Connect and
+  Do Calibration, Gaze Preview says "Gaze pointer" with "Tracking OK", and the pointer follows the
+  fake tracker's gaze, not the mouse; A4 no file written under `sessions/`, the fake server saw one
+  CALIBRATE_START (Setup's own) and one connection that stayed open; busy rule: a Preview started
+  during a second Do Calibration ran on the mouse with "(tracker not ready)". Not live:
+  smoothing off in a Practice / recorded Mouse run and its `session.log` line (unit tests);
+  the real-gaze feel of A1 on the GP3 HD (user's call). Committed on branch
+  `preview-gaze-pointer` only.

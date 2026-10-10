@@ -43,7 +43,13 @@ from .engine.display_check import check_display
 from .engine.config import CONFIG_ROOT, deep_merge, load_task_config, load_theme
 from .engine.gaze_diagnostics import GazeDropoutLog, gaze_dropout_log_path
 from .engine.feedback import FeedbackBus
-from .engine.input_choice import TASKS_WITHOUT_SELECTION, glow_active, resolve_input
+from .engine.input_choice import (
+    POINTER_GAZE,
+    POINTER_MOUSE,
+    TASKS_WITHOUT_SELECTION,
+    glow_active,
+    resolve_input,
+)
 from .engine.latency import LatencyTracker
 from .engine.loop_rate import config_target_fps, resolve_target_fps, target_fps_is_invalid
 from .engine.run_mode import (
@@ -255,6 +261,7 @@ class AssessmentApp:
         practice_index: int = 0,
         config_name: str | None = None,
         pointer_source: MouseGazeSource | None = None,
+        preview_pointer: str | None = None,
     ) -> None:
         """Build one task run.
 
@@ -289,8 +296,7 @@ class AssessmentApp:
         is ``"record"`` (default), ``"practice"`` or ``"preview"``. The last two
         write nothing (a :class:`NullRecorder`: no folder, calibration file or
         diagnostics), have no pre-roll, and ignore ``seed``: ``practice_index``
-        picks a practice's own seed. A preview gets a ``MouseGazeSource`` as
-        ``client``. ``config_name`` is recorded in the metadata.
+        picks a practice's own seed. ``config_name`` is recorded in the metadata.
 
         There is no operator HUD (4C.5, U5): the run view is the canvas and a
         :class:`~src.ui.run_bar.RunBar` (Pause, Skip trial, Quit, one status
@@ -310,10 +316,21 @@ class AssessmentApp:
         ``client`` is then only the tracker that records *alongside* (the Setup tab's,
         when connected and calibrated). With no ``client`` there is no tracker: a
         :class:`~src.inputs.no_tracker.NoTracker` stands in, nothing is calibrated and
-        no gaze file is written. A Preview is always a mouse run, whatever the test
-        says.
+        no gaze file is written. A Mouse pointer is never smoothed (SPEC-preview-gaze-
+        pointer.md H6): ``dwell.smoothing.*`` stays in ``metadata.settings`` as configured.
+
+        A Preview's pointer is its caller's decision (``preview_pointer``, H1, H3; ignored
+        by every other run mode). ``"gaze"``: the tracker is the pointer, and ``client``
+        and ``preset_calibration_result`` must be the Setup tab's connected, calibrated
+        ones: a Preview never dials the device or calibrates, and records nothing.
+        ``"mouse"`` (and ``None``): the pointer is the mouse, and ``client`` is the
+        :class:`~src.inputs.mouse_gaze.MouseGazeSource` the caller binds to the canvas; for
+        a Gaze test (the tracker was not ready) the gaze settings, smoothing included,
+        still apply to it.
         """
         self.run_mode = validate_run_mode(run_mode)
+        if preview_pointer not in (None, POINTER_GAZE, POINTER_MOUSE):
+            raise ValueError(f"Unknown preview pointer {preview_pointer!r}; expected 'gaze' or 'mouse'.")
         recorded = is_recorded(self.run_mode)
         seed = run_seed(self.run_mode, seed, practice_index)
         self.config = load_task_config(task_id)
@@ -334,12 +351,18 @@ class AssessmentApp:
         theme_name = self.config.get("task", {}).get("theme") or self.config.get("theme", {}).get("name", "forest")
         self.theme = load_theme(theme_name)
         # What moves the pointer and how a target is selected (SPEC-input-selection-and-
-        # follow.md H1); ``input_mode`` is derived from the two. A Preview's pointer is
-        # always the mouse (that is its purpose, 4B.6), whatever the test says.
+        # follow.md H1); ``input_mode`` is derived from the two. A Preview's pointer is its
+        # caller's decision (SPEC-preview-gaze-pointer.md H1, H3): the tracker's gaze only
+        # when told so, else the mouse -- whatever the test says, so a Gaze test whose
+        # tracker was not ready previews on the mouse, and a Mouse test's smoothing (below)
+        # follows the test's own pointer, not this one.
         self.input_choice = resolve_input(self.config)
         self.input_mode = self.input_choice.mode
         self._is_switch = self.input_choice.is_switch
-        self._pointer_is_mouse = self.input_choice.is_mouse or self.run_mode == PREVIEW
+        if self.run_mode == PREVIEW:
+            self._pointer_is_mouse = preview_pointer != POINTER_GAZE
+        else:
+            self._pointer_is_mouse = self.input_choice.is_mouse
 
         # A recorded run's folder is ``<output root>/<subject folder>/runs/<task_id>/
         # <YYYY-MM-DD_HHMM>`` (SPEC-subject-data-layout.md H1, H2), made by
@@ -379,6 +402,15 @@ class AssessmentApp:
                     f"({calibration_file})"
                 )
             preset_calibration = saved.result
+
+        if self.run_mode == PREVIEW and not self._pointer_is_mouse and (
+            client is None or preset_calibration is None
+        ):
+            # H2: a gaze Preview must never dial the device or start a calibration.
+            raise ValueError(
+                "A gaze Preview needs the Setup tab's tracker and its calibration; "
+                "it never connects or calibrates."
+            )
 
         gp_cfg = self.config.get("gazepoint", {})
         # An externally-provided client is already connected (and possibly
@@ -461,21 +493,23 @@ class AssessmentApp:
         lv = self._live_values
 
         # What moves the pointer: the tracker's gaze, or the mouse over the canvas (a
-        # Preview's ``client`` already is one, bound by its caller).
+        # Preview's ``client`` already is the pointer, bound by its caller: the mouse source
+        # or the Setup tab's tracker).
         if self._pointer_is_mouse and self.run_mode != PREVIEW:
             self.pointer_source = pointer_source or MouseGazeSource()
         else:
             self.pointer_source = self.client
+        # Gaze smoothing is for gaze: off whenever the *test's* pointer is the mouse, in every
+        # run mode (P2, H6). A Gaze test previewed on the mouse fallback keeps it on (H1), so
+        # this reads the test's pointer, not ``_pointer_is_mouse``.
+        smoothing_on = bool(lv["dwell.smoothing.enabled"]) and not self.input_choice.is_mouse
         self.eye = EyeInput(
             self.pointer_source,
             DwellConfig(
                 threshold_ms=float(lv["dwell.threshold_ms"]),
                 refractory_ms=float(lv["dwell.refractory_ms"]),
             ),
-            SmoothingConfig(
-                enabled=bool(lv["dwell.smoothing.enabled"]),
-                alpha=float(lv["dwell.smoothing.alpha"]),
-            ),
+            SmoothingConfig(enabled=smoothing_on, alpha=float(lv["dwell.smoothing.alpha"])),
         )
         self.switch = SwitchInput()
 
@@ -610,6 +644,8 @@ class AssessmentApp:
         )
         self.recorder.log(calibration_log_line(cal, cal_source, cal_file))
         self.recorder.log(self._input_log_line())
+        if self.input_choice.is_mouse:
+            self.recorder.log("Gaze smoothing: off (mouse pointer).")  # H6; metadata keeps the setting
 
         self.metadata.calibration_source = cal_source
         self.metadata.calibration_points = cal.n_points
@@ -880,7 +916,7 @@ class AssessmentApp:
         since = None if self._last_valid_ns is None else max(0.0, (t_ns - self._last_valid_ns) / 1e9)
         text, level = tracking_status(bool(self.client.is_connected()), since)
         preview = self.run_mode == PREVIEW
-        mouse = self._pointer_is_mouse and not preview
+        mouse = self._pointer_is_mouse
         if mouse and not self._gaze_recorded:
             text = ""  # a Mouse run with no tracker has nothing to report on it
         status = run_status(
@@ -892,6 +928,8 @@ class AssessmentApp:
             paused=self._paused,
             preview=preview,
             mouse=mouse,
+            # A Gaze test previewed on the mouse because the tracker was not ready (H4).
+            tracker_not_ready=preview and mouse and not self.input_choice.is_mouse,
         )
         bar = self.view.run_bar
         bar.set_status(status)

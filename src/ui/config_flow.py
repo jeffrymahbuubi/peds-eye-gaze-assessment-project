@@ -14,12 +14,15 @@ answers the page's three signals:
   (:func:`~src.ui.settings_snapshot.complete_settings`) in the test, applies the name and
   notes, and returns to the Test List.
 * **Cancel** -- the page has already asked about unsaved edits; returns to the Test List.
-* **Preview Test** -- runs the *unsaved* form values with the mouse for at most 3 trials
-  (``run_mode="preview"``: no tracker, no calibration, nothing recorded) in an embedded
-  run view on top of the page. The page is never rebuilt, so every control, the scroll
-  position and the unsaved edits are exactly as they were when the preview ends.
+* **Preview Test** -- runs the *unsaved* form values for at most 3 trials (``run_mode=
+  "preview"``: nothing recorded) in an embedded run view on top of the page. The pointer
+  is the test's own (SPEC-preview-gaze-pointer.md H1): the real gaze when the form says
+  Gaze and the Setup tab's tracker is connected, calibrated and not in use by a Setup thread
+  (a calibration, say), otherwise the mouse. The page is never rebuilt, so every control,
+  the scroll position and the unsaved edits are exactly as they were when the preview ends.
 
-Nothing here touches ``setup_page.client``.
+A mouse preview never touches ``setup_page.client``; a gaze preview only reads from it,
+as a Practice does, and never connects or calibrates.
 """
 
 from __future__ import annotations
@@ -29,6 +32,7 @@ from typing import TYPE_CHECKING, Any
 
 from ..app import AssessmentApp
 from ..engine.config import load_task_config
+from ..engine.input_choice import POINTER_GAZE, POINTER_MOUSE
 from ..engine.run_result import RunResult
 from ..engine.settings_profile import list_named_configurations, save_settings_profile
 from ..engine.subject_tests import (
@@ -59,6 +63,7 @@ from .config_save_dialogs import (
     ask_update_choice,
 )
 from .dashboard_flow import Flow, find_test
+from .settings_registry import get_nested
 from .settings_snapshot import complete_settings
 from .task_config_page import TaskConfigPage
 
@@ -235,13 +240,26 @@ class ConfigFlow:
     # -- Preview Test (4B.6) ----------------------------------------------------------------------
 
     def _on_preview(self, values: dict[str, Any]) -> None:
-        """Run the unsaved form for at most 3 trials with the mouse; record nothing."""
+        """Run the unsaved form for at most 3 trials; record nothing."""
         page, test, window = self.page, self.test, self._window
         if page is None or test is None or window.flow is not Flow.CONFIGURE:
             return
         structural = copy.deepcopy(values["structural"])
         structural["trials"] = min(PREVIEW_TRIALS, int(structural.get("trials", PREVIEW_TRIALS)))
-        mouse = MouseGazeSource()
+        setup = window.setup_page
+        # H1: the unsaved form's Pointer and what Setup has right now, decided once here.
+        # Gaze + a connected, calibrated tracker previews on the real gaze, handed the Setup
+        # tab's client and calibration the way a Practice is (H2), so no calibration is ever
+        # started; any other case previews on the mouse, which never touches the tracker. A
+        # Setup thread still running (a Connect, Test Connection, Re-check or calibration) owns
+        # the device socket, so the tracker is "not ready" then, whatever an earlier calibration
+        # left behind, and is not even asked.
+        gaze = False
+        if get_nested(structural, "input.pointer", POINTER_GAZE) == POINTER_GAZE:
+            if not setup.device_busy():
+                connected, calibrated = setup.tracker_ready()
+                gaze = connected and calibrated
+        mouse = None if gaze else MouseGazeSource()
         try:
             app = AssessmentApp(
                 task_id=test.task_id,
@@ -249,17 +267,22 @@ class ConfigFlow:
                 subject_id=test.subject_id,
                 structural_overrides=structural,
                 live_overrides=values["live"],
-                client=mouse,
+                client=setup.client if gaze else mouse,
+                preset_calibration_result=setup.calibration_result if gaze else None,
+                preset_calibration_source=setup.calibration_source if gaze else None,
+                preset_calibration_file=setup.calibration_file if gaze else None,
                 embedded=True,
                 on_finished=self._on_preview_finished,
                 run_mode="preview",
                 screen=window.screen(),
+                preview_pointer=POINTER_GAZE if gaze else POINTER_MOUSE,
             )
         except Exception as exc:  # noqa: BLE001 - say so on the page rather than lose it
             page.show_note(f"Preview could not start: {exc}")
             return
-        # The canvas exists only now; until it is bound the source reports "no gaze".
-        mouse.bind_canvas(app.view.canvas)
+        if mouse is not None:
+            # The canvas exists only now; until it is bound the source reports "no gaze".
+            mouse.bind_canvas(app.view.canvas)
         self.preview_app = app
         window.stack.addWidget(app.view)
         window.stack.setCurrentWidget(app.view)

@@ -368,15 +368,22 @@ class TaskConfigPage(QWidget):
 
     def _refresh(self) -> None:
         form = self._form
-        for master, widgets in form.dependents:  # greyed in place, never hidden (4B.3)
-            enabled = bool(form.controls[master].isChecked())
-            for widget in widgets:
-                widget.setEnabled(enabled)
+        # Greyed in place, never hidden (4B.3). A widget can be named by both rules (the
+        # smoothing alpha: its check box is off, or the Pointer is Mouse, H7), so the rules
+        # collect what is greyed and each widget is set once: active only when none says grey.
+        managed: list[QWidget] = []
+        greyed: set[QWidget] = set()
+        for master, widgets in form.dependents:
+            managed.extend(widgets)
+            if not form.controls[master].isChecked():
+                greyed.update(widgets)
         for master, value, widgets in form.greyed_when:
+            managed.extend(widgets)
             group = form.controls.get(master)  # absent on a page with no such choice
-            grey = group is not None and group.value() == value
-            for widget in widgets:
-                widget.setEnabled(not grey)
+            if group is not None and group.value() == value:
+                greyed.update(widgets)
+        for widget in managed:
+            widget.setEnabled(widget not in greyed)
         form.update_hint(self._values())
         modified = self.is_modified()
         # Always there, empty when unmodified: the cards below never move (C4).
