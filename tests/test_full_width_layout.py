@@ -1,7 +1,7 @@
 """SPEC-design-system-phase2.md section 9, 2026-10-09 (user decisions after testing the try-all build,
 empty space): Setup, Start, the Test List and the configuration page fill the window's width (no 1200 or 1500 px
-column), Setup lays
-its cards out in two independent columns (Subject over Display, Tracker over Calibration), and the configuration page's column C is titled "Gaze Pointer Settings".
+column), Setup stacks
+one card per row with fields that fill the card (user, 2026-10-10, as on feature/compass-task-flow), and the configuration page's column C is titled "Gaze Pointer Settings".
 Positions are compared relative to each other and to the page, never as a measured text width, so
 they hold with the offscreen platform's fonts. Offscreen Qt."""
 
@@ -82,7 +82,7 @@ def rect_in(widget: QWidget, page: QWidget) -> QRect:
     return QRect(widget.mapTo(page, QPoint(0, 0)), widget.size())
 
 
-# -- Setup: two columns of cards (section 9, 2026-10-09 (2); columns, not rows, after the live check) ---------------------------------------------------
+# -- Setup: one card per row (user, 2026-10-10, replacing the two columns of section 9, 2026-10-09 (2)) ----------
 
 
 def tracker_cell(page: SetupPage) -> QWidget:
@@ -96,61 +96,44 @@ def calibration_cell(page: SetupPage) -> QWidget:
 
 
 @pytest.mark.parametrize("width", WIDTHS)
-def test_two_cards_share_the_top_row_on_setup(qapp, width):
-    page = shown_setup(width)
-    subject, tracker = rect_in(page.subject_card, page), rect_in(page.tracker_card, page)
-    assert subject.top() == tracker.top()  # both columns start at the same line, top-aligned
-    assert subject.left() < tracker.left()  # Subject & Session Info | Tracker Connection
-    display, calibration = rect_in(page.display_section, page), rect_in(page.calibration_card, page)
-    assert display.left() == subject.left() and calibration.left() == tracker.left()
-    page.close()
-
-
-@pytest.mark.parametrize("width", WIDTHS)
-def test_each_column_stacks_its_cards_without_waiting_for_the_other_column(qapp, width):
-    """Subject over Display on the left, Tracker over Calibration on the right: a short card does
-    not leave a hole for the tall one beside it (the live check of 2026-10-09)."""
-    page = shown_setup(width)
-    subject, display = rect_in(page.subject_card, page), rect_in(page.display_section, page)
-    tracker, calibration = rect_in(tracker_cell(page), page), rect_in(calibration_cell(page), page)
-    assert display.top() - subject.bottom() - 1 == CARD_GAP == 24  # straight under Subject
-    assert calibration.top() - tracker.bottom() - 1 == CARD_GAP  # straight under Tracker
-    assert calibration.top() < display.top()  # the right column is shorter above it, so it is higher
-    assert tracker.height() < subject.height()
-    page.close()
-
-
-@pytest.mark.parametrize("width", WIDTHS)
-def test_the_columns_are_of_equal_width_and_the_gap_is_the_same_across_and_down(qapp, width):
+def test_setup_stacks_one_card_per_row_each_as_wide_as_the_page(qapp, width):
+    """User, 2026-10-10: the feature/compass-task-flow arrangement, one section per row."""
     page = shown_setup(width)
     scroll = page.findChild(QScrollArea, "wtmhSetupScroll")
-    subject, tracker = rect_in(page.subject_card, page), rect_in(page.tracker_card, page)
-    display, calibration = rect_in(page.display_section, page), rect_in(page.calibration_card, page)
-    assert abs(subject.width() - tracker.width()) <= 1
-    assert abs(display.width() - calibration.width()) <= 1
-    assert subject.width() == display.width() and tracker.width() == calibration.width()
-    # across: the gap between the two columns; down: the gap between two cards of a column
-    assert tracker.left() - subject.right() - 1 == CARD_GAP == 24
-    assert display.top() - subject.bottom() - 1 == CARD_GAP
-    # together they span the cards' area, left edge at the gutter
-    assert subject.left() == PAGE_GUTTER
-    assert tracker.right() + 1 == PAGE_GUTTER + scroll.viewport().width()
+    cards = [
+        rect_in(w, page)
+        for w in (page.subject_card, page.tracker_card, page.display_section, page.calibration_card)
+    ]
+    for card in cards:
+        assert card.left() == PAGE_GUTTER
+        assert card.width() == scroll.viewport().width()  # the whole width, no second column
+    tops = [card.top() for card in cards]
+    assert tops == sorted(tops) and len(set(tops)) == 4  # Subject, Tracker, Display, Calibration
     page.close()
 
 
-def test_an_alert_stays_directly_under_its_card_and_moves_only_its_own_column(qapp):
+@pytest.mark.parametrize("width", WIDTHS)
+def test_the_gap_between_two_stacked_cards_is_the_card_gap(qapp, width):
+    page = shown_setup(width)
+    subject, tracker = rect_in(page.subject_card, page), rect_in(tracker_cell(page), page)
+    display, calibration = rect_in(page.display_section, page), rect_in(calibration_cell(page), page)
+    assert tracker.top() - subject.bottom() - 1 == CARD_GAP == 24
+    assert display.top() - tracker.bottom() - 1 == CARD_GAP
+    assert calibration.top() - display.bottom() - 1 == CARD_GAP
+    page.close()
+
+
+def test_an_alert_stays_directly_under_its_card_and_pushes_the_cards_below_it_down(qapp):
     page = shown_setup(1920)
     display_top = rect_in(page.display_section, page).top()
-    calibration_top = rect_in(page.calibration_card, page).top()
     page.rate_warning_label.setText("The tracker reports a rate below 150 Hz.")
     page.rate_warning_alert.setVisible(True)
     for _ in range(3):
         QApplication.processEvents()
     card, alert = rect_in(page.tracker_card, page), rect_in(page.rate_warning_alert, page)
     assert alert.top() - card.bottom() - 1 == 8  # directly under its card
-    assert rect_in(page.calibration_card, page).top() > calibration_top  # Calibration moved down
-    assert rect_in(page.display_section, page).top() == display_top  # the left column did not
-    assert rect_in(page.calibration_card, page).top() - alert.bottom() - 1 == CARD_GAP
+    assert rect_in(page.display_section, page).top() > display_top  # Display moved down
+    assert rect_in(page.display_section, page).top() - alert.bottom() - 1 == CARD_GAP
     page.close()
 
 
@@ -174,17 +157,21 @@ def test_the_tab_and_reading_order_is_subject_tracker_display_calibration(qapp):
 
 
 @pytest.mark.parametrize("width", WIDTHS)
-def test_the_fields_keep_their_h4_widths_in_the_wider_cards(qapp, width):
+def test_the_fields_fill_their_card_as_on_the_feature_branch(qapp, width):
+    """User, 2026-10-10: field widths as on feature/compass-task-flow; the H4 fixed widths are gone."""
     page = shown_setup(width)
-    for field, expected in (
-        (page.subject_id_edit, 320), (page.date_edit, 200), (page.sex_combo, 240),
-        (page.address_edit, 320), (page.port_spin, 120), (page.point_count_spin, 100),
-    ):
-        assert field.width() == expected, type(field).__name__
+    inner = page.subject_card.contentsRect().width() - 2 * page_layout.CARD_PADDING
+    for field in (page.subject_id_edit, page.date_edit, page.sex_combo, page.notes_edit, page.point_count_spin):
+        assert field.width() >= inner - 4, type(field).__name__  # the card's width, less its padding
+    address, port = page.address_edit.width(), page.port_spin.width()
+    assert abs(address - 2 * port) <= 2 * page_layout.FIELD_GAP  # Address : Port = 2 : 1
+    assert address + port + page_layout.FIELD_GAP >= inner - 4
+    for name in ("SUBJECT_ID_WIDTH", "DATE_WIDTH", "SEX_WIDTH", "ADDRESS_WIDTH", "PORT_WIDTH", "POINT_COUNT_WIDTH"):
+        assert not hasattr(page_layout, name)
     page.close()
 
 
-def test_the_before_you_start_note_spans_both_columns_under_them(qapp):
+def test_the_before_you_start_note_is_a_row_of_its_own_under_the_cards(qapp):
     page = shown_setup(1920)
     scroll = page.findChild(QScrollArea, "wtmhSetupScroll")
     note = next(
@@ -193,9 +180,8 @@ def test_the_before_you_start_note_spans_both_columns_under_them(qapp):
             isinstance(lab, QLabel) and lab.text() == "Before You Start" for lab in w.findChildren(QLabel)
         ) and w.parentWidget() is scroll.widget()
     )
-    assert note.width() == scroll.viewport().width()  # one row of its own, not a half-width cell
-    below = max(rect_in(page.display_section, page).bottom(), rect_in(calibration_cell(page), page).bottom())
-    assert rect_in(note, page).top() > below  # under both columns
+    assert note.width() == scroll.viewport().width()
+    assert rect_in(note, page).top() > rect_in(calibration_cell(page), page).bottom()
     page.close()
 
 
@@ -235,7 +221,7 @@ def test_the_calibration_buttons_and_badge_stay_inside_their_card(qapp, width):
 
 def test_the_calibration_buttons_wrap_onto_a_second_line_in_a_narrow_card(qapp):
     wide = shown_setup(1920)
-    narrow = shown_setup(1150)
+    narrow = shown_setup(560)  # one card per row: narrow only in a narrow window
     wide_ys = {rect_in(b, wide).top() for b in (wide.do_calibration_button, wide.view_details_button)}
     narrow_ys = {rect_in(b, narrow).top() for b in (narrow.do_calibration_button, narrow.view_details_button)}
     assert len(wide_ys) == 1  # one row in a wide card

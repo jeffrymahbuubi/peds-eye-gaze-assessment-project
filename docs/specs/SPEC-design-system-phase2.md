@@ -595,3 +595,14 @@ the Start page or the Test List (about 1100 tests in two runs): all pass except 
   after each test (only `qapp` fixtures outlive a test, and they hold no widgets). No app code changed. Hub pytest:
   the muted-label, full-width and dashboard-flow files 3x clean (102 passed each); full suite **5 failed, 3077
   passed, 2 skipped** (the known alpha checks), no crash. Committed on branch design-phase2.
+- **2026-10-10** — Round 6 (user feedback: Setup as on feature/compass-task-flow, "in terms of width and stack").
+  Setup stacks one card per row, each as wide as the page (`CardGrid(columns=1)`; `CardGrid` keeps two columns by
+  default), in the order Subject, Tracker, Display, Calibration, Before You Start; this replaces the two columns of
+  2026-10-09 (2). The fields fill their card: the H4 widths by content (`SUBJECT_ID_WIDTH`, `DATE_WIDTH`,
+  `SEX_WIDTH`, `ADDRESS_WIDTH`, `PORT_WIDTH`, `POINT_COUNT_WIDTH`) are removed; Control Address and Control Port share
+  their row 2:1 as on the feature branch. Labels stay above their fields; badges, alerts, the pale-blue disabled
+  Continue and its 240 px slot at the right are unchanged. Hub live check (maximized 1920x1009, hub scratchpad
+  `layout_compare/F_setup_stacked.jpg`). Hub pytest: **5 failed, 3075 passed, 2 skipped** (the known alpha checks;
+  9 Setup tests replace 11). Tests: `test_full_width_layout.py` Setup section rewritten for the stack;
+  `test_setup_phase2.py` fixed-width test replaced. Not updated: `docs/wireframes/setup.md`/`.html` still draw two
+  columns. Committed on branch design-phase2 (hub, at the user's request).

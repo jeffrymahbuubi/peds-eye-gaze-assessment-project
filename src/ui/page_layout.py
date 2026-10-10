@@ -4,7 +4,7 @@ answer of 2026-10-09 on empty space; ``docs/design/fable-proposal.md`` 2.3).
 Form pages fill the window's width inside a 32 px gutter, there is no maximum width:
 :func:`page_frame` gives a page that frame. :class:`CardGrid` lays cards in two columns of equal
 width, and :class:`FlowLayout` lets a row of buttons wrap when its card is narrow. :func:`labeled`
-is one form field (the label 4 px above its control, the control a fixed width by content);
+is one form field (the label 4 px above its control, the control as wide as its card);
 the gap constants are the proposal's. The widths are set in code, so they hold on any screen;
 nothing here depends on a measured size.
 """
@@ -30,13 +30,7 @@ LABEL_GAP = 4  # between a label and its control
 FIELD_GAP = 16  # between two fields
 CARD_COLUMNS = 2  # columns of a CardGrid
 
-# Field widths by content (2.3)
-SUBJECT_ID_WIDTH = 320
-DATE_WIDTH = 200
-SEX_WIDTH = 240
-ADDRESS_WIDTH = 320
-PORT_WIDTH = 120
-POINT_COUNT_WIDTH = 100
+# Setup's fields fill their card's width, as on feature/compass-task-flow (user, 2026-10-10)
 NOTES_HEIGHT = 84  # three lines
 CONTINUE_WIDTH = 240  # Setup's Continue to Tests button
 
@@ -56,8 +50,11 @@ def page_frame(
 
 
 class CardGrid(QVBoxLayout):
-    """Cards in two independent columns of equal width, each card at the top of its column, the
+    """Cards in ``columns`` (default two) independent columns of equal width, each card at the top of its column, the
     gap between two cards the same across and down (:data:`CARD_GAP`).
+
+    With ``columns=1`` the cards stack one per row, each as wide as the page (Setup, user
+    decision of 2026-10-10: the feature/compass-task-flow arrangement).
 
     :meth:`add_card` puts the next card at the foot of the next column, left then right, so the
     cards read, and Tab, in the order they were added (Subject, Tracker, Display, Calibration
@@ -68,10 +65,11 @@ class CardGrid(QVBoxLayout):
     so the cards keep their height.
     """
 
-    def __init__(self, parent: QWidget | None = None) -> None:
+    def __init__(self, parent: QWidget | None = None, *, columns: int = CARD_COLUMNS) -> None:
         super().__init__(parent)
         self.setContentsMargins(0, 0, 0, 0)
         self.setSpacing(CARD_GAP)
+        self._column_count = columns
         self._columns: list[QVBoxLayout] | None = None
         self._next = 0
 
@@ -83,7 +81,7 @@ class CardGrid(QVBoxLayout):
         row.setSpacing(CARD_GAP)
         self.addLayout(row)
         columns = []
-        for _ in range(CARD_COLUMNS):
+        for _ in range(self._column_count):
             column = QVBoxLayout()
             column.setContentsMargins(0, 0, 0, 0)
             column.setSpacing(CARD_GAP)
@@ -96,7 +94,7 @@ class CardGrid(QVBoxLayout):
     def add_card(self, widget: QWidget) -> None:
         if self._columns is None:
             self._columns = self._start_columns()
-        column = self._columns[self._next % CARD_COLUMNS]
+        column = self._columns[self._next % self._column_count]
         column.insertWidget(column.count() - 1, widget)
         self._next += 1
 

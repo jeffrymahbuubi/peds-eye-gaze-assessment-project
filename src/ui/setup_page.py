@@ -63,16 +63,10 @@ from ..inputs.gazepoint_client import DeviceInfo, GazepointClient
 from .alert_box import AlertBox
 from .design_tokens import BORDER_STRONG, PANEL, RADIUS, TABLE_ROW_HEIGHT
 from .page_layout import (
-    ADDRESS_WIDTH,
     CARD_PADDING,
     CONTINUE_WIDTH,
-    DATE_WIDTH,
     FIELD_GAP,
     NOTES_HEIGHT,
-    POINT_COUNT_WIDTH,
-    PORT_WIDTH,
-    SEX_WIDTH,
-    SUBJECT_ID_WIDTH,
     CardGrid,
     FlowLayout,
     labeled,
@@ -440,10 +434,11 @@ class SetupPage(QWidget):
         scroll.setWidgetResizable(True)
         scroll.setFrameShape(QFrame.Shape.NoFrame)
 
-        # Two columns of cards (section 9, 2026-10-09): Subject over Display on the left, Tracker
-        # over Calibration on the right; the order added is the reading and Tab order.
+        # One card per row, each as wide as the page, as on feature/compass-task-flow (user,
+        # 2026-10-10; replaces the two columns of 2026-10-09): Subject, Tracker, Display,
+        # Calibration from the top; the order added is the reading and Tab order.
         scroll_content = QWidget()
-        self.card_grid = CardGrid(scroll_content)
+        self.card_grid = CardGrid(scroll_content, columns=1)
         self.card_grid.add_card(self._build_subject_card())
         self.card_grid.add_card(self._build_tracker_card())
         self.display_section = self._build_display_section()
@@ -583,7 +578,7 @@ class SetupPage(QWidget):
         self.subject_id_hint = QLabel("Use a study code, not the child's name.")
         self.subject_id_hint.setObjectName("wtmhMuted")
         layout.addWidget(
-            labeled("Subject ID", self.subject_id_edit, width=SUBJECT_ID_WIDTH, hint=self.subject_id_hint)
+            labeled("Subject ID", self.subject_id_edit, hint=self.subject_id_hint)
         )
 
         # No calendar popup (SPEC-ui-setup-task-selection.md S13, user
@@ -610,7 +605,7 @@ class SetupPage(QWidget):
         # keyboard-editable text box matching Subject ID above it, not a
         # steppable control.
         self.date_edit.setButtonSymbols(QAbstractSpinBox.ButtonSymbols.NoButtons)
-        layout.addWidget(labeled("Assessment Date", self.date_edit, width=DATE_WIDTH))
+        layout.addWidget(labeled("Assessment Date", self.date_edit))
 
         self.sex_combo = QComboBox()
         self.sex_combo.addItems(_SEX_OPTIONS)
@@ -665,7 +660,7 @@ class SetupPage(QWidget):
                 f"background: {PANEL}; border: 1px solid {BORDER_STRONG}; "
                 f"border-top: none; border-radius: {RADIUS}px;"
             )
-        layout.addWidget(labeled("Sex", self.sex_combo, width=SEX_WIDTH))
+        layout.addWidget(labeled("Sex", self.sex_combo))
 
         self.notes_edit = QTextEdit()
         self.notes_edit.setFixedHeight(NOTES_HEIGHT)  # three lines
@@ -683,12 +678,12 @@ class SetupPage(QWidget):
         row = QHBoxLayout()
         row.setSpacing(FIELD_GAP)
         self.address_edit = QLineEdit(str(local_state.get("host", "127.0.0.1")))
-        row.addWidget(labeled("Control Address", self.address_edit, width=ADDRESS_WIDTH))
+        # Address and Port share the card width 2:1, as on the feature/compass-task-flow page.
+        row.addWidget(labeled("Control Address", self.address_edit), 2)
         self.port_spin = QSpinBox()
         self.port_spin.setRange(1, 65535)
         self.port_spin.setValue(int(local_state.get("port", gp_defaults.get("port", 4242))))
-        row.addWidget(labeled("Control Port", self.port_spin, width=PORT_WIDTH))
-        row.addStretch(1)
+        row.addWidget(labeled("Control Port", self.port_spin), 1)
         layout.addLayout(row)
 
         buttons = QHBoxLayout()
@@ -757,7 +752,7 @@ class SetupPage(QWidget):
         self.point_count_spin.setRange(1, 9)
         cal_defaults = self._defaults.get("calibration", {})
         self.point_count_spin.setValue(int(cal_defaults.get("points", 5)))
-        layout.addWidget(labeled("Point Count (1–9)", self.point_count_spin, width=POINT_COUNT_WIDTH))
+        layout.addWidget(labeled("Point Count (1–9)", self.point_count_spin))
 
         self.show_calibration_checkbox = QCheckBox("Show calibration window to the subject")
         self.show_calibration_checkbox.setChecked(bool(cal_defaults.get("show", True)))

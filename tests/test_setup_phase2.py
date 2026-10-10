@@ -237,16 +237,18 @@ def test_the_calibration_badge_words_without_a_screen():
     assert tracker_badge(True) == ("connected", "Connected") and tracker_badge(False) == ("disconnected", "Disconnected")
 
 
-# -- the widths (H4) -----------------------------------------------------------------------------------
+# -- the widths (H4, fixed widths dropped 2026-10-10) -----------------------------------------------------------------------------------
 
 
-def test_the_fields_have_their_widths_by_content(qapp):
+def test_the_fields_have_no_fixed_width_and_notes_keep_three_lines(qapp):
+    """The H4 widths by content are gone (user, 2026-10-10): the fields fill their card, as on
+    feature/compass-task-flow; ``test_full_width_layout.py`` checks the widths on screen."""
     page = page_with()
-    for field, width in (
-        (page.subject_id_edit, 320), (page.date_edit, 200), (page.sex_combo, 240),
-        (page.address_edit, 320), (page.port_spin, 120), (page.point_count_spin, 100),
+    for field in (
+        page.subject_id_edit, page.date_edit, page.sex_combo,
+        page.address_edit, page.port_spin, page.point_count_spin,
     ):
-        assert field.minimumWidth() == field.maximumWidth() == width, field.objectName() or type(field)
+        assert field.maximumWidth() > 1000, field.objectName() or type(field)
     assert page.notes_edit.minimumHeight() == page.notes_edit.maximumHeight() == 84  # three lines
 
 
