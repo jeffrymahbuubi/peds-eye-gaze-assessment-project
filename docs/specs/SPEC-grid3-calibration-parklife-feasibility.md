@@ -1,10 +1,10 @@
 ---
 name: SPEC-grid3-calibration-parklife-feasibility
 title: Feasibility study - Grid 3-style calibration (full replica, built-in icons) and a Park Life-style test on the GP3 HD app
-status: feasibility done 2026-10-10 - Q1-Q8 answered (section 7.1); image tool wired, waiting for the API key; live probe P1-P5 waits for the GP3 HD
+status: feasibility done 2026-10-10 - Q1-Q8 answered (section 7.1); image tool wired, uses the audio server's key (already set), loads after a restart; live probe P1-P5 waits for the GP3 HD
 created: 2026-10-10
 last_updated: 2026-10-10
-next_step: write SPEC-scene-cause-effect-task.md (does not need the GP3 HD); the user adds the OpenRouter key and decides on the image-tool gaps (section 7.2); when the GP3 HD is available, run probe P1-P5, then write SPEC-app-drawn-calibration.md
+next_step: the scene test continues in SPEC-scene-cause-effect-task.md (approved, step 1 done); the user decides on the image-tool gaps (section 7.2); when the GP3 HD is available, run probe P1-P5, then write SPEC-app-drawn-calibration.md
 related:
   - docs/calibration-video/README.md (Grid 3 calibration recording, frame-timed)
   - docs/grid3/park-life/README.md (Park Life gridset offline analysis + live walk-through, section 9)
@@ -346,3 +346,7 @@ The scene test does not depend on the probe and can be specified first.
   - The bundled skill is installed.
   - Image models were compared from the OpenRouter public API. The tool cannot request transparent PNGs yet.
   - Live generation waits for the user's API key and a session restart.
+- **2026-10-10 (end of session)** - Follow-up status:
+  - `SPEC-scene-cause-effect-task.md` was written (`33fa68d`), approved (`84271e7`), and its step 1 wireframe approved (`16dc79a`).
+  - The user said the image server uses the same OpenRouter key as the audio server, and that key is already in the root `.env`, so no new key is needed; the image tools load after a Claude Code restart.
+  - Still open: image-tool gaps (section 7.2), probe P1-P5.

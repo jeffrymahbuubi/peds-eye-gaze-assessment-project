@@ -18,7 +18,8 @@ related:
 
 **Status: approved 2026-10-10 (H1-H14 approved by the user; S1-S8 answered, section 3.4). The
 test is called "Choice-making" (task id `choice_making`); the file keeps its original name.
-Branch `feature/compass-task-flow` at `33fa68d`.
+Step 1 (wireframe) DONE `16dc79a` with the user's decisions W1-W7 (section 3.5). Branch
+`feature/compass-task-flow`. Next: step 3 (engine) and step 2 (style anchor art) can run in parallel.
 Reference design is Smartbox Grid 3 "Park Life" page 2, adapted into a scored test. No
 Smartbox art, sound or text is copied; all assets are our own (AI-generated, user-approved).**
 
