@@ -2,7 +2,7 @@
 
 The task is driven one frame at a time by :meth:`update`, so the same logic runs
 under the live 60 Hz GUI loop and under the deterministic headless replay
-pipeline. All timing is in nanoseconds (``time.time_ns`` domain).
+pipeline. All timing is in nanoseconds (the epoch domain of ``engine.clock.now_ns``).
 
 Trial lifecycle::
 
@@ -807,6 +807,7 @@ class BaseTask:
             self.targets[self._trial_index], t_ns - self._trial_start_ns
         )
         self.trials.append(self._current)
+        self._record_trial(self._current)
         # A skip plays neither cue: it is not a hit, and not a miss either (U5).
         if self.feedback is not None and not skipped:
             self._trial_cue()
@@ -819,6 +820,14 @@ class BaseTask:
     def _record_event(self, kind: str, t_ns: int, **payload: Any) -> None:
         if self.recorder is not None:
             self.recorder.record_event(kind, t_ns, **payload)
+
+    def _record_trial(self, trial: TrialRecord) -> None:
+        # The finished trial's row, written now so a run that dies keeps it (SPEC-audit-
+        # fixes.md H5). getattr: a recorder double that only knows events and log lines
+        # (the task tests use several) has no trial writer.
+        record = getattr(self.recorder, "record_trial", None)
+        if record is not None:
+            record(trial)
 
     def _record_track(self, t_ns: int, x_norm: float, y_norm: float) -> None:
         # getattr: a recorder double that only knows events and log lines (the

@@ -8,6 +8,7 @@ in :mod:`src.engine.task_runner` never touches this file.
 
 from __future__ import annotations
 
+import functools
 import sys
 import time
 from datetime import datetime
@@ -27,7 +28,7 @@ from .data.analysis_export import (
     median_eye_distance_mm,
 )
 from .data.exporter import write_session_metrics
-from .data.recorder import NullRecorder, SessionRecorder
+from .data.recorder import RECORDER_FILENAMES, NullRecorder, SessionRecorder
 from .data.schema import SessionMetadata
 from .engine.calibration import (
     Calibration,
@@ -37,6 +38,7 @@ from .engine.calibration import (
     load_calibration_result,
     save_calibration_result,
 )
+from .engine.clock import now_ns
 from .engine.display_check import check_display
 from .engine.config import CONFIG_ROOT, deep_merge, load_task_config, load_theme
 from .engine.gaze_diagnostics import GazeDropoutLog, gaze_dropout_log_path
@@ -56,7 +58,9 @@ from .engine.run_mode import (
 )
 from .engine.run_paths import make_session_id, new_run_dir
 from .engine.run_result import RunResult, run_result_from_task
+from .engine.session_files import remove_orphan_run_dir
 from .engine.subject_store import output_root as resolve_output_root
+from .engine.subject_store import same_subject
 from .engine.target_size import (
     DEFAULT_SIZE,
     apply_grid_gap,
@@ -199,7 +203,32 @@ def calibration_log_line(cal: CalibrationResult, source: str, file: str | None) 
     return f"Calibration {label} — {cal.n_points} points, invalid or unmeasured."
 
 
+def _removing_an_orphan_run_folder(init):
+    """Wrap ``AssessmentApp.__init__`` (SPEC-audit-fixes.md H11): a start that fails after
+    the run's folder was made, and before the first trial was recorded, closes the recorder's
+    files and removes the folder again if it holds nothing but files this start wrote (its
+    ``calibration.json`` and the recorder's). A folder with any other entry, or with a
+    recorded trial, is left alone."""
+
+    @functools.wraps(init)
+    def wrapper(self, *args, **kwargs):
+        try:
+            init(self, *args, **kwargs)
+        except BaseException:
+            recorder = getattr(self, "recorder", None)
+            if recorder is not None:
+                recorder.abort()  # Windows cannot delete a file that is still open
+            if not getattr(recorder, "trials_recorded", 0):
+                remove_orphan_run_dir(
+                    getattr(self, "_run_dir", None), getattr(self, "_output_root", ""), RECORDER_FILENAMES
+                )
+            raise
+
+    return wrapper
+
+
 class AssessmentApp:
+    @_removing_an_orphan_run_folder
     def __init__(
         self,
         task_id: str,
@@ -317,9 +346,11 @@ class AssessmentApp:
         # ``new_run_dir`` with an atomic mkdir, so a same-minute re-run gets its own
         # folder (``_2``) and never overwrites a prior run. ``run_dir()`` makes it at
         # the first thing that needs it -- an auto-saved calibration.json (which is
-        # written before the recorder exists), else the recorder -- so a run that
-        # fails to start leaves no empty folder behind. A practice or preview run has
-        # no folder: its "session id" is a sentinel and ``run_dir`` is never called.
+        # written before the recorder exists), else the recorder. A run that fails to
+        # start has the folder removed again when it holds only what this start wrote
+        # (``__init__`` is wrapped by ``_removing_an_orphan_run_folder``). A practice or
+        # preview run has no folder: its "session id" is a sentinel and ``run_dir`` is
+        # never called.
         output_root = resolve_output_root(self.config)
         self._output_root = output_root
         self._run_dir: Path | None = None
@@ -336,10 +367,16 @@ class AssessmentApp:
         preset_calibration = preset_calibration_result
         if calibration_file is not None:
             saved = load_calibration_result(calibration_file)
-            if saved.subject_id != subject_id:
+            if not same_subject(saved.subject_id, subject_id):
                 raise CalibrationFileError(
                     f"Calibration file subject_id {saved.subject_id!r} does not match "
                     f"--subject {subject_id!r} ({calibration_file})"
+                )
+            if not saved.result.valid:
+                # A timed-out calibration is a record, not a calibration (SPEC-audit-fixes.md H7).
+                raise CalibrationFileError(
+                    f"Calibration file is marked not valid; run a fresh calibration instead "
+                    f"({calibration_file})"
                 )
             preset_calibration = saved.result
 
@@ -363,7 +400,8 @@ class AssessmentApp:
             # time/pog_fix/pog_best/pupil_left/pupil_right/cursor) -- wiring it
             # through lets a therapist disable a data field via YAML instead of
             # it silently doing nothing (GazepointClient defaults to all-True
-            # when enable=None, which is why this was harmless until now).
+            # when enable=None). The dashboard's Connect (setup_page._ConnectThread)
+            # passes the same block from default.yaml to the client it hands in.
             self.client = GazepointClient(replay_path=replay_path, enable=gp_cfg.get("enable"))
             self.client.connect(host=gp_cfg.get("host", "127.0.0.1"), port=int(gp_cfg.get("port", 4242)))
 
@@ -405,11 +443,12 @@ class AssessmentApp:
             )
             cal = calibration.run()
             fresh_is_stub = calibration.is_stub
-            if recorded and not calibration.is_stub:
+            if recorded and not calibration.is_stub and cal.valid:
                 # A real calibration just ran (not the no-hardware/disabled
                 # stub) -- auto-save it so a later launch can reuse it via
                 # --calibration-file. No separate save flag, per the user's
-                # 2026-09-04 design decision.
+                # 2026-09-04 design decision. A timed-out (invalid) one is not
+                # saved: it would only be refused when loaded (SPEC-audit-fixes.md H7).
                 save_calibration_result(run_dir() / "calibration.json", subject_id, cal)
 
         self.client.start_streaming()  # idempotent (GazepointClient no-ops if already streaming)
@@ -453,6 +492,7 @@ class AssessmentApp:
                 fullscreen=bool(self.config.get("app", {}).get("fullscreen", True)),
                 run_mode=self.run_mode,
             )
+            self.window.close_guard = self._may_close_window
             self.view = self.window.view
         self.canvas = self.view.canvas
         if self.pointer_source is not self.client and hasattr(self.pointer_source, "bind_canvas"):
@@ -639,6 +679,8 @@ class AssessmentApp:
         self._quit_pending = False
         self._shutdown_done = False
         self._last_valid_ns: int | None = None
+        # Stamp of the last tracker sample written to the gaze files (F3, SPEC-audit-fixes.md H6).
+        self._last_gaze_t_ns: int | None = None
         # The quit question; replaceable (a test answers without a modal loop).
         self.confirm_quit: Callable[[object, int, int], bool] = confirm_quit
         self._wire_bar()
@@ -767,7 +809,7 @@ class AssessmentApp:
         paused = bool(paused)
         if paused == self._paused:
             return
-        t_ns = time.time_ns()
+        t_ns = now_ns()
         self._paused = paused
         # A press made across a pause is never a selection (I5d): drop a waiting one,
         # and a held one, either way round.
@@ -789,7 +831,24 @@ class AssessmentApp:
     def _skip_trial(self) -> None:
         # Recorded as skipped, not as a timeout (SPEC-compass-task-flow.md 4C.6);
         # does nothing unless a trial is running (and never while paused).
-        self.task.skip_trial(time.time_ns())
+        self.task.skip_trial(now_ns())
+
+    @property
+    def is_finished(self) -> bool:
+        """Whether the run has ended and its files are written (``_shutdown`` ran)."""
+        return self._shutdown_done
+
+    def request_quit(self) -> None:
+        """What a window close asks for (SPEC-audit-fixes.md H4): the same as Quit."""
+        self._request_quit()
+
+    def _may_close_window(self) -> bool:
+        """The standalone window's close guard: true once the run is over; before that the
+        X button asks the quit question like Alt-Q, and quitting ends the application."""
+        if self._shutdown_done:
+            return True
+        self._request_quit()
+        return False
 
     def _request_quit(self) -> None:
         """Quit, Alt-Q and Esc (4C.6). A recorded run pauses (the clock stops) and
@@ -1000,7 +1059,7 @@ class AssessmentApp:
         return f"{text} (NON-STANDARD{ack})."
 
     def _tick(self) -> None:
-        t_ns = time.time_ns()
+        t_ns = now_ns()
         if self._paused:
             # Paused (4C.6): the task is not updated and no gaze row is written. The
             # raw queue is still emptied and thrown away, so a long pause neither
@@ -1041,9 +1100,10 @@ class AssessmentApp:
             if sample is not None:
                 self.recorder.record_pointer(sample)
             sample = self.client.latest() if self._gaze_recorded else None
-        if sample is not None and self.config.get("recording", {}).get("save_gaze_stream", True):
+        fresh = self._is_fresh_gaze_sample(sample)
+        if fresh and self.config.get("recording", {}).get("save_gaze_stream", True):
             self.recorder.record_gaze(sample)
-        if sample is not None and self.client.is_live and not self._pointer_is_mouse:
+        if fresh and self.client.is_live and not self._pointer_is_mouse:
             self._record_latency(sample.t_ns, t_ns)
         # Whether the *tracker* has gaze (the bar's "tracking" text): the pointer's own
         # validity for a gaze run, the alongside sample's for a Mouse run.
@@ -1082,6 +1142,15 @@ class AssessmentApp:
 
         if self.task.is_done:
             self._shutdown()
+
+    def _is_fresh_gaze_sample(self, sample) -> bool:
+        """Whether ``sample`` is one the gaze files do not hold yet, from a tracker that is
+        connected (F3, SPEC-audit-fixes.md H6): the last sample is not written again while the
+        loop runs faster than the device, nor once per tick after the link dropped."""
+        if sample is None or not self.client.is_connected() or sample.t_ns == self._last_gaze_t_ns:
+            return False
+        self._last_gaze_t_ns = sample.t_ns
+        return True
 
     def _record_session_end_quality(self) -> None:
         """Fill the measured-quality metadata fields (SPEC-gazepoint-analysis-
@@ -1137,7 +1206,7 @@ class AssessmentApp:
         if self._dropout_log is not None:
             # Flush a dropout still open at the end, so one that never
             # recovered is recorded rather than silently lost.
-            self._dropout_log.close(time.time_ns())
+            self._dropout_log.close(now_ns())
         if is_recorded(self.run_mode):
             self._write_session_files(ended_by)
         if self._owns_client:
@@ -1188,7 +1257,7 @@ class AssessmentApp:
             apply_outcome(
                 self.metadata,
                 self.task,
-                time.time_ns(),
+                now_ns(),
                 ended_by,
                 trial_number=self._display_trial_number(),
             )

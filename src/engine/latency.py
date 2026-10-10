@@ -2,7 +2,7 @@
 
 Measures the delay between a gaze sample arriving from the tracker (its
 capture timestamp, ``GazeSample.t_ns``, stamped when the reader thread parses
-the ``<REC>`` line) and this frame's processing (``time.time_ns()`` in
+the ``<REC>`` line) and this frame's processing (``clock.now_ns()`` in
 ``_tick()``), as a proxy for end-to-end "gaze -> screen feedback" latency.
 This is the pipeline latency from socket arrival to the app consuming it; it
 does not include the final GPU/compositor time to actually present the
@@ -10,8 +10,8 @@ repainted frame, which this app has no way to measure without OS-level
 display instrumentation.
 
 Only meaningful for a live tracker connection: a replay source's timestamps
-are relative to its own virtual clock, not wall time, so a difference against
-``time.time_ns()`` would be meaningless (see ``GazepointClient.is_live``).
+are relative to its own virtual clock, not the in-run clock, so a difference against
+``clock.now_ns()`` would be meaningless (see ``GazepointClient.is_live``).
 """
 
 from __future__ import annotations

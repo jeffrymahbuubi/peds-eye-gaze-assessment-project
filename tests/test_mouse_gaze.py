@@ -4,7 +4,6 @@ source that lets Preview Test run on the mouse alone."""
 from __future__ import annotations
 
 import os
-import time
 from types import SimpleNamespace
 
 import pytest
@@ -15,6 +14,7 @@ from PySide6.QtCore import QPoint
 from PySide6.QtWidgets import QApplication, QWidget
 
 from src.data.schema import GazeSample
+from src.engine.clock import now_ns
 from src.inputs.eye_input import EyeInput, SmoothingConfig
 from src.inputs.mouse_gaze import MouseGazeSource
 
@@ -135,11 +135,12 @@ def test_a_canvas_with_no_size_gives_no_sample(mouse):
     assert src.latest() is None
 
 
-def test_the_sample_is_stamped_with_the_wall_clock(canvas, mouse, source):
+def test_the_sample_is_stamped_with_the_in_run_clock(canvas, mouse, source):
+    # The clock every run duration is measured on (SPEC-audit-fixes.md H9), not the wall clock.
     mouse.at_canvas(canvas, 10, 10)
-    before = time.time_ns()
+    before = now_ns()
     t_ns = source.latest().t_ns
-    assert before <= t_ns <= time.time_ns()
+    assert before <= t_ns <= now_ns()
 
 
 def test_the_default_cursor_is_the_real_one(canvas, qapp):

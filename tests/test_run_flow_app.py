@@ -22,6 +22,7 @@ import src.app as app_module
 from src.app import AssessmentApp
 from src.data.analysis_export import read_all_gaze
 from src.engine.calibration import CalibrationResult
+from src.engine.clock import now_ns
 from src.engine.run_result import RunResult
 from src.inputs.mouse_gaze import MouseGazeSource
 from src.tasks.base_task import Phase
@@ -75,6 +76,7 @@ def make_app(qapp, tmp_path, monkeypatch):
         app.timer.stop()
         if not app._shutdown_done:
             app.recorder.close()
+            app._shutdown_done = True  # the teardown ends the run: the window close must not ask (H4)
         app.client.stop()
         if app.window is not None:
             app.window.close()
@@ -336,7 +338,7 @@ def test_a_confirmed_quit_writes_the_files_and_hands_back_an_ended_early_result(
     to_wait_input(app)
     app._skip_trial()  # one finished trial (a skip), then the next target shows
     app._tick()
-    t_before = time.time_ns()
+    t_before = now_ns()
     if how == "button":
         app.view.run_bar.quit_button.click()
     elif how == "alt_q":

@@ -81,6 +81,21 @@ _EMPTY_FIXATION_METRICS: dict[str, Any] = {
 }
 
 
+def _unique_on_t_ns(rows: list[dict[str, str]]) -> list[dict[str, str]]:
+    """``rows`` without a repeat of an earlier ``t_ns`` (the first of equal stamps wins), as
+    :func:`~src.data.report_eye.load_gaze_frames` does: a sample written again (a loop rate
+    above the device rate, an older run recorded after a disconnect) must count once."""
+    seen: set[str] = set()
+    unique: list[dict[str, str]] = []
+    for row in rows:
+        stamp = row.get("t_ns")
+        if stamp in seen:
+            continue
+        seen.add(stamp)
+        unique.append(row)
+    return unique
+
+
 def compute_fixation_saccade_metrics(session_dir: str | Path) -> dict[str, Any]:
     """Session-level fixation/saccade/pupil features from ``gaze_stream.csv``.
 
@@ -90,7 +105,7 @@ def compute_fixation_saccade_metrics(session_dir: str | Path) -> dict[str, Any]:
     diameter). All inputs are already recorded per-sample; this just
     aggregates them; no new tracker data is required.
     """
-    rows = load_gaze_rows(session_dir)
+    rows = _unique_on_t_ns(load_gaze_rows(session_dir))
     if not rows:
         return dict(_EMPTY_FIXATION_METRICS)
 

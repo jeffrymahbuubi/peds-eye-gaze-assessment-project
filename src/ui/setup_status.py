@@ -7,7 +7,8 @@ ones, which the Start page also reads); each has a short name, and the caption u
 disabled Continue to Tests lists those names for exactly the blockers
 :meth:`~src.ui.setup_page.SetupPage.continue_blockers` returns. The tracker and the
 calibration are never among them: Continue does not wait for either (user decision of
-2026-10-07).
+2026-10-07). The two "in progress" sentences are: Continue waits for a connect or a
+calibration that is running (SPEC-audit-fixes.md H1).
 """
 
 from __future__ import annotations
@@ -24,8 +25,15 @@ SUBJECT_BLOCKER = "Subject ID is empty (Setup page)."
 DATE_BLOCKER = "Assessment date is empty (Setup page)."
 SEX_BLOCKER = "Sex is not selected (Setup page)."
 DISPLAY_BLOCKER = "The display is not 1920x1080 at 100 %. Tick the acknowledgement on the Setup page."
+# While a Setup thread owns the device (SPEC-audit-fixes.md H1): no test may start, nor Continue
+# to Tests be pressed, with the tracker connecting or a calibration polling its socket. They
+# are not gaze-only blockers: a Mouse test records the same tracker alongside.
+CALIBRATING_BLOCKER = "Calibration in progress (Setup page)."
+CONNECTING_BLOCKER = "Connecting to the tracker (Setup page)."
 
 SHORT_NAMES: dict[str, str] = {
+    CALIBRATING_BLOCKER: "calibration to finish",
+    CONNECTING_BLOCKER: "connection to finish",
     TRACKER_BLOCKER: "tracker",
     CALIBRATION_BLOCKER: "calibration",
     SUBJECT_BLOCKER: "Subject ID",

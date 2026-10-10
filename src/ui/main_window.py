@@ -10,8 +10,10 @@ window. :class:`MainWindow` is a thin wrapper around it for the standalone
 
 from __future__ import annotations
 
+from collections.abc import Callable
+
 from PySide6.QtCore import Qt
-from PySide6.QtGui import QKeySequence, QShortcut
+from PySide6.QtGui import QCloseEvent, QKeySequence, QShortcut
 from PySide6.QtWidgets import QMainWindow, QVBoxLayout, QWidget
 
 from ..engine.run_mode import RECORD
@@ -65,6 +67,9 @@ class MainWindow(QMainWindow):
     ) -> None:
         super().__init__()
         self.setWindowTitle("Pediatric Eye-Gaze Assessment")
+        # Set by the run that owns this window (SPEC-audit-fixes.md H4): called by the close
+        # event, returns whether the window may close now. None: always.
+        self.close_guard: Callable[[], bool] | None = None
 
         self.view = TaskRunView(theme=theme, run_mode=run_mode)
         self.canvas = self.view.canvas
@@ -74,3 +79,11 @@ class MainWindow(QMainWindow):
             self.showFullScreen()
         else:
             self.resize(1280, 800)
+
+    def closeEvent(self, event: QCloseEvent) -> None:  # noqa: N802 - Qt override
+        """The X button and Alt+F4 during a run ask the quit question instead of closing: the
+        run ends normally (every file written) and then the application quits."""
+        if self.close_guard is not None and not self.close_guard():
+            event.ignore()
+            return
+        super().closeEvent(event)

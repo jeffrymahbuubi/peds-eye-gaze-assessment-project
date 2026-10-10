@@ -258,6 +258,7 @@ class RunFlow:
         window.stack.setCurrentWidget(page)
         window.set_flow(Flow.START)
         page.setFocus()
+        window.close_if_pending()
 
     def _on_run_finished(self, result: RunResult) -> None:
         """The recorded run ended (finished, or quit with the question answered). The
@@ -281,10 +282,12 @@ class RunFlow:
             # unlinks files one by one, and Windows can refuse one that is open elsewhere.)
             self._leave()
             self.tell(*self._problem(action, test, result, exc))
+            window.close_if_pending()
             return
         self._leave()
         if done.action == SAVE_AND_VIEW:
             window.report_flow.open(test.test_id, report=done.report)
+        window.close_if_pending()
 
     @staticmethod
     def _problem(

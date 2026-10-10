@@ -77,6 +77,8 @@ def close_run_window(win):
     for app in (win.run_flow.app, win.config_flow.preview_app):
         if app is not None:
             app.timer.stop()
+    # A teardown ends whatever flow is on: the close must not ask the quit question (H4).
+    win.set_flow(Flow.IDLE)
     win.close()
 
 
