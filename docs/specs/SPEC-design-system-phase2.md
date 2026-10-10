@@ -606,3 +606,5 @@ the Start page or the Test List (about 1100 tests in two runs): all pass except 
   9 Setup tests replace 11). Tests: `test_full_width_layout.py` Setup section rewritten for the stack;
   `test_setup_phase2.py` fixed-width test replaced. Not updated: `docs/wireframes/setup.md`/`.html` still draw two
   columns. Committed on branch design-phase2 (hub, at the user's request).
+- **2026-10-10** — `docs/wireframes/setup.md` updated to round 6 (one card per row, fields fill their card, Address :
+  Port 2:1; Display placement note) and `setup.html` re-rendered with wiremd. Committed on branch design-phase2.

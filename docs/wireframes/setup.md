@@ -2,7 +2,7 @@
 
 ## Setup
 
-> **Design system phase 2** (SPEC-design-system-phase2.md H4, V3): the old badge row at the top is gone; each status badge sits in its own card beside its buttons (Tracker, Calibration). Page title 28 px, no "1 ·". **Full width** (section 9, 2026-10-09): the page fills the window inside the 32 px gutters, no maximum width. **Two columns of cards**, equal width, top-aligned, 24 px apart across and down, each column stacking independently so a short card leaves no gap above its next one: left Subject & Session Info over Display, right Tracker Connection over Calibration (a card's alert sits directly under it; reading and Tab order Subject, Tracker, Display, Calibration); Before You Start is a row of its own across both columns (a one-line note, not a card). The calibration buttons and badge wrap onto a second line in a narrow card. Field widths by content, unchanged in the wider cards: Subject ID 320, date 200, Sex 240, Control Address 320, Control Port 120, Point Count 100 px. Every banner is an alert box with a glyph tile (no left stripe, no tint) and never sits inside a card.
+> **Design system phase 2** (SPEC-design-system-phase2.md H4, V3): the old badge row at the top is gone; each status badge sits in its own card beside its buttons (Tracker, Calibration). Page title 28 px, no "1 ·". **Full width** (section 9, 2026-10-09): the page fills the window inside the 32 px gutters, no maximum width. **One card per row** (user, 2026-10-10, as on feature/compass-task-flow; replaces the two columns of 2026-10-09): each card is as wide as the page, 24 px apart, stacked Subject & Session Info, Tracker Connection, Display, Calibration, then Before You Start (a one-line note, not a card); a card's alert sits directly under it; reading and Tab order follow the stack. **Fields fill their card** (no widths by content); labels stay above their fields; Control Address and Control Port share their row 2:1. The calibration buttons and badge wrap onto a second line only in a narrow window. Every banner is an alert box with a glyph tile (no left stripe, no tint) and never sits inside a card.
 
 ---
 
@@ -75,7 +75,7 @@ To change it: Windows Settings → System → Display, set Display resolution to
 > **State B — non-standard:** amber warning with the detected values, plus an **unticked** checkbox. Continue to Tests stays disabled until it is ticked (SPEC §4.4, decision D1).
 > **Live updates:** the card re-checks when the window moves to another monitor, or when resolution/scale change in Windows while the app is open. If the values change, the checkbox **unticks** and must be ticked again. Becoming standard switches to State A.
 > **Recorded:** every session stores resolution, scale, a standard flag and whether this box was ticked, in `metadata.json` and as one `Display:` session-log line (SPEC §4.5).
-> **Placement:** the left column, under Subject & Session Info and beside Calibration (reading order Tracker Connection, Display, Calibration), so the display is fixed before calibrating (decision D2). Always visible; does not need the tracker to be connected.
+> **Placement:** its own row, under Tracker Connection and above Calibration (reading order Tracker Connection, Display, Calibration), so the display is fixed before calibrating (decision D2). Always visible; does not need the tracker to be connected.
 
 ---
 
