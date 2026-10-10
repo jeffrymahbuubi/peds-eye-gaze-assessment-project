@@ -1,0 +1,1099 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>wiremd Mockup</title>
+  <link rel="icon" href="../../configs/assets/branding/WTMH.ico">
+  <style>
+a.wmd-button { text-decoration: none; color: inherit; }
+
+.wmd-tab-headers { display: flex; gap: 0; border-bottom: 2px solid #e0e0e0; margin-bottom: 12px; }
+.wmd-tab-header { display: inline-block; padding: 8px 16px; border: none; border-bottom: 2px solid transparent; margin-bottom: -2px; font-size: 14px; font-weight: 500; color: #5C7684; background: transparent; cursor: pointer; font-family: inherit; transition: color 0.15s; }
+.wmd-tab-header:hover { color: #122B3A; }
+.wmd-tab-header.wmd-active { border-bottom-color: currentColor; color: #1A6F95; font-weight: 600; }
+.wmd-tab-panel[hidden] { display: none; }
+.wmd-tab-panels { padding: 12px 0; }
+
+.wmd-row { display: flex; align-items: center; gap: 0.75rem; flex-wrap: wrap; }
+.wmd-row > .wmd-grid-item { flex: 0 1 auto; min-width: 0; }
+.wmd-row.wmd-right { justify-content: flex-end; }
+.wmd-row.wmd-center { justify-content: center; }
+.wmd-align-left { margin-right: auto; }
+.wmd-align-right { margin-left: auto; }
+.wmd-align-center { margin: auto; }
+.wmd-container-button-group > .wmd-input,
+.wmd-container-button-group > .wmd-select,
+.wmd-row > .wmd-grid-item > .wmd-input,
+.wmd-row > .wmd-grid-item > .wmd-select { display: inline-block; width: auto; }
+
+.wmd-demo { display: grid; grid-template-columns: 1fr 1fr; border: 1px solid #d0d0d0; border-radius: 6px; overflow: hidden; margin: 1rem 0; }
+.wmd-demo-preview { padding: 1.5rem; border-right: 1px solid #d0d0d0; }
+.wmd-demo-code { background: #f6f8fa; overflow: auto; display: flex; flex-direction: column; }
+.wmd-demo-code-toolbar { display: flex; justify-content: flex-end; padding: 0.5rem 0.75rem 0; }
+.wmd-demo-copy { background: none; border: 1px solid #ccc; border-radius: 4px; padding: 2px 8px; font-size: 0.75em; color: #666; cursor: pointer; font-family: inherit; }
+.wmd-demo-copy:hover { background: #e8e8e8; color: #333; }
+.wmd-demo-code pre { margin: 0; padding: 0.75rem 1.5rem 1.25rem; font-size: 0.8em; font-family: 'Courier New', Courier, monospace; line-height: 1.6; white-space: pre; }
+.wmd-demo-code code { display: block; color: #444; }
+
+/* wiremd Clean Style - Minimal modern wireframes */
+* {
+  box-sizing: border-box;
+}
+
+body.wmd-root {
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+  background: #F5F9FB;
+  color: #122B3A;
+  padding: 40px;
+  margin: 0;
+  line-height: 1.6;
+}
+
+/* Headings */
+.wmd-h1, .wmd-h2, .wmd-h3, .wmd-h4, .wmd-h5, .wmd-h6 {
+  font-weight: 600;
+  margin: 1.5em 0 0.75em;
+  color: #122B3A;
+  letter-spacing: -0.02em;
+}
+
+.wmd-h1 { font-size: 2.5em; border-bottom: 2px solid #DBE6EC; padding-bottom: 0.3em; }
+.wmd-h2 { font-size: 2em; }
+.wmd-h3 { font-size: 1.5em; }
+.wmd-h4 { font-size: 1.25em; }
+.wmd-h5 { font-size: 1.1em; }
+.wmd-h6 { font-size: 1em; }
+
+/* Paragraph */
+.wmd-paragraph {
+  margin: 0.75em 0;
+  color: #5C7684;
+}
+
+/* Buttons */
+.wmd-button {
+  display: inline-block;
+  padding: 10px 20px;
+  margin: 6px;
+  background: transparent;
+  color: #122B3A;
+  border: 1px solid #DBE6EC;
+  border-radius: 6px;
+  font-family: inherit;
+  font-size: 14px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.wmd-button:hover {
+  background: #DCF0F5;
+  border-color: #1F7A9C;
+}
+
+.wmd-button-primary, .wmd-button.wmd-primary {
+  background: linear-gradient(90deg, #2FA8C4, #1A6F95);
+  color: #fff;
+  border-color: #1A6F95;
+}
+
+.wmd-button-primary:hover, .wmd-button.wmd-primary:hover {
+  background: #1A6F95;
+}
+
+.wmd-button-secondary, .wmd-button.wmd-secondary {
+  background: #DCF0F5;
+  color: #0F5670;
+  border: 2px solid #DCF0F5;
+}
+
+.wmd-button-danger, .wmd-button.wmd-danger {
+  background: #E15353;
+  color: #fff;
+  border-color: #C23E3E;
+}
+
+.wmd-button[disabled], .wmd-button.wmd-state-disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+/* Pills / Badges */
+.wmd-badge {
+  display: inline-block;
+  padding: 2px 10px;
+  margin: 0 2px;
+  border-radius: 12px;
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  background: #E6EDF1;
+  color: #5C7684;
+}
+.wmd-badge-primary { background: #DCF0F5; color: #0F5670; }
+.wmd-badge-success { background: #2F9E6E; color: #ffffff; }
+/* warning/error badges here mark INACTIVE states ("not connected", "none") --
+   per the WTMH palette these read as neutral, not alarm colors. */
+.wmd-badge-warning { background: #E6EDF1; color: #5C7684; }
+.wmd-badge-error { background: #E6EDF1; color: #5C7684; }
+/* reserved for a real danger state (e.g. a future "SIGNAL LOST" badge) --
+   unused by setup.md/tasks.md today. */
+.wmd-badge-danger { background: #E15353; color: #ffffff; }
+
+/* Inputs */
+.wmd-input, .wmd-textarea, .wmd-select {
+  display: block;
+  width: 100%;
+  max-width: 400px;
+  padding: 10px 12px;
+  margin: 6px 0;
+  font-family: inherit;
+  font-size: 14px;
+  background: #FFFFFF;
+  color: #122B3A;
+  border: 1px solid #DBE6EC;
+  border-radius: 6px;
+  transition: border-color 0.2s;
+}
+
+.wmd-input:focus, .wmd-textarea:focus, .wmd-select:focus {
+  outline: none;
+  border-color: #1F7A9C;
+  box-shadow: 0 0 0 3px rgba(31, 122, 156, 0.15);
+}
+
+.wmd-input[disabled], .wmd-input.wmd-state-disabled,
+.wmd-textarea[disabled], .wmd-textarea.wmd-state-disabled,
+.wmd-select[disabled], .wmd-select.wmd-state-disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+  background: #E6EDF1;
+  border-color: #DBE6EC;
+}
+
+.wmd-textarea {
+  resize: vertical;
+  min-height: 100px;
+}
+
+/* Checkboxes and Radios */
+.wmd-checkbox, .wmd-radio {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin: 8px 0;
+  cursor: pointer;
+}
+
+.wmd-checkbox input[type="checkbox"],
+.wmd-radio input[type="radio"] {
+  width: 18px;
+  height: 18px;
+  cursor: pointer;
+}
+
+/* Icons */
+.wmd-icon {
+  display: inline-block;
+  width: 1.2em;
+  height: 1.2em;
+  margin: 0 4px;
+  vertical-align: middle;
+  color: #666;
+}
+
+
+/* Containers */
+.wmd-container-hero, .wmd-container-card, .wmd-container-modal {
+  background: #F5F9FB;
+  border: 1px solid #DBE6EC;
+  border-radius: 8px;
+  padding: 32px;
+  margin: 24px 0;
+}
+
+/* alerts (::: alert ...) get no dedicated rule from wiremd's "clean" style at
+   all -- confirmed by reading src/renderer/styles.ts and the rendered output,
+   the warning/info/success word after "alert" isn't captured as a CSS class
+   either, so per-severity coloring isn't available. One consistent
+   informational card treatment is used for all of them instead. */
+.wmd-container-alert {
+  background: #DCF0F5;
+  border: 1px solid #BFE3ED;
+  border-left: 4px solid #1F7A9C;
+  border-radius: 6px;
+  padding: 16px 20px;
+  margin: 16px 0;
+  color: #122B3A;
+}
+
+.wmd-container-hero {
+  background: linear-gradient(135deg, #F5F9FB 0%, #DCF0F5 100%);
+  text-align: center;
+  padding: 60px 32px;
+}
+
+.wmd-container-card {
+  background: #FFFFFF;
+  box-shadow: 0 2px 8px rgba(18,43,58,0.08);
+}
+
+.wmd-container-modal {
+  max-width: 500px;
+  margin: 40px auto;
+  background: #FFFFFF;
+  box-shadow: 0 4px 16px rgba(18,43,58,0.15);
+}
+
+/* Radio Groups */
+.wmd-radio-group {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  margin: 12px 0;
+}
+
+.wmd-radio-group-inline {
+  flex-direction: row;
+  flex-wrap: wrap;
+  gap: 16px;
+}
+
+.wmd-radio-group-inline .wmd-radio {
+  margin: 0;
+}
+
+/* Icons */
+.wmd-icon {
+  display: inline-block;
+  font-size: 1.1em;
+  line-height: 1;
+  vertical-align: middle;
+  margin: 0 0.25em;
+}
+
+/* Navigation */
+.wmd-nav {
+  background: #12374A;
+  border: 1px solid #1B4A61;
+  border-radius: 8px;
+  padding: 16px 24px;
+  margin: 24px 0;
+  box-shadow: 0 1px 3px rgba(0,0,0,0.2);
+}
+
+.wmd-nav-content {
+  display: flex;
+  align-items: center;
+  gap: 24px;
+  flex-wrap: wrap;
+}
+
+.wmd-brand {
+  font-weight: 600;
+  font-size: 1.25em;
+  margin-right: auto;
+  color: #CFE6EE;
+  display: inline-flex;
+  align-items: center;
+}
+
+.wmd-nav-item {
+  display: inline-flex;
+  align-items: center;
+  color: #CFE6EE;
+  text-decoration: none;
+  font-weight: 500;
+  padding: 8px 16px;
+  background: rgba(255,255,255,0.08);
+  border: 1px solid rgba(255,255,255,0.16);
+  border-radius: 6px;
+  transition: all 0.2s;
+}
+
+.wmd-nav-item:hover {
+  background: rgba(255,255,255,0.16);
+  border-color: rgba(255,255,255,0.32);
+  transform: translateY(-1px);
+  box-shadow: 0 2px 4px rgba(0,0,0,0.2);
+}
+
+.wmd-nav-item.wmd-active {
+  background: rgba(255,255,255,0.08);
+  color: #ffffff;
+  border-color: transparent;
+  border-bottom: 3px solid #2FA8C4;
+}
+
+.wmd-brand-logo {
+  height: 28px;
+  width: auto;
+  margin-right: 4px;
+  vertical-align: middle;
+}
+
+.wmd-breadcrumbs {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-wrap: wrap;
+  margin: 8px 0;
+  font-size: 0.9em;
+}
+
+.wmd-breadcrumb-item a {
+  color: #495057;
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+
+.wmd-breadcrumb-current {
+  font-weight: 600;
+  color: #212529;
+}
+
+.wmd-breadcrumb-sep {
+  color: #adb5bd;
+}
+
+/* Sidebar */
+.wmd-container-sidebar {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  width: 180px;
+  padding: 12px;
+  background: #DCF0F5;
+  border: 2px solid #1F7A9C;
+  border-radius: 8px;
+}
+.wmd-container-sidebar .wmd-button { display: block; width: 100%; text-align: left; margin: 0; }
+.wmd-container-sidebar .wmd-h4 { margin: 12px 0 4px; font-size: 0.85em; opacity: 0.6; text-transform: uppercase; }
+.wmd-container-sidebar .wmd-separator { margin: 8px 0; }
+
+/* Layout: sidebar-main */
+.wmd-container-layout.wmd-sidebar-main {
+  display: grid;
+  grid-template-columns: 220px 1fr;
+  gap: 16px;
+  align-items: start;
+}
+.wmd-layout-sidebar {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+.wmd-layout-sidebar .wmd-container-sidebar { width: 100%; }
+.wmd-layout-sidebar .wmd-button { display: block; width: 100%; text-align: left; margin: 2px 0; }
+.wmd-layout-sidebar .wmd-h4 { margin: 12px 0 4px; font-size: 0.85em; opacity: 0.6; text-transform: uppercase; }
+.wmd-layout-sidebar .wmd-separator { margin: 8px 0; }
+.wmd-layout-main { min-width: 0; }
+
+/* Grid */
+.wmd-grid {
+  display: grid;
+  grid-template-columns: repeat(var(--grid-columns, 3), 1fr);
+  gap: 24px;
+  margin: 32px 0;
+  align-items: center;
+}
+
+.wmd-grid-item { min-width: 0; }
+
+.wmd-col-span-1 { grid-column: span 1; }
+.wmd-col-span-2 { grid-column: span 2; }
+.wmd-col-span-3 { grid-column: span 3; }
+.wmd-col-span-4 { grid-column: span 4; }
+
+.wmd-grid-item-card {
+  background: #FFFFFF;
+  border: 1px solid #DBE6EC;
+  border-radius: 8px;
+  padding: 24px;
+  transition: box-shadow 0.2s;
+}
+.wmd-grid-item-card:hover {
+  box-shadow: 0 4px 12px rgba(0,0,0,0.08);
+}
+
+/* Lists */
+.wmd-list {
+  margin: 16px 0;
+  padding-left: 28px;
+}
+
+.wmd-list-item {
+  margin: 6px 0;
+}
+
+/* Blockquote */
+.wmd-blockquote {
+  border-left: 3px solid #1F7A9C;
+  padding-left: 20px;
+  margin: 20px 0;
+  color: #5C7684;
+}
+
+/* Code */
+.wmd-code-inline {
+  background: #f5f5f5;
+  border: 1px solid #e0e0e0;
+  border-radius: 3px;
+  padding: 2px 6px;
+  font-family: 'SF Mono', Monaco, Consolas, monospace;
+  font-size: 0.9em;
+  color: #d63384;
+}
+
+.wmd-code-block {
+  background: #f8f9fa;
+  border: 1px solid #e0e0e0;
+  border-radius: 6px;
+  padding: 16px;
+  margin: 16px 0;
+  overflow-x: auto;
+}
+
+.wmd-code-block code {
+  font-family: 'SF Mono', Monaco, Consolas, monospace;
+  font-size: 0.9em;
+  color: #1a1a1a;
+}
+
+/* Separator */
+.wmd-separator {
+  border: none;
+  border-top: 1px solid #DBE6EC;
+  margin: 32px 0;
+}
+
+/* State Containers */
+.wmd-container-loading-state {
+  background: #f5f7fa;
+  border: 1px solid #d0d0d0;
+  border-radius: 8px;
+  padding: 40px;
+  margin: 24px 0;
+  text-align: center;
+  position: relative;
+}
+
+.wmd-container-loading-state::before {
+  content: '';
+  display: block;
+  width: 40px;
+  height: 40px;
+  margin: 0 auto 20px;
+  border: 3px solid #e0e0e0;
+  border-top-color: #0066cc;
+  border-radius: 50%;
+  animation: spin 1s linear infinite;
+}
+
+.wmd-container-empty-state {
+  background: #fafafa;
+  border: 1px dashed #d0d0d0;
+  border-radius: 8px;
+  padding: 60px 40px;
+  margin: 24px 0;
+  text-align: center;
+  color: #888;
+}
+
+.wmd-container-empty-state::before {
+  content: '📭';
+  display: block;
+  font-size: 72px;
+  margin-bottom: 20px;
+  opacity: 0.4;
+  filter: grayscale(30%);
+}
+
+.wmd-container-error-state {
+  background: #fff5f5;
+  border: 1px solid #dc3545;
+  border-radius: 8px;
+  padding: 40px;
+  margin: 24px 0;
+  text-align: center;
+  box-shadow: 0 2px 8px rgba(220, 53, 69, 0.1);
+}
+
+.wmd-container-error-state::before {
+  content: '⚠️';
+  display: block;
+  font-size: 48px;
+  margin-bottom: 20px;
+}
+
+/* Responsive */
+@media (max-width: 768px) {
+  body.wmd-root {
+    padding: 20px;
+  }
+
+  .wmd-grid {
+    grid-template-columns: 1fr !important;
+  }
+
+  .wmd-col-span-1,
+  .wmd-col-span-2,
+  .wmd-col-span-3,
+  .wmd-col-span-4 {
+    grid-column: span 1;
+  }
+
+  .wmd-nav-content {
+    flex-direction: column;
+    align-items: stretch;
+  }
+}
+
+@keyframes spin {
+  from { transform: rotate(0deg); }
+  to { transform: rotate(360deg); }
+}
+
+  </style>
+</head>
+<body class="wmd-root wmd-clean">
+  <nav class="wmd-nav">
+  <div class="wmd-nav-content">
+    <img src="../../configs/assets/branding/wtmh_logo.png" alt="WTMH logo" class="wmd-brand-logo">
+    <div class="wmd-brand">Pediatric Eye-Gaze Assessment</div>
+    <a href="./setup.html" class="wmd-nav-item">1 · Setup</a>
+    <a href="./test-list.html" class="wmd-nav-item">2 · Tests</a>
+  </div>
+</nav>
+<h2 class="wmd-h2">Choice-making: configuration, run screen and report</h2>
+<blockquote class="wmd-blockquote">
+  <p class="wmd-paragraph">SPEC-scene-cause-effect-task.md step 1 (UI gate). The fifth test, offered in Add test only (S8). Three parts on this page: <strong>A</strong> the configuration page, <strong>B</strong> the run screen, <strong>C</strong> the report. Everything not shown here is the same as for the other tests: <code>task-config.md</code>, <code>run.md</code>, <code>run-end.md</code>, <code>report-summary.md</code>, <code>report-detailed.md</code>.</p>
+</blockquote>
+<hr class="wmd-separator" />
+<h2 class="wmd-h2">A · Choice-making 1 Configuration</h2>
+<p class="wmd-paragraph">Choice-making, subject TESTING</p>
+<blockquote class="wmd-blockquote">
+  <p class="wmd-paragraph">Same page and footer as <code>task-config.md</code>, same three columns. Changes for this test: <strong>no Target card</strong> (button size comes from the 7 x 5 grid, H12) and the task card is <strong>Scene</strong>. Column A: Test, Input. Column B: Scene, Timing, Feedback. Column C (Gaze Pointer Settings): Dwell, Gaze Smoothing.</p>
+</blockquote>
+<div class="wmd-grid wmd-grid-3" style="--grid-columns: 3">
+  <div class="wmd-grid-item wmd-card wmd-grid-item-card">
+    <h3 class="wmd-h3">A · Test</h3>
+    <div class="wmd-container-form-group">
+  Test Name
+  <input type="text" class="wmd-input" placeholder="Choice-making 1" style="width: 21ch; max-width: 21ch;" />
+</div>
+    <div class="wmd-container-form-group">
+  Configuration Name
+  <select class="wmd-select">
+    <option value="" disabled selected>Standard</option>
+    <option value="Standard">Standard</option>
+    <option value="Saved 10/12 10:05">Saved 10/12 10:05</option>
+  </select>
+</div>
+    <p class="wmd-paragraph">Changed from Standard</p>
+    <button class="wmd-button wmd-outline">Reset to defaults</button>
+    <div class="wmd-container-form-group">
+  Number of Trials
+  <input type="number" class="wmd-input" placeholder="16" style="width: 8ch; max-width: 8ch;" />
+</div>
+    <p class="wmd-paragraph">Any number from 1 (W5). Objects are balanced as far as the count allows: object counts differ by at most 1, left and right by at most 1, never the same object twice in a row. 16 = each object twice.</p>
+    <div class="wmd-container-form-group">
+  Notes
+  <textarea class="wmd-textarea" rows="3" placeholder="Child tired after lunch..."></textarea>
+</div>
+  </div>
+  <div class="wmd-grid-item wmd-card wmd-grid-item-card">
+    <h3 class="wmd-h3">B · Scene</h3>
+    <div class="wmd-container-form-group">
+  Scene
+  <select class="wmd-select">
+    <option value="" disabled selected>Park</option>
+    <option value="Park">Park</option>
+  </select>
+</div>
+    <div class="wmd-container-form-group">
+  Prompt language
+  <select class="wmd-select">
+    <option value="" disabled selected>English</option>
+    <option value="English">English</option>
+  </select>
+</div>
+    <p class="wmd-paragraph">Traditional Chinese is added later (Q7); the list has one item in v1.</p>
+    <ul class="wmd-list">
+  <label class="wmd-checkbox">
+    <input type="checkbox" />
+    <span>Visual cue: the target button gently pulses</span>
+  </label>
+</ul>
+    <p class="wmd-paragraph">Off by default (S3). When on, the report marks the run &quot;Visual cue on&quot;.</p>
+    <p class="wmd-paragraph">Cell gap</p>
+    <ul class="wmd-list">
+  <label class="wmd-radio">
+    <input type="radio" checked />
+    <span>Standard</span>
+  </label>
+  <label class="wmd-radio">
+    <input type="radio" />
+    <span>Wide (1°, about 41 px)</span>
+  </label>
+  <label class="wmd-radio">
+    <input type="radio" />
+    <span>Extra wide (2°, about 82 px)</span>
+  </label>
+</ul>
+    <p class="wmd-paragraph">Button size: 6.6° x 5.0° cell (about 274 x 206 px), read-only (H12).</p>
+  </div>
+  <div class="wmd-grid-item wmd-card wmd-grid-item-card">
+    <h3 class="wmd-h3">C · Gaze Pointer Settings: Dwell</h3>
+    <div class="wmd-container-form-group">
+  Dwell threshold (s)
+  <input type="number" class="wmd-input" placeholder="0.8" style="width: 9ch; max-width: 9ch;" />
+</div>
+    <div class="wmd-container-form-group">
+  Refractory period (s)
+  <input type="number" class="wmd-input" placeholder="0.5" style="width: 9ch; max-width: 9ch;" />
+</div>
+    <div class="wmd-container-form-group">
+  Jitter tolerance (px)
+  <input type="number" class="wmd-input" placeholder="40" style="width: 8ch; max-width: 8ch;" />
+</div>
+    <p class="wmd-paragraph">A completed dwell on any button selects it; on a wrong button it counts as a wrong choice (H5).</p>
+  </div>
+</div>
+<div class="wmd-grid wmd-grid-3" style="--grid-columns: 3">
+  <div class="wmd-grid-item wmd-card wmd-grid-item-card">
+    <h3 class="wmd-h3">A · Input</h3>
+    <p class="wmd-paragraph">Pointer (what moves the pointer)</p>
+    <ul class="wmd-list">
+  <label class="wmd-radio">
+    <input type="radio" checked />
+    <span>Gaze</span>
+  </label>
+  <label class="wmd-radio">
+    <input type="radio" />
+    <span>Mouse</span>
+  </label>
+</ul>
+    <p class="wmd-paragraph">Selection (how a button is selected)</p>
+    <ul class="wmd-list">
+  <label class="wmd-radio">
+    <input type="radio" checked />
+    <span>Dwell: keep looking at the button</span>
+  </label>
+  <label class="wmd-radio">
+    <input type="radio" />
+    <span>Switch: look at the button, then press the switch</span>
+  </label>
+</ul>
+  </div>
+  <div class="wmd-grid-item wmd-card wmd-grid-item-card">
+    <h3 class="wmd-h3">B · Timing</h3>
+    <div class="wmd-container-form-group">
+  Time to choose (s)
+  <input type="number" class="wmd-input" placeholder="10" style="width: 8ch; max-width: 8ch;" />
+</div>
+    <p class="wmd-paragraph">Counted from the end of the spoken prompt (H9).</p>
+    <div class="wmd-container-form-group">
+  Pause after the animation (s)
+  <input type="number" class="wmd-input" placeholder="1.0" style="width: 9ch; max-width: 9ch;" />
+</div>
+    <p class="wmd-paragraph">The next prompt starts only after the animation and this pause.</p>
+  </div>
+  <div class="wmd-grid-item wmd-card wmd-grid-item-card">
+    <h3 class="wmd-h3">C · Gaze Pointer Settings: Gaze Smoothing</h3>
+    <ul class="wmd-list">
+  <label class="wmd-checkbox">
+    <input type="checkbox" checked />
+    <span>Smoothing enabled</span>
+  </label>
+</ul>
+    <div class="wmd-container-form-group">
+  Smoothing alpha
+  <input type="number" class="wmd-input" placeholder="0.22" style="width: 10ch; max-width: 10ch;" />
+</div>
+  </div>
+</div>
+<div class="wmd-grid wmd-grid-3" style="--grid-columns: 3">
+  <div class="wmd-grid-item wmd-card wmd-grid-item-card">
+    <h3 class="wmd-h3">(column A ends)</h3>
+    <ul class="wmd-list">
+  <li class="wmd-list-item"></li>
+</ul>
+  </div>
+  <div class="wmd-grid-item wmd-card wmd-grid-item-card">
+    <h3 class="wmd-h3">B · Feedback</h3>
+    <ul class="wmd-list">
+  <label class="wmd-checkbox">
+    <input type="checkbox" checked />
+    <span>Show gaze cursor</span>
+  </label>
+  <label class="wmd-checkbox">
+    <input type="checkbox" checked />
+    <span>Show dwell progress ring</span>
+  </label>
+  <label class="wmd-checkbox">
+    <input type="checkbox" checked />
+    <span>Show instant on-target ring</span>
+  </label>
+  <label class="wmd-checkbox">
+    <input type="checkbox" checked />
+    <span>Glow on the looked-at button</span>
+  </label>
+  <label class="wmd-checkbox">
+    <input type="checkbox" checked />
+    <span>Play miss sound</span>
+  </label>
+</ul>
+    <p class="wmd-paragraph">No &quot;Play hit sound&quot;: a correct choice plays the object&#039;s own animation and sound (H6). &quot;Glow&quot; is greyed while Selection = Dwell, as for the other tests; it follows the gaze, so it is not a cue.</p>
+  </div>
+  <div class="wmd-grid-item wmd-card wmd-grid-item-card">
+    <h3 class="wmd-h3">(column C ends)</h3>
+    <ul class="wmd-list">
+  <li class="wmd-list-item"></li>
+</ul>
+  </div>
+</div>
+<hr class="wmd-separator" />
+<div class="wmd-row">
+  <div class="wmd-grid-item">
+    <div class="wmd-container-button-group">
+  <button class="wmd-button wmd-outline">Preview Test</button>
+  <button class="wmd-button wmd-button-primary">Save &amp; Continue</button>
+  <button class="wmd-button wmd-secondary">Cancel</button>
+</div>
+  </div>
+</div>
+<blockquote class="wmd-blockquote">
+  <p class="wmd-paragraph"><strong>Preview Test</strong> runs 3 trials with the mouse, records nothing and plays the spoken prompts and the animations with their sounds (W7), so the operator can check the sound level before the child sits down.</p>
+</blockquote>
+<blockquote class="wmd-blockquote">
+  <p class="wmd-paragraph">Defaults (H8, H9, section 4.8): 16 trials, 10 s to choose, 1.0 s pause, Park, English, visual cue off, Standard gap. Button size at 1920 x 1080 @ 100 %: canvas about 1920 x 1032, 41.4 px per degree.</p>
+</blockquote>
+<hr class="wmd-separator" />
+<h2 class="wmd-h2">B · Run screen</h2>
+<blockquote class="wmd-blockquote">
+  <p class="wmd-paragraph">Same bar as <code>run.md</code> (48 px, Trial i of N, tracking badge, Pause / Skip trial / Quit). <strong>The bar also shows the prompted object for the operator</strong> ("Prompt: Balloons", W2), from the prompt start until the effect ends; between trials it is empty. The canvas is a 7 x 5 grid of equal cells: buttons in columns 0 and 6, rows 1-4; the scene fills columns 1-5 (H2). Cells (0,0) and (6,0) stay empty.</p>
+</blockquote>
+<h3 class="wmd-h3">B1 · Prompt playing (selection blocked)</h3>
+<pre class="wmd-code-block"><code>+-------------+-----------------------------------------------------------+-------------+
+|             |                                                           |             |
+|  (empty)    |      cloud                                    balloons    |  (empty)    |
+|             |                         rainbow                           |             |
++-------------+                                                           +-------------+
+| [picture]   |                                                           | [picture]   |
+| Balloons    |   apple tree               seesaw                         | Cloud       |
++-------------+                                                           +-------------+
+| [picture]   |                                                           | [picture]   |
+| Rainbow     |                     bike                                  | Bubbles     |
++-------------+                                                           +-------------+
+| [picture]   |                                                           | [picture]   |
+| Seesaw      |   swing                      girl with bubbles            | Bike        |
++-------------+                                                           +-------------+
+| [picture]   |                                                           | [picture]   |
+| Apples      |                    SCENE (park picture, about 4:3)        | Swing       |
++-------------+-----------------------------------------------------------+-------------+
+| Trial 4 of 16   Prompt: Balloons   (● Tracking OK)   [ Pause (Alt-P) ]  [ Skip trial ]  [ Quit (Alt-Q) ] |
++---------------------------------------------------------------------------------------+
+   Speaker: &quot;Make the balloons pop!&quot;  (audio only; nothing on the screen changes)</code></pre>
+<blockquote class="wmd-blockquote">
+  <p class="wmd-paragraph"><strong>Prompt (H4, A3):</strong> the spoken prompt plays at trial start. While it plays, the buttons are drawn normally, the dwell ring does not fill and a switch press does nothing. The 10 s to choose start when the prompt ends.</p>
+</blockquote>
+<h3 class="wmd-h3">B2 · Choosing</h3>
+<pre class="wmd-code-block"><code>+-------------+-----------------------------------------------------------+-------------+
+| [picture] ◔ |                                                           | [picture]   |
+| Balloons    |      o gaze cursor on the Balloons button, ring filling   | Cloud       |
++-------------+                                                           +-------------+</code></pre>
+<blockquote class="wmd-blockquote">
+  <p class="wmd-paragraph"><strong>Selection (H5):</strong> a completed dwell (or a switch press) on any button selects it. <strong>Right button:</strong> the effect plays (B3). <strong>Wrong button:</strong> the miss sound, no animation (S4), the dwell ring resets and the trial goes on until the right choice or the 10 s run out. Gaze on the scene or in a gap selects nothing.</p>
+</blockquote>
+<blockquote class="wmd-blockquote">
+  <p class="wmd-paragraph"><strong>Visual cue on (S3):</strong> from the prompt start until the choice or the timeout, the target button gently pulses (its border thickens and fades back, about once per second). Off by default.</p>
+</blockquote>
+<h3 class="wmd-h3">B3 · Effect playing</h3>
+<pre class="wmd-code-block"><code>+-------------+-----------------------------------------------------------+-------------+
+|             |                                               * pop! *    |             |
+|             |                                               *  | |      |             |
++-------------+                                               strings     +-------------+
+| [picture] ✓ |                                                           | [picture]   |
+| Balloons    |       the chosen object animates in the scene;            | Cloud       |
++-------------+       everything else stays still                         +-------------+</code></pre>
+<blockquote class="wmd-blockquote">
+  <p class="wmd-paragraph"><strong>Effect (section 4.4):</strong> only the chosen object moves, with its own sound, for its set time (1.5-4.5 s). The selected button keeps a short highlight. The other buttons cannot be selected until the next prompt. The scene is back to its idle picture before the pause and the next prompt (A5).</p>
+</blockquote>
+<blockquote class="wmd-blockquote">
+  <p class="wmd-paragraph"><strong>Timeout (S5, H7):</strong> after 10 s with no right choice the target's effect plays once anyway, as a model. It looks the same as B3 (the child still sees cause and effect); the report marks the trial "Modelled".</p>
+</blockquote>
+<blockquote class="wmd-blockquote">
+  <p class="wmd-paragraph"><strong>Pause</strong> stops the prompt clock and freezes an animation mid-way; Resume continues it (A8). Skip trial ends the trial without an effect.</p>
+</blockquote>
+<hr class="wmd-separator" />
+<h2 class="wmd-h2">C · Report</h2>
+<h3 class="wmd-h3">C1 · Summary Results</h3>
+<blockquote class="wmd-blockquote">
+  <p class="wmd-paragraph">Same page, header, warning banner, left column and footer as <code>report-summary.md</code>. The left column's Test Configuration gains the rows below, and the main column shows the tables below in place of "Summary of Results" and "Target Map".</p>
+</blockquote>
+<table class="wmd-table">
+  <thead>
+    <tr>
+      <th class="wmd-table-cell wmd-align-left">Setting</th>
+    <th class="wmd-table-cell wmd-align-left">Value</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+    <td class="wmd-table-cell wmd-align-left">Task</td>
+    <td class="wmd-table-cell wmd-align-left">Choice-making</td>
+  </tr>
+    <tr>
+    <td class="wmd-table-cell wmd-align-left">Scene</td>
+    <td class="wmd-table-cell wmd-align-left">Park, prompts in English</td>
+  </tr>
+    <tr>
+    <td class="wmd-table-cell wmd-align-left">Visual cue</td>
+    <td class="wmd-table-cell wmd-align-left">Off</td>
+  </tr>
+    <tr>
+    <td class="wmd-table-cell wmd-align-left">Number of trials</td>
+    <td class="wmd-table-cell wmd-align-left">16 (each object twice; any number allowed)</td>
+  </tr>
+    <tr>
+    <td class="wmd-table-cell wmd-align-left">Button size</td>
+    <td class="wmd-table-cell wmd-align-left">6.6° x 5.0° cell, gap Standard</td>
+  </tr>
+    <tr>
+    <td class="wmd-table-cell wmd-align-left">Time to choose</td>
+    <td class="wmd-table-cell wmd-align-left">10.0 s from the prompt end</td>
+  </tr>
+    <tr>
+    <td class="wmd-table-cell wmd-align-left">Pause after the animation</td>
+    <td class="wmd-table-cell wmd-align-left">1.0 s</td>
+  </tr>
+  </tbody>
+</table>
+<p class="wmd-paragraph">A spoken prompt names one of 8 buttons; the chosen object in the scene comes alive.</p>
+<h4 class="wmd-h4">Summary of Results</h4>
+<table class="wmd-table">
+  <thead>
+    <tr>
+      <th class="wmd-table-cell wmd-align-left"></th>
+    <th class="wmd-table-cell wmd-align-left">% (N)</th>
+    <th class="wmd-table-cell wmd-align-left">Reaction Time (s)</th>
+    <th class="wmd-table-cell wmd-align-left">Wrong choices</th>
+    <th class="wmd-table-cell wmd-align-left">Looked back</th>
+    <th class="wmd-table-cell wmd-align-left">Look-back latency (s)</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+    <td class="wmd-table-cell wmd-align-left">Right on the first choice</td>
+    <td class="wmd-table-cell wmd-align-left">56% (9/16)</td>
+    <td class="wmd-table-cell wmd-align-left">2.10</td>
+    <td class="wmd-table-cell wmd-align-left">0.0</td>
+    <td class="wmd-table-cell wmd-align-left">89% (8/9)</td>
+    <td class="wmd-table-cell wmd-align-left">0.42</td>
+  </tr>
+    <tr>
+    <td class="wmd-table-cell wmd-align-left">All right choices</td>
+    <td class="wmd-table-cell wmd-align-left">81% (13/16)</td>
+    <td class="wmd-table-cell wmd-align-left">2.85</td>
+    <td class="wmd-table-cell wmd-align-left">0.4</td>
+    <td class="wmd-table-cell wmd-align-left">85% (11/13)</td>
+    <td class="wmd-table-cell wmd-align-left">0.45</td>
+  </tr>
+    <tr>
+    <td class="wmd-table-cell wmd-align-left">Not chosen in time (modelled)</td>
+    <td class="wmd-table-cell wmd-align-left">19% (3/16)</td>
+    <td class="wmd-table-cell wmd-align-left">10.00</td>
+    <td class="wmd-table-cell wmd-align-left">1.3</td>
+    <td class="wmd-table-cell wmd-align-left">33% (1/3)</td>
+    <td class="wmd-table-cell wmd-align-left">0.80</td>
+  </tr>
+    <tr>
+    <td class="wmd-table-cell wmd-align-left">All trials</td>
+    <td class="wmd-table-cell wmd-align-left">100% (16/16)</td>
+    <td class="wmd-table-cell wmd-align-left">4.18</td>
+    <td class="wmd-table-cell wmd-align-left">0.6</td>
+    <td class="wmd-table-cell wmd-align-left">75% (12/16)</td>
+    <td class="wmd-table-cell wmd-align-left">0.47</td>
+  </tr>
+  </tbody>
+</table>
+<p class="wmd-paragraph">Reaction Time = prompt end to the right choice. Wrong choices = completed selections on another button. Looked back = at least 0.1 s of gaze on the animating object (its area plus 1°) during the animation and 0.5 s after it. Latency = animation start to the first look. Modelled trials are counted apart.</p>
+<h4 class="wmd-h4">By button side</h4>
+<table class="wmd-table">
+  <thead>
+    <tr>
+      <th class="wmd-table-cell wmd-align-left">Side</th>
+    <th class="wmd-table-cell wmd-align-left">Right choices</th>
+    <th class="wmd-table-cell wmd-align-left">Reaction Time (s)</th>
+    <th class="wmd-table-cell wmd-align-left">Looked back</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+    <td class="wmd-table-cell wmd-align-left">Left buttons</td>
+    <td class="wmd-table-cell wmd-align-left">88% (7/8)</td>
+    <td class="wmd-table-cell wmd-align-left">2.60</td>
+    <td class="wmd-table-cell wmd-align-left">86% (6/7)</td>
+  </tr>
+    <tr>
+    <td class="wmd-table-cell wmd-align-left">Right buttons</td>
+    <td class="wmd-table-cell wmd-align-left">75% (6/8)</td>
+    <td class="wmd-table-cell wmd-align-left">3.15</td>
+    <td class="wmd-table-cell wmd-align-left">83% (5/6)</td>
+  </tr>
+  </tbody>
+</table>
+<h4 class="wmd-h4">While choosing</h4>
+<table class="wmd-table">
+  <thead>
+    <tr>
+      <th class="wmd-table-cell wmd-align-left">Gaze on</th>
+    <th class="wmd-table-cell wmd-align-left">Share of the time to choose</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+    <td class="wmd-table-cell wmd-align-left">Scene</td>
+    <td class="wmd-table-cell wmd-align-left">38%</td>
+  </tr>
+    <tr>
+    <td class="wmd-table-cell wmd-align-left">Buttons</td>
+    <td class="wmd-table-cell wmd-align-left">52%</td>
+  </tr>
+    <tr>
+    <td class="wmd-table-cell wmd-align-left">Elsewhere</td>
+    <td class="wmd-table-cell wmd-align-left">10%</td>
+  </tr>
+  </tbody>
+</table>
+<p class="wmd-paragraph">Measured from the prompt end to the choice or the timeout, valid gaze only (S7). Valid gaze while choosing: 92 %.</p>
+<h4 class="wmd-h4">Scene Map</h4>
+<ul class="wmd-list">
+  <label class="wmd-checkbox">
+    <input type="checkbox" checked />
+    <span>Buttons and objects</span>
+  </label>
+  <label class="wmd-checkbox">
+    <input type="checkbox" />
+    <span>Scanpath</span>
+  </label>
+  <label class="wmd-checkbox">
+    <input type="checkbox" />
+    <span>Heat map</span>
+  </label>
+</ul>
+<pre class="wmd-code-block"><code>+------------------------------------------------------------------------------+
+| [ ]  |                                                             | [ ]     |
+|------|   [- - cloud area - -]                     [- balloons -]   |---------|
+| ●2   |                    [- - rainbow - -]                        | ●2      |
+| Ball.|                                                             | Cloud   |
+|------|  [- - apple tree - -]      [- seesaw -]                     |---------|
+| ●1 X1|                                                             | ●2      |
+| Rain.|                   [- bike -]                                | Bubbles |
+|------|                                                             |---------|
+| ●2   |  [- swing -]                  [- bubbles -]                 | ●1 X1   |
+| Seesw|                                                             | Bike    |
+|------|                                                             |---------|
+| ●2   |                                                             | ●1 X1   |
+| Apple|                                                             | Swing   |
++------------------------------------------------------------------------------+</code></pre>
+<blockquote class="wmd-blockquote">
+  <p class="wmd-paragraph"><strong>Scene Map:</strong> the canvas drawn at its aspect, the idle scene faint, each object's look-back area as a dashed box, each button with its marks: ● right choices (count), X not chosen in time (count). Scanpath and Heat map as in <code>report-summary.md</code>. A Mouse run draws the mouse path and labels look-back "pointer, not gaze" (section 4.6).</p>
+</blockquote>
+<blockquote class="wmd-blockquote">
+  <p class="wmd-paragraph"><strong>Visual cue on:</strong> the Test Configuration row reads "Visual cue: On" and an info line above the summary says "Visual cue was on: the target button pulsed." <strong>Mouse run:</strong> the look-back columns keep their values but the header reads "Pointer back (not gaze)".</p>
+</blockquote>
+<blockquote class="wmd-blockquote">
+  <p class="wmd-paragraph">Eye Metrics stay as in <code>report-summary.md</code>.</p>
+</blockquote>
+<h3 class="wmd-h3">C2 · Detailed Results</h3>
+<blockquote class="wmd-blockquote">
+  <p class="wmd-paragraph">Same page as <code>report-detailed.md</code>, switched with View Details. The selected-trial map shows the scene, the target button, the animating object's area and the gaze path during the trial, with the animation window drawn darker.</p>
+</blockquote>
+<h4 class="wmd-h4">Trial-by-Trial Results</h4>
+<table class="wmd-table">
+  <thead>
+    <tr>
+      <th class="wmd-table-cell wmd-align-left">Trial</th>
+    <th class="wmd-table-cell wmd-align-left">Prompt</th>
+    <th class="wmd-table-cell wmd-align-left">Side</th>
+    <th class="wmd-table-cell wmd-align-left">Outcome</th>
+    <th class="wmd-table-cell wmd-align-left">Chosen</th>
+    <th class="wmd-table-cell wmd-align-left">Wrong choices</th>
+    <th class="wmd-table-cell wmd-align-left">Reaction Time (s)</th>
+    <th class="wmd-table-cell wmd-align-left">Looked back</th>
+    <th class="wmd-table-cell wmd-align-left">Look-back latency (s)</th>
+    <th class="wmd-table-cell wmd-align-left">Look-back time (s)</th>
+    <th class="wmd-table-cell wmd-align-left">Valid (%)</th>
+    <th class="wmd-table-cell wmd-align-left">Scene / Buttons / Else (%)</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+    <td class="wmd-table-cell wmd-align-left">1</td>
+    <td class="wmd-table-cell wmd-align-left">Balloons</td>
+    <td class="wmd-table-cell wmd-align-left">Left</td>
+    <td class="wmd-table-cell wmd-align-left">● Right</td>
+    <td class="wmd-table-cell wmd-align-left">Balloons</td>
+    <td class="wmd-table-cell wmd-align-left">0</td>
+    <td class="wmd-table-cell wmd-align-left">1.80</td>
+    <td class="wmd-table-cell wmd-align-left">● Yes</td>
+    <td class="wmd-table-cell wmd-align-left">0.38</td>
+    <td class="wmd-table-cell wmd-align-left">1.90</td>
+    <td class="wmd-table-cell wmd-align-left">97</td>
+    <td class="wmd-table-cell wmd-align-left">30 / 62 / 8</td>
+  </tr>
+    <tr>
+    <td class="wmd-table-cell wmd-align-left">2</td>
+    <td class="wmd-table-cell wmd-align-left">Bike</td>
+    <td class="wmd-table-cell wmd-align-left">Right</td>
+    <td class="wmd-table-cell wmd-align-left">● Right</td>
+    <td class="wmd-table-cell wmd-align-left">Bike</td>
+    <td class="wmd-table-cell wmd-align-left">1</td>
+    <td class="wmd-table-cell wmd-align-left">3.40</td>
+    <td class="wmd-table-cell wmd-align-left">● Yes</td>
+    <td class="wmd-table-cell wmd-align-left">0.51</td>
+    <td class="wmd-table-cell wmd-align-left">1.20</td>
+    <td class="wmd-table-cell wmd-align-left">94</td>
+    <td class="wmd-table-cell wmd-align-left">45 / 48 / 7</td>
+  </tr>
+    <tr>
+    <td class="wmd-table-cell wmd-align-left">3</td>
+    <td class="wmd-table-cell wmd-align-left">Rainbow</td>
+    <td class="wmd-table-cell wmd-align-left">Left</td>
+    <td class="wmd-table-cell wmd-align-left">■ Modelled</td>
+    <td class="wmd-table-cell wmd-align-left">—</td>
+    <td class="wmd-table-cell wmd-align-left">2</td>
+    <td class="wmd-table-cell wmd-align-left">10.00</td>
+    <td class="wmd-table-cell wmd-align-left">○ No</td>
+    <td class="wmd-table-cell wmd-align-left">—</td>
+    <td class="wmd-table-cell wmd-align-left">0.00</td>
+    <td class="wmd-table-cell wmd-align-left">88</td>
+    <td class="wmd-table-cell wmd-align-left">55 / 30 / 15</td>
+  </tr>
+    <tr>
+    <td class="wmd-table-cell wmd-align-left">4</td>
+    <td class="wmd-table-cell wmd-align-left">Swing</td>
+    <td class="wmd-table-cell wmd-align-left">Right</td>
+    <td class="wmd-table-cell wmd-align-left">◌ Skipped</td>
+    <td class="wmd-table-cell wmd-align-left">—</td>
+    <td class="wmd-table-cell wmd-align-left">—</td>
+    <td class="wmd-table-cell wmd-align-left">—</td>
+    <td class="wmd-table-cell wmd-align-left">—</td>
+    <td class="wmd-table-cell wmd-align-left">—</td>
+    <td class="wmd-table-cell wmd-align-left">—</td>
+    <td class="wmd-table-cell wmd-align-left">—</td>
+    <td class="wmd-table-cell wmd-align-left">—</td>
+  </tr>
+  </tbody>
+</table>
+<blockquote class="wmd-blockquote">
+  <p class="wmd-paragraph"><strong>Table rules:</strong> as in <code>report-detailed.md</code> (first row selected, sortable, Trial frozen, skipped rows greyed). Outcome badges: ● Right (green), ■ Modelled (red, not chosen in time), ◌ Skipped. "Wrong choices" lists the wrong buttons in a tooltip (e.g. "Swing, Bike"). Looked back is always Yes / No (W4); the Valid (%) column beside it shows when gaze was lost. The usual eye columns (fixations, saccades, pupil) follow, as in <code>report-detailed.md</code>.</p>
+</blockquote>
+<blockquote class="wmd-blockquote">
+  <p class="wmd-paragraph"><strong>PDF:</strong> the same tables in the same order; the Scene Map starts page 2, as the Target Map does today.</p>
+</blockquote>
+</body>
+</html>

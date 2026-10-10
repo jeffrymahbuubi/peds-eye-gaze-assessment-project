@@ -4,7 +4,7 @@ title: A fifth test - an animated scene with 8 side buttons; a spoken prompt nam
 status: approved 2026-10-10 (H1-H14 approved, S1-S8 answered, section 3.4); test name "Choice-making", task id choice_making
 created: 2026-10-10
 last_updated: 2026-10-10
-next_step: step 1 (wireframes, the UI gate) - can start now; step 2 (style anchor art) waits for the OpenRouter key
+next_step: step 1 DONE (wireframe approved); next step 2 (style anchor art, needs a Claude Code restart so the image tools load) or step 3 (engine, no dependency)
 related:
   - SPEC-grid3-calibration-parklife-feasibility.md (Part B feasibility, decisions U4, Q6-Q8)
   - docs/grid3/park-life/README.md (reference: layout, effects, timings, object regions - section 9)
@@ -77,7 +77,7 @@ Q7 English first, Traditional Chinese later; Q8 page 2 scope only.
 | H5 | **Any button can be selected** with the test's selection method. A completed dwell (or a switch press) on a **non-target button** is a `MISS_CLICK` (attempts + 1); the dwell resets and the trial goes on until a hit or the timeout, as in the existing tests. Looking at the scene or a gap selects nothing. |
 | H6 | **Hit:** the target object's effect plays (section 4.4) together with its effect sound; no generic hit sound. **Miss:** the generic miss sound only; **no effect** for the wrong object (S4 asks whether the wrong object should animate instead). |
 | H7 | **Timeout:** the trial ends unscored-as-hit (`timeout`); the target's effect then plays once as a model, flagged `modelled=true`, so the child still sees cause and effect. Look-back is still measured but reported separately from hit trials. (S5.) |
-| H8 | **Trial count 16**: each of the 8 objects twice, shuffled, with the same object never twice in a row and left / right buttons balanced (8 each). Configurable `trials`, rounded to a multiple of 8. |
+| H8 | **Trial count 16**: each of the 8 objects twice, shuffled, with the same object never twice in a row and left / right buttons balanced (8 each). Configurable `trials`, ~~rounded to a multiple of 8~~ any number (W5). |
 | H9 | **Timing:** `timeout_ms` 10000 (from the end of the prompt); the ITI after a trial = the effect duration (section 4.4) + `post_effect_ms` 1000, so the next prompt never starts during an effect. |
 | H10 | **Look-back AOI** = the object's region in the scene (from the art's layer bounding box), padded by **1 deg** on each side (degrees via the existing px-to-deg geometry). The look-back window opens at effect start and closes at effect end + 500 ms. |
 | H11 | **Look-back measures** per trial (definitions in section 4.6): `lookback` yes / no (at least 100 ms cumulative gaze inside the AOI in the window), `lookback_latency_ms` (effect start to the first valid sample inside the AOI), `lookback_dwell_ms` (cumulative time inside), `lookback_fraction` (inside time / window length). **Added by S7:** during the waiting phase (prompt end to selection or timeout) the time with gaze on the scene, on the buttons and elsewhere (`wait_scene_ms`, `wait_buttons_ms`, `wait_other_ms`). |
@@ -111,6 +111,20 @@ Q7 English first, Traditional Chinese later; Q8 page 2 scope only.
 | S7 | **Yes:** report time on scene / buttons / elsewhere during the waiting phase (added to H11, section 4.6). |
 | S8 | **Add on request only:** available in Add test; the default test list for a new subject is unchanged. |
 | H1-H14 | **Approved all** (as updated by S1-S8). |
+
+### 3.5 Wireframe decisions (user, 2026-10-10, step 1)
+
+Asked while reviewing `docs/wireframes/choice-making.md`; they amend the design below.
+
+| # | Decision |
+|---|---|
+| W1 | **Scene is about 4:3** (columns 1-5 at full canvas height, about 1371 x 1032 px at 1920 x 1080). The background art is generated at 4:3 and fills that area (section 4.7). |
+| W2 | **The run bar shows the prompted object** for the operator ("Prompt: Balloons") from the prompt start until the effect ends; empty between trials. |
+| W3 | **Glow follows the gaze** in Switch mode (lights the looked-at button), greyed in Dwell mode, as in the other tests. |
+| W4 | **Look-back is always Yes / No** in v1; the valid-sample fraction is shown beside it. Recorded alternative, **not built now**: show "low data" instead of No when under 50 % of the window's samples are valid, and leave those trials out of the look-back rate. |
+| W5 | **Any number of trials** (not only multiples of 8). Balanced as far as the count allows: object counts differ by at most 1, left / right counts by at most 1, never the same object twice in a row. Default 16. Replaces H8's rounding to a multiple of 8. |
+| W6 | **Scene Map** in the report in place of the Target Map: idle scene faint, each object's look-back AOI as a dashed box, right-choice and timeout counts on each button; Scanpath and Heat map overlays as today. |
+| W7 | **Preview Test plays the prompts and the effects with sound** (3 trials, mouse, nothing recorded). |
 
 ---
 
@@ -164,6 +178,8 @@ The real AOIs (H10) come from our art's layer bounding boxes, stored in the scen
    `modelled=false`). Timeout: the effect plays as a model (`modelled=true`, H7).
 4. `ITI` for `post_effect_ms`; the scene is back to its idle picture; the next trial starts.
 
+The run bar shows "Prompt: <object label>" from step 1 until the effect ends (W2).
+
 ### 4.4 Effects (H14)
 
 Durations follow the Park Life live measurements (README 9.3) and are per-object settings in the
@@ -204,7 +220,8 @@ Computed after the run from `all_gaze.csv` and the effect events (Qt-free module
 - `lookback_latency_ms` = time from `EFFECT_START` to the first valid gaze sample inside the AOI in
   W; empty if none.
 - `lookback_dwell_ms` = sum of inter-sample intervals of valid samples inside the AOI in W.
-- `lookback` = yes when `lookback_dwell_ms` is at least 100 ms.
+- `lookback` = yes when `lookback_dwell_ms` is at least 100 ms, otherwise no (always yes / no in
+  v1, W4; the "low data under 50 % valid" alternative is recorded in W4, not built).
 - `lookback_fraction` = `lookback_dwell_ms` / length of W.
 - Samples with invalid gaze are excluded; the trial reports `lookback_valid_fraction` (valid samples
   / all samples in W) so a trial with gaze loss is not read as "did not look".
@@ -217,7 +234,7 @@ Computed after the run from `all_gaze.csv` and the effect events (Qt-free module
 
 Folder `configs/assets/scenes/park/`:
 
-- `background.png` (16:9 scene without the 8 objects), `objects/<object>_<state>.png` (transparent),
+- `background.png` (4:3 scene without the 8 objects, W1), `objects/<object>_<state>.png` (transparent),
   `sprites/*.png` (bubble, pop burst, fallen apple, sparkle), `buttons/<object>.png` (button pictures).
 - `audio/en/prompt_<object>.wav`, `audio/sfx/<object>.wav`.
 - `scene.yaml`: per object the layer files, the pivot points, the bounding box in scene fractions
@@ -239,6 +256,9 @@ Folder `configs/assets/scenes/park/`:
 `scene` park, `language` en, `grid.gap` standard, `feedback.miss_sound` true, `visual_cue` false
 (S3). Settings registry entries `applies_to=("choice_making",)`; the per-test pointer and
 selection settings apply as for the other tests. The test is offered in Add test only (S8).
+`trials` accepts any number from 1, balanced as in W5. Preview Test plays the prompts and the
+effects with sound (W7). Glow follows the gaze in Switch mode (W3). Layout of the page:
+`docs/wireframes/choice-making.md` part A.
 
 ### 4.9 Data and report
 
@@ -251,13 +271,14 @@ selection settings apply as for the other tests. The test is offered in Add test
   elsewhere (S7), results split by left / right button side; a "visual cue on" marker when used (S3).
 - Per-trial table: trial, prompt object, side, result, selected object, attempts, RT, look-back,
   latency, dwell, valid fraction, wait on scene / buttons / elsewhere.
+- Scene Map in place of the Target Map (W6). Page layout: `docs/wireframes/choice-making.md` part C.
 
 ## 5. Implementation steps
 
 | Step | Content | Needs |
 |---|---|---|
-| 1 | Wireframes: configuration card, run screen (scene + buttons), report page. **UI gate**: the user approves before code | - |
-| 2 | Style anchor art + one object as a trial of the pipeline; the user approves the style | OpenRouter key |
+| 1 | Wireframes: configuration card, run screen (scene + buttons), report page. **UI gate**: the user approves before code. **DONE 2026-10-10**: `docs/wireframes/choice-making.md`, approved with W1-W7 | - |
+| 2 | Style anchor art (4:3, W1) + one object as a trial of the pipeline; the user approves the style | Claude Code restart (key already in the root `.env`, shared with the audio server) |
 | 3 | Engine: task class, multi-button selection, prompt / effect phases, events, trial fields; placeholder scene; pytest | - |
 | 4 | Canvas `"scene"` mode with effects from layers (placeholders first) | step 3 |
 | 5 | Look-back module + report rows; pytest on synthetic gaze | step 3 |
@@ -268,7 +289,8 @@ selection settings apply as for the other tests. The test is offered in Add test
 
 - A1 "Choice-making" appears in Add test (not in the default list) with its description; a run of 16 trials completes with
   Mouse + Dwell and with Gaze + Dwell / Switch.
-- A2 Each object is prompted exactly twice in 16 trials, never twice in a row, 8 left and 8 right.
+- A2 Each object is prompted exactly twice in 16 trials, never twice in a row, 8 left and 8 right;
+  for any other count, object counts and left / right counts each differ by at most 1 (W5).
 - A3 Selection is blocked while the prompt plays; RT is measured from the prompt end.
 - A4 A completed dwell or press on a wrong button records `MISS_CLICK` with the selected object and
   the trial continues; a hit plays the right effect; a timeout plays the modelled effect (if H7).
@@ -302,3 +324,10 @@ selection settings apply as for the other tests. The test is offered in Add test
   - Add test only.
 
   Updated H1, H4, H11, H13, sections 4.1, 4.6, 4.8, 4.9 and A1 to match. SPEC **approved**. Next: step 1 wireframes (UI gate).
+- **2026-10-10 (step 1)** - Wireframe `docs/wireframes/choice-making.md` / `.html` drawn
+  (configuration page, run screen in 3 states, summary and detailed report). Reviewing it, the user
+  decided W1-W7 (section 3.5): 4:3 scene, prompt shown in the run bar, glow follows gaze, look-back
+  always yes / no (50 % "low data" rule recorded as an alternative only), any trial count, Scene
+  Map, Preview with sound. Updated H8, sections 4.3, 4.6, 4.7, 4.8, 4.9, A2 and the step 2 row
+  (the OpenRouter key is already set: the image server shares the audio server's key; only a
+  Claude Code restart is needed). The user then gave the final OK on the wireframe: **step 1 DONE**.
