@@ -303,19 +303,27 @@ def write_report_safely(session_dir: str | Path) -> Path | None:
     except Exception as exc:  # noqa: BLE001 - analysis must never break closing a run
         _log.warning("report.json not written for %s: %s", session_dir, exc)
         return None
-    if report.get("choice"):
-        # Choice-making's look-back and waiting-phase columns of trials.csv (4.9), known only now.
-        try:
-            fill_trials_lookback(session_dir, report["choice"])
-        except Exception as exc:  # noqa: BLE001 - the report is written; the columns stay blank
-            _log.warning("look-back columns not written for %s: %s", session_dir, exc)
+    _fill_lookback_columns(session_dir, report)
     return path
+
+
+def _fill_lookback_columns(session_dir: str | Path, report: dict[str, Any]) -> None:
+    """Choice-making's look-back and waiting-phase columns of ``trials.csv`` (SPEC-scene-cause-effect-task.md
+    4.9), known only once a report is built: written after every fresh build of such a report, never
+    for a cached one. A failure is logged, never raised; the report itself is not affected."""
+    if not report.get("choice"):
+        return
+    try:
+        fill_trials_lookback(session_dir, report["choice"])
+    except Exception as exc:  # noqa: BLE001 - the report is built; the columns stay blank
+        _log.warning("look-back columns not written for %s: %s", session_dir, exc)
 
 
 def load_or_build_report(session_dir: str | Path) -> dict[str, Any]:
     """The cached report, or a fresh build (re-cached) when ``report.json`` is
     missing, unreadable or not :data:`REPORT_VERSION`. A folder that cannot be
-    written to still gets its report, just uncached."""
+    written to still gets its report, just uncached. A fresh build of a Choice-making
+    report also fills the look-back columns of ``trials.csv``; a cached one touches nothing."""
     session_dir = Path(session_dir)
     try:
         cached = json.loads((session_dir / REPORT_FILENAME).read_text(encoding="utf-8"))
@@ -328,6 +336,7 @@ def load_or_build_report(session_dir: str | Path) -> dict[str, Any]:
         write_report(session_dir, report)
     except OSError as exc:
         _log.warning("report.json not cached for %s: %s", session_dir, exc)
+    _fill_lookback_columns(session_dir, report)
     return report
 
 

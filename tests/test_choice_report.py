@@ -14,17 +14,23 @@ from __future__ import annotations
 import copy
 import csv
 import json
+import logging
 
 import pytest
 
+import src.data.report_cache as cache
 from src.data.report_cache import (
     REPORT_FILENAME,
     REPORT_VERSION,
     build_report,
     load_or_build_report,
+    write_report,
     write_report_safely,
 )
 from src.data.schema import LOOKBACK_COLUMNS, TrialRecord
+from src.engine.run_paths import new_run_dir
+from src.engine.run_result import SAVE_AND_VIEW, RunResult, finish_run
+from src.engine.subject_tests import create_test
 from tests.choice_report_fixtures import (
     Trial,
     choice_folder,
@@ -32,6 +38,7 @@ from tests.choice_report_fixtures import (
     main_trials,
     records_and_events,
 )
+from tests.report_fixtures import RIG_META, SEC, T0, record, write_session
 
 
 def block(tmp_path, trials=None, **kwargs):
@@ -353,6 +360,83 @@ def test_an_older_trials_csv_without_the_columns_gets_them_appended(tmp_path):
     filled = read_rows(folder)
     assert list(filled[0])[-len(LOOKBACK_COLUMNS):] == list(LOOKBACK_COLUMNS)
     assert filled[0]["lookback_latency_ms"] == "500.0"
+
+
+def filled_columns(folder):
+    return [[row[c] for c in LOOKBACK_COLUMNS] for row in read_rows(folder)]
+
+
+def test_a_fresh_build_by_load_or_build_report_fills_the_same_columns_as_save(tmp_path):
+    # "Save and View Report" builds the report through load_or_build_report, not write_report_safely.
+    saved = choice_folder(tmp_path, main_trials(), name="saved")
+    viewed = choice_folder(tmp_path, main_trials(), name="viewed")
+    assert all(row[c] == "" for row in read_rows(viewed) for c in LOOKBACK_COLUMNS)
+    report = load_or_build_report(viewed)
+    assert report["choice"] is not None and (viewed / REPORT_FILENAME).is_file()
+    write_report_safely(saved)
+    assert filled_columns(viewed) == filled_columns(saved)
+    assert filled_columns(viewed)[0][0] == "1"  # the rainbow trial looked back
+    assert read_rows(viewed)[0]["lookback_latency_ms"] == "500.0"
+    assert list(read_rows(viewed)[0])[-len(LOOKBACK_COLUMNS):] == list(LOOKBACK_COLUMNS)
+
+
+@pytest.mark.parametrize("state", ["garbage", "old_version"])
+def test_an_unreadable_or_old_cache_is_a_fresh_build_that_fills_the_columns(tmp_path, state):
+    folder = choice_folder(tmp_path, main_trials())
+    text = "{not json" if state == "garbage" else json.dumps({"report_version": REPORT_VERSION - 1})
+    (folder / REPORT_FILENAME).write_text(text, encoding="utf-8")
+    load_or_build_report(folder)
+    assert read_rows(folder)[0]["lookback_dwell_ms"] == "1000.0"
+
+
+def test_a_cached_report_is_returned_without_touching_trials_csv(tmp_path, monkeypatch):
+    folder = choice_folder(tmp_path, main_trials())
+    write_report(folder)  # a current report.json, the columns still blank
+    before = (folder / "trials.csv").read_bytes()
+    monkeypatch.setattr(cache, "fill_trials_lookback", lambda *a, **k: pytest.fail("rewrote trials.csv"))
+    assert load_or_build_report(folder)["choice"] is not None
+    assert (folder / "trials.csv").read_bytes() == before
+
+
+def test_save_and_view_leaves_the_look_back_columns_filled(tmp_path):
+    root = tmp_path / "sessions"
+    root.mkdir()
+    test = create_test(root, "P001", "choice_making")
+    run_dir = new_run_dir(root, "P001", "choice_making")
+    choice_folder(run_dir.parent, main_trials(), name=run_dir.name)
+    result = RunResult(
+        "record", "completed", "finished", 5, 5, 1, 3, run_dir, "2026-10-11T16:30:00+08:00",
+        task_id="choice_making",
+    )
+    out = finish_run(result, SAVE_AND_VIEW, output_root=root, subject_id="P001", test_id=test.test_id)
+    assert out.report is not None and out.report["choice"] is not None
+    assert read_rows(run_dir)[0]["lookback_latency_ms"] == "500.0"
+    assert read_rows(run_dir)[4]["lookback_fraction"] == "0.3333"
+
+
+@pytest.mark.parametrize("build", [load_or_build_report, write_report_safely])
+def test_a_failed_fill_is_logged_and_never_breaks_the_report(tmp_path, monkeypatch, caplog, build):
+    folder = choice_folder(tmp_path, main_trials())
+    before = (folder / "trials.csv").read_bytes()
+
+    def broken(*a, **k):
+        raise RuntimeError("disk full")
+
+    monkeypatch.setattr(cache, "fill_trials_lookback", broken)
+    with caplog.at_level(logging.WARNING):
+        result = build(folder)
+    assert result is not None  # the report, or the path of report.json
+    assert (folder / REPORT_FILENAME).is_file()
+    assert (folder / "trials.csv").read_bytes() == before  # the columns stay blank
+    assert "look-back columns not written" in caplog.text and "disk full" in caplog.text
+
+
+def test_another_tasks_report_never_reaches_the_fill(tmp_path, monkeypatch):
+    folder = write_session(
+        tmp_path / "grid", [record(0, T0 + SEC, "hit", dur_s=1.0, entries=1)], meta=dict(RIG_META)
+    )
+    monkeypatch.setattr(cache, "fill_trials_lookback", lambda *a, **k: pytest.fail("filled a grid run"))
+    assert load_or_build_report(folder)["choice"] is None
 
 
 def test_another_task_is_left_alone_and_the_columns_are_blank(tmp_path):

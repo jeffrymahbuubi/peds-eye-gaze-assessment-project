@@ -897,6 +897,34 @@ effects with sound (W7). Glow follows the gaze in Switch mode (W3). Layout of th
     `idle_animation` into `metadata.json`; no live check, no real-gaze run, and no look at the report on a real
     screen (offscreen Qt has no fonts, so only colours and the PDF's fit with the real Segoe UI were checked).
 
+- **2026-10-11 (look-back columns on Save and View Report, claude-sonnet-5-5)** - The bug of section 7's
+  last entry ("2026-10-11 (follow-ups, hub)"), fixed as the user decided. The worktree was at `c7e61cf`, not
+  `ba20fd0`; I ran `git checkout --detach ba20fd0` (clean tree, `c7e61cf` is its ancestor) before any edit.
+  - **Fix.** `src/data/report_cache.py`: a private helper `_fill_lookback_columns(session_dir, report)` (does
+    nothing unless `report["choice"]`; calls `fill_trials_lookback`; a failure is logged as "look-back columns
+    not written", never raised) is now used by both `write_report_safely` (the same code, moved) and
+    `load_or_build_report`, which calls it after a fresh build (cache missing / unreadable / another
+    `REPORT_VERSION`), after the `report.json` write attempt. A cached report that is returned as-is never
+    reaches it, so `trials.csv` is not rewritten. No change to `run_result.py`, the report content or any UI.
+  - **Files changed:** `src/data/report_cache.py` (421 lines), `tests/test_choice_report.py` (476 lines), this
+    SPEC. Nothing else.
+  - **Tests added (8, all in `tests/test_choice_report.py`):** a fresh `load_or_build_report` fills the same
+    columns as `write_report_safely`; an unreadable cache and an old-version cache are fresh builds that fill
+    them (2, parametrized); a cached report leaves `trials.csv` byte-identical (and `fill_trials_lookback`
+    is never called); `finish_run(..., SAVE_AND_VIEW)` on a Choice-making run folder leaves the columns filled
+    and hands back the report; a failing fill is logged and the report still comes back, `trials.csv`
+    untouched, for both `load_or_build_report` and `write_report_safely` (2, parametrized); another task's
+    report never reaches the fill. I checked the fresh-build, unreadable / old-cache, Save-and-View and
+    load_or_build_report failure tests fail with the one-line call removed and pass with it.
+  - **pytest (full, venv, from the worktree; JUnit totals):** `tests=3795 failures=5 errors=0 skipped=0`
+    (3790 passed). The 5 are the known baseline: `test_a_new_test_opens_*` in `test_config_flow.py` (1) and
+    `test_task_config_page.py` (4); no other failure. The touched files alone (`test_choice_report.py`,
+    `test_report_cache.py`, `test_run_finish.py`) pass.
+  - **Deviations from the SPEC:** none.
+  - **Left undone:** nothing in scope. Note for the hub: any open of a Choice-making run from the report
+    list (`report_flow`) whose `report.json` is missing or old is also a fresh build and so also fills the
+    columns (the user's "any fresh build"); an old run folder already filled is rewritten with the same values.
+
 ## 9. Open questions
 
 Written by the step 3 implementer (2026-10-10, claude-sonnet-5-5). The engine builds and passes its
