@@ -57,14 +57,21 @@ def fonts(qapp):
     yield from real_fonts.segoe_ui(qapp)
 
 
+def _placeholder_report(tmp_path_factory, name: str, **kwargs):
+    # Built once per module, so outside conftest's per-test pin: pin it to the placeholder scene here.
+    with pytest.MonkeyPatch.context() as mp:
+        mp.setattr("src.tasks.choice_scene.ASSETS_ROOT", tmp_path_factory.getbasetemp() / "no_scene_assets")
+        return build_report(choice_folder(tmp_path_factory.mktemp(name), main_trials(), **kwargs))
+
+
 @pytest.fixture(scope="module")
 def report(tmp_path_factory):
-    return build_report(choice_folder(tmp_path_factory.mktemp("gaze"), main_trials()))
+    return _placeholder_report(tmp_path_factory, "gaze")
 
 
 @pytest.fixture(scope="module")
 def mouse_report(tmp_path_factory):
-    return build_report(choice_folder(tmp_path_factory.mktemp("mouse"), main_trials(), pointer=True))
+    return _placeholder_report(tmp_path_factory, "mouse", pointer=True)
 
 
 def cells(report, c):

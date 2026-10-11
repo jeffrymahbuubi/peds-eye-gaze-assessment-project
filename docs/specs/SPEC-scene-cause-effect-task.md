@@ -4,7 +4,7 @@ title: A fifth test - an animated scene with 8 side buttons; a spoken prompt nam
 status: approved 2026-10-10 (H1-H14 approved, S1-S8 answered, section 3.4); test name "Choice-making", task id choice_making
 created: 2026-10-10
 last_updated: 2026-10-11
-next_step: steps 1-5 DONE (2026-10-11); next step 6 (full art as layers + effect sounds + scene.yaml, each file approved by the user), then step 7 live check
+next_step: steps 1-6 DONE (2026-10-11); next step 7 live check (Mouse + Dwell first, no device; then Gaze + Dwell / Switch on the GP3 HD)
 related:
   - SPEC-grid3-calibration-parklife-feasibility.md (Part B feasibility, decisions U4, Q6-Q8)
   - docs/grid3/park-life/README.md (reference: layout, effects, timings, object regions - section 9)
@@ -19,7 +19,7 @@ related:
 **Status: approved 2026-10-10 (H1-H14 approved by the user; S1-S8 answered, section 3.4). The
 test is called "Choice-making" (task id `choice_making`); the file keeps its original name.
 Step 1 (wireframe) DONE `16dc79a` with the user's decisions W1-W7 (section 3.5). Branch
-`feature/compass-task-flow`. Step 3 (engine) DONE 2026-10-11; animation decisions N1-N6 (section 3.6). Step 2 (style anchor + key-colour pipeline) DONE 2026-10-11. Steps 4 (canvas) and 5 (look-back + report) DONE 2026-10-11. Next: step 6 (art), then step 7 (live check).
+`feature/compass-task-flow`. Step 3 (engine) DONE 2026-10-11; animation decisions N1-N6 (section 3.6). Step 2 (style anchor + key-colour pipeline) DONE 2026-10-11. Steps 4 (canvas) and 5 (look-back + report) DONE 2026-10-11. Step 6 (art, sounds, scene.yaml) DONE 2026-10-11. Next: step 7 (live check).
 Reference design is Smartbox Grid 3 "Park Life" page 2, adapted into a scored test. No
 Smartbox art, sound or text is copied; all assets are our own (AI-generated, user-approved).**
 
@@ -322,7 +322,7 @@ effects with sound (W7). Glow follows the gaze in Switch mode (W3). Layout of th
 | 3 | Engine: task class, multi-button selection, prompt / effect phases, events, trial fields; placeholder scene; pytest. **DONE 2026-10-11** (sections 8, 9) | - |
 | 4 | Canvas `"scene"` mode with effects from layers (placeholders first), effect steps, idle life, cached scene + about 60 Hz repaint (N1, N3, N5). **DONE 2026-10-11** (sections 7, 8) | step 3 |
 | 5 | Look-back module + report rows; pytest on synthetic gaze. **DONE 2026-10-11** (sections 7, 8; moving AOI wired by the hub) | step 3 |
-| 6 | Full art and audio; `ASSETS.md`; the user approves every file | step 2 |
+| 6 | Full art and audio; `ASSETS.md`; the user approves every file. **DONE 2026-10-11** (section 7): layers cut from the anchor, `scene.yaml`, 8 Lyria effect cues | step 2 |
 | 7 | Live check with the user: Mouse + Dwell first (no device), then Gaze + Dwell and Gaze + Switch on the GP3 HD | steps 4-6; GP3 HD for the gaze part |
 
 ## 6. Acceptance criteria
@@ -412,6 +412,37 @@ effects with sound (W7). Glow follows the gaze in Switch mode (W3). Layout of th
   `docs/CLINICAL_DATA_REFERENCE.md` (the 13 new columns of steps 3 and 5), the page label "Glow on the
   looked-at button" (`settings_registry.py` at 499 lines), step 6 art and sounds, step 7 live check.
   Committed by the user's OK as two commits (step 4; step 5 + wiring + SPEC). **Steps 4 and 5 DONE.**
+- **2026-10-11 (step 6, hub)** - Full art, scene manifest and effect sounds; every file approved by the user
+  in three art batches and one sound batch. Provenance (models, prompts, processing, hashes) in
+  `configs/assets/scenes/park/ASSETS.md`.
+  - **Route (changed from 4.7's per-object redraw, user-approved):** the approved anchor was edited into an
+    empty background (`background.png`, 2400 x 1792), and every object layer is cut straight out of the
+    anchor by its difference from that background (`tools/layer_extract.py`), so style and position are the
+    anchor's exactly; `tools/build_park_scene.py` derives all layers deterministically. Recomposited, the
+    layers match the anchor (median 2/255; 0.004 % of pixels over 40). Only one picture was redrawn: the
+    bubble boy's blowing pose (97 % silhouette overlap with the idle pose).
+  - **Splits for the effects:** seesaw plank + children / base (plank rebuilt behind the base; pivot = bolt),
+    swing ropes + seat + girl / frame (the leg behind the seat end filled), 5 balloons popping back to front
+    (purple, blue, orange, yellow, red, so a pop always shows sky) + strings / post, 7 apples + the tree with
+    their holes filled from the leaves, 2 rainbow tints (N4), a ground-shadow layer (no object ghosts; found
+    by a motion check), and an eyes-closed patch per child made from the art (N6: only pixels near the eyes
+    change; a test checks the patch border is untouched).
+  - **Decisions:** the bike stands in front of the bush in the approved anchor, so the bush stays in the
+    background and there is no bush front layer (user; N6's "bike rides behind the bush" superseded).
+    Effect sounds are Lyria musical cues per object, not literal sound effects (user; the audio server has
+    no sound-effect model), trimmed to each effect's length by `tools/make_scene_sfx.py` (Qt
+    `QAudioDecoder`, no new dependency).
+  - **`scene.yaml`** gives every object its layers, pivots, boxes (the art's bounding boxes, the look-back
+    AOI source), blinks and effect steps; durations stay the 4.4 defaults. It loads with no warning, every
+    picture exists, every effect ends at rest (A5), and only Bike and Cloud move their box (N2).
+  - **Tests:** the real assets made 23 placeholder-based tests read the real scene. A suite-wide fixture in
+    `tests/conftest.py` now pins every test to the placeholder scene unless it is marked `real_scene`
+    (marker registered in `pyproject.toml`); the two module-scoped report fixtures pin themselves. New
+    `tests/test_choice_park_scene.py` (26 tests, `real_scene`): file loads cleanly, all pictures present,
+    every effect ends at rest, only Bike / Cloud boxes move and return, blink patches change only near the
+    eyes, and the canvas draws the real scene and is pixel-exact idle again after each effect.
+  - **Not checked here:** the scene on a real screen and the real frame rate with the real art (A9), the
+    sounds through the app (both step 7).
 
 ## 8. Impl log
 

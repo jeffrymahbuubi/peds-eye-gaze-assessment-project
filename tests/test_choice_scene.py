@@ -343,7 +343,8 @@ def test_an_absent_file_gives_the_built_in_scene(tmp_path):
     assert [o.id for o in manifest.objects] == IDS
 
 
-def test_the_repository_has_no_scene_file_yet_so_the_real_assets_folder_gives_the_built_in_scene():
+def test_without_scene_assets_the_built_in_scene_is_used():
+    # conftest points the loader at an empty folder (the real park scene: test_choice_park_scene.py)
     assert load_manifest("park").source == "default"
 
 

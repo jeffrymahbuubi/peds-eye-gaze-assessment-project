@@ -39,6 +39,9 @@ packages = ["src"]
 [tool.pytest.ini_options]
 testpaths = ["tests"]
 addopts = "-q"
+markers = [
+    "real_scene: run against the real Choice-making scene assets (configs/assets/scenes/), not the built-in placeholder",
+]
 
 [tool.ruff]
 line-length = 100

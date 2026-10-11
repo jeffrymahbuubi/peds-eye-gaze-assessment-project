@@ -1,0 +1,146 @@
+# Choice-making park scene (SPEC-scene-cause-effect-task.md 4.4, 4.7; format: src/tasks/choice_scene_io.py).
+# Every picture is built from the approved style anchor by tools/build_park_scene.py (boxes, pivots and
+# eye positions below are its output, in scene fractions); provenance in ASSETS.md. Durations are the
+# 4.4 defaults (not repeated here); labels and prompts are the built-in ones.
+scene: park
+aspect: 1.3333
+background: background.png
+decor:
+  - {id: shadows, box: [0.0, 0.0, 1.0, 1.0], z: 0, image: layers/shadows.png}
+
+objects:
+  bike:
+    box: [0.3233, 0.4219, 0.5008, 0.7121]
+    follows: bike
+    button_image: buttons/bike.png
+    layers:
+      - {id: bike, box: [0.3233, 0.4219, 0.5008, 0.7121], z: 7, image: objects/bike.png}
+    blink:
+      - {id: bike_rider, layer: bike, x: 0.41, y: 0.4781, r: 0.0111, image: blink/bike_rider.png,
+         box: [0.39, 0.4654, 0.43, 0.4911]}
+    effect:  # rides right out of the scene, comes back in from the left, stops at its start
+      - {kind: transform, layer: bike, t: [0, 0.5], ease: in, tracks: {dx: [[0, 0], [1, 0.6967]]}}
+      - {kind: transform, layer: bike, t: [0.5, 1], ease: out, tracks: {dx: [[0, -0.5208], [1, 0]]}}
+
+  cloud:
+    box: [0.3883, 0.0402, 0.635, 0.2121]
+    follows: cloud
+    button_image: buttons/cloud.png
+    layers:
+      - {id: cloud, box: [0.3883, 0.0402, 0.635, 0.2121], z: 20, image: objects/cloud.png}
+    blink: []
+    effect:  # out to the left, back in from the right, to rest
+      - {kind: transform, layer: cloud, t: [0, 0.5], ease: in_out, tracks: {dx: [[0, 0], [1, -0.655]]}}
+      - {kind: transform, layer: cloud, t: [0.5, 1], ease: in_out, tracks: {dx: [[0, 0.6317], [1, 0]]}}
+
+  seesaw:
+    box: [0.605, 0.4565, 0.9683, 0.7411]
+    button_image: buttons/seesaw.png
+    layers:
+      - {id: seesaw_plank, box: [0.605, 0.4565, 0.9683, 0.7411], z: 5, image: objects/seesaw_plank.png,
+         pivot: [0.7833, 0.6629]}
+      - {id: seesaw_base, box: [0.755, 0.6395, 0.8142, 0.731], z: 6, image: objects/seesaw_base.png}
+    blink:
+      - {id: seesaw_girl, layer: seesaw_plank, x: 0.6665, y: 0.5108, r: 0.0105, image: blink/seesaw_girl.png,
+         box: [0.6475, 0.4989, 0.6858, 0.5223]}
+      - {id: seesaw_boy, layer: seesaw_plank, x: 0.9275, y: 0.5703, r: 0.0103, image: blink/seesaw_boy.png,
+         box: [0.9083, 0.5547, 0.9467, 0.5859]}
+    effect:  # about plus/minus 12 deg about the bolt, 3 cycles
+      - {kind: transform, layer: seesaw_plank, t: [0, 1], ease: linear, osc: {rot: [12, 3, 0]}}
+
+  swing:
+    box: [0.045, 0.6217, 0.3167, 0.9621]
+    button_image: buttons/swing.png
+    layers:
+      - {id: swing_frame, box: [0.045, 0.6217, 0.3167, 0.9621], z: 5, image: objects/swing_frame.png}
+      - {id: swing_seat, box: [0.1267, 0.644, 0.2458, 0.9275], z: 6, image: objects/swing_seat.png,
+         pivot: [0.1842, 0.644]}
+    blink:
+      - {id: swing_girl, layer: swing_seat, x: 0.188, y: 0.7549, r: 0.0113, image: blink/swing_girl.png,
+         box: [0.1683, 0.7411, 0.2083, 0.769]}
+    effect:  # damped, 2 cycles about the top bar
+      - {kind: transform, layer: swing_seat, t: [0, 1], ease: linear, osc: {rot: [16, 2, 1.5]}}
+
+  bubbles:
+    box: [0.5183, 0.6998, 0.6567, 0.9554]
+    button_image: buttons/bubbles.png
+    layers:
+      - {id: bubbles_child, box: [0.5183, 0.6998, 0.6567, 0.9554], z: 8, image: objects/bubbles_child.png,
+         states: {blowing: objects/bubbles_child_blowing.png}}
+    blink:
+      - {id: bubbles_boy, layer: bubbles_child, x: 0.6003, y: 0.7583, r: 0.0123, image: blink/bubbles_boy.png,
+         box: [0.5792, 0.7444, 0.6217, 0.7723]}
+    effect:  # blows; bubbles rise and drift up-left from the wand
+      - {kind: swap, layer: bubbles_child, t: [0, 0.85], state: blowing}
+      - {kind: particles, t: [0.08, 0.95], style: bubble, origin: [0.5433, 0.75], count: 8,
+         drift: [-0.16, -0.38], size: 0.03, life: 0.5}
+
+  balloons:
+    box: [0.7817, 0.0625, 0.9608, 0.5379]
+    button_image: buttons/balloons.png
+    layers:  # popped back to front (purple, blue, orange, yellow, red), so a pop always shows sky
+      - {id: balloons_strings, box: [0.8217, 0.0859, 0.9083, 0.5379], z: 10, image: objects/balloons_strings.png}
+      - {id: balloon_1, box: [0.805, 0.0625, 0.8808, 0.1674], z: 11, image: objects/balloon_1.png}
+      - {id: balloon_2, box: [0.8883, 0.1696, 0.9608, 0.2969], z: 12, image: objects/balloon_2.png}
+      - {id: balloon_3, box: [0.8717, 0.0893, 0.9475, 0.2132], z: 13, image: objects/balloon_3.png}
+      - {id: balloon_4, box: [0.7817, 0.1451, 0.8492, 0.2801], z: 14, image: objects/balloon_4.png}
+      - {id: balloon_5, box: [0.8333, 0.1417, 0.9092, 0.2801], z: 15, image: objects/balloon_5.png}
+    blink: []
+    effect:
+      - {kind: transform, layer: balloon_1, t: [0.06, 0.08], ease: linear, tracks: {alpha: [[0, 1], [1, 0]]}}
+      - {kind: particles, t: [0.06, 0.24], style: burst, origin: [0.8429, 0.115], count: 8, drift: [0.06, 0], size: 0.02, life: 1.0}
+      - {kind: transform, layer: balloon_2, t: [0.19, 0.21], ease: linear, tracks: {alpha: [[0, 1], [1, 0]]}}
+      - {kind: particles, t: [0.19, 0.37], style: burst, origin: [0.9246, 0.2333], count: 8, drift: [0.06, 0], size: 0.02, life: 1.0}
+      - {kind: transform, layer: balloon_3, t: [0.32, 0.34], ease: linear, tracks: {alpha: [[0, 1], [1, 0]]}}
+      - {kind: particles, t: [0.32, 0.5], style: burst, origin: [0.9096, 0.1513], count: 8, drift: [0.06, 0], size: 0.02, life: 1.0}
+      - {kind: transform, layer: balloon_4, t: [0.45, 0.47], ease: linear, tracks: {alpha: [[0, 1], [1, 0]]}}
+      - {kind: particles, t: [0.45, 0.63], style: burst, origin: [0.8155, 0.2126], count: 8, drift: [0.06, 0], size: 0.02, life: 1.0}
+      - {kind: transform, layer: balloon_5, t: [0.58, 0.6], ease: linear, tracks: {alpha: [[0, 1], [1, 0]]}}
+      - {kind: particles, t: [0.58, 0.76], style: burst, origin: [0.8713, 0.2109], count: 8, drift: [0.06, 0], size: 0.02, life: 1.0}
+      # all five fade back in together
+      - {kind: transform, layer: balloon_1, t: [0.78, 1], ease: in_out, tracks: {alpha: [[0, 0], [1, 1]]}}
+      - {kind: transform, layer: balloon_2, t: [0.78, 1], ease: in_out, tracks: {alpha: [[0, 0], [1, 1]]}}
+      - {kind: transform, layer: balloon_3, t: [0.78, 1], ease: in_out, tracks: {alpha: [[0, 0], [1, 1]]}}
+      - {kind: transform, layer: balloon_4, t: [0.78, 1], ease: in_out, tracks: {alpha: [[0, 0], [1, 1]]}}
+      - {kind: transform, layer: balloon_5, t: [0.78, 1], ease: in_out, tracks: {alpha: [[0, 0], [1, 1]]}}
+
+  apples:
+    box: [0.0217, 0.0335, 0.3483, 0.6027]
+    button_image: buttons/apples.png
+    layers:
+      - {id: apples_tree, box: [0.0217, 0.0335, 0.3483, 0.6027], z: 1, image: objects/apples_tree.png}
+      - {id: apple_1, box: [0.1783, 0.0871, 0.2183, 0.1518], z: 2, image: objects/apple_1.png}
+      - {id: apple_2, box: [0.0892, 0.1618, 0.1292, 0.2165], z: 2, image: objects/apple_2.png}
+      - {id: apple_3, box: [0.2592, 0.1741, 0.2992, 0.2277], z: 2, image: objects/apple_3.png}
+      - {id: apple_4, box: [0.1733, 0.2031, 0.2133, 0.2634], z: 2, image: objects/apple_4.png}
+      - {id: apple_5, box: [0.0392, 0.2333, 0.0792, 0.2868], z: 2, image: objects/apple_5.png}
+      - {id: apple_6, box: [0.08, 0.3158, 0.12, 0.3694], z: 2, image: objects/apple_6.png}
+      - {id: apple_7, box: [0.265, 0.3069, 0.305, 0.3605], z: 2, image: objects/apple_7.png}
+    blink: []
+    effect:  # one after another the apples fall to the ground (y 0.59) and fade; new ones fade in
+      - {kind: transform, layer: apple_1, t: [0.04, 0.39], ease: in, tracks: {dy: [[0, 0], [1, 0.4382]], alpha: [[0, 1], [0.8, 1], [1, 0]]}}
+      - {kind: transform, layer: apple_2, t: [0.10, 0.45], ease: in, tracks: {dy: [[0, 0], [1, 0.3735]], alpha: [[0, 1], [0.8, 1], [1, 0]]}}
+      - {kind: transform, layer: apple_3, t: [0.16, 0.51], ease: in, tracks: {dy: [[0, 0], [1, 0.3623]], alpha: [[0, 1], [0.8, 1], [1, 0]]}}
+      - {kind: transform, layer: apple_4, t: [0.22, 0.57], ease: in, tracks: {dy: [[0, 0], [1, 0.3266]], alpha: [[0, 1], [0.8, 1], [1, 0]]}}
+      - {kind: transform, layer: apple_5, t: [0.28, 0.63], ease: in, tracks: {dy: [[0, 0], [1, 0.3032]], alpha: [[0, 1], [0.8, 1], [1, 0]]}}
+      - {kind: transform, layer: apple_6, t: [0.34, 0.69], ease: in, tracks: {dy: [[0, 0], [1, 0.2206]], alpha: [[0, 1], [0.8, 1], [1, 0]]}}
+      - {kind: transform, layer: apple_7, t: [0.40, 0.75], ease: in, tracks: {dy: [[0, 0], [1, 0.2295]], alpha: [[0, 1], [0.8, 1], [1, 0]]}}
+      - {kind: transform, layer: apple_1, t: [0.78, 1], ease: in_out, tracks: {dy: [[0, 0], [1, 0]], alpha: [[0, 0], [1, 1]]}}
+      - {kind: transform, layer: apple_2, t: [0.78, 1], ease: in_out, tracks: {dy: [[0, 0], [1, 0]], alpha: [[0, 0], [1, 1]]}}
+      - {kind: transform, layer: apple_3, t: [0.78, 1], ease: in_out, tracks: {dy: [[0, 0], [1, 0]], alpha: [[0, 0], [1, 1]]}}
+      - {kind: transform, layer: apple_4, t: [0.78, 1], ease: in_out, tracks: {dy: [[0, 0], [1, 0]], alpha: [[0, 0], [1, 1]]}}
+      - {kind: transform, layer: apple_5, t: [0.78, 1], ease: in_out, tracks: {dy: [[0, 0], [1, 0]], alpha: [[0, 0], [1, 1]]}}
+      - {kind: transform, layer: apple_6, t: [0.78, 1], ease: in_out, tracks: {dy: [[0, 0], [1, 0]], alpha: [[0, 0], [1, 1]]}}
+      - {kind: transform, layer: apple_7, t: [0.78, 1], ease: in_out, tracks: {dy: [[0, 0], [1, 0]], alpha: [[0, 0], [1, 1]]}}
+
+  rainbow:
+    box: [0.48, 0.2489, 0.7833, 0.4275]
+    button_image: buttons/rainbow.png
+    layers:  # N4: cross-fade between pre-tinted copies of the rainbow art, in place
+      - {id: rainbow, box: [0.48, 0.2489, 0.7833, 0.4275], z: 3, image: objects/rainbow.png}
+      - {id: rainbow_tint_1, box: [0.48, 0.2489, 0.7833, 0.4275], z: 4, image: objects/rainbow_tint_1.png, idle_alpha: 0}
+      - {id: rainbow_tint_2, box: [0.48, 0.2489, 0.7833, 0.4275], z: 5, image: objects/rainbow_tint_2.png, idle_alpha: 0}
+    blink: []
+    effect:
+      - {kind: transform, layer: rainbow_tint_1, t: [0, 0.7], ease: linear, tracks: {alpha: [[0, 0], [0.5, 1], [1, 0]]}}
+      - {kind: transform, layer: rainbow_tint_2, t: [0.3, 1], ease: linear, tracks: {alpha: [[0, 0], [0.5, 1], [1, 0]]}}
