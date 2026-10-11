@@ -4,7 +4,7 @@ title: A fifth test - an animated scene with 8 side buttons; a spoken prompt nam
 status: approved 2026-10-10 (H1-H14 approved, S1-S8 answered, section 3.4); test name "Choice-making", task id choice_making
 created: 2026-10-10
 last_updated: 2026-10-11
-next_step: steps 1-6 DONE (2026-10-11); next step 7 live check (Mouse + Dwell first, no device; then Gaze + Dwell / Switch on the GP3 HD)
+next_step: steps 1-6 DONE; step 7 part 1 (Mouse + Dwell, fake tracker) PASSED 2026-10-11; next step 7 part 2 (Gaze + Dwell / Switch on the GP3 HD, the user as subject) and the user's listen check of the scene sounds
 related:
   - SPEC-grid3-calibration-parklife-feasibility.md (Part B feasibility, decisions U4, Q6-Q8)
   - docs/grid3/park-life/README.md (reference: layout, effects, timings, object regions - section 9)
@@ -19,7 +19,7 @@ related:
 **Status: approved 2026-10-10 (H1-H14 approved by the user; S1-S8 answered, section 3.4). The
 test is called "Choice-making" (task id `choice_making`); the file keeps its original name.
 Step 1 (wireframe) DONE `16dc79a` with the user's decisions W1-W7 (section 3.5). Branch
-`feature/compass-task-flow`. Step 3 (engine) DONE `073d929`; animation decisions N1-N6 (section 3.6). Step 2 (style anchor + key-colour pipeline) DONE `e3f0da8`. Steps 4 (canvas) `26ca607` and 5 (look-back + report) `f53f20a` DONE. Step 6 (art, sounds, scene.yaml) DONE `50881af` (all 2026-10-11). Next: step 7 (live check).
+`feature/compass-task-flow`. Step 3 (engine) DONE `073d929`; animation decisions N1-N6 (section 3.6). Step 2 (style anchor + key-colour pipeline) DONE `e3f0da8`. Steps 4 (canvas) `26ca607` and 5 (look-back + report) `f53f20a` DONE. Step 6 (art, sounds, scene.yaml) DONE `50881af` (all 2026-10-11). Step 7 part 1 (Mouse + Dwell, no device) PASSED 2026-10-11 (section 7). Next: step 7 part 2 on the GP3 HD.
 Reference design is Smartbox Grid 3 "Park Life" page 2, adapted into a scored test. No
 Smartbox art, sound or text is copied; all assets are our own (AI-generated, user-approved).**
 
@@ -323,7 +323,7 @@ effects with sound (W7). Glow follows the gaze in Switch mode (W3). Layout of th
 | 4 | Canvas `"scene"` mode with effects from layers (placeholders first), effect steps, idle life, cached scene + about 60 Hz repaint (N1, N3, N5). **DONE 2026-10-11** (sections 7, 8) | step 3 |
 | 5 | Look-back module + report rows; pytest on synthetic gaze. **DONE 2026-10-11** (sections 7, 8; moving AOI wired by the hub) | step 3 |
 | 6 | Full art and audio; `ASSETS.md`; the user approves every file. **DONE 2026-10-11** (section 7): layers cut from the anchor, `scene.yaml`, 8 Lyria effect cues | step 2 |
-| 7 | Live check with the user: Mouse + Dwell first (no device), then Gaze + Dwell and Gaze + Switch on the GP3 HD | steps 4-6; GP3 HD for the gaze part |
+| 7 | Live check with the user: Mouse + Dwell first (no device), then Gaze + Dwell and Gaze + Switch on the GP3 HD. **Part 1 (Mouse + Dwell) PASSED 2026-10-11** (section 7); part 2 open | steps 4-6; GP3 HD for the gaze part |
 
 ## 6. Acceptance criteria
 
@@ -443,6 +443,36 @@ effects with sound (W7). Glow follows the gaze in Switch mode (W3). Layout of th
     eyes, and the canvas draws the real scene and is pixel-exact idle again after each effect.
   - **Not checked here:** the scene on a real screen and the real frame rate with the real art (A9), the
     sounds through the app (both step 7). Committed by the user's OK as `50881af`; full pytest 3785 passed, 0 failed.
+
+- **2026-10-11 (step 7 part 1, hub)** - Mouse + Dwell live check without a device; the user was not available,
+  so the hub drove it. Setup: `tools/fake_gazepoint_server.py 4250` for the calibration gate (port 4242 is
+  Gazepoint Control; `local_state.json` restored afterwards), app launched with `tools/qa/qa_harness.py`
+  (Add New Test is a modal dialog), a scratchpad script moved the real OS cursor to the prompted button from
+  `events.jsonl` (`SetCursorPos`), Pause pressed through qt-mcp. Subject `LIVECHK`, configuration "Custom 1"
+  (Standard with Pointer = Mouse), runs `sessions/LIVECHK/runs/choice_making/2026-10-11_1554` and `_1604`.
+  - **A1** pass: Choice-making in Add New Test with its description; both runs completed 16 of 16.
+  - **A2** pass: each object twice, never twice in a row, 8 left / 8 right; all 16 prompt lengths from the WAV.
+  - **A3** pass: cursor on the target for the whole 3920 ms prompt; the hit came 817 ms after the prompt
+    end (0.8 s dwell + one frame); RT about 1.25 s on the scripted trials.
+  - **A4** pass: a dwell on the wrong button logged `MISS_CLICK` (`selected_object` bubbles) and the trial
+    went on to the hit (attempts 2, RT 2.83 s); 3 timeouts at 10.01 s each played the modelled effect.
+  - **A5** pass: every `EFFECT_END` before the next `PROMPT_START` (32 trials).
+  - **A7** pass: Summary (with the "Mouse run: pointer, not gaze" note), By button side, While choosing,
+    Scene Map counts (green hits, red timeouts on Swing / Bubbles / Apples), Eye Metrics, Trial-by-Trial
+    table; the PDF (made headless through `ReportPage.export_pdf`, because Print Report opens a native file
+    dialog) has the same content on 3 pages.
+  - **A8** pass: a pause 3137 ms into the 4000 ms bike effect, held 13.3 s; the effect then ran its
+    remaining time (start to end minus the pause = 4000 ms). A pause during a prompt dropped the trial
+    (`TRIAL_INTERRUPTED`) and its prompt started again after resume (D4).
+  - **A9** pass: loop tick during effects mean 16.0 ms, max 17.6 ms, none over 25 ms (3255 ticks).
+  - Art: the idle scene and a mid-effect frame (seesaw plank and children tilted, base still) look right.
+  - **Not checked:** the sounds. Qt logged "QSoundEffect: playback of this format is not supported" for
+    every scene WAV, but a stock `C:\Windows\Media\chimes.wav` fails the same way in this session, so
+    it is the session's audio device (as in 2026-09); the files have the same format (stereo, 16-bit,
+    48 kHz) as the hit / miss cues the user confirmed by ear. The user listens in part 2. The other 7
+    effects were not seen mid-animation (the probe answers in about 5 s). Gaze + Dwell / Switch need the
+    GP3 HD (part 2). A10 is unchanged (step 6). No code changed; full pytest 3785 passed, 0 failed
+    (JUnit totals).
 
 ## 8. Impl log
 
