@@ -488,6 +488,12 @@ effects with sound (W7). Glow follows the gaze in Switch mode (W3). Layout of th
     (`write_report_safely`) fills them (run `_1554` blank, `_1604` filled). Report and PDF are right.
     User decision: fill the columns on any fresh build of a Choice-making report. Fix to follow.
 
+- **2026-10-11 (look-back fill fix, hub review)** - Fixed by `spec-implementer` in a worktree (section 8),
+  reviewed and committed by the user's OK as `ded8228`: `load_or_build_report` fills the `trials.csv`
+  look-back columns on every fresh Choice-making build (helper shared with `write_report_safely`); a cached
+  report touches nothing. Hub check: full pytest on the main checkout 3795 passed, 0 failed; rebuilding run
+  `_1554` filled its blank columns (bike trial look-back 1, latency 63.3 ms, as in its report).
+
 ## 8. Impl log
 
 - **2026-10-10 - claude-sonnet-5-5 - step 3 (engine), implemented; uncommitted.** Sections 4.1, 4.2,
