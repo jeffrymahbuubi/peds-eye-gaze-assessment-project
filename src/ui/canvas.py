@@ -26,6 +26,7 @@ from .canvas_cursor import (
     _clamp_to_canvas,
 )
 from .canvas_shapes import SHAPE_CIRCLE, shape_path
+from .scene_canvas import SceneView
 
 # The target glow (SPEC-input-selection-and-follow.md H3, I5e, I10): a soft halo that
 # fades out over this fraction of the target's own radius (never less than the px
@@ -81,6 +82,8 @@ class TaskCanvas(QWidget):
         self.scene: dict = {"mode": "single"}
         self.active_slot: int = -1
         self._trail: list[tuple[float, float]] = []  # "moving" mode only
+        # Choice-making's "scene" mode (SPEC-scene-cause-effect-task.md step 4): drawn by the view.
+        self._scene_view = SceneView(self.theme)
 
         self.paused: bool = False  # only a calm "Paused" (4C.5): no target, no cursor
 
@@ -94,6 +97,7 @@ class TaskCanvas(QWidget):
         self.paused = bool(paused)
         if paused:
             self._trail.clear()
+            self._scene_view.reset_clock()  # the idle clock does not count a pause
         self.update()
 
     def set_frame(
@@ -134,6 +138,10 @@ class TaskCanvas(QWidget):
         elif target_xy_norm is None and self._trail:
             self._trail.clear()
 
+        if self.scene.get("mode") == "scene":
+            self._scene_view.sync(self.scene, self.devicePixelRatioF())
+            if not self._scene_view.repaint_due():
+                return  # scene repaints are capped at about 60 Hz (N5); the gaze loop is not
         self.update()
 
     def burst(self, x_norm: float, y_norm: float) -> None:
@@ -181,6 +189,8 @@ class TaskCanvas(QWidget):
             self._draw_grid_scene(painter, w, h)
         elif mode == "moving":
             self._draw_trail(painter, w, h)
+        elif mode == "scene":
+            self._scene_view.paint(painter, self)
         elif self.layout_slots:
             self._draw_layout_slots(painter, w, h)
 

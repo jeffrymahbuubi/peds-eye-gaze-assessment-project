@@ -44,6 +44,7 @@ from .choice_layout import (
     trial_order,
     wav_duration_ms,
 )
+from .choice_scene import SceneManifest, load_manifest, normalise_idle
 
 DEFAULT_POST_EFFECT_MS = 1000
 
@@ -61,6 +62,7 @@ class ChoiceMakingTask(BaseTask):
         self._prompt_over = True
         self._effect: dict[str, Any] | None = None
         self._prompt_lengths: dict[str, tuple[float, str]] = {}
+        self._scene_manifest: SceneManifest | None = None
         self._hover_slot = -1  # the button the pointer is on right now
         self._dwell_slot = -1  # the button the running dwell is on
         super().__init__(*args, **kwargs)
@@ -75,6 +77,8 @@ class ChoiceMakingTask(BaseTask):
         self.gap_capped_px: float | None = None
         self.post_effect_ns = int(float(cfg.get("post_effect_ms", DEFAULT_POST_EFFECT_MS)) * 1e6)
         self.visual_cue = bool(cfg.get("visual_cue", False))
+        # The picture's idle life between trials (N3): off / blinks / blinks_bob; the canvas reads it.
+        self.idle_animation = normalise_idle(cfg.get("idle_animation"))
         self.scene_name = str(cfg.get("scene", "park"))
         self.language = str(cfg.get("language", "en"))
         # The button centres, for the report's map outlines and the canvas's stand-in outlines.
@@ -106,9 +110,27 @@ class ChoiceMakingTask(BaseTask):
         """How long the spoken prompt of ``obj`` lasts, in ms."""
         return self.prompt_length(obj)[0]
 
+    @property
+    def manifest(self) -> SceneManifest:
+        """The scene manifest (4.7): ``scene.yaml`` of the configured scene under ``assets_root``,
+        else the built-in placeholder scene. Loaded once per run, read only; a file that could not
+        be used is said so once in the session log."""
+        if self._scene_manifest is None:
+            self._scene_manifest = load_manifest(self.scene_name, self.assets_root)
+            if self._scene_manifest.warning:
+                self._log(f"Scene manifest: {self._scene_manifest.warning}.")
+        return self._scene_manifest
+
     def effect_ms(self, obj: SceneObject) -> float:
-        """How long ``obj``'s effect plays (4.4 defaults; the scene manifest will override)."""
-        return float(obj.effect_ms)
+        """How long ``obj``'s effect plays: its duration in the scene manifest (4.4, per object),
+        which is the 4.4 default until a scene file says otherwise."""
+        return float(self.manifest.object(obj.id).effect.duration_ms)
+
+    @property
+    def prompt_label(self) -> str:
+        """The English label of the prompted object from the prompt's start to the effect's end,
+        else empty: the run bar's "Prompt: ..." line (W2)."""
+        return self._prompt_object.label if self._prompt_object is not None else ""
 
     # -- geometry -----------------------------------------------------------------------------
 
@@ -273,6 +295,7 @@ class ChoiceMakingTask(BaseTask):
             )
         super()._start_trial(t_ns)
         assert self._current is not None
+        _ = self.manifest  # read the scene file now, not in the middle of an effect
         obj = OBJECTS[self.targets[self._trial_index].slot_index]
         prompt_ms, source = self.prompt_length(obj)
         self._prompt_object = obj
@@ -389,7 +412,7 @@ class ChoiceMakingTask(BaseTask):
         it). ``prompt_object`` is the prompted object's id from the prompt's start to the
         effect's end (the run bar's "Prompt: ..." line, W2); ``cue_slot`` is the button to pulse
         when the visual cue is on (S3); ``hover_slot`` the button the pointer is on (the glow
-        of W3 and the dwell ring belong to it)."""
+        of W3 and the dwell ring belong to it); ``idle_animation`` the picture's idle life (N3)."""
         w, h = self.screen_w, self.screen_h
         geometry = self._geometry()
         effect = None
@@ -414,6 +437,7 @@ class ChoiceMakingTask(BaseTask):
             "prompt_object": self._prompt_object.id if self._prompt_object is not None else None,
             "cue_slot": cue_slot,
             "hover_slot": self._hover_slot,
+            "idle_animation": self.idle_animation,
         }
 
     def _shrink_details(self) -> dict[str, Any]:

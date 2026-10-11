@@ -11,6 +11,7 @@ post_effect_ms: 1000          # pause after the effect (the next prompt never st
 scene: park                   # the scene (v1: park only)
 language: en                  # prompt language (v1: English only)
 visual_cue: false             # true = the target button gently pulses until the selection (runs are marked in the report)
+idle_animation: blinks        # the picture between trials: off | blinks (characters blink) | blinks_bob (plus a gentle bob)
 
 grid:
   # The board is a fixed 7 x 5 grid (the scene in columns 1-5, the 8 buttons in columns 0 and 6),

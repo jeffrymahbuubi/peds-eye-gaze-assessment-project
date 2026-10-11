@@ -44,11 +44,14 @@ class RunStatus(NamedTuple):
     pointer: str = ""  # "Mouse pointer" when the pointer is the mouse; a preview always names it
     tracking: str = ""  # the tracker's state, from :func:`tracking_status`
     level: str = LEVEL_OK  # how the tracking text is coloured
+    prompt: str = ""  # Choice-making: "Prompt: Balloons" while a prompt is on (W2); shown after the trial
 
     @property
     def line(self) -> str:
         """The facts as plain text, in the order the bar shows them, comma separated."""
-        facts = (self.chip, "Paused" if self.paused else "", self.trial, self.pointer, self.tracking)
+        facts = (
+            self.chip, "Paused" if self.paused else "", self.trial, self.prompt, self.pointer, self.tracking
+        )
         return ", ".join(fact for fact in facts if fact)
 
 
@@ -63,6 +66,7 @@ def run_status(
     preview: bool = False,
     mouse: bool = False,
     tracker_not_ready: bool = False,
+    prompt: str = "",
 ) -> RunStatus:
     """The bar's status: ``[PRACTICE|PREVIEW] Trial i of N [Mouse pointer] tracking``.
 
@@ -76,17 +80,22 @@ def run_status(
     is the tracker's gaze (``mouse`` False), which keeps the tracker's state like any gaze
     run. While paused it is just ``PREVIEW, Paused``. A ``mouse`` run (Pointer = Mouse,
     SPEC-input-selection-and-follow.md) names its pointer after the trial, and
-    ``tracking_text`` may be empty (no tracker: nothing to report).
+    ``tracking_text`` may be empty (no tracker: nothing to report). ``prompt`` (Choice-making,
+    SPEC-scene-cause-effect-task.md W2) is the object being prompted: ``Prompt: <object>`` right after
+    the trial while it is not empty; a pause drops it with the other live facts.
     """
     trial = f"Trial {max(trial_number, 1)} of {planned}"
+    prompt = f"Prompt: {prompt}" if prompt else ""
     chip = "PREVIEW" if preview else "PRACTICE" if practice else ""
     if preview:
         if paused:
             return RunStatus(chip, paused=True)
         if not mouse:
-            return RunStatus(chip, trial=trial, pointer="Gaze pointer", tracking=tracking_text, level=level)
+            return RunStatus(
+                chip, trial=trial, pointer="Gaze pointer", tracking=tracking_text, level=level, prompt=prompt
+            )
         pointer = "Mouse pointer (tracker not ready)" if tracker_not_ready else "Mouse pointer"
-        return RunStatus(chip, trial=trial, pointer=pointer)
+        return RunStatus(chip, trial=trial, pointer=pointer, prompt=prompt)
     if paused:
         return RunStatus(chip, paused=True, trial=trial)
     return RunStatus(
@@ -95,4 +104,5 @@ def run_status(
         pointer="Mouse pointer" if mouse else "",
         tracking=tracking_text,
         level=level,
+        prompt=prompt,
     )

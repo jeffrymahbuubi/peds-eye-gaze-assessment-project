@@ -1,7 +1,7 @@
 """SPEC-scene-cause-effect-task.md step 3 scope, offscreen Qt.
 
-* The canvas does not draw mode "scene" yet (step 4), but it must not crash on it: the task's
-  frames and scene go to a real ``TaskCanvas`` and each is painted.
+* The task's frames and scene go to a real ``TaskCanvas`` and each phase of a trial is painted
+  (the scene mode itself is step 4: ``test_choice_scene_canvas.py``).
 * Section 9 Q2 = A, the GUI side: ``SceneAudio`` keeps one ``QSoundEffect`` per audio file that
   exists and is silent for one that does not; ``GuiFeedback`` forwards the audio hooks to it."""
 

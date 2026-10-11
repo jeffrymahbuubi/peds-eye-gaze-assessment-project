@@ -955,6 +955,8 @@ class AssessmentApp:
             mouse=mouse,
             # A Gaze test previewed on the mouse because the tracker was not ready (H4).
             tracker_not_ready=preview and mouse and not self.input_choice.is_mouse,
+            # Choice-making: the object being prompted, for the operator (W2); no other task has one.
+            prompt=getattr(self.task, "prompt_label", ""),
         )
         bar = self.view.run_bar
         bar.set_status(status)

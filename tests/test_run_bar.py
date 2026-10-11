@@ -141,6 +141,23 @@ def test_each_fact_of_the_status_is_its_own_label_and_the_tracking_state_has_its
     assert bar.tracking_label.text() == "Tracker disconnected"
 
 
+def test_the_prompt_line_of_choice_making_is_its_own_label_after_the_trial_and_hidden_when_empty(qapp):
+    """SPEC-scene-cause-effect-task.md W2: "Prompt: Balloons" from the prompt's start to the effect's
+    end, empty between trials, and no other test ever shows it."""
+    bar = RunBar()
+    assert bar.prompt_label.objectName() == "runBarPrompt" and bar.prompt_label.isHidden()
+    bar.set_status(run_status(4, 16, "Tracking OK", LEVEL_OK, prompt="Balloons"))
+    assert bar.status_text() == "Trial 4 of 16, Prompt: Balloons, Tracking OK"
+    assert bar.prompt_label.text() == "Prompt: Balloons" and not bar.prompt_label.isHidden()
+    row = bar.status_box.layout()
+    order = [row.itemAt(i).widget().objectName() for i in range(row.count()) if row.itemAt(i).widget()]
+    assert order.index("runBarTrial") + 1 == order.index("runBarPrompt")  # right after the trial
+    bar.set_status(run_status(4, 16, "Tracking OK", LEVEL_OK))  # between trials: empty
+    assert bar.prompt_label.isHidden() and bar.status_text() == "Trial 4 of 16, Tracking OK"
+    bar.set_status(run_status(4, 16, "Tracking OK", LEVEL_OK, prompt="Cloud", paused=True))
+    assert bar.prompt_label.isHidden()  # a pause drops it
+
+
 def test_the_tracking_state_is_a_status_badge_with_a_glyph_and_the_word(qapp):
     """SPEC-design-system-phase2.md H8, Q2: glyph + word in success / warning / danger text
     colours (7.0 to 7.2:1 on both bar fills), under the name the label had."""

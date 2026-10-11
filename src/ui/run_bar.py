@@ -104,6 +104,8 @@ class RunBar(QFrame):
         self.chip_label.setFixedHeight(CHIP_HEIGHT)
         self.paused_label = self._status_label("runBarPaused", status_row)
         self.trial_label = self._status_label("runBarTrial", status_row)
+        # Choice-making only: "Prompt: Balloons" from the prompt's start to the effect's end (W2).
+        self.prompt_label = self._status_label("runBarPrompt", status_row)
         self.pointer_label = self._status_label("runBarPointer", status_row)
         # The tracking state is a badge (glyph + word), under the name the label had.
         self.tracking_label = StatusBadge("tracking_ok")
@@ -175,6 +177,7 @@ class RunBar(QFrame):
             (self.chip_label, status.chip),
             (self.paused_label, "Paused" if status.paused else ""),
             (self.trial_label, status.trial),
+            (self.prompt_label, status.prompt),
             (self.pointer_label, status.pointer),
         ):
             label.setText(text)

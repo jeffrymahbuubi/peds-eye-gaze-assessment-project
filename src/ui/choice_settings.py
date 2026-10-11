@@ -63,11 +63,23 @@ CHOICE_STRUCTURAL: list[StructuralSetting] = [
         applies_to=_ONLY,
         default=False,
     ),
+    # The picture's idle life between trials (N3): a registry entry, so it is stored with the test,
+    # recorded in ``metadata.json`` (``settings.structural.idle_animation``) and shown in the report.
+    StructuralSetting(
+        "idle_animation",
+        "Idle animation between trials",
+        "choice",
+        applies_to=_ONLY,
+        choices=(("off", "Off"), ("blinks", "Blinks"), ("blinks_bob", "Blinks and a gentle bob")),
+        default="blinks",
+    ),
 ]
 
 # The Scene card (column B) takes the place of Grid Click's Grid Layout card: this test has a
 # fixed 7 x 5 board, so no rows or columns, but the Cell gap (``grid.gap``) lives here.
-SCENE_CARD = ("scene", "Scene", 1, None, ("scene", "language", "visual_cue", "grid.gap"))
+SCENE_CARD = (
+    "scene", "Scene", 1, None, ("scene", "language", "visual_cue", "idle_animation", "grid.gap")
+)
 
 
 def choice_cards(task_id: str, cards: tuple) -> tuple:

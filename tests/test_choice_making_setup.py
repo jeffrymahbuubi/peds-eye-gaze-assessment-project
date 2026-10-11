@@ -18,6 +18,7 @@ from src.ui.settings_registry import (
     live_settings_for_task,
     structural_settings_for_task,
 )
+from src.ui.settings_snapshot import merged_config, run_settings
 from tests.recorder_helpers import recorder_in
 
 TASK = "choice_making"
@@ -50,6 +51,7 @@ def test_the_shipped_config_has_the_4_8_defaults():
     assert task["task_id"] == TASK
     assert (task["trials"], task["timeout_ms"], task["post_effect_ms"]) == (16, 10000, 1000)
     assert (task["scene"], task["language"], task["visual_cue"]) == ("park", "en", False)
+    assert task["idle_animation"] == "blinks"  # N3: the default, as Grid 3
     assert task["grid"]["gap"] == "standard"
     assert task["feedback"]["miss_sound"] is True
     assert "target" not in task and "inter_trial_interval_ms" not in task  # no size, no ITI
@@ -60,7 +62,7 @@ def test_a_task_built_from_it_has_16_balanced_trials_and_a_post_effect_pause():
     assert isinstance(task, ChoiceMakingTask)
     assert len(task.targets) == 16 and task.post_effect_ns == 1_000_000_000
     assert task.timeout_ns == 10_000_000_000
-    assert task.visual_cue is False and task.gap_px is None
+    assert task.visual_cue is False and task.gap_px is None and task.idle_animation == "blinks"
 
 
 # -- the settings registry -------------------------------------------------------------------------------
@@ -71,7 +73,7 @@ def _keys(settings):
 
 
 def test_the_choice_making_settings_apply_to_this_task_only():
-    for key in ("scene", "language", "visual_cue"):
+    for key in ("scene", "language", "visual_cue", "idle_animation"):
         assert key in _keys(structural_settings_for_task(TASK))
         for other in ("click_static", "click_grid", "follow_moving", "scanning"):
             assert key not in _keys(structural_settings_for_task(other))
@@ -108,6 +110,7 @@ def test_the_settings_start_from_the_shipped_config():
     structural = initial_structural_values(TASK, config)
     assert structural["trials"] == 16 and structural["scene"] == "park"
     assert structural["language"] == "en" and structural["visual_cue"] is False
+    assert structural["idle_animation"] == "blinks"
     assert structural["grid.gap"] == "standard"
     live = initial_live_values(config)
     assert live["task.timeout_ms"] == 10000 and live["task.post_effect_ms"] == 1000
@@ -128,7 +131,9 @@ def test_the_page_has_a_scene_card_in_place_of_the_grid_layout_card():
     assert "grid" not in groups and "target" not in groups and "icons" not in groups
     scene = groups["scene"]
     assert (scene.title, scene.column, scene.hint) == ("Scene", 1, None)
-    assert [c.key for c in scene.controls] == ["scene", "language", "visual_cue", "grid.gap"]
+    assert [c.key for c in scene.controls] == [
+        "scene", "language", "visual_cue", "idle_animation", "grid.gap",
+    ]
     assert [c.key for c in groups["timing"].controls] == ["task.timeout_ms", "task.post_effect_ms"]
     assert [g.id for g in config_groups_for_task(TASK) if g.column == 1] == [
         "scene", "timing", "feedback",
@@ -168,3 +173,30 @@ def test_the_columns_are_written_to_trials_csv(tmp_path):
         ("swing", "right", "", ""),
     ]
     assert rows[0]["slot_index"] == "0" and rows[1]["slot_index"] == "7"
+
+
+# -- N3: the idle animation setting (step 4) --------------------------------------------------------------------
+
+
+def test_idle_animation_is_a_three_way_choice_that_defaults_to_blinks():
+    setting = next(s for s in structural_settings_for_task(TASK) if s.key == "idle_animation")
+    assert setting.kind == "choice" and setting.default == "blinks"
+    assert [value for value, _label in setting.choices] == ["off", "blinks", "blinks_bob"]
+    for other in ("click_static", "click_grid", "follow_moving", "scanning"):
+        assert "idle_animation" not in {s.key for s in structural_settings_for_task(other)}
+
+
+def test_the_chosen_idle_animation_reaches_the_task_the_canvas_spec_and_metadata_json():
+    config = load_task_config(TASK)
+    for value in ("off", "blinks", "blinks_bob"):
+        merged = merged_config(config, structural={"idle_animation": value})
+        assert run_settings(TASK, merged, "x")["structural"]["idle_animation"] == value
+        task = build_task(TASK, merged, seed=1)
+        assert task.idle_animation == value and task.scene_spec()["idle_animation"] == value
+
+
+def test_an_unknown_idle_animation_is_blinks_everywhere():
+    merged = merged_config(load_task_config(TASK), structural={"idle_animation": "dancing"})
+    assert initial_structural_values(TASK, merged)["idle_animation"] == "blinks"
+    assert run_settings(TASK, merged, "x")["structural"]["idle_animation"] == "blinks"
+    assert build_task(TASK, merged, seed=1).scene_spec()["idle_animation"] == "blinks"
