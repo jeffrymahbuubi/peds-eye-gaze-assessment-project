@@ -19,7 +19,7 @@ related:
 **Status: approved 2026-10-10 (H1-H14 approved by the user; S1-S8 answered, section 3.4). The
 test is called "Choice-making" (task id `choice_making`); the file keeps its original name.
 Step 1 (wireframe) DONE `16dc79a` with the user's decisions W1-W7 (section 3.5). Branch
-`feature/compass-task-flow`. Step 3 (engine) DONE 2026-10-11; animation decisions N1-N6 (section 3.6). Step 2 (style anchor + key-colour pipeline) DONE 2026-10-11. Steps 4 (canvas) and 5 (look-back + report) DONE 2026-10-11. Step 6 (art, sounds, scene.yaml) DONE 2026-10-11. Next: step 7 (live check).
+`feature/compass-task-flow`. Step 3 (engine) DONE `073d929`; animation decisions N1-N6 (section 3.6). Step 2 (style anchor + key-colour pipeline) DONE `e3f0da8`. Steps 4 (canvas) `26ca607` and 5 (look-back + report) `f53f20a` DONE. Step 6 (art, sounds, scene.yaml) DONE `50881af` (all 2026-10-11). Next: step 7 (live check).
 Reference design is Smartbox Grid 3 "Park Life" page 2, adapted into a scored test. No
 Smartbox art, sound or text is copied; all assets are our own (AI-generated, user-approved).**
 
@@ -142,7 +142,7 @@ return to idle, not reproducible) are not needed. The user decided:
 | N3 | **Idle life between trials:** setting `idle_animation` = `off` / `blinks` / `blinks_bob`, **default `blinks`** (as Grid 3). Blinks: an eyes-closed patch swapped in for about 150 ms at random 2-6 s intervals per blinking character. The setting is written to the run metadata and marked in the report (like the visual cue). |
 | N4 | **Rainbow** twinkle = a few pre-tinted copies of the rainbow art, cross-faded in code (keeps the art style). |
 | N5 | **Frame rate (A9):** the idle scene is cached as one pixmap and the scene repaints are capped at about 60 Hz (the gaze loop keeps its own rate); measured on the target laptop in the live check. |
-| N6 | **Extra art** (section 4.7): each balloon as its own layer plus a strings layer, the bush as a front layer, pivots for the swing and seesaw, optional bike wheels, the bubbles child's blowing pose, eyes-closed blink patches. A blink patch is accepted only if the edited image differs from the original inside the eye box alone; otherwise the eyelids are drawn in code. |
+| N6 | **Extra art** (section 4.7): each balloon as its own layer plus a strings layer, the bush as a front layer, pivots for the swing and seesaw, optional bike wheels, the bubbles child's blowing pose, eyes-closed blink patches. A blink patch is accepted only if the edited image differs from the original inside the eye box alone; otherwise the eyelids are drawn in code. *(Step 6: no bush front layer, the bike stands in front of the bush in the approved anchor; user decision, section 7.)* |
 
 ---
 
@@ -282,7 +282,7 @@ Folder `configs/assets/scenes/park/`:
 - `ASSETS.md`: for every file the generating model, the prompt, the date and the user's approval
   (provenance for a clinical tool).
 
-**Generation pipeline** (feasibility SPEC 7.2):
+**Generation pipeline** (feasibility SPEC 7.2). *Step 6 used a better route, user-approved: every layer is cut out of the approved anchor by its difference from an edited empty background (`tools/build_park_scene.py`), only the blowing pose was redrawn; see section 7, step 6, and `ASSETS.md`. The plan as first written:*
 
 1. A style anchor: one full scene picture with `google/gemini-3-pro-image` (or Recraft V4 Styles), approved by the user.
 2. The background and each object as a transparent PNG with a transparent-capable model (`openai/gpt-image-1-mini` or similar), with the anchor as a reference image.
@@ -318,7 +318,7 @@ effects with sound (W7). Glow follows the gaze in Switch mode (W3). Layout of th
 | Step | Content | Needs |
 |---|---|---|
 | 1 | Wireframes: configuration card, run screen (scene + buttons), report page. **UI gate**: the user approves before code. **DONE 2026-10-10**: `docs/wireframes/choice-making.md`, approved with W1-W7 | - |
-| 2 | Style anchor art (4:3, W1) + one object as a trial of the pipeline; the user approves the style. **DONE 2026-10-11**: `configs/assets/scenes/park/reference/style_anchor.png`, seesaw trial `objects/seesaw_idle.png`, key-colour pipeline with `tools/chroma_key.py` (section 7) | - |
+| 2 | Style anchor art (4:3, W1) + one object as a trial of the pipeline; the user approves the style. **DONE 2026-10-11**: `configs/assets/scenes/park/reference/style_anchor.png`, seesaw trial `objects/seesaw_idle.png` (moved to `reference/seesaw_idle_trial.png` in step 6), key-colour pipeline with `tools/chroma_key.py` (section 7) | - |
 | 3 | Engine: task class, multi-button selection, prompt / effect phases, events, trial fields; placeholder scene; pytest. **DONE 2026-10-11** (sections 8, 9) | - |
 | 4 | Canvas `"scene"` mode with effects from layers (placeholders first), effect steps, idle life, cached scene + about 60 Hz repaint (N1, N3, N5). **DONE 2026-10-11** (sections 7, 8) | step 3 |
 | 5 | Look-back module + report rows; pytest on synthetic gaze. **DONE 2026-10-11** (sections 7, 8; moving AOI wired by the hub) | step 3 |
@@ -388,7 +388,7 @@ effects with sound (W7). Glow follows the gaze in Switch mode (W3). Layout of th
   object: the seesaw, clean edges on light and dark; the user approved the pipeline (no extension of the
   image tool needed). Files and prompts in `configs/assets/scenes/park/ASSETS.md`. The seesaw trial is
   still one piece; step 6 makes the plank + children and the base as separate layers (N6). **Step 2
-  DONE.** Steps 4 and 5 were delegated the same day to two implementers in separate worktrees; step 5
+  DONE** (`e3f0da8`). Steps 4 and 5 were delegated the same day to two implementers in separate worktrees; step 5
   takes an injectable `box_at(object_id, elapsed_ms)` and is wired to step 4's
   `choice_scene.object_box_at` by the hub after both merge (N2).
 - **2026-10-11 (steps 4 and 5, hub review)** - Both implementers worked in parallel in separate worktrees
@@ -411,7 +411,7 @@ effects with sound (W7). Glow follows the gaze in Switch mode (W3). Layout of th
   medians for RT and latency, effect durations read from the manifest, 14 ms repaint cap. Left open:
   `docs/CLINICAL_DATA_REFERENCE.md` (the 13 new columns of steps 3 and 5), the page label "Glow on the
   looked-at button" (`settings_registry.py` at 499 lines), step 6 art and sounds, step 7 live check.
-  Committed by the user's OK as two commits (step 4; step 5 + wiring + SPEC). **Steps 4 and 5 DONE.**
+  Committed by the user's OK as two commits (step 4 `26ca607`; step 5 + wiring + SPEC `f53f20a`). **Steps 4 and 5 DONE.**
 - **2026-10-11 (step 6, hub)** - Full art, scene manifest and effect sounds; every file approved by the user
   in three art batches and one sound batch. Provenance (models, prompts, processing, hashes) in
   `configs/assets/scenes/park/ASSETS.md`.
@@ -442,7 +442,7 @@ effects with sound (W7). Glow follows the gaze in Switch mode (W3). Layout of th
     every effect ends at rest, only Bike / Cloud boxes move and return, blink patches change only near the
     eyes, and the canvas draws the real scene and is pixel-exact idle again after each effect.
   - **Not checked here:** the scene on a real screen and the real frame rate with the real art (A9), the
-    sounds through the app (both step 7).
+    sounds through the app (both step 7). Committed by the user's OK as `50881af`; full pytest 3785 passed, 0 failed.
 
 ## 8. Impl log
 
