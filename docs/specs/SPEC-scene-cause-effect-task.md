@@ -474,6 +474,20 @@ effects with sound (W7). Glow follows the gaze in Switch mode (W3). Layout of th
     GP3 HD (part 2). A10 is unchanged (step 6). No code changed; full pytest 3785 passed, 0 failed
     (JUnit totals).
 
+- **2026-10-11 (follow-ups, hub)** - The user's decisions on the open follow-ups:
+  - Leftover branches `choice-integrate` and the two `worktree-agent-*` deleted (`-D`, user OK; their
+    work is in `26ca607` / `f53f20a`).
+  - The exe no longer bundles `configs/assets/scenes/park/reference/` (14 MB of raw sources, never read by
+    the app): `CONFIG_IGNORE` in `tools/pyinstaller/build_exe.py`, tested by `tests/test_build_exe_configs.py`.
+  - `docs/CLINICAL_DATA_REFERENCE.md` now describes the 13 Choice-making columns of `trials.csv`.
+  - The configuration page keeps the shared labels "Glow on target" and "how a target is selected"
+    (user; W3's "Glow on the looked-at button" wording not built).
+  - **Bug found in the live check:** after "Save and View Report" (the dialog's default) the 9 look-back /
+    waiting-phase columns of `trials.csv` stay blank: that path builds `report.json` through
+    `load_or_build_report`, which never calls `fill_trials_lookback`; only "Save"
+    (`write_report_safely`) fills them (run `_1554` blank, `_1604` filled). Report and PDF are right.
+    User decision: fill the columns on any fresh build of a Choice-making report. Fix to follow.
+
 ## 8. Impl log
 
 - **2026-10-10 - claude-sonnet-5-5 - step 3 (engine), implemented; uncommitted.** Sections 4.1, 4.2,

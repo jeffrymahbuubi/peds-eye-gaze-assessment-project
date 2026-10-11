@@ -69,6 +69,28 @@ directly from a REC record.
 | `reaction_time_ms` | `t_click_ns − t_target_shown_ns` | Time to complete selection | **Reaction time** / **time-on-task** — the other half of the Compass-study accuracy metric above. |
 | `time_to_first_fixation_ms` | `t_first_gaze_on_target_ns − t_target_shown_ns` | Time to first look at target | Closest analogue in this app's data to **saccade latency**, one of six oculomotor features reaching AUC ≥0.90 in classifying CVI (common in CP) vs. typically-developing children in the 2025 study below. |
 
+### Choice-making columns (added 2026-10-11)
+
+The last 13 columns of a `choice_making` run's `trials.csv` (blank for the other tests). Definitions:
+`docs/specs/SPEC-scene-cause-effect-task.md` 4.6 and 4.9. The first 4 are written at the run's end; the
+9 look-back and waiting-phase columns are computed from `all_gaze.csv` and the effect events when the
+report is built, and written into `trials.csv` then (blank until that happens). In a Mouse run they come
+from the recorded pointer, not gaze.
+
+| Field | Derivation | Meaning | Clinical relevance |
+|---|---|---|---|
+| `prompt_object` | app logic (`PROMPT_START` event) | The object the spoken prompt named (swing, bubbles, ...) | Bookkeeping; lets results be split per object. |
+| `button_side` | app logic | `left` or `right`: the side of the prompted button | Left / right differences in choosing can point to a field or attention asymmetry (hemiplegic CP, neglect). |
+| `selected_object` | app logic | The object chosen; on a hit it is `prompt_object`, blank on a timeout | Wrong-button choices are in `events.jsonl` (`MISS_CLICK` with `selected_object`). |
+| `rt_ms` | hit time − `PROMPT_END` | Reaction time from the end of the spoken prompt (selection is blocked while it plays) | **Response time to a spoken request**: language comprehension plus gaze control; unlike `reaction_time_ms` it excludes the prompt's own length. |
+| `lookback` | 1 when `lookback_dwell_ms` ≥ 100 ms, else 0; blank when the window holds no sample | Whether the child looked at the object as it came alive | **Cause-and-effect understanding**: looking back to the effect after choosing is the behaviour the test is built to see. |
+| `lookback_latency_ms` | first valid sample in the object's area (its box plus 1°, moving with Bike / Cloud) − `EFFECT_START`, within the window `EFFECT_START` to `EFFECT_END` + 500 ms | Time to the first look at the effect | Speed of the gaze shift from the screen-edge button to the centre effect; a saccade-latency analogue under a rewarding stimulus. |
+| `lookback_dwell_ms` | sum of the intervals of valid samples in the area during the window (each at most 100 ms) | Time spent looking at the effect | Sustained attention to the reward. |
+| `lookback_fraction` | `lookback_dwell_ms` / window length | Share of the window spent on the effect | As above, normalised for effect length (2-4.5 s). |
+| `lookback_valid_fraction` | valid samples / all samples in the window | Gaze data quality during the window | QA: a low value means "no data", not "did not look"; read `lookback` with it. |
+| `wait_scene_ms`, `wait_buttons_ms`, `wait_other_ms` | valid time on the scene, on any button and elsewhere (including off the canvas), from `PROMPT_END` to the choice or timeout | Where the child looked while choosing | Visual search strategy: time on the buttons is looking for the answer; time on the scene may be distraction or anticipation. |
+| `wait_valid_fraction` | valid samples / all samples in that waiting period | Gaze data quality while choosing | QA for the three `wait_*` columns. |
+
 ## metadata.json — session-level
 
 | Field | Source | Meaning | Clinical relevance |

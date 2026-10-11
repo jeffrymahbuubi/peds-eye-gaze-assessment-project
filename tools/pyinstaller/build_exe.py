@@ -10,7 +10,9 @@ What it does, in order:
 1. ``PyInstaller tools/pyinstaller/peds_eye_gaze.spec`` (one-folder,
    windowed) into ``build/pyinstaller/``.
 2. Copies ``configs/`` next to the exe -- minus ``local_state.json`` (a
-   per-machine file) and ``__pycache__`` -- because ``src/engine/config.py``
+   per-machine file), ``__pycache__`` and any ``reference/`` folder (raw art
+   and sound sources, e.g. ``assets/scenes/park/reference/``, 14 MB, never read
+   by the app) -- because ``src/engine/config.py``
    resolves ``CONFIG_ROOT`` to ``<exe folder>/configs`` when frozen.
 3. Writes ``BUILD_INFO.txt`` (version, git commit, dirty flag, build time,
    Python/PySide6/PyInstaller versions) so an exe is traceable to a commit.
@@ -70,13 +72,14 @@ def run_pyinstaller() -> Path:
     return out
 
 
+# What the exe's configs/ leaves out (matched by name at any depth).
+CONFIG_IGNORE = shutil.ignore_patterns("local_state.json", "__pycache__", "*.pyc", "reference")
+
+
 def copy_configs(app_dir: Path) -> None:
     src = REPO_ROOT / "configs"
     dst = app_dir / "configs"
-    shutil.copytree(
-        src, dst,
-        ignore=shutil.ignore_patterns("local_state.json", "__pycache__", "*.pyc"),
-    )
+    shutil.copytree(src, dst, ignore=CONFIG_IGNORE)
     print(f"+ copied configs/ -> {dst.relative_to(REPO_ROOT)}", flush=True)
 
 
