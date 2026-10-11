@@ -4,7 +4,7 @@ title: A fifth test - an animated scene with 8 side buttons; a spoken prompt nam
 status: approved 2026-10-10 (H1-H14 approved, S1-S8 answered, section 3.4); test name "Choice-making", task id choice_making
 created: 2026-10-10
 last_updated: 2026-10-11
-next_step: steps 1, 2 and 3 DONE, 8 prompt WAVs approved; steps 4 (canvas) and 5 (look-back) running in parallel (2026-10-11), then wire look-back to choice_scene.object_box_at (N2); step 6 art after that
+next_step: steps 1-5 DONE (2026-10-11); next step 6 (full art as layers + effect sounds + scene.yaml, each file approved by the user), then step 7 live check
 related:
   - SPEC-grid3-calibration-parklife-feasibility.md (Part B feasibility, decisions U4, Q6-Q8)
   - docs/grid3/park-life/README.md (reference: layout, effects, timings, object regions - section 9)
@@ -19,7 +19,7 @@ related:
 **Status: approved 2026-10-10 (H1-H14 approved by the user; S1-S8 answered, section 3.4). The
 test is called "Choice-making" (task id `choice_making`); the file keeps its original name.
 Step 1 (wireframe) DONE `16dc79a` with the user's decisions W1-W7 (section 3.5). Branch
-`feature/compass-task-flow`. Step 3 (engine) DONE 2026-10-11; animation decisions N1-N6 (section 3.6). Step 2 (style anchor + key-colour pipeline) DONE 2026-10-11. Next: steps 4 / 5 (in progress), then step 6.
+`feature/compass-task-flow`. Step 3 (engine) DONE 2026-10-11; animation decisions N1-N6 (section 3.6). Step 2 (style anchor + key-colour pipeline) DONE 2026-10-11. Steps 4 (canvas) and 5 (look-back + report) DONE 2026-10-11. Next: step 6 (art), then step 7 (live check).
 Reference design is Smartbox Grid 3 "Park Life" page 2, adapted into a scored test. No
 Smartbox art, sound or text is copied; all assets are our own (AI-generated, user-approved).**
 
@@ -320,8 +320,8 @@ effects with sound (W7). Glow follows the gaze in Switch mode (W3). Layout of th
 | 1 | Wireframes: configuration card, run screen (scene + buttons), report page. **UI gate**: the user approves before code. **DONE 2026-10-10**: `docs/wireframes/choice-making.md`, approved with W1-W7 | - |
 | 2 | Style anchor art (4:3, W1) + one object as a trial of the pipeline; the user approves the style. **DONE 2026-10-11**: `configs/assets/scenes/park/reference/style_anchor.png`, seesaw trial `objects/seesaw_idle.png`, key-colour pipeline with `tools/chroma_key.py` (section 7) | - |
 | 3 | Engine: task class, multi-button selection, prompt / effect phases, events, trial fields; placeholder scene; pytest. **DONE 2026-10-11** (sections 8, 9) | - |
-| 4 | Canvas `"scene"` mode with effects from layers (placeholders first), effect steps, idle life, cached scene + about 60 Hz repaint (N1, N3, N5) | step 3 |
-| 5 | Look-back module + report rows; pytest on synthetic gaze | step 3 |
+| 4 | Canvas `"scene"` mode with effects from layers (placeholders first), effect steps, idle life, cached scene + about 60 Hz repaint (N1, N3, N5). **DONE 2026-10-11** (sections 7, 8) | step 3 |
+| 5 | Look-back module + report rows; pytest on synthetic gaze. **DONE 2026-10-11** (sections 7, 8; moving AOI wired by the hub) | step 3 |
 | 6 | Full art and audio; `ASSETS.md`; the user approves every file | step 2 |
 | 7 | Live check with the user: Mouse + Dwell first (no device), then Gaze + Dwell and Gaze + Switch on the GP3 HD | steps 4-6; GP3 HD for the gaze part |
 
@@ -391,6 +391,27 @@ effects with sound (W7). Glow follows the gaze in Switch mode (W3). Layout of th
   DONE.** Steps 4 and 5 were delegated the same day to two implementers in separate worktrees; step 5
   takes an injectable `box_at(object_id, elapsed_ms)` and is wired to step 4's
   `choice_scene.object_box_at` by the hub after both merge (N2).
+- **2026-10-11 (steps 4 and 5, hub review)** - Both implementers worked in parallel in separate worktrees
+  (both again started at the old `c7e61cf` and fast-forwarded to `1173a03`). The user answered step 4's Q4
+  (A: the picture stretches to fill `scene_rect`) and kept step 5's four readings S5-Q1 to S5-Q4 as built
+  (section 9). The hub merged both on an integration branch; only the SPEC (both appended to sections 8 and
+  9) and `tests/test_choice_making_setup.py` (auto-merged) overlapped. **N2 wiring (hub):**
+  `report_choice.default_box_at(scene)` now returns `choice_scene.object_box_at` on the run's scene manifest
+  (the build passes the run's `scene` setting); the placeholder manifest's boxes equal step 5's `IDLE_BOXES`
+  exactly, so only Bike and Cloud change (their AOI moves during the effect); one test added. Cross-check:
+  step 4 writes `idle_animation` to `metadata.json` `settings.structural`, which step 5's report reads, so
+  the report's "not recorded" fallback is no longer reached for new runs. Shared-code changes are small and
+  scene-mode only (run bar prompt line, a scene branch in the canvas, one argument in `src/app.py`). A 0-byte
+  stray file `}` from the step 4 worktree was dropped. **pytest (hub, full, venv, integrated tree): 3754
+  passed, 5 failed (3759 tests)**; the 5 are the known baseline (alpha 0.35 vs 0.22 in a worktree:
+  `test_config_flow.py` 1, `test_task_config_page.py` 4); 3556 + 134 (step 4) + 68 (step 5) + 1 (hub) =
+  3759. Acceptance: A5, A6, A8 covered by tests; A7 by tests (PDF fit checked with Segoe UI, not yet seen on
+  a real screen); A9 offscreen only (tick median 16.0 ms, max 17.5 ms); A1 and the real A9 are step 7.
+  Deviations accepted: "Wrong choices" column instead of "attempts" (wireframe), eye metrics on PDF page 2,
+  medians for RT and latency, effect durations read from the manifest, 14 ms repaint cap. Left open:
+  `docs/CLINICAL_DATA_REFERENCE.md` (the 13 new columns of steps 3 and 5), the page label "Glow on the
+  looked-at button" (`settings_registry.py` at 499 lines), step 6 art and sounds, step 7 live check.
+  Committed by the user's OK as two commits (step 4; step 5 + wiring + SPEC). **Steps 4 and 5 DONE.**
 
 ## 8. Impl log
 
@@ -568,6 +589,239 @@ effects with sound (W7). Glow follows the gaze in Switch mode (W3). Layout of th
     the stop on a skip). **Left undone:** the real prompt and effect audio files and the manifest
     (step 6); the canvas, run bar and look-back (steps 4 and 5).
 
+- **2026-10-11 - claude-sonnet-5-5 - step 4 (canvas "scene" mode, effects, idle life, run bar line,
+  `idle_animation`), implemented with PLACEHOLDER art; uncommitted.** Sections 4.4, 4.5, 4.7, 4.8 and
+  N1, N3, N5 (and W2, W3); acceptance A5, A8, A9 and the canvas side of A1. Not touched: look-back
+  (`src/data/lookback.py`), the report modules, `trials.csv` / the schema, anything under
+  `configs/assets/`, the audio files, `settings_registry.py`, `configs/default.yaml`,
+  `configs/local_state.json`.
+  - **Setup note.** The worktree I was given was at `c7e61cf`; I fast-forwarded its own throwaway branch
+    to `1173a03` (`git merge --ff-only`, clean tree) before anything else. No commit, no stage.
+  - **New files.**
+    - `src/tasks/choice_scene.py` (Qt-free, the public module): the model (`Layer`, `BlinkSpot`, `Track`,
+      the steps `Transform` / `Swap` / `Sequence` / `Particles`, `Effect`, `ObjectSpec`, `SceneManifest`,
+      `LayerState`, `ParticleState`), the evaluation (`ease`, `layer_state`, `object_layer_states`,
+      `particles_at`, `transform_box`) and `load_manifest(scene, root)`. **`object_box_at(manifest,
+      object_id, elapsed_ms, *, aspect=None) -> (x0, y0, x1, y1)`** is the function step 5 is wired to:
+      scene fractions, pure and deterministic, the idle box outside the effect (before the start, at or
+      after the end, NaN) and for an object that does not `follow` a layer, the box moved by the transform
+      of the followed layer (Bike and Cloud only, N2) inside it; NOT clamped to the scene (while the
+      Bike is off the picture the box lies outside 0..1); `aspect` (scene width / height) defaults to
+      the manifest's 4:3 and only matters for rotation.
+    - `src/tasks/choice_scene_defaults.py`: the built-in placeholder scene (the 4.2 boxes, the 4.4
+      durations from `choice_layout.OBJECTS`, guessed pivots, 3 balloons + strings, 2 rainbow tint copies,
+      3 apples, the swing seat and seesaw plank with pivots, a front bush, 5 blink spots, bob for the
+      balloons and the cloud).
+    - `src/tasks/choice_scene_io.py`: the `scene.yaml` reader; **the file format is documented in its
+      module docstring** (step 6 writes `configs/assets/scenes/park/scene.yaml` to it). An object the
+      file does not list, or a part of an object it leaves out (layers, effect, blink, bob, duration ...),
+      keeps its built-in placeholder, so art can arrive object by object.
+    - `src/tasks/choice_idle.py` (Qt-free): `IdleLife`, the blink / bob clock of N3.
+    - `src/ui/scene_canvas.py` (`SceneView`, the renderer `TaskCanvas` delegates to), `src/ui/scene_buttons.py`
+      (the eight buttons, glow, rings, cue pulse, selected highlight), `src/ui/scene_placeholders.py`
+      (the labelled coloured shapes, faces and eyelids drawn in code).
+    - Tests: `tests/test_choice_scene.py` (69), `tests/test_choice_idle.py` (8),
+      `tests/test_choice_making_scene.py` (11), `tests/test_choice_scene_canvas.py` (38, offscreen Qt),
+      `tests/test_choice_scene_app.py` (4, through `AssessmentApp`).
+  - **Changed files.** `src/ui/canvas.py` (493 lines: a `SceneView`, `mode == "scene"` in `paintEvent`, the
+    repaint cap and the idle clock reset in `set_frame` / `set_paused`), `src/tasks/choice_making.py` (the
+    manifest, `idle_animation`, `prompt_label`, see D14), `src/ui/run_bar.py` + `src/engine/tracking_status.py`
+    (the prompt fact), `src/app.py` (one argument to `run_status`), `src/ui/choice_settings.py` +
+    `configs/tasks/choice_making.yaml` (`idle_animation`), and the existing tests `test_choice_making_setup.py`
+    (the Scene card now has five controls; +3 tests), `test_run_bar.py` (+1), `test_choice_making_canvas.py`
+    (docstring).
+  - **How it works.**
+    - *Effects (N1, 4.4).* A step names a layer and a window `[t0, t1]` of the 0..1 effect timeline.
+      `transform` has tracks `dx` / `dy` (scene fractions of width / height), `rot` (degrees clockwise about
+      the layer's pivot), `scale`, `alpha`: keys `(progress, value)` with an ease (`linear` / `in` /
+      `out` / `in_out`) and, for swing and seesaw, a damped oscillation `(amplitude, cycles, damping)`.
+      Of the transforms on one layer the latest to have started wins and holds its end value, so the
+      Bike and the Cloud can leave the scene and come back from the other side; a step sets only the
+      properties it names. `swap` shows another state image (the bubbles child "blowing"); `particles`
+      are bubbles (rise, drift up and left, fade) and pop bursts, deterministic and all gone by the end of
+      their window; `sequence` (a frame set) is evaluated but unused in v1. At `elapsed >= duration` every
+      layer is at rest and there are no particles; the last step's end values are the rest values, so
+      there is no jump (A5; tested for all eight objects and, pixel by pixel on the canvas, that the
+      idle picture is back exactly once `scene["effect"]` is `None`).
+    - *Renderer (4.5, N5).* Layers that do not animate are drawn once into pixmaps, split at the
+      animating layers so the z order holds (the bike rides behind the bush); each frame blits them and
+      draws only the animating layers (and the particles, and the idle blinks) over them, clipped to the
+      scene. The cache is keyed by the animating layers and the scene size, keeps 4 keys, and is warmed
+      when a prompt starts, so the first frame of an effect renders nothing. The scene sits on whole device
+      pixels (a fractional origin made the live layers' antialiased edges differ from the cached picture's).
+      `set_frame` still runs at the gaze loop's rate; it asks Qt for a repaint at most every 14 ms (about
+      60 Hz, `scene_canvas.MIN_PAINT_S`); a loop at or below 60 Hz is never thinned.
+    - *Idle life (N3).* `IdleLife`: per character a blink of 150 ms at random 2-6 s intervals, per bobbing
+      object a slow sine. The renderer feeds it the time between canvas ticks (capped at 0.1 s), so it
+      stops with a pause (no ticks) and is frozen during an effect; the eyelids are drawn in code over the
+      placeholder faces (or the `image` patch of a blink spot, N6, when a manifest names one).
+    - *Pictures.* A layer, the background, a button picture or a blink patch that names a file in the scene
+      folder is drawn from it (scaled once, cached); a missing file falls back to the placeholder shape.
+    - *Buttons.* Rounded rectangles in the design-system colours (white card, grey border, ink label, the
+      object's coloured swatch until the art exists). While selection is open the looked-at button gets
+      the glow (Switch only, `canvas.show_glow`, so greyed with Dwell, W3), the instant ring and the dwell
+      ring (as in the other tests); nothing is lit while the prompt blocks selection. The cue button (S3)
+      pulses its accent border about once a second; after a hit the chosen button keeps a highlight and a
+      check mark for 1.2 s (B3 "short highlight"; none after a timeout).
+    - *Run bar (W2).* `ChoiceMakingTask.prompt_label` (empty outside a prompt) goes to `run_status(prompt=...)`;
+      the bar shows `Trial 4 of 16, Prompt: Balloons, ...` (own label `runBarPrompt`, right after the trial) in
+      every run mode from the prompt start to the effect end; a pause drops it with the other live facts.
+    - *Setting (N3, 4.8).* `idle_animation` (`off` / `blinks` / `blinks_bob`, default `blinks`) is in
+      `configs/tasks/choice_making.yaml` and a `StructuralSetting` in `choice_settings.py` (a three-way
+      radio group, Scene card, after the visual cue). Registered, so it is stored with the test, in
+      `metadata.json` `settings.structural.idle_animation` (tested through `AssessmentApp` and the written
+      file) and available to the report like `visual_cue`. An unknown value is `blinks` everywhere.
+  - **Decisions I took (small; the hub may overrule any of them).**
+    - D14. The engine reads the manifest, so one source says how long an effect lasts:
+      `ChoiceMakingTask.manifest` (loaded once at the first trial, read only, a file that could not be
+      used is logged once in the session log) and `effect_ms()` = the manifest's duration (the 4.4 default
+      with no file). `scene_spec()` gained `idle_animation` and the task `prompt_label`. No selection
+      logic changed.
+    - D15. Scene fractions are fractions of `scene_rect` (4.5 literally); see section 9, Q4.
+    - D16. Only Bike and Cloud have `follows` set (N2); the Seesaw box stays put although the plank turns
+      about 12 deg (its corners stay inside the box plus the 1 deg pad). `follows` is a manifest field, so a
+      later object only needs it in `scene.yaml`.
+    - D17. A partial `scene.yaml` merges over the placeholders (above); `decor` is taken from the file only
+      (the placeholder bush is not carried into a real scene).
+    - D18. Repaint cap 14 ms (not 16.7 ms) so a 60 Hz loop with 16 ms timer ticks is not thinned to 30 Hz.
+    - D19. The instant ring is drawn on any looked-at button (any button can be chosen), around its
+      centre; the dwell ring is the circle of the other tests around the button, not an outline of its
+      rectangle. Live check will tell whether either wants another look.
+    - D20. The run bar line is also shown in a Preview (Preview plays the prompts, W7) and a Practice.
+  - **A9 (indicative: offscreen Qt, this PC, 1920 x 1032 canvas, placeholder shapes).** Full `set_frame` +
+    `grab()` per frame: idle picture median 7.2 ms; during the eight effects medians 8.6-10.7 ms, slowest
+    frame 13.7 ms (`test_a9_the_paint_time_stays_small_during_every_effect`, bound 40 ms median and
+    3 x idle + 5 ms). With the app's loop in miniature (a real 16 ms `QTimer` driving `set_frame` and a
+    repaint during the bike effect for 1.2 s) the tick interval was median 16.0 ms, p95 17.1 ms, max 17.5 ms
+    (`test_a9_the_tick_interval_holds_...`, bound median 40 ms, max 300 ms). The real measure on the target
+    laptop (and with the real art, which is larger than these shapes) is the live check, step 7.
+  - **pytest (full, venv, from the worktree):** `5 failed, 3685 passed in 751.17s` (3690 tests; 134 of them
+    new: 130 in the five new files, +3 in `test_choice_making_setup.py`, +1 in `test_run_bar.py`). The 5
+    failures are the known baseline ones, unchanged (alpha 0.35 against the local 0.22:
+    `test_config_flow.py::test_a_new_test_opens_at_standard_with_the_task_defaults` and
+    `test_task_config_page.py::test_a_new_test_opens_with_standard_and_the_defaults[...]` for the four
+    other tasks); `test_config_merges_task_over_default` passes in this worktree; no other failure.
+    `ruff` is clean on every file I touched or added (the pre-existing import-order warning in `src/app.py`
+    is not mine). Files stay under 500 lines (`canvas.py` 493, `choice_scene.py` 472).
+  - **Deviations from the SPEC:** none beyond D14-D20 above (the engine reading the manifest, the extra
+    scene key and property, the cap constant).
+  - **Left undone (by scope):** the real art, `scene.yaml` and sound files (steps 2 and 6; `configs/assets/`
+    untouched); look-back and the report rows, including the report's marking of `idle_animation` (step 5);
+    the page label "Glow on the looked-at button" for this task (it is in `settings_registry.py`, which is at
+    499 lines); `docs/CLINICAL_DATA_REFERENCE.md`; the live check and the real A9 measurement (step 7).
+
+- **2026-10-11 - claude-sonnet-5-5 - step 5 (look-back module and report), implemented; uncommitted.**
+  Sections 4.6 and 4.9 (the look-back and waiting-phase fields, the summary, the per-trial table, the
+  Scene Map), W4, W6, S7, N2 (the box provider), the idle-animation marker of N3; acceptance A6 and the
+  data and screen / PDF sides of A7. Nothing of the canvas, the run bar, `src/tasks/choice_scene.py`,
+  `src/ui/choice_settings.py`, `configs/tasks/choice_making.yaml`, art, audio, `configs/assets/` or the
+  engine's selection logic was touched, and `src/app.py` was not edited.
+  - **Setup note.** The worktree was at `c7e61cf`, not at `1173a03` as briefed. I fast-forwarded its own
+    throwaway branch (`git merge --ff-only 1173a03`, clean tree, no commit of mine) and worked from there.
+  - **New files.**
+    - `src/data/lookback.py` (Qt-free): `Sample` / `SampleSeries`, `samples_from_raw` / `samples_from_frames`,
+      `pad_norm` (1 deg as canvas fractions), `scene_box_to_canvas`, `aoi_at`, `Regions` / `board_regions` (the
+      scene and the eight drawn buttons, with the run's cell gap), `Pauses`, `measure_lookback`,
+      `measure_wait`, `LookbackParams` (1 deg, 500 ms, 100 ms, 100 ms), the `IDLE_BOXES` fallback constant
+      (the 4.2 table) and `static_box_provider`.
+    - `src/data/report_choice.py` (Qt-free): the `choice` block of `report.json` (per-trial figures,
+      summary rows, by-side rows, pooled waiting shares, the eight buttons for the Scene Map),
+      `choose_series` (which samples), `pause_spans`, `run_extras`, `default_box_at`, and
+      `fill_trials_lookback` (the `trials.csv` columns).
+    - `src/ui/report_format_choice.py` (Qt-free text of the summary, the two tables under it, the per-trial
+      cells, the footnote, the PDF definitions) and `src/ui/target_map_choice.py` (the Scene Map drawing).
+    - Tests: `tests/test_lookback.py` (20), `tests/test_choice_report.py` (29), `tests/test_choice_report_ui.py`
+      (19), and the helper `tests/choice_report_fixtures.py` (a scripted 100 Hz gaze, the rows and events the
+      task writes, a Gaze, Mouse, stream-only and no-gaze folder).
+  - **Changed files.** `src/data/schema.py` (nine columns, `LOOKBACK_COLUMNS`), `src/data/report_cache.py`
+    (`REPORT_VERSION` 5, the `choice` block, the columns written when the report is), `src/data/report_config.py`
+    (Choice-making's rows), `src/data/report_geometry.py` (`canvas_cell_deg`), `src/ui/report_format.py`
+    (`Cell.tip`, the task sentence), `src/ui/report_layout.py` (the `choice` layout and its helpers),
+    `src/ui/report_views.py`, `src/ui/report_pdf.py`, `src/ui/map_legend.py`, `src/ui/target_map_paint.py`
+    (498 lines; `_paint_slots` became `_paint_layout`); and tests pinned to the old header or version
+    (`test_choice_making_setup`, `test_follow_task`, `test_recording_additions`, `test_run_engine`,
+    `test_run_modes_app`: the header tail now ends with the nine columns; `test_follow_report`,
+    `test_report_scanpath`: version 5;
+    `test_report_cache`: the new top-level key). `ruff` is clean on every file I touched or added; every
+    file is under 500 lines.
+  - **How it works.**
+    - **Window and AOI (4.6, H10, H11, N2).** W = [`EFFECT_START`, `EFFECT_END` + 500 ms] from the events. The
+      AOI is the object's box (scene fractions, from `box_at(object_id, elapsed_ms)`) mapped to the canvas
+      (the scene is columns 1-5 of the 7 x 5 board, full height) and grown by 1 deg of visual angle on every
+      side (`distance * tan(1 deg)` over the canvas's size in mm, from the run's recorded geometry). `lookback`
+      = at least 100 ms of valid samples inside; `latency` = effect start to the first valid sample inside;
+      `dwell` = the summed intervals; `fraction` = dwell over the window; `valid_fraction` = valid samples over
+      all samples of the window. Invalid samples are excluded from the first four. A hand-computed gaze-loss
+      case is in the tests (`test_look_back_with_a_gaze_loss_in_the_window`: 251 samples, 20 lost, latency 300
+      ms, dwell 1000 ms, fraction 0.4, valid 231 / 251).
+    - **Waiting phase (S7).** Over [prompt end, choice or timeout] the valid time on the scene rectangle,
+      inside any drawn button (the run's cell gap applied, as the canvas draws it) and elsewhere, plus the
+      valid-sample share; pooled over the scored trials for the summary.
+    - **Sources.** A Mouse run: `pointer_stream.csv`, marked `pointer_not_gaze` (header words "Pointer back
+      (not gaze)"). A Gaze run: the device-rate `all_gaze.csv` on the host clock (`raw_clock_offset_ns`),
+      else `gaze_stream.csv`. No stream: every look-back figure is None and the page says so.
+    - **Modelled trials** (timeouts) are measured the same way but counted in their own row of the
+      summary and marked `modelled` per trial (H7).
+    - **Report.** Summary of Results (four rows: right on the first choice, all right choices, not chosen in
+      time (modelled), all trials; columns % (N), Reaction Time, Wrong choices, Looked back, latency), "By
+      button side", "While choosing", the Scene Map in place of the Target Map (idle scene faint as labelled
+      placeholder shapes, each object's look-back area dashed, each button with the number of right choices
+      and of not-in-time trials; Scanpath and Heat map as for any test; the selected trial shows the
+      prompted button coloured by its outcome, the area, and the gaze during the animation thick and dark),
+      the 16-column Trial-by-Trial table and the Test Configuration rows (button size in degrees with the
+      gap, time to choose, pause after the animation, scene, visual cue, idle animation). On screen
+      and in the PDF through the same `report_layout` functions.
+    - **`trials.csv`.** Nine columns are appended (`lookback`, `lookback_latency_ms`, `lookback_dwell_ms`,
+      `lookback_fraction`, `lookback_valid_fraction`, `wait_scene_ms`, `wait_buttons_ms`, `wait_other_ms`,
+      `wait_valid_fraction`; blank for every other task). The task cannot know them, so
+      `write_report_safely` (which `finish_run` calls for a saved run) rewrites the file with them filled,
+      atomically; a folder opened for QA with `load_or_build_report` only gets them in the report.
+  - **The injection point (N2).** `report_choice.default_box_at()` is the one place the boxes come from. It
+    returns `static_box_provider(IDLE_BOXES)`, the 4.2 table as a constant marked `# INTEGRATION: wire to
+    choice_scene.object_box_at`. To wire the canvas step in: return
+    `lambda object_id, ms: object_box_at(manifest, object_id, ms)` (scene fractions, ms since the effect began
+    on the canvas clock; I clamp it to the effect's length, so after the effect it is the object at rest).
+    A synthetic moving box is tested in `test_lookback.py` (a moving AOI finds a look a static one misses) and the
+    provider is shown to be the report's source in `test_choice_report.py`.
+  - **Decisions I took (small; the hub may overrule any of them).**
+    - D1. The four readings listed in section 9 (S5-Q1 to S5-Q4: the 100 ms cap on a sample's interval,
+      "elsewhere" includes off-canvas gaze, first choice = `attempts == 1` and wrong choices = selections on
+      a button, no sample = a dash).
+    - D2. The per-trial table follows the wireframe (C2): **Wrong choices** (the count; the wrong buttons in
+      the cell's tooltip) instead of 4.9's "attempts" (which stays in the data), and the four eye columns the
+      Follow table has. The glyphs of the wireframe's Looked back column are not used: plain Yes / No.
+    - D3. The summary's Reaction Time and latency are **medians** (as the brief says; the other tests' tables
+      are means); the footnote says so. Reaction Time of a modelled trial = prompt end to the end of the time
+      to choose.
+    - D4. A pause: the paused spans (`PAUSED` / `RESUMED`) are out of every window, the effect clock for `box_at`
+      does not run during one, and the window length for `fraction` is the active time. The task shifts the
+      effect by the pause but logs `EFFECT_START` once, so the events alone cannot say this.
+    - D5. Without the monitor's physical size or the viewing distance the 1 deg padding cannot be computed
+      (a degree is never guessed): every look-back figure is None. The waiting phase needs only the canvas.
+    - D6. `REPORT_VERSION` 4 to 5 (a new algorithm, so a cached v4 report of a Choice-making run, if any, is
+      rebuilt).
+    - D7. PDF: Choice-making's configuration and its two extra tables fill page 1, so its **Eye Metrics follow
+      the Scene Map on page 2** (page 1 then holds everything above the map; 3 pages). The 16-column trial
+      table fits with measured widths from 7.0 pt (Gaze) or 6.5 pt (Mouse, longer header words) with the real
+      Segoe UI; the test registers the font and checks it.
+    - D8. `idle_animation` is read from `metadata.json` (`idle_animation`), else the settings snapshot; absent
+      it reads "not recorded". It is a Test Configuration row (with the visual cue); the line above the summary
+      is only for the visual cue (S3) and a Mouse run.
+    - D9. A skipped trial shows no figure (dashes) and counts no wrong choices (HD5).
+  - **pytest (full, venv, from the worktree):** `3619 passed, 5 failed` (3624 tests; 68 of them new:
+    `test_lookback.py` 20, `test_choice_report.py` 29, `test_choice_report_ui.py` 19). The 5 are the known
+    baseline: `test_a_new_test_opens_*` in `test_config_flow.py` (1) and `test_task_config_page.py` (4), alpha
+    0.35 against the local 0.22; no other failure. (The counts are from the progress dots of
+    `pytest -q`: this checkout's run prints no final summary line.) A first full run had one more failure,
+    `test_run_modes_app.py::test_an_ended_run_writes_how_it_ended`, which indexed the header from the end
+    and is fixed.
+  - **Deviations from the SPEC:** none beyond D2 (wireframe's "Wrong choices" for 4.9's "attempts") and D7 (Eye
+    Metrics after the map in this test's PDF).
+  - **Left undone (by scope):** wiring `object_box_at` into `default_box_at` (the hub, after step 4 merges);
+    `docs/CLINICAL_DATA_REFERENCE.md` (the nine new columns, as step 3 left its four); step 4 writing
+    `idle_animation` into `metadata.json`; no live check, no real-gaze run, and no look at the report on a real
+    screen (offscreen Qt has no fonts, so only colours and the PDF's fit with the real Segoe UI were checked).
+
 ## 9. Open questions
 
 Written by the step 3 implementer (2026-10-10, claude-sonnet-5-5). The engine builds and passes its
@@ -622,3 +876,46 @@ the user on 2026-10-11 and are implemented** (answers below; section 8, follow-u
     together with the other four tests' texts. The code comment in `task_instructions.py` now says so.
 - **Confirmed (user, 2026-10-11), D2 of section 8:** on a timeout there is no miss sound, only the modelled
   effect with its own sound.
+- **2026-10-11 - Q4 (step 4 implementer, claude-sonnet-5-5), non-blocking: is the scene picture stretched to
+  `scene_rect`, and are all scene fractions relative to it?** W1 says the scene is about 4:3 and the art is
+  generated at 4:3 and "fills that area"; 4.5 says the background is "scaled into `scene_rect`". The step 3
+  `scene_rect` is columns 1-5 at the full canvas height, which is 4:3 only on a 1920 x 1032 canvas
+  (1920 x 1080 less the 48 px run bar: 1371 x 1032 = 1.329). Another canvas gives another aspect (1366 x 768:
+  975 x 720 = 1.355, 2 % wider), so art drawn into `scene_rect` is stretched by a few percent there. I
+  followed 4.5 literally and did not decide anything beyond it: the picture fills `scene_rect`, and every scene
+  fraction (layer boxes, the look-back AOI source, particles) is a fraction of `scene_rect`, which is also what
+  `object_box_at` returns (so the AOI maps to canvas px by `scene_rect` alone, as 4.6 says). Options:
+  - **A (current).** Keep it: no distortion at the standard 1920 x 1080 display (the Setup Display card checks
+    for it), a few percent stretch on others.
+  - **B.** Letterbox: a 4:3 picture rectangle centred in `scene_rect`, all fractions relative to it; step 5 then
+    maps the AOI through that rectangle and `choice_scene` gets a `picture_rect()` helper. No stretch anywhere,
+    but empty bars at the sides on a wider canvas.
+  - **Recommendation: A**, revisit after the live check on the laptop only if the stretch shows. Needed before
+    step 5's AOI mapping is called final, because both read "scene fraction". The one function that would
+    change is `SceneView._scene_rect` (and `object_box_at`'s `aspect` argument already takes the real aspect).
+  - **Answer (user, 2026-10-11): A**, stretch to fill `scene_rect`; all scene fractions are fractions of
+    `scene_rect`. Revisit only if the laptop live check shows the stretch. Nothing to change.
+- **2026-10-11 - step 5 (look-back and report), claude-sonnet-5-5: four readings I took by default, none
+  blocks anything; each is one clearly marked place, the hub may overrule.** The SPEC does not spell them
+  out; the figures below depend on them, so they are listed here and not only in the Impl log.
+  - **S5-Q1. A sample's interval.** 4.6 says "sum of inter-sample intervals of valid samples inside the
+    AOI". Taken as: the time to the next sample of the stream, **at most 100 ms** (`LookbackParams.
+    max_interval_ms`), cut at the window end and at the start of a pause. Without the cap a gap in the
+    records (a tracker restart, a pause) would count as gaze. With no gap it changes nothing (device
+    rate 6.7 ms, loop rate 16.7 ms).
+  - **S5-Q2. "Elsewhere" in the waiting phase (S7).** Taken as everything valid that is neither on the
+    scene nor on a drawn button: the empty corner cells, the gaps between buttons **and gaze off the
+    canvas**, so the three shares add up to 100 % of the valid time (the wireframe's 38 / 52 / 10).
+    The alternative, "elsewhere on the canvas" only, would leave off-canvas gaze in no row.
+  - **S5-Q3. "Right on the first choice" and "Wrong choices".** First choice = a hit with
+    `attempts == 1` (no earlier selection or press of any kind, as the existing Error-free row).
+    Wrong choices = the `MISS_CLICK`s with `selected_slot >= 0` (a completed selection on another
+    button, as the wireframe defines it); a switch press that landed on no button (`-1`) is an attempt, not
+    a wrong choice. So a trial can have attempts 2 and wrong choices 0.
+  - **S5-Q4. No sample in the window.** A trial whose look-back window holds no gaze or pointer sample at
+    all gets `lookback` = None (a dash), not "No": W4 keeps the report to Yes / No for trials with data,
+    and 4D.9 forbids a 0 where nothing was recorded. A window with samples that are all invalid is "No"
+    with `lookback_valid_fraction` 0.
+  - **Answer (user, 2026-10-11): all four kept as built** (100 ms cap; "elsewhere" includes off-canvas gaze;
+    wrong choices = selections on another button, first choice = `attempts == 1`; no samples = a dash).
+    Nothing to change.

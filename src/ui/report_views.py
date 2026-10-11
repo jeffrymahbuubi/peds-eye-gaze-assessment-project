@@ -38,6 +38,8 @@ from PySide6.QtWidgets import (
 from .design_tokens import TEXT_SECONDARY
 from .frozen_table import FrozenColumnTable, two_lines
 from .map_legend import (
+    CHOICE_LEGEND_ENTRIES,
+    CHOICE_NUMBERS_NOTE,
     FOLLOW_LEGEND_ENTRIES,
     LEGEND_ENTRIES,
     NUMBERS_NOTE,
@@ -48,7 +50,6 @@ from .map_legend import (
 )
 from .report_format import (
     EYE_NOTE,
-    OUTCOME_LABELS,
     SUMMARY_COLUMNS,
     TRIAL_COLUMNS,
     eye_rows,
@@ -57,13 +58,19 @@ from .report_format import (
     trial_line,
 )
 from .report_layout import (
+    CHOICE,
     FOLLOW,
     layout_kind,
+    map_title,
+    outcome_label,
     summary_aligns,
     summary_bold_first,
     summary_cells,
+    summary_extra_tables,
     summary_header,
+    summary_info,
     summary_note,
+    targets_label,
     trial_aligns,
     trial_columns,
     trial_rows,
@@ -103,6 +110,13 @@ FOLLOW_TRIAL_LEGEND = (
     "faint line = the path of the target, dashed ring = target area.\n"
     "The pointer path (smoothed like the on-screen cursor) is solid dark blue where the pointer was on the "
     "target and dashed grey where it was off it."
+)
+# Choice-making: the choosing path, then the darker gaze during the animation and the 0.5 s after it.
+CHOICE_TRIAL_LEGEND = (
+    "S = gaze when the prompt began, star = gaze at the choice, numbered circles = fixations (bigger = "
+    "longer), dashed box = look-back area of the object (its area plus 1°).\n"
+    "The thin path runs dark to light from the prompt to the choice; the thick dark path is the gaze "
+    "during the animation and the 0.5 s after it."
 )
 NOT_RECORDED_SUFFIX = "not recorded"  # on the Scanpath and Heat map switches of a test with no gaze
 
@@ -193,11 +207,17 @@ class SummaryView(QScrollArea):
         self.task_label = QLabel("")
         self.task_label.setWordWrap(True)
         layout.addWidget(self.task_label)
+        self.info_label = muted_label()  # how the test was made (Choice-making: the visual cue, a Mouse run)
+        layout.addWidget(self.info_label)
         layout.addWidget(section_title("Summary of Results"))
         self.table = FitTable(SUMMARY_COLUMNS, stretch_column=0)
         layout.addWidget(self.table)
         self.note = muted_label()
         layout.addWidget(self.note)
+        self.extra_box = QVBoxLayout()  # the tables under the summary (Choice-making's)
+        self.extra_box.setSpacing(8)
+        self.extra_tables: list[FitTable] = []
+        layout.addLayout(self.extra_box)
 
         self.map_title = section_title("Target Map")
         layout.addWidget(self.map_title)
@@ -240,7 +260,11 @@ class SummaryView(QScrollArea):
 
     def set_report(self, report: dict[str, Any]) -> None:
         self.task_label.setText(task_sentence(report))
-        follow = layout_kind(report) == FOLLOW
+        info = summary_info(report)
+        self.info_label.setText(info)
+        self.info_label.setVisible(bool(info))
+        kind = layout_kind(report)
+        follow = kind == FOLLOW
         self.table.set_header(summary_header(report), stretch_column=1 if follow else 0)
         self.table.set_rows(
             summary_cells(report),
@@ -248,12 +272,15 @@ class SummaryView(QScrollArea):
             bold_first=summary_bold_first(report),
         )
         self.note.setText(summary_note(report))
+        self._fill_extra_tables(report)
+        self.map_title.setText(map_title(report))
+        self.targets_check.setText(targets_label(report))
         recorded = gaze_was_recorded(report)
-        self.legend.set_entries(
-            FOLLOW_LEGEND_ENTRIES if follow else LEGEND_ENTRIES,
-            NUMBERS_NOTE,
-            SCANPATH_NOTE if recorded else "",  # no gaze, no Scanpath to explain
-        )
+        entries, numbers = {
+            FOLLOW: (FOLLOW_LEGEND_ENTRIES, NUMBERS_NOTE),
+            CHOICE: (CHOICE_LEGEND_ENTRIES, CHOICE_NUMBERS_NOTE),
+        }.get(kind, (LEGEND_ENTRIES, NUMBERS_NOTE))
+        self.legend.set_entries(entries, numbers, SCANPATH_NOTE if recorded else "")  # no gaze, no Scanpath to explain
         self._set_gaze_switches(recorded)
         self.eye_table.set_rows([list(row) for row in eye_rows(report)])
         self.map.set_report(report)
@@ -264,6 +291,26 @@ class SummaryView(QScrollArea):
         self.map_note.setText(" ".join(notes))
         self.map_note.setVisible(bool(notes))
         self._on_overlays()
+
+    def _fill_extra_tables(self, report: dict[str, Any]) -> None:
+        """Rebuild the tables under the summary: none for most tests, Choice-making's two (by button
+        side, while choosing) with their headings and notes."""
+        while self.extra_box.count():
+            widget = self.extra_box.takeAt(0).widget()
+            if widget is not None:
+                widget.hide()  # deleteLater() waits for the event loop; it must not show meanwhile
+                widget.setParent(None)
+                widget.deleteLater()
+        self.extra_tables = []
+        for extra in summary_extra_tables(report):
+            widths = EYE_COLUMN_WIDTHS if len(extra.header) == 2 else None
+            table = FitTable(list(extra.header), stretch_column=0, column_widths=widths)
+            table.set_rows(extra.rows, aligns=[_ALIGN[a] for a in extra.aligns], bold_first=True)
+            self.extra_tables.append(table)
+            self.extra_box.addWidget(section_title(extra.title))
+            self.extra_box.addWidget(table)
+            if extra.note:
+                self.extra_box.addWidget(muted_label(extra.note))
 
     def _set_gaze_switches(self, recorded: bool) -> None:
         """Scanpath and Heat map need gaze: without it they are off, disabled and say "not recorded"."""
@@ -343,9 +390,9 @@ class DetailedView(QScrollArea):
         self.table.set_badge_column(columns.index(OUTCOME_COLUMN) if OUTCOME_COLUMN in columns else None)
         self._aligns = trial_aligns(report)
         self._cells = trial_rows(report)
-        follow = layout_kind(report) == FOLLOW
-        self.legend.setVisible(follow)
-        self.trial_legend.setText(FOLLOW_TRIAL_LEGEND if follow else TRIAL_LEGEND)
+        kind = layout_kind(report)
+        self.legend.setVisible(kind == FOLLOW)
+        self.trial_legend.setText({FOLLOW: FOLLOW_TRIAL_LEGEND, CHOICE: CHOICE_TRIAL_LEGEND}.get(kind, TRIAL_LEGEND))
         self.map.set_report(report)
         self._fit_map()  # the canvas's aspect may differ from the last report's
         self._fill(select=0)
@@ -379,11 +426,13 @@ class DetailedView(QScrollArea):
                     item = QTableWidgetItem(cell.text)
                     item.setFlags(Qt.ItemFlag.ItemIsEnabled | Qt.ItemFlag.ItemIsSelectable)
                     item.setTextAlignment(_ALIGN[self._aligns[c]] | Qt.AlignmentFlag.AlignVCenter)
+                    if cell.tip:
+                        item.setToolTip(cell.tip)
                     if skipped:
                         item.setForeground(QColor(TEXT_SECONDARY))
                     table.setItem(r, c, item)
                 if outcome in OUTCOME_KINDS:
-                    table.set_badge(r, OUTCOME_KINDS[outcome], OUTCOME_LABELS[outcome])
+                    table.set_badge(r, OUTCOME_KINDS[outcome], outcome_label(self._report, outcome))
             table.fit_columns()
             target = self._indexes.index(select) if select in self._indexes else -1
             if target >= 0:

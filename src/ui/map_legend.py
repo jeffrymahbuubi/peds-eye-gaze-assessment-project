@@ -47,6 +47,14 @@ POINTER_LEGEND_ENTRIES: tuple[tuple[str, str], ...] = (
     ("track", "Path of the target"),
 )
 POINTER_NUMBERS_NOTE = "Numbers = fixations, in the order they happened"
+# Choice-making's Scene Map (SPEC-scene-cause-effect-task.md W6): each button carries the number of
+# its right choices and of its trials not chosen in time, and each object its dashed look-back area.
+CHOICE_LEGEND_ENTRIES: tuple[tuple[str, str], ...] = (
+    ("hit", "Right choices (count)"),
+    ("timeout", "Not chosen in time (count)"),
+    ("aoi", "Look-back area (object plus 1°)"),
+)
+CHOICE_NUMBERS_NOTE = "Numbers on a button = trials that ended that way"
 
 ICON_PX = 28  # the on-screen icon's side, logical px
 COLUMNS = 2  # entries per row
@@ -172,11 +180,12 @@ def legend_html(
     icon_css_px: int = 20,
     entries: tuple[tuple[str, str], ...] = LEGEND_ENTRIES,
     overlay_note: str = "",
+    numbers_note: str = NUMBERS_NOTE,
 ) -> str:
     """The legend as HTML for the PDF: the same white, outlined box, the same icons and
-    labels (``entries``: the four marks unless a Follow the Target report gives its own), the
-    ``overlay_note`` line (what the scanpath on the map draws; none when empty) and the
-    same numbers note. ``width_css_px`` is the box's width in CSS px (1/96 inch;
+    labels (``entries``: the four marks unless a Follow the Target or Choice-making report gives
+    its own), the ``overlay_note`` line (what the scanpath on the map draws; none when empty) and
+    the numbers note (``numbers_note``). ``width_css_px`` is the box's width in CSS px (1/96 inch;
     the map's width, so the two line up), the full text width when ``None``; ``icon_css_px``
     is the icon's side.
 
@@ -196,7 +205,7 @@ def legend_html(
     overlay = f'<tr><td colspan="{COLUMNS * 2}">{overlay_note}</td></tr>' if overlay_note else ""
     inner = (
         f'<table width="100%" border="0" cellspacing="0" cellpadding="3">{rows}{overlay}'
-        f'<tr><td colspan="{COLUMNS * 2}">{NUMBERS_NOTE}</td></tr></table>'
+        f'<tr><td colspan="{COLUMNS * 2}">{numbers_note}</td></tr></table>'
     )
     width = f'"{width_css_px}"' if width_css_px else '"100%"'
     return (

@@ -16,6 +16,13 @@ from typing import Any
 
 SCHEMA_VERSION = 1
 
+# Choice-making's look-back and waiting-phase columns of ``trials.csv`` (the last of the file).
+LOOKBACK_COLUMNS: tuple[str, ...] = (
+    "lookback", "lookback_latency_ms", "lookback_dwell_ms", "lookback_fraction",
+    "lookback_valid_fraction", "wait_scene_ms", "wait_buttons_ms", "wait_other_ms",
+    "wait_valid_fraction",
+)
+
 
 @dataclass(slots=True)
 class GazeSample:
@@ -118,6 +125,20 @@ class TrialRecord:
     button_side: str = ""
     selected_object: str = ""
     rt_ms: float | None = None
+    # Choice-making's look-back to the effect and where the gaze was while the child chose
+    # (SPEC-scene-cause-effect-task.md 4.6, 4.9, S7). Not known when the trial ends: they are
+    # worked out from the device-rate gaze (or the Mouse pointer) after the run and written into
+    # ``trials.csv`` by ``src/data/report_choice.py`` (``lookback`` as 1 / 0, the times in ms, the
+    # fractions 0-1; blank where the data could not give one). All blank for every other task.
+    lookback: bool | None = None
+    lookback_latency_ms: float | None = None
+    lookback_dwell_ms: float | None = None
+    lookback_fraction: float | None = None
+    lookback_valid_fraction: float | None = None
+    wait_scene_ms: float | None = None
+    wait_buttons_ms: float | None = None
+    wait_other_ms: float | None = None
+    wait_valid_fraction: float | None = None
 
     @property
     def time_on_target_pct(self) -> float | None:
@@ -202,6 +223,15 @@ class TrialRecord:
             "button_side": self.button_side,
             "selected_object": self.selected_object,
             "rt_ms": _blank(_round(self.rt_ms)),
+            "lookback": "" if self.lookback is None else int(self.lookback),
+            "lookback_latency_ms": _blank(_round(self.lookback_latency_ms, 1)),
+            "lookback_dwell_ms": _blank(_round(self.lookback_dwell_ms, 1)),
+            "lookback_fraction": _blank(_round(self.lookback_fraction, 4)),
+            "lookback_valid_fraction": _blank(_round(self.lookback_valid_fraction, 4)),
+            "wait_scene_ms": _blank(_round(self.wait_scene_ms, 1)),
+            "wait_buttons_ms": _blank(_round(self.wait_buttons_ms, 1)),
+            "wait_other_ms": _blank(_round(self.wait_other_ms, 1)),
+            "wait_valid_fraction": _blank(_round(self.wait_valid_fraction, 4)),
         }
         return row
 
@@ -239,6 +269,7 @@ class TrialRecord:
             "button_side",
             "selected_object",
             "rt_ms",
+            *LOOKBACK_COLUMNS,
         ]
 
 

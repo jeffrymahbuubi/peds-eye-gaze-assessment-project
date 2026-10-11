@@ -37,6 +37,7 @@ TASK_SENTENCES = {
     "click_grid": "One cell of a visible board lights up; the child selects it by looking at it.",
     "follow_moving": "A target travels across the screen; the child follows it and nothing is selected.",
     "scanning": "The child finds the cued shape among other shapes and selects it by looking at it.",
+    "choice_making": "A spoken prompt names one of 8 buttons; the chosen object in the scene comes alive.",
 }
 # An old Follow & Click session (selection window, a click or dwell; SPEC H10) keeps its sentence.
 LEGACY_FOLLOW_SENTENCE = (
@@ -232,10 +233,11 @@ def eye_rows(report: dict[str, Any]) -> list[tuple[str, str]]:
 
 class Cell(NamedTuple):
     """One table cell: the text shown and the value the column sorts by (``None``
-    sorts last, in either direction)."""
+    sorts last, in either direction), and a tooltip (Choice-making's wrong buttons)."""
 
     text: str
     key: float | str | None
+    tip: str = ""
 
 
 def trial_cells(

@@ -10,7 +10,7 @@ import csv
 
 import pytest
 
-from src.data.schema import SessionMetadata, TrialRecord
+from src.data.schema import LOOKBACK_COLUMNS, SessionMetadata, TrialRecord
 from src.engine.config import load_task_config
 from src.engine.feedback import NullFeedback
 from src.engine.task_runner import build_task
@@ -362,6 +362,7 @@ def test_the_four_columns_follow_the_click_columns_and_are_blank_for_other_tasks
     assert header[header.index("click_errors") :] == [
         "click_errors", "valid_ms", "on_target_ms", "time_on_target_pct", "mean_dist_px",
         "prompt_object", "button_side", "selected_object", "rt_ms",  # Choice-making's four
+        *LOOKBACK_COLUMNS,  # ... and its nine look-back columns
     ]
     other = TrialRecord(0, "click_grid", 0.5, 0.5, 90.0, 0).as_row()
     assert [other[c] for c in ("valid_ms", "on_target_ms", "time_on_target_pct", "mean_dist_px")] == [""] * 4

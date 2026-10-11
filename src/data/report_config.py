@@ -242,6 +242,53 @@ def _canvas_row(meta: dict[str, Any]) -> str:
     return f"{w:.0f}×{h:.0f} {unit}"
 
 
+LANGUAGE_NAMES = {"en": "English", "zh-TW": "Traditional Chinese"}
+IDLE_ANIMATION_NAMES = {"off": "Off", "blinks": "Blinks", "blinks_bob": "Blinks and bob"}
+
+
+def _choice_rows(
+    rows: list[tuple[str, str]], snapshot: dict[str, Any], meta: dict[str, Any], geometry: Any
+) -> list[tuple[str, str]]:
+    """Choice-making's version of the rows (the wireframe's Test Configuration): the button size
+    in degrees with the cell gap, the time to choose, the pause after the animation, the scene
+    with the prompt language, and whether the visual cue was on and which idle animation ran."""
+    scene = setting(snapshot, None, "scene")
+    language = setting(snapshot, None, "language")
+    scene_text = NOT_RECORDED
+    if scene:
+        scene_text = str(scene).capitalize()
+        if language:
+            scene_text += f", prompts in {LANGUAGE_NAMES.get(str(language), str(language))}"
+    cue = setting(snapshot, None, "visual_cue")
+    idle = meta.get("idle_animation") or setting(snapshot, None, "idle_animation")
+    cell = geometry.canvas_cell_deg(7, 5) if geometry is not None else None
+    gap = meta.get("grid_gap")
+    preset = gap.get("preset") if isinstance(gap, dict) else setting(snapshot, None, "grid", "gap")
+    parts = [f"{cell[0]:.1f}° x {cell[1]:.1f}° cell"] if cell is not None else []
+    if preset in GAP_NAMES:
+        parts.append(f"gap {GAP_NAMES[preset]}")
+    size = ", ".join(parts) or NOT_RECORDED
+    out: list[tuple[str, str]] = []
+    for label, value in rows:
+        if label == "Target size":
+            out.append(("Button size", size))
+        elif label == "Layout":
+            out.append((label, "7×5 board, 8 buttons"))
+        elif label == "Trial timeout":
+            out.append(("Time to choose", value if value == NOT_RECORDED else f"{value} from the prompt end"))
+        elif label == "Inter-trial interval":
+            out.append(("Pause after the animation", _seconds(setting(snapshot, "task.post_effect_ms", "post_effect_ms"))))
+        elif label == "Theme":
+            out += [
+                ("Scene", scene_text),
+                ("Visual cue", NOT_RECORDED if cue is None else ("On" if cue else "Off")),
+                ("Idle animation", IDLE_ANIMATION_NAMES.get(str(idle), str(idle)) if idle else NOT_RECORDED),
+            ]
+        else:
+            out.append((label, value))
+    return out
+
+
 def build_config_rows(
     snapshot: dict[str, Any] | None,
     metadata: dict[str, Any] | None,
@@ -258,7 +305,9 @@ def build_config_rows(
     (a :class:`~.report_geometry.Geometry`) adds the calibration error in degrees.
     ``follow_layout`` is a Follow the Target run (SPEC-input-selection-and-follow.md 4.5): it
     has nothing to select, so the **Selection** row is left out (16 rows), and its trials last
-    a fixed time, so "Trial timeout" reads **Trial duration**.
+    a fixed time, so "Trial timeout" reads **Trial duration**. Choice-making's rows are
+    :func:`_choice_rows` (19: the button size, time to choose, pause after the animation, scene,
+    visual cue and idle animation in place of the target size, timeout, interval and theme).
     """
     snapshot = snapshot if isinstance(snapshot, dict) else {}
     meta = metadata or {}
@@ -293,4 +342,6 @@ def build_config_rows(
         ("Calibration", _calibration_row(meta, geometry)),
         ("Canvas", _canvas_row(meta)),
     ]
+    if task == "choice_making":
+        return _choice_rows(rows, snapshot, meta, geometry)
     return [row for row in rows if not (follow_layout and row[0] == "Selection")]

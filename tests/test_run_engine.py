@@ -11,7 +11,7 @@ from pathlib import Path
 import pytest
 
 from src.data.exporter import load_trials_rows, summarize
-from src.data.schema import SessionMetadata, TrialRecord
+from src.data.schema import LOOKBACK_COLUMNS, SessionMetadata, TrialRecord
 from src.engine.feedback import NullFeedback
 from src.inputs.base import Pointer
 from src.tasks.base_task import BaseTask, Phase, TargetSpec
@@ -86,6 +86,7 @@ def test_is_skipped_defaults_false_and_is_followed_by_the_p3_columns():
         "is_skipped", "entries", "end_x", "end_y", "slot_index", "clicks", "click_errors",
         "valid_ms", "on_target_ms", "time_on_target_pct", "mean_dist_px",
         "prompt_object", "button_side", "selected_object", "rt_ms",  # Choice-making's four
+        *LOOKBACK_COLUMNS,  # ... and its nine look-back columns
     ]
     assert "outcome" not in header  # R6: no outcome column, the report derives it
     assert list(trial.as_row()) == header

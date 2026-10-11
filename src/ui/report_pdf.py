@@ -43,7 +43,16 @@ from PySide6.QtGui import (
 )
 
 from .design_tokens import BORDER_SUBTLE, FONT_FAMILY, HEADER, INK, TEXT_SECONDARY, WARNING_SUBTLE
-from .map_legend import FOLLOW_LEGEND_ENTRIES, LEGEND_ENTRIES, SCANPATH_NOTE, legend_html, png_data_uri
+from .map_legend import (
+    CHOICE_LEGEND_ENTRIES,
+    CHOICE_NUMBERS_NOTE,
+    FOLLOW_LEGEND_ENTRIES,
+    LEGEND_ENTRIES,
+    NUMBERS_NOTE,
+    SCANPATH_NOTE,
+    legend_html,
+    png_data_uri,
+)
 from .report_format import (
     NOT_RECORDED,
     banner_lines,
@@ -52,14 +61,19 @@ from .report_format import (
     started_text,
     task_sentence,
 )
+from .report_format_choice import ExtraTable
 from .report_layout import (
+    CHOICE,
     FOLLOW,
     definition_lines,
     layout_kind,
+    map_title,
     summary_aligns,
     summary_bold_first,
     summary_cells,
+    summary_extra_tables,
     summary_header,
+    summary_info,
     summary_note,
     trial_aligns,
     trial_columns,
@@ -281,6 +295,20 @@ def _paragraph(inner: str, *, top: int = 0, bottom: int = BLOCK_GAP_CSS_PX, styl
     return f'<p style="{style}margin-top:{top}px; margin-bottom:{bottom}px">{inner}</p>'
 
 
+def _extra_table(extra: ExtraTable, meter: _Meter, note_style: str) -> str:
+    """A table under the Summary of Results (Choice-making's by button side, while choosing): its
+    heading, the bordered table and its note."""
+    two_columns = len(extra.header) == 2
+    return (
+        _heading(extra.title)
+        + _measured_table(
+            extra.header, extra.rows, extra.aligns, meter, BODY_PT, bold_first=True,
+            first_width=CONFIG_LABEL_WIDTH if two_columns else None,
+        )
+        + (_paragraph(_e(extra.note), top=BLOCK_GAP_CSS_PX, bottom=0, style=note_style) if extra.note else "")
+    )
+
+
 def build_report_html(
     report: dict[str, Any],
     *,
@@ -326,7 +354,8 @@ def build_report_html(
         + notes_block
     )
 
-    follow = layout_kind(report) == FOLLOW
+    kind = layout_kind(report)
+    follow = kind == FOLLOW
     summary_rows = summary_cells(report)
     summary = _measured_table(
         summary_header(report),
@@ -338,35 +367,39 @@ def build_report_html(
         first_width=FOLLOW_LABEL_WIDTH if follow else None,
     )
     eye = _table(["Metric", "Value"], [[a, b] for a, b in eye_rows(report)], ["left", "left"], first_width=CONFIG_LABEL_WIDTH)
+    note_style = f"font-size:{NOTE_PT}pt; color:{TEXT_SECONDARY}; "
+    info = summary_info(report)
     summary_block = (
         _paragraph(_e(task_sentence(report)), top=HEADING_GAP_CSS_PX, bottom=0)
+        + (_paragraph(_e(info), top=BLOCK_GAP_CSS_PX, bottom=0, style=note_style) if info else "")
         + _heading("Summary of Results")
         + summary
-        + _paragraph(
-            _e(summary_note(report)), top=BLOCK_GAP_CSS_PX, bottom=0, style=f"font-size:{NOTE_PT}pt; color:{TEXT_SECONDARY}; "
-        )
+        + _paragraph(_e(summary_note(report)), top=BLOCK_GAP_CSS_PX, bottom=0, style=note_style)
+        + "".join(_extra_table(extra, meter, note_style) for extra in summary_extra_tables(report))
     )
     eye_block = _heading("Eye Metrics") + eye
 
-    # Page 1 ends with the Eye Metrics; the Target Map starts page 2.
-    parts = [header, banner, configuration, summary_block, eye_block]
+    # Page 1 ends with the Eye Metrics; the Target Map (Choice-making's Scene Map) starts page 2.
+    # Choice-making's configuration and two extra tables fill page 1, so its Eye Metrics follow its map.
+    eye_after_map = kind == CHOICE and map_image is not None
+    parts = [header, banner, configuration, summary_block] + ([] if eye_after_map else [eye_block])
     if map_image is not None:
         width = mm_to_css_px(MAP_WIDTH_MM)
         note = report.get("map", {}).get("note")
+        entries = {FOLLOW: FOLLOW_LEGEND_ENTRIES, CHOICE: CHOICE_LEGEND_ENTRIES}.get(kind, LEGEND_ENTRIES)
         parts.append(
-            _heading("Target Map", top=0, extra_style="page-break-before:always; ")
+            _heading(map_title(report), top=0, extra_style="page-break-before:always; ")
             + _paragraph(f'<img src="{png_data_uri(map_image)}" width="{width}">')
             + legend_html(
                 width,
-                entries=FOLLOW_LEGEND_ENTRIES if follow else LEGEND_ENTRIES,
+                entries=entries,
                 overlay_note=SCANPATH_NOTE if gaze_was_recorded(report) else "",
+                numbers_note=CHOICE_NUMBERS_NOTE if kind == CHOICE else NUMBERS_NOTE,
             )
-            + (
-                _paragraph(_e(note), top=BLOCK_GAP_CSS_PX, style=f"font-size:{NOTE_PT}pt; color:{TEXT_SECONDARY}; ")
-                if note
-                else ""
-            )
+            + (_paragraph(_e(note), top=BLOCK_GAP_CSS_PX, style=note_style) if note else "")
         )
+        if eye_after_map:
+            parts.append(eye_block)
 
     trials = report.get("trials", [])
     rows = [[cell.text for cell in cells] for cells in trial_rows(report)]

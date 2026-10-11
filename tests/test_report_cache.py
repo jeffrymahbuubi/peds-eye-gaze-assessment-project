@@ -71,7 +71,7 @@ def test_a_full_folder_gives_every_block(tmp_path):
     report = build_report(full_folder(tmp_path))
     assert report["report_version"] == REPORT_VERSION
     assert set(report) == {
-        "report_version", "params", "session", "geometry", "config", "trials", "follow",
+        "report_version", "params", "session", "geometry", "config", "trials", "follow", "choice",
         "summary", "map", "heat", "quality",
     }
     assert report["follow"] is None  # not a Follow the Target folder

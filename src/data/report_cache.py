@@ -28,6 +28,7 @@ from typing import Any
 from ..tasks.entry_tracker import DEFAULT_EXIT_HOLD_MS
 from .exporter import load_metadata, load_trials_rows
 from .recorder import POINTER_STREAM_FILENAME
+from .report_choice import build_choice, choose_series, fill_trials_lookback, run_extras
 from .report_config import build_config_rows, setting
 from .report_eye import (
     DEFAULT_PUPIL,
@@ -65,7 +66,9 @@ from .saccades import DEFAULT_IVT
 # ``followed`` / ``not_followed``, a Mouse run's ``path`` from ``pointer_stream.csv``.
 # 4: ``clicks`` / ``click_errors`` in every trial and Summary of Results row (a Switch test's
 # Clicks columns, SPEC-input-selection-and-follow.md 4.5).
-REPORT_VERSION = 4
+# 5: the ``choice`` block (Choice-making's look-back, waiting phase and Scene Map figures,
+# SPEC-scene-cause-effect-task.md 4.6, 4.9; ``None`` for every other task).
+REPORT_VERSION = 5
 REPORT_FILENAME = "report.json"
 
 _log = logging.getLogger(__name__)
@@ -166,6 +169,23 @@ def build_report(session_dir: str | Path) -> dict[str, Any]:
             ),
         )
 
+    choice = None
+    if task_id == "choice_making":
+        series, source = choose_series(
+            mouse=meta.get("input_pointer") == "mouse",
+            geometry=geometry,
+            pointer_frames=pointer_frames,
+            raw_samples=raw_samples,
+            raw_offset_ns=raw.offset_ns if raw is not None else None,
+            gaze_frames=index.frames,
+        )
+        cell_gap = meta.get("grid_gap") if isinstance(meta.get("grid_gap"), dict) else {}
+        choice = build_choice(
+            trial_rows, trials, events=events, geometry=geometry, series=series, source=source,
+            gap_px=_number(cell_gap.get("gap_px")), path_index=path_index,
+            extras=run_extras(meta, settings),
+        )
+
     return {
         "report_version": REPORT_VERSION,
         "params": {
@@ -229,6 +249,8 @@ def build_report(session_dir: str | Path) -> dict[str, Any]:
         # Follow the Target's figures (SPEC-input-selection-and-follow.md 4.5/4.6); None for
         # every other task, ``{"legacy": true}`` for an old Follow & Click folder.
         "follow": follow,
+        # Choice-making's figures (SPEC-scene-cause-effect-task.md 4.6, 4.9); None for every other task.
+        "choice": choice,
         "summary": {
             "rows": summary_rows(trials),
             "eye": eye_summary(trials, meta, geometry, share),
@@ -276,10 +298,18 @@ def write_report_safely(session_dir: str | Path) -> Path | None:
     raised, so the run's own files are not put at risk by an analysis bug. The report
     is rebuilt on open if it is missing, so nothing is lost."""
     try:
-        return write_report(session_dir)
+        report = build_report(session_dir)
+        path = write_report(session_dir, report)
     except Exception as exc:  # noqa: BLE001 - analysis must never break closing a run
         _log.warning("report.json not written for %s: %s", session_dir, exc)
         return None
+    if report.get("choice"):
+        # Choice-making's look-back and waiting-phase columns of trials.csv (4.9), known only now.
+        try:
+            fill_trials_lookback(session_dir, report["choice"])
+        except Exception as exc:  # noqa: BLE001 - the report is written; the columns stay blank
+            _log.warning("look-back columns not written for %s: %s", session_dir, exc)
+    return path
 
 
 def load_or_build_report(session_dir: str | Path) -> dict[str, Any]:

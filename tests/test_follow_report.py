@@ -118,7 +118,7 @@ def test_the_report_is_deterministic_and_round_trips_as_json(tmp_path):
     first, second = build_report(path), build_report(path)
     assert first == second
     assert json.loads(json.dumps(first)) == first
-    assert load_or_build_report(path)["report_version"] == REPORT_VERSION == 4
+    assert load_or_build_report(path)["report_version"] == REPORT_VERSION == 5
 
 
 # -- a skipped trial ------------------------------------------------------------------------------------------

@@ -40,6 +40,14 @@ from .design_tokens import (
     TEXT_SECONDARY,
 )
 from .report_format import hit_tolerance_px
+from .target_map_choice import (
+    SYMBOL_KINDS,
+    Tools,
+    choice_for_map,
+    paint_choice_scene,
+    paint_choice_symbol,
+    paint_choice_trial,
+)
 from .target_map_follow import (
     LINE_KINDS,
     TRACK,
@@ -78,6 +86,7 @@ class MapModel:
     # Follow the Target: each trial's pointer path split on / off target (the report's
     # ``follow.trials[*].pointer_path``), one list per entry of ``trials``; empty for any other task.
     pointer_runs: list[list[dict[str, Any]]] = field(default_factory=list)
+    choice: dict[str, Any] | None = None  # Choice-making: the Scene Map's buttons and areas
 
 
 def canvas_logical_width(geometry: dict[str, Any]) -> float | None:
@@ -142,11 +151,13 @@ def build_model(report: dict[str, Any] | None) -> MapModel:
     logical_w = canvas_logical_width(geometry)
     tolerance = hit_tolerance_px(report) if logical_w else None
     heat = report.get("heat", {})
+    choice = choice_for_map(report)  # the Scene Map: its buttons replace the layout circles and marks
     return MapModel(
         aspect=float(aspect),
-        slots=slots,
+        slots=[] if choice else slots,
         slot_radius=slot_radius,
-        marks=marks,
+        marks=[] if choice else marks,
+        choice=choice,
         trials=trials,
         heat_image=heat_image(heat),
         heat_empty=bool(heat.get("empty", True)),
@@ -265,7 +276,16 @@ def _paint_mark(p: QPainter, rect: QRectF, mark: dict[str, Any], unit: float) ->
     _label(p, centre, str(mark.get("label", "")), text_colour, 1.7 * radius, size, badge)
 
 
-def _paint_slots(p: QPainter, rect: QRectF, model: MapModel, unit: float) -> None:
+def _paint_layout(p: QPainter, rect: QRectF, model: MapModel, unit: float, trial: int | None = None) -> None:
+    """The faint layout under the marks: the slots' circles; for Choice-making the Scene Map's scene,
+    look-back areas and buttons (the whole test's, or those of ``trial`` with its animation-window path)."""
+    if model.choice is not None:
+        tools = Tools(_pen, _label, _paint_mark)
+        if trial is None:
+            paint_choice_scene(p, rect, model.choice, unit, tools)
+        else:
+            paint_choice_trial(p, rect, model.choice, trial, unit, tools)
+        return
     p.setBrush(Qt.BrushStyle.NoBrush)
     p.setPen(_pen(MAP_SLOT, unit, Qt.PenStyle.DashLine))
     for x, y in model.slots:
@@ -340,7 +360,7 @@ def _paint_trial(
     x, y = target.get("x"), target.get("y")
     if model.moving and target.get("end_x") is not None and target.get("end_y") is not None:
         x, y = target["end_x"], target["end_y"]
-    if x is not None and y is not None:
+    if x is not None and y is not None and model.choice is None:  # Choice-making draws its button
         centre = _point(rect, x, y)
         radius = max(target.get("radius_norm_x") or 0.0, MIN_RADIUS) * rect.width()
         colour = (
@@ -415,6 +435,8 @@ def paint_symbol(p: QPainter, rect: QRectF, kind: str) -> None:
     p.setRenderHint(QPainter.RenderHint.Antialiasing)
     if kind in LINE_KINDS:
         paint_line_symbol(p, square, kind, _pen)
+    elif kind in SYMBOL_KINDS:
+        paint_choice_symbol(p, square, unit, _pen)
     elif kind == "slot":
         p.setBrush(Qt.BrushStyle.NoBrush)
         p.setPen(_pen(MAP_SLOT, 1.4 * unit, Qt.PenStyle.DashLine))
@@ -448,14 +470,14 @@ def paint_map(
     p.setClipRect(rect)
     one = model.trials[trial] if trial is not None and 0 <= trial < len(model.trials) else None
     if one is not None:
-        _paint_slots(p, rect, model, unit)
+        _paint_layout(p, rect, model, unit, trial)
         runs = model.pointer_runs[trial] if trial is not None and trial < len(model.pointer_runs) else None
         _paint_trial(p, rect, model, one, unit, runs)
     else:
         if heat and model.heat_image is not None:
             p.drawImage(rect, model.heat_image)
         if targets:
-            _paint_slots(p, rect, model, unit)
+            _paint_layout(p, rect, model, unit)
             if model.moving:
                 for t in model.trials:
                     _paint_track(p, rect, t.get("track") or [], unit)

@@ -18,7 +18,7 @@ from src.data.recorder import (
     TARGET_TRACK_FILENAME,
     NullRecorder,
 )
-from src.data.schema import SessionMetadata, TrialRecord
+from src.data.schema import LOOKBACK_COLUMNS, SessionMetadata, TrialRecord
 from src.engine.config import load_task_config
 from src.engine.feedback import NullFeedback
 from src.engine.task_runner import build_task, run_headless_replay
@@ -43,11 +43,11 @@ def metadata(session_id: str = "S") -> SessionMetadata:
 def test_the_new_columns_follow_is_skipped_in_the_agreed_order():
     header = TrialRecord.csv_header()
     # The two switch columns and Follow the Target's four (SPEC-input-selection-and-follow.md 4.6),
-    # then Choice-making's four (SPEC-scene-cause-effect-task.md 4.9) come last.
+    # then Choice-making's four and nine look-back columns (SPEC-scene-cause-effect-task.md 4.9) come last.
     assert header[header.index("is_skipped") :] == [
         "is_skipped", "entries", "end_x", "end_y", "slot_index", "clicks", "click_errors",
         "valid_ms", "on_target_ms", "time_on_target_pct", "mean_dist_px",
-        "prompt_object", "button_side", "selected_object", "rt_ms",
+        "prompt_object", "button_side", "selected_object", "rt_ms", *LOOKBACK_COLUMNS,
     ]
     assert "outcome" not in header
     assert list(TrialRecord(0, "t", 0.5, 0.5, 90, 0).as_row()) == header

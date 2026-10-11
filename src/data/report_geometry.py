@@ -163,6 +163,15 @@ class Geometry:
             self.canvas_h_px * self.phys_h_mm / self.screen_h_px,
         )
 
+    def canvas_cell_deg(self, cols: int, rows: int) -> tuple[float, float] | None:
+        """The visual angle (width, height) of one cell of a ``cols`` x ``rows`` board that fills
+        the canvas; None unless the canvas's physical size and the viewing distance are known."""
+        size = self.canvas_mm()
+        if size is None or not self.distance_mm:
+            return None
+        width, height = (math.degrees(2.0 * math.atan(mm / (2.0 * self.distance_mm))) for mm in (size[0] / cols, size[1] / rows))
+        return width, height
+
     # -- visual angle -------------------------------------------------------
 
     def angle_deg(self, p: tuple[float, float], q: tuple[float, float]) -> float | None:

@@ -5,7 +5,7 @@ from __future__ import annotations
 
 import csv
 
-from src.data.schema import SessionMetadata, TrialRecord
+from src.data.schema import LOOKBACK_COLUMNS, SessionMetadata, TrialRecord
 from src.engine.config import load_task_config
 from src.engine.subject_tests import create_test, list_tests
 from src.engine.task_info import TASK_INFO
@@ -147,10 +147,13 @@ def test_the_page_has_a_scene_card_in_place_of_the_grid_layout_card():
 
 
 def test_the_choice_making_columns_come_last_and_are_blank_for_other_tasks():
+    # The four of step 3, then the nine look-back and waiting-phase ones (4.9).
+    n = len(LOOKBACK_COLUMNS)
     header = TrialRecord.csv_header()
-    assert header[-4:] == ["prompt_object", "button_side", "selected_object", "rt_ms"]
+    assert header[-n - 4 : -n] == ["prompt_object", "button_side", "selected_object", "rt_ms"]
+    assert header[-n:] == list(LOOKBACK_COLUMNS)
     other = TrialRecord(0, "click_grid", 0.5, 0.5, 90.0, 0).as_row()
-    assert [other[c] for c in header[-4:]] == ["", "", "", ""]
+    assert [other[c] for c in header[-n - 4 :]] == [""] * (n + 4)
     assert list(other) == header
 
 
