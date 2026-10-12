@@ -91,6 +91,14 @@ from the recorded pointer, not gaze.
 | `wait_scene_ms`, `wait_buttons_ms`, `wait_other_ms` | valid time on the scene, on any button and elsewhere (including off the canvas), from `PROMPT_END` to the choice or timeout | Where the child looked while choosing | Visual search strategy: time on the buttons is looking for the answer; time on the scene may be distraction or anticipation. |
 | `wait_valid_fraction` | valid samples / all samples in that waiting period | Gaze data quality while choosing | QA for the three `wait_*` columns. |
 
+**Prompt mode (added 2026-10-12).** `metadata.json` `settings.structural.prompt_mode` records how the prompt was
+given: `voice` (spoken only, the default), `text` (a banner over the scene, no voice) or `voice_text` (both).
+In `text` mode the prompt has no length: `PROMPT_START` carries `duration_ms` 0 and `duration_source` `text`,
+`PROMPT_END` is written at the same instant, so `rt_ms` and the `wait_*` columns count from the moment the text
+appears and include the reading time. **Read `rt_ms` across runs only within one prompt mode**: a `text` run's
+reaction time measures reading plus choosing, a `voice` run's measures choosing after the request has been heard.
+The report's Test Configuration shows the mode ("Prompt: Voice / Text / Voice and text").
+
 ## metadata.json — session-level
 
 | Field | Source | Meaning | Clinical relevance |

@@ -232,3 +232,140 @@ def test_follow_with_the_mouse_points_and_follows_with_the_mouse():
     )
     assert ins.steps[1] == "Follow the moving circle with the mouse and keep pointing at it while it moves."
     assert ins.steps[2] == "The circle glows while you are pointing at it."
+
+
+# -- Choice-making: the wording follows the prompt mode (SPEC-scene-cause-effect-task.md 3.7, P7) -----------
+
+PROMPT_STEP = {
+    "voice": 'You will hear which button to choose, for example "Make the balloons pop!"',
+    "text": 'You will see which button to choose at the top of the picture, for example "Make the balloons pop!"',
+    "voice_text": 'You will hear and see which button to choose, for example "Make the balloons pop!"',
+}
+PROMPT_END = {"voice": "are spoken", "text": "appear", "voice_text": "are given"}
+CHOICE_NOTE = (
+    "NOTE: If the button is not selected within 8 seconds, the picture will show what that"
+    " button does and the next prompt will follow."
+)
+
+
+def choice_cfg(mode="<absent>", *, pointer="gaze", selection="dwell"):
+    cfg = cfg_for("choice_making")
+    cfg["input"] = {"mode": "eye"}  # whatever the local default.yaml says
+    cfg["task"]["input"] = {"pointer": pointer, "selection": selection}
+    cfg["task"].setdefault("feedback", {})["target_glow"] = True
+    cfg["task"].pop("prompt_mode", None)
+    if mode != "<absent>":
+        cfg["task"]["prompt_mode"] = mode
+    return cfg
+
+
+def choice_ins(mode="<absent>", *, pointer="gaze", selection="dwell", **live):
+    return build_instructions("choice_making", choice_cfg(mode, pointer=pointer, selection=selection), {**values(), **live})
+
+
+def choice_steps(mode, third, first="A picture will appear on the screen, with buttons on each side."):
+    """The four read-aloud steps of Choice-making for ``mode``: ``third`` is the selection step."""
+    return (
+        first,
+        PROMPT_STEP[mode],
+        third,
+        f"When it is selected, the picture will come alive. Continue until no more prompts {PROMPT_END[mode]}.",
+    )
+
+
+DOT = "The small dot on the screen shows where you are looking. "
+MOUSE_DOT = "Move the mouse to point at the screen. "
+DWELL_STEP = "Look at that button and keep looking at it for about 0.8 seconds. A ring will fill up around it."
+POINT_STEP = "Point at that button and keep pointing at it for about 0.8 seconds. A ring will fill up around it."
+SWITCH_STEP = "Look at that button, then press the switch. The button glows while you are looking at it."
+POINT_SWITCH_STEP = "Point at that button, then press the switch. The button glows while you are pointing at it."
+
+
+@pytest.mark.parametrize("mode", ["voice", "text", "voice_text"])
+@pytest.mark.parametrize(
+    "pointer,selection,third,dot",
+    [
+        ("gaze", "dwell", DWELL_STEP, DOT),
+        ("gaze", "switch", SWITCH_STEP, DOT),
+        ("mouse", "dwell", POINT_STEP, MOUSE_DOT),
+        ("mouse", "switch", POINT_SWITCH_STEP, MOUSE_DOT),
+    ],
+)
+def test_choice_making_wording_follows_the_prompt_mode_for_every_input(mode, pointer, selection, third, dot):
+    ins = choice_ins(mode, pointer=pointer, selection=selection)
+    first = choice_steps(mode, third)[0]
+    assert ins.steps == choice_steps(mode, third, first=dot + first)
+    assert ins.note == CHOICE_NOTE  # "the next prompt will follow" stays in every mode
+    assert ins.heading == "Instructions for the Choice-making test:"
+
+
+def test_choice_making_voice_is_the_wording_it_had_before_the_prompt_mode_existed():
+    assert choice_ins("voice").steps == (
+        DOT + "A picture will appear on the screen, with buttons on each side.",
+        'You will hear which button to choose, for example "Make the balloons pop!"',
+        DWELL_STEP,
+        "When it is selected, the picture will come alive. Continue until no more prompts are spoken.",
+    )
+
+
+@pytest.mark.parametrize("unknown", ["banana", "", "VOICE", "voice text", None, 5, ["text"]])
+def test_choice_making_with_an_unknown_prompt_mode_reads_the_voice_wording(unknown):
+    assert choice_ins(unknown) == choice_ins("voice")
+
+
+def test_choice_making_without_a_prompt_mode_reads_the_voice_wording():
+    assert choice_ins() == choice_ins("voice")
+
+
+@pytest.mark.parametrize("mode", ["voice", "text", "voice_text"])
+def test_choice_making_only_the_prompt_step_and_the_ending_change_with_the_mode(mode):
+    voice, other = choice_ins("voice"), choice_ins(mode)
+    assert other.steps[0] == voice.steps[0] and other.steps[2] == voice.steps[2]
+    assert other.note == voice.note and other.clinician == voice.clinician
+    assert other.steps[1] == PROMPT_STEP[mode]
+    assert other.steps[3].endswith(f"no more prompts {PROMPT_END[mode]}.")
+
+
+def test_the_text_mode_reads_nothing_about_hearing():
+    text = " ".join(choice_ins("text").steps).lower()
+    assert "hear" not in text and "spoken" not in text
+    both = " ".join(choice_ins("voice_text").steps)
+    assert "hear and see" in both and "spoken" not in both
+
+
+@pytest.mark.parametrize("mode", ["voice", "text", "voice_text", "banana"])
+@pytest.mark.parametrize("ring", [True, False])
+@pytest.mark.parametrize("dot", [True, False])
+@pytest.mark.parametrize("pointer,selection", [("gaze", "dwell"), ("gaze", "switch"), ("mouse", "dwell")])
+def test_choice_making_leaves_no_placeholder_in_any_mode(mode, ring, dot, pointer, selection):
+    ins = choice_ins(mode, pointer=pointer, selection=selection, **{"dwell.progress_ring": ring, "dwell.visual_cursor": dot})
+    assert len(ins.steps) == 4
+    for text in every_text(ins):
+        assert "{" not in text and "}" not in text and text.strip() == text
+
+
+@pytest.mark.parametrize("task_id", [t for t in TASKS if t != "choice_making"])
+def test_the_prompt_mode_does_not_change_the_other_tests(task_id):
+    plain = build_instructions(task_id, cfg_for(task_id), values())
+    cfg = cfg_for(task_id)
+    cfg["task"]["prompt_mode"] = "text"
+    assert build_instructions(task_id, cfg, values()) == plain
+
+
+def test_a_tests_stored_prompt_mode_reaches_the_instructions_through_the_merged_config():
+    from src.ui.settings_snapshot import merged_config
+
+    base = choice_cfg("voice")
+    cfg = merged_config(base, None, {"prompt_mode": "text"})
+    assert cfg["task"]["prompt_mode"] == "text"
+    assert build_instructions("choice_making", cfg, values()).steps[1] == PROMPT_STEP["text"]
+    assert base["task"]["prompt_mode"] == "voice"  # the stored config is not touched
+
+
+def test_choice_making_does_not_touch_its_inputs():
+    import copy
+
+    cfg, vals = choice_cfg("text"), values()
+    before = (copy.deepcopy(cfg), copy.deepcopy(vals))
+    build_instructions("choice_making", cfg, vals)
+    assert (cfg, vals) == before

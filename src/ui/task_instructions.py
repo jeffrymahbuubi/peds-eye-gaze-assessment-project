@@ -17,6 +17,12 @@ from typing import Any
 
 from ..engine.input_choice import resolve_input
 from ..engine.task_info import TASK_INFO
+from ..tasks.choice_layout import (
+    PROMPT_TEXT,
+    PROMPT_VOICE,
+    PROMPT_VOICE_TEXT,
+    normalise_prompt_mode,
+)
 from .settings_registry import get_nested, initial_live_values
 
 
@@ -57,6 +63,25 @@ _GLOW = " The {noun} glows while you are looking at it."
 
 # Follow the Target's glow step (read only with "Glow on target" on).
 _FOLLOW_GLOW_STEP = "The circle glows while you are looking at it."
+
+# Choice-making only (SPEC-scene-cause-effect-task.md section 3.7, P7): how the child is told which
+# button to choose follows the run's ``prompt_mode``. Per mode: the step that introduces the prompt
+# (``{prompt_hint}``) and the end of the last step (``{prompt_end}``). Voice is also the wording of
+# an unknown mode. Same clinician-review caveat as the template below.
+_PROMPT_WORDING: dict[str, tuple[str, str]] = {
+    PROMPT_VOICE: (
+        'You will hear which button to choose, for example "Make the balloons pop!"',
+        "are spoken",
+    ),
+    PROMPT_TEXT: (
+        'You will see which button to choose at the top of the picture, for example "Make the balloons pop!"',
+        "appear",
+    ),
+    PROMPT_VOICE_TEXT: (
+        'You will hear and see which button to choose, for example "Make the balloons pop!"',
+        "are given",
+    ),
+}
 
 
 def _point_wording(text: str) -> str:
@@ -118,9 +143,9 @@ _TEMPLATES: dict[str, tuple[tuple[str, ...], str]] = {
     "choice_making": (
         (
             "{dot}A picture will appear on the screen, with buttons on each side.",
-            'You will hear which button to choose, for example "Make the balloons pop!"',
+            "{prompt_hint}",
             "Look at that button and keep looking at it for about {dwell}.{ring}",
-            "When it is selected, the picture will come alive. Continue until no more prompts are spoken.",
+            "When it is selected, the picture will come alive. Continue until no more prompts {prompt_end}.",
         ),
         "NOTE: If the button is not selected within {timeout}, the picture will show what that"
         " button does and the next prompt will follow.",
@@ -155,7 +180,8 @@ def build_instructions(
 
     ``cfg`` is the run's merged config (``load_task_config`` with the test's
     structural overrides applied): it gives the planned trial count
-    (``cfg["task"]["trials"]``). ``values`` are the test's live settings, keyed as
+    (``cfg["task"]["trials"]``) and, for Choice-making, the prompt mode
+    (``cfg["task"]["prompt_mode"]``). ``values`` are the test's live settings, keyed as
     in :func:`~src.ui.settings_registry.initial_live_values` (dwell threshold,
     timeout, progress ring, gaze cursor); it may be partial or omitted, and any key
     it lacks comes from ``cfg``. Neither argument is changed.
@@ -168,11 +194,15 @@ def build_instructions(
         dot = _MOUSE_DOT
     else:
         dot = _DOT if live["dwell.visual_cursor"] else ""
+    mode = normalise_prompt_mode(cfg.get("task", {}).get("prompt_mode"))
+    prompt_hint, prompt_end = _PROMPT_WORDING[mode]
     fill = {
         "dot": dot,
         "ring": _RING if live["dwell.progress_ring"] else "",
         "dwell": format_seconds(live["dwell.threshold_ms"]),
         "timeout": format_seconds(live["task.timeout_ms"]),
+        "prompt_hint": prompt_hint,
+        "prompt_end": prompt_end,
     }
     steps, note = _TEMPLATES[task_id]
     glow = get_nested(cfg.get("task", {}), "feedback.target_glow", True)

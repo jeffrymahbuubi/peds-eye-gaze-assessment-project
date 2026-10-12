@@ -4,7 +4,7 @@ title: A fifth test - an animated scene with 8 side buttons; a spoken prompt nam
 status: approved 2026-10-10 (H1-H14 approved, S1-S8 answered, section 3.4); test name "Choice-making", task id choice_making
 created: 2026-10-10
 last_updated: 2026-10-12
-next_step: step 8 DONE 2026-10-12 (text prompt, border trace); next step 7 part 2 on the GP3 HD (Gaze + Dwell / Switch, sound listen check, text prompt + border trace by eye)
+next_step: step 8 + P7 DONE 2026-10-12 (text prompt, border trace, Start-page text); banner look open; next step 7 part 2 on the GP3 HD (Gaze + Dwell / Switch, sound listen check, text prompt + border trace by eye)
 related:
   - SPEC-grid3-calibration-parklife-feasibility.md (Part B feasibility, decisions U4, Q6-Q8)
   - docs/grid3/park-life/README.md (reference: layout, effects, timings, object regions - section 9)
@@ -158,6 +158,7 @@ as an alternative:
 | P4 | **Dwell progress = border trace** (replaces the circle ring on the scene buttons only). Found in the trial video and in `scene_buttons.draw_button`: the circle of radius `min(w, h)/2 + 12` with an 8 px pen goes **16 px past the top and bottom** of a 250 x 182 px button (Standard gap at 1920 x 1032; the same 16 px at Wide / Extra wide), into the 25 px gap, and crosses the picture and the label. New look: an 8 px accent line (`ACCENT`) runs **clockwise along the button's own rounded border**, from top-centre back to top-centre, proportional to the dwell progress. It is drawn on the border rect inset by half the pen, so it never leaves the button and never covers the picture or the label. Same "Dwell ring" setting; the circle ring of the other four tests is unchanged. |
 | P5 | **The instant on-target outline moves inside the button too** (user, 2026-10-12). On a looked-at scene button the instant outline (`scene_buttons.draw_button`, `look.show_instant`) is drawn at `rect.adjusted(-5, -5, 5, 5)`, 5 px OUTSIDE the button. It now lies on the border rect inset by half its pen (2.5 px for the 5 px line), the same rule as the border trace (P4), so nothing drawn for the looked-at button leaves the button's rectangle. Choice-making only (`canvas.py` untouched). The glow halo (Switch, W3) is not part of this: it still extends outside the button, unchanged. |
 | P6 | **Banner lettering about 1.5 deg tall** (user, 2026-10-12). The text of the banner (P2) is about 1.5 degrees tall (about 60 px: 61.5 px at 1920 x 1080 @ 100 %, 650 mm), computed from the monitor's px per degree by the same visual-angle maths as the target sizes and the cell gap (SPEC-target-size-and-motion-paths), never a fixed px: `src/engine/prompt_text.py`, resolved against the run's screen like `grid.gap_px` and handed to the canvas as `scene["prompt_text_px"]`. One line for every Park prompt at that size; it shrinks to fit only if a sentence would overflow the scene width less the margins. |
+| P7 | **The Start-page instructions follow the prompt mode** (user, 2026-10-12). The read-aloud text of the Choice-making Start page (`src/ui/task_instructions.py`, the `choice_making` template, still a PLACEHOLDER for clinician review) reads `cfg["task"]["prompt_mode"]` of the run's merged config, normalised like the task does (an unknown value is `voice`). `voice` (default): unchanged. `text`: step 2 is *You will see which button to choose at the top of the picture, for example "Make the balloons pop!"* and step 4 ends *Continue until no more prompts appear.* `voice_text`: step 2 is *You will hear and see which button to choose, for example "Make the balloons pop!"* and step 4 ends *Continue until no more prompts are given.* The NOTE ("... the next prompt will follow.") is the same in every mode; the Switch and Mouse rewrites work on the new sentences unchanged. |
 
 ---
 
@@ -308,7 +309,7 @@ Folder `configs/assets/scenes/park/`:
 
 `configs/tasks/choice_making.yaml`: `trials` 16, `timeout_ms` 10000, `post_effect_ms` 1000,
 `scene` park, `language` en, `grid.gap` standard, `feedback.miss_sound` true, `visual_cue` false
-(S3), `idle_animation` blinks (N3; off / blinks / blinks_bob). Settings registry entries `applies_to=("choice_making",)`; the per-test pointer and
+(S3), `idle_animation` blinks (N3; off / blinks / blinks_bob), `prompt_mode` voice (3.7 P1; voice / text / voice_text; the banner lettering 1.5 deg, P6, resolved per screen into `prompt_text_px`). Settings registry entries `applies_to=("choice_making",)`; the per-test pointer and
 selection settings apply as for the other tests. The test is offered in Add test only (S8).
 `trials` accepts any number from 1, balanced as in W5. Preview Test plays the prompts and the
 effects with sound (W7). Glow follows the gaze in Switch mode (W3). Layout of the page:
@@ -316,14 +317,18 @@ effects with sound (W7). Glow follows the gaze in Switch mode (W3). Layout of th
 
 ### 4.9 Data and report
 
-- Events (new kinds): `PROMPT_START`, `PROMPT_END`, `EFFECT_START`, `EFFECT_END` (with `object`,
+- Events (new kinds): `PROMPT_START` (`duration_ms`, `duration_source` = wav / default / `text`; 0 and `text`
+  in Text mode, 3.7 P3), `PROMPT_END` (at the trial start in Text mode), `EFFECT_START`, `EFFECT_END` (with `object`,
   `modelled`); `MISS_CLICK` gains `selected_slot` / `selected_object`.
 - Trial record adds: `prompt_object`, `button_side`, `selected_object` (on hit = prompt object),
   `rt_ms` from `PROMPT_END`, and the look-back fields.
 - Report summary: hit rate, timeouts, misses (wrong button), median RT, look-back rate (hit trials;
   modelled trials separately), median look-back latency, waiting-phase share on scene / buttons /
   elsewhere (S7), results split by left / right button side; a "visual cue on" marker when used (S3)
-  and the idle-animation setting of the run (N3, also in `metadata.json`).
+  and the idle-animation setting of the run (N3, also in `metadata.json`); the prompt mode in the Test
+  Configuration ("Prompt: Voice / Text / Voice and text", 3.7 P1; `metadata.json` `settings.structural.prompt_mode`).
+  In Text mode `rt_ms` counts from the text's appearance, so it includes reading time: compare RT within one mode
+  (`docs/CLINICAL_DATA_REFERENCE.md`).
 - Per-trial table: trial, prompt object, side, result, selected object, attempts, RT, look-back,
   latency, dwell, valid fraction, wait on scene / buttons / elsewhere.
 - Scene Map in place of the Target Map (W6). Page layout: `docs/wireframes/choice-making.md` part C.
@@ -534,6 +539,16 @@ effects with sound (W7). Glow follows the gaze in Switch mode (W3). Layout of th
   provisional Start-page text in `task_instructions.py` still says "You will hear which button to choose" for a
   Text-mode run; sections 4.8 / 4.9 and `docs/CLINICAL_DATA_REFERENCE.md` do not yet mention `prompt_mode` or
   `duration_source` "text". Live check (banner, trace, sounds) folds into step 7 part 2.
+
+- **2026-10-12 (open decisions, user + hub)** - The user's answers to the step 8 follow-ups: (1) **P7**, the
+  Choice-making Start-page text follows the prompt mode (Text: "You will see which button to choose at the top of the
+  picture ..."; Voice and text: "You will hear and see ..."; still a placeholder for the clinician review), built by
+  `spec-implementer` in worktree `choice-step8b` (section 8), reviewed by the hub (wording table keyed by
+  `normalise_prompt_mode`, voice text unchanged, Switch / Mouse rewrites kept, other tests untouched); (2) the
+  banner's look (opaque, about the top 12 % of the scene while choosing) **stays open** for the live check;
+  (3) docs updated by the hub: sections 4.8 / 4.9 (`prompt_mode`, `duration_source` `text`, RT within one mode) and
+  `docs/CLINICAL_DATA_REFERENCE.md` (Prompt mode paragraph). Worktree pytest 3974 tests, 3969 passed, 5 failed (the
+  skip-worktree `default.yaml` baseline only).
 
 ## 8. Impl log
 
@@ -1070,6 +1085,38 @@ effects with sound (W7). Glow follows the gaze in Switch mode (W3). Layout of th
     `src/ui/task_instructions.py` still says "You will hear which button to choose" (provisional text awaiting the clinician
     review, section 9 Q3: a Text-mode child does not hear it); the live check on the GP3 HD (step 7 part 2): the banner on
     the real screen, the border trace and the inset outline by eye, the sound with `voice_text`.
+
+- **2026-10-12 - claude-sonnet-5-5 - step 8b (Start-page instructions follow the prompt mode, section 3.7 P7),
+  implemented; uncommitted.** Worktree `choice-step8b` at `85ae10e`.
+  - **What it does.** `build_instructions` (`src/ui/task_instructions.py`) reads
+    `cfg["task"]["prompt_mode"]` of the merged config (the key a test's structural `prompt_mode` lands on through
+    `merged_config`, which is what `run_flow` hands the Start page) and normalises it with `normalise_prompt_mode`
+    (an unknown, missing or non-string value is `voice`). The `choice_making` template now has two placeholders,
+    `{prompt_hint}` (step 2) and `{prompt_end}` (the end of step 4), filled from the new `_PROMPT_WORDING` table
+    (`voice`, `text`, `voice_text`) with the three wordings of P7. The template keeps its PLACEHOLDER comment for the
+    clinician review. The NOTE is unchanged in every mode. The Switch rewrite (`_SWITCH_STEPS`, the step with
+    `{dwell}`) and the Mouse rewrite (`_point_wording`, run after the fill) work on the new sentences as before; the
+    other four tests ignore the mode (the extra fill keys are unused there). `start_test_page.py` is untouched.
+  - **Files changed.** `src/ui/task_instructions.py`, `tests/test_task_instructions.py`, this SPEC (the P7 row of
+    section 3.7, this entry).
+  - **Tests added (79),** all in `tests/test_task_instructions.py`: the full four steps and the NOTE for 3 modes x
+    Gaze+Dwell / Gaze+Switch / Mouse+Dwell / Mouse+Switch (12); `voice` equals the text it had before P7 (1); an unknown
+    value (`"banana"`, `""`, `"VOICE"`, `"voice text"`, `None`, `5`, a list) and a missing key read the `voice` wording
+    (8); only step 2 and the ending of step 4 change between modes (3); `text` says nothing about hearing, `voice_text`
+    says "hear and see" (1); no `{` / `}` left, whole-sentence strip, 4 steps, for 4 mode values x ring x gaze dot x 3
+    inputs (48); the other four tests are identical whatever `prompt_mode` holds (4); a stored structural `prompt_mode`
+    reaches the instructions through `merged_config` (1); the inputs are not modified (1).
+  - **pytest (full, venv, from the worktree):** `5 failed, 3969 passed in 756.95s (0:12:36)` (3974 tests; 79 new on
+    the 3895 of the step 8 entry). The 5 are the known worktree baseline (committed `configs/default.yaml`, alpha 0.35
+    against the local 0.22): `test_config_flow.py::test_a_new_test_opens_at_standard_with_the_task_defaults` (1) and
+    `test_task_config_page.py::test_a_new_test_opens_with_standard_and_the_defaults[...]` for the four other tests (4); no
+    other failure. `ruff` is clean on `src/ui/task_instructions.py` and `tests/test_task_instructions.py`.
+    (Note for the next run: `pyproject.toml` already has `addopts = "-q"`, so `pytest -q` is `-qq` and prints no
+    final summary line; run without `-q`.)
+  - **Deviations from the SPEC:** none.
+  - **Left undone (by scope):** nothing of P7. Still open from step 8: the live check (step 7 part 2) and sections
+    4.8 / 4.9 do not yet list `prompt_mode`. The Start-page wording is still provisional text for the clinician review
+    (section 9 Q3).
 
 ## 9. Open questions
 
