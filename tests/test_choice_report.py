@@ -69,6 +69,15 @@ def test_the_block_says_where_the_samples_came_from_and_what_the_run_used(choice
     assert choice["button_deg"] == [6.6, 5.2]
 
 
+def test_the_block_carries_the_prompt_mode_the_run_used(tmp_path):
+    assert block(tmp_path)["prompt_mode"] is None  # a run made before the setting
+    modes = (("voice", "voice"), ("text", "text"), ("voice_text", "voice_text"), ("shout", "voice"))
+    for i, (value, expected) in enumerate(modes):
+        meta = choice_meta(main_trials())
+        meta["settings"]["structural"]["prompt_mode"] = value
+        assert block(tmp_path, name=f"run{i}", meta=meta)["prompt_mode"] == expected
+
+
 def test_the_idle_animation_is_read_from_the_metadata_when_the_canvas_step_wrote_it(tmp_path):
     meta = choice_meta(main_trials(), idle_animation="blinks_bob")
     assert block(tmp_path, meta=meta)["idle_animation"] == "blinks_bob"

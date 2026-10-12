@@ -17,6 +17,7 @@ from typing import Any
 
 from ..engine.target_size import GAP_NAMES, SIZE_NAMES
 from ..engine.task_info import TASK_INFO
+from ..tasks.choice_layout import normalise_prompt_mode
 from ..tasks.follow_moving import MOTION_PATH_LABELS
 from .report_util import NOT_RECORDED, seconds_text
 
@@ -244,6 +245,15 @@ def _canvas_row(meta: dict[str, Any]) -> str:
 
 LANGUAGE_NAMES = {"en": "English", "zh-TW": "Traditional Chinese"}
 IDLE_ANIMATION_NAMES = {"off": "Off", "blinks": "Blinks", "blinks_bob": "Blinks and bob"}
+PROMPT_MODE_NAMES = {"voice": "Voice", "text": "Text", "voice_text": "Voice and text"}
+
+
+def prompt_mode_text(value: Any) -> str:
+    """The Test Configuration's "Prompt" value (P1): the mode's name, an unknown value read as the
+    default Voice; ``not recorded`` when the run has none (a run made before the setting)."""
+    if value is None or value == "":
+        return NOT_RECORDED
+    return PROMPT_MODE_NAMES[normalise_prompt_mode(value)]
 
 
 def _choice_rows(
@@ -251,7 +261,8 @@ def _choice_rows(
 ) -> list[tuple[str, str]]:
     """Choice-making's version of the rows (the wireframe's Test Configuration): the button size
     in degrees with the cell gap, the time to choose, the pause after the animation, the scene
-    with the prompt language, and whether the visual cue was on and which idle animation ran."""
+    with the prompt language, how the prompt was given (voice, text or both), whether the visual
+    cue was on and which idle animation ran."""
     scene = setting(snapshot, None, "scene")
     language = setting(snapshot, None, "language")
     scene_text = NOT_RECORDED
@@ -259,6 +270,7 @@ def _choice_rows(
         scene_text = str(scene).capitalize()
         if language:
             scene_text += f", prompts in {LANGUAGE_NAMES.get(str(language), str(language))}"
+    prompt = setting(snapshot, None, "prompt_mode")
     cue = setting(snapshot, None, "visual_cue")
     idle = meta.get("idle_animation") or setting(snapshot, None, "idle_animation")
     cell = geometry.canvas_cell_deg(7, 5) if geometry is not None else None
@@ -281,6 +293,7 @@ def _choice_rows(
         elif label == "Theme":
             out += [
                 ("Scene", scene_text),
+                ("Prompt", prompt_mode_text(prompt)),
                 ("Visual cue", NOT_RECORDED if cue is None else ("On" if cue else "Off")),
                 ("Idle animation", IDLE_ANIMATION_NAMES.get(str(idle), str(idle)) if idle else NOT_RECORDED),
             ]
@@ -306,8 +319,8 @@ def build_config_rows(
     ``follow_layout`` is a Follow the Target run (SPEC-input-selection-and-follow.md 4.5): it
     has nothing to select, so the **Selection** row is left out (16 rows), and its trials last
     a fixed time, so "Trial timeout" reads **Trial duration**. Choice-making's rows are
-    :func:`_choice_rows` (19: the button size, time to choose, pause after the animation, scene,
-    visual cue and idle animation in place of the target size, timeout, interval and theme).
+    :func:`_choice_rows` (20: the button size, time to choose, pause after the animation, scene,
+    prompt, visual cue and idle animation in place of the target size, timeout, interval and theme).
     """
     snapshot = snapshot if isinstance(snapshot, dict) else {}
     meta = metadata or {}

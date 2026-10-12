@@ -191,6 +191,40 @@ def test_the_configuration_rows_name_the_scene_the_button_size_and_the_timing(re
     assert ("Idle animation", "Blinks") in [tuple(r) for r in blinking["config"]["rows"]]
 
 
+@pytest.mark.parametrize(
+    "value,shown",
+    [("voice", "Voice"), ("text", "Text"), ("voice_text", "Voice and text"), ("shout", "Voice")],
+)
+def test_the_configuration_names_how_the_prompt_was_given(tmp_path, value, shown):
+    """SPEC 3.7, P1: "Prompt: Voice / Text / Voice and text", after the Scene row; an unknown
+    value reads as the default, Voice."""
+    meta = choice_meta(main_trials())
+    meta["settings"]["structural"]["prompt_mode"] = value
+    rows = [tuple(r) for r in build_report(choice_folder(tmp_path, main_trials(), meta=meta))["config"]["rows"]]
+    assert ("Prompt", shown) in rows
+    labels = [label for label, _ in rows]
+    assert labels.index("Prompt") == labels.index("Scene") + 1 and labels.index("Visual cue") == labels.index("Prompt") + 1
+
+
+def test_a_run_made_before_the_setting_says_the_prompt_was_not_recorded(report):
+    rows = [tuple(r) for r in report["config"]["rows"]]
+    assert ("Prompt", NOT_RECORDED) in rows  # the fixture's metadata has no prompt_mode
+
+
+def test_the_prompt_row_is_in_the_pdf_and_page_1_still_holds_the_configuration(qapp, fonts, tmp_path):
+    meta = choice_meta(main_trials())
+    meta["settings"]["structural"]["prompt_mode"] = "voice_text"
+    report = build_report(choice_folder(tmp_path, main_trials(), meta=meta))
+    html, doc = laid_out(report, qapp)
+    assert "Prompt" in html and "Voice and text" in html
+    assert page_of(doc, "Test Configuration") == 1 and page_of(doc, "Scene Map") == 2
+    layout, height = doc.documentLayout(), doc.pageSize().height()
+    block, last = doc.begin(), None
+    while block.isValid() and block.text().strip() != "Scene Map":
+        last, block = block, block.next()
+    assert layout.blockBoundingRect(last).bottom() <= height  # nothing spilled onto page 2
+
+
 # -- the page ------------------------------------------------------------------------------------------------
 
 

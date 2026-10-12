@@ -56,6 +56,16 @@ CHOICE_STRUCTURAL: list[StructuralSetting] = [
         choices=(("en", "English"),),
         default="en",
     ),
+    # How the prompt is given (P1): a radio group after the language; stored with the test and
+    # written to the run metadata (``settings.structural.prompt_mode``) like the visual cue.
+    StructuralSetting(
+        "prompt_mode",
+        "Prompt",
+        "choice",
+        applies_to=_ONLY,
+        choices=(("voice", "Voice"), ("text", "Text"), ("voice_text", "Voice and text")),
+        default="voice",
+    ),
     StructuralSetting(
         "visual_cue",
         "Visual cue: the target button gently pulses",
@@ -78,7 +88,8 @@ CHOICE_STRUCTURAL: list[StructuralSetting] = [
 # The Scene card (column B) takes the place of Grid Click's Grid Layout card: this test has a
 # fixed 7 x 5 board, so no rows or columns, but the Cell gap (``grid.gap``) lives here.
 SCENE_CARD = (
-    "scene", "Scene", 1, None, ("scene", "language", "visual_cue", "idle_animation", "grid.gap")
+    "scene", "Scene", 1, None,
+    ("scene", "language", "prompt_mode", "visual_cue", "idle_animation", "grid.gap"),
 )
 
 

@@ -16,6 +16,8 @@ buttons (:mod:`.scene_buttons`). What moves, and where, comes from the Qt-free
   stop with the test (a pause stops the ticks) and are frozen during an effect.
 * **Placeholders.** A layer without a picture file is drawn by :mod:`.scene_placeholders`; one with
   a picture file in the scene folder is drawn from it.
+* **Text prompt (P2).** While ``scene["prompt_text"]`` is set, a caption strip over the top of the
+  scene (:mod:`.scene_banner`).
 """
 
 from __future__ import annotations
@@ -39,6 +41,7 @@ from ..tasks.choice_scene import (
     object_layer_states,
     particles_at,
 )
+from .scene_banner import draw_banner
 from .scene_buttons import ButtonLook, draw_button, pulse_phase, selected_strength
 from .scene_placeholders import (
     draw_backdrop,
@@ -267,6 +270,8 @@ class SceneView:
         rect = self._scene_rect(scene, dpr)
         if rect is not None:
             self._paint_scene(painter, rect, obj, float((effect or {}).get("elapsed_ms", 0.0)), dpr)
+            if scene.get("prompt_text"):  # the text prompt (P2): over the scene, only while a choice is open
+                draw_banner(painter, rect, str(scene["prompt_text"]), float(scene.get("prompt_text_px") or 0.0))
         self._paint_buttons(painter, canvas, scene, effect, dpr)
 
     def _paint_scene(self, painter: QPainter, rect: QRectF, obj: ObjectSpec | None, elapsed_ms: float, dpr: float) -> None:

@@ -52,6 +52,7 @@ from .engine.input_choice import (
 )
 from .engine.latency import LatencyTracker
 from .engine.loop_rate import config_target_fps, resolve_target_fps, target_fps_is_invalid
+from .engine.prompt_text import apply_prompt_text, prompt_text_log_line
 from .engine.run_mode import (
     ENDED_QUIT,
     PRACTICE,
@@ -829,6 +830,10 @@ class AssessmentApp:
         if gap_info is not None:
             self.metadata.grid_gap = gap_info
             self.recorder.log(grid_gap_log_line(gap_info))
+        # Choice-making's text prompt: the banner lettering is 1.5 deg tall (P6), same scale.
+        text_info = apply_prompt_text(task_cfg, scale, distance)
+        if text_info is not None:
+            self.recorder.log(prompt_text_log_line(text_info))
 
     def _install_key_handler(self) -> None:
         original = self.canvas.keyPressEvent

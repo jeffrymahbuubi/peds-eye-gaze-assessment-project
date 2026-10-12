@@ -51,6 +51,7 @@ def test_the_shipped_config_has_the_4_8_defaults():
     assert task["task_id"] == TASK
     assert (task["trials"], task["timeout_ms"], task["post_effect_ms"]) == (16, 10000, 1000)
     assert (task["scene"], task["language"], task["visual_cue"]) == ("park", "en", False)
+    assert task["prompt_mode"] == "voice"  # P1: the default
     assert task["idle_animation"] == "blinks"  # N3: the default, as Grid 3
     assert task["grid"]["gap"] == "standard"
     assert task["feedback"]["miss_sound"] is True
@@ -73,7 +74,7 @@ def _keys(settings):
 
 
 def test_the_choice_making_settings_apply_to_this_task_only():
-    for key in ("scene", "language", "visual_cue", "idle_animation"):
+    for key in ("scene", "language", "prompt_mode", "visual_cue", "idle_animation"):
         assert key in _keys(structural_settings_for_task(TASK))
         for other in ("click_static", "click_grid", "follow_moving", "scanning"):
             assert key not in _keys(structural_settings_for_task(other))
@@ -110,6 +111,7 @@ def test_the_settings_start_from_the_shipped_config():
     structural = initial_structural_values(TASK, config)
     assert structural["trials"] == 16 and structural["scene"] == "park"
     assert structural["language"] == "en" and structural["visual_cue"] is False
+    assert structural["prompt_mode"] == "voice"
     assert structural["idle_animation"] == "blinks"
     assert structural["grid.gap"] == "standard"
     live = initial_live_values(config)
@@ -132,7 +134,7 @@ def test_the_page_has_a_scene_card_in_place_of_the_grid_layout_card():
     scene = groups["scene"]
     assert (scene.title, scene.column, scene.hint) == ("Scene", 1, None)
     assert [c.key for c in scene.controls] == [
-        "scene", "language", "visual_cue", "idle_animation", "grid.gap",
+        "scene", "language", "prompt_mode", "visual_cue", "idle_animation", "grid.gap",
     ]
     assert [c.key for c in groups["timing"].controls] == ["task.timeout_ms", "task.post_effect_ms"]
     assert [g.id for g in config_groups_for_task(TASK) if g.column == 1] == [

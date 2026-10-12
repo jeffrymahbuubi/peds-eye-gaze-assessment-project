@@ -196,7 +196,7 @@ No "Play hit sound": a correct choice plays the object's own animation and sound
 +---------------------------------------------------------------------------------------+
 ```
 
-> **Text banner (P2):** a rounded caption strip across the top of the scene, large dark text on a light panel, the same sentence as the spoken prompt. It appears at the trial start and stays until the right choice or the timeout; it is hidden while the effect plays and between trials.
+> **Text banner (P2):** a rounded caption strip across the top of the scene, large dark text on a light panel, the same sentence as the spoken prompt. The lettering is about 1.5° tall (about 60 px at 1920 x 1080, P6), on one line. It appears at the trial start and stays until the right choice or the timeout; it is hidden while the effect plays and between trials.
 > **Timing (P3):** **Text:** no voice, selection is open at once, and the 10 s to choose start when the text appears. **Voice and text:** the voice plays as in B1 and blocks selection until it ends; the banner shows at the same time.
 
 ### B2 · Choosing
@@ -208,7 +208,7 @@ No "Play hit sound": a correct choice plays the object's own animation and sound
 +-------------+                                                           +-------------+
 ```
 
-> **Dwell progress (P4):** a thick accent line runs clockwise along the looked-at button's own rounded border, from top-centre back to top-centre (`====>` above is about 30 %). It stays on the button: nothing spills into the gap, the picture and the label stay clear. It replaces the circle ring, which overflowed the button by 16 px at the top and bottom.
+> **Dwell progress (P4):** a thick accent line runs clockwise along the looked-at button's own rounded border, from top-centre back to top-centre (`====>` above is about 30 %). It stays on the button: nothing spills into the gap, the picture and the label stay clear. It replaces the circle ring, which overflowed the button by 16 px at the top and bottom. The thin instant outline (the moment the gaze lands) also lies inside the button's border now (P5).
 
 > **Selection (H5):** a completed dwell (or a switch press) on any button selects it. **Right button:** the effect plays (B3). **Wrong button:** the miss sound, no animation (S4), the dwell ring resets and the trial goes on until the right choice or the 10 s run out. Gaze on the scene or in a gap selects nothing.
 

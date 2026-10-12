@@ -28,7 +28,14 @@ from collections.abc import Sequence
 from pathlib import Path
 from typing import Any
 
-from ..tasks.choice_layout import GRID_COLS, GRID_ROWS, OBJECT_BY_ID, OBJECTS, side_of
+from ..tasks.choice_layout import (
+    GRID_COLS,
+    GRID_ROWS,
+    OBJECT_BY_ID,
+    OBJECTS,
+    normalise_prompt_mode,
+    side_of,
+)
 from ..tasks.choice_scene import load_manifest, object_box_at
 from .lookback import (
     DEFAULT_LOOKBACK,
@@ -76,15 +83,17 @@ def default_box_at(scene: str = "park") -> BoxAt:
 
 def run_extras(meta: dict[str, Any], settings: dict[str, Any]) -> dict[str, Any]:
     """The run's own settings the page and the PDF name, read as the run recorded them: the scene
-    and prompt language, whether the visual cue was on (S3), the idle animation (N3: ``None`` until
-    the canvas step writes it to ``metadata.json``), the time to choose, the pause after the
-    animation and the cell gap."""
+    and prompt language, how the prompt was given (P1: voice, text or both), whether the visual
+    cue was on (S3), the idle animation (N3: ``None`` until the canvas step writes it to
+    ``metadata.json``), the time to choose, the pause after the animation and the cell gap."""
+    prompt = setting(settings, None, "prompt_mode")
     cue = setting(settings, None, "visual_cue")
     idle = meta.get("idle_animation") or setting(settings, None, "idle_animation")
     cell_gap = meta.get("grid_gap")
     return {
         "scene": setting(settings, None, "scene"),
         "language": setting(settings, None, "language"),
+        "prompt_mode": normalise_prompt_mode(prompt) if prompt else None,
         "visual_cue": cue if isinstance(cue, bool) else None,
         "idle_animation": str(idle) if idle else None,
         "timeout_ms": to_float(setting(settings, "task.timeout_ms", "timeout_ms")),

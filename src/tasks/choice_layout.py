@@ -29,6 +29,26 @@ SCENE_COLS = 5  # columns 1-5
 SIDE_LEFT = "left"
 SIDE_RIGHT = "right"
 
+# How the prompt is given (SPEC section 3.7, P1): spoken, as text in a banner, or both.
+PROMPT_VOICE, PROMPT_TEXT, PROMPT_VOICE_TEXT = "voice", "text", "voice_text"
+PROMPT_MODES = (PROMPT_VOICE, PROMPT_TEXT, PROMPT_VOICE_TEXT)
+DEFAULT_PROMPT_MODE = PROMPT_VOICE
+
+
+def normalise_prompt_mode(value: object) -> str:
+    """``value`` if it is one of :data:`PROMPT_MODES`, else the default (``voice``)."""
+    return value if isinstance(value, str) and value in PROMPT_MODES else DEFAULT_PROMPT_MODE
+
+
+def prompt_has_voice(mode: object) -> bool:
+    """Whether the spoken prompt plays (and blocks selection until it ends, H4, A3)."""
+    return normalise_prompt_mode(mode) != PROMPT_TEXT
+
+
+def prompt_has_text(mode: object) -> bool:
+    """Whether the text banner is shown (P2)."""
+    return normalise_prompt_mode(mode) != PROMPT_VOICE
+
 # The spoken prompt's length when its WAV is missing or unreadable (SPEC section 9, Q1 = B): the
 # engine measures ``prompt_<object>.wav`` itself, and every object falls back to this.
 DEFAULT_PROMPT_MS = 2000

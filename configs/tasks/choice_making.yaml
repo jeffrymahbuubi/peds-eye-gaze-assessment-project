@@ -10,6 +10,7 @@ post_effect_ms: 1000          # pause after the effect (the next prompt never st
 
 scene: park                   # the scene (v1: park only)
 language: en                  # prompt language (v1: English only)
+prompt_mode: voice            # how the prompt is given: voice | text (a banner, no audio, selection open at once) | voice_text (both, voice blocks selection)
 visual_cue: false             # true = the target button gently pulses until the selection (runs are marked in the report)
 idle_animation: blinks        # the picture between trials: off | blinks (characters blink) | blinks_bob (plus a gentle bob)
 

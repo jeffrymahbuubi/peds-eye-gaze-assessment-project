@@ -4,7 +4,7 @@ title: A fifth test - an animated scene with 8 side buttons; a spoken prompt nam
 status: approved 2026-10-10 (H1-H14 approved, S1-S8 answered, section 3.4); test name "Choice-making", task id choice_making
 created: 2026-10-10
 last_updated: 2026-10-12
-next_step: step 8 (text prompt, section 3.7) at the wireframe gate; then step 7 part 2 on the GP3 HD (Gaze + Dwell / Switch, sound listen check, text prompt)
+next_step: step 8 DONE 2026-10-12 (text prompt, border trace); next step 7 part 2 on the GP3 HD (Gaze + Dwell / Switch, sound listen check, text prompt + border trace by eye)
 related:
   - SPEC-grid3-calibration-parklife-feasibility.md (Part B feasibility, decisions U4, Q6-Q8)
   - docs/grid3/park-life/README.md (reference: layout, effects, timings, object regions - section 9)
@@ -156,6 +156,8 @@ as an alternative:
 | P2 | **Text banner at the top of the scene:** a rounded caption strip across the top of `scene_rect`, large dark text on a light panel, the object's `prompt` sentence from `scene.yaml` (no new assets). Shown from the trial start until the hit or the timeout; hidden during the effect and between trials. |
 | P3 | **Timing:** `text` = no voice, **no blocking**: selection is open from the trial start and the time to choose starts when the text appears (`PROMPT_START` `duration_ms` 0, source `text`). `voice_text` = the voice plays and blocks selection exactly as `voice` (H4, A3); the banner shows at the same time. *(`voice_text` blocking confirmed by the user at the wireframe gate, 2026-10-12.)* |
 | P4 | **Dwell progress = border trace** (replaces the circle ring on the scene buttons only). Found in the trial video and in `scene_buttons.draw_button`: the circle of radius `min(w, h)/2 + 12` with an 8 px pen goes **16 px past the top and bottom** of a 250 x 182 px button (Standard gap at 1920 x 1032; the same 16 px at Wide / Extra wide), into the 25 px gap, and crosses the picture and the label. New look: an 8 px accent line (`ACCENT`) runs **clockwise along the button's own rounded border**, from top-centre back to top-centre, proportional to the dwell progress. It is drawn on the border rect inset by half the pen, so it never leaves the button and never covers the picture or the label. Same "Dwell ring" setting; the circle ring of the other four tests is unchanged. |
+| P5 | **The instant on-target outline moves inside the button too** (user, 2026-10-12). On a looked-at scene button the instant outline (`scene_buttons.draw_button`, `look.show_instant`) is drawn at `rect.adjusted(-5, -5, 5, 5)`, 5 px OUTSIDE the button. It now lies on the border rect inset by half its pen (2.5 px for the 5 px line), the same rule as the border trace (P4), so nothing drawn for the looked-at button leaves the button's rectangle. Choice-making only (`canvas.py` untouched). The glow halo (Switch, W3) is not part of this: it still extends outside the button, unchanged. |
+| P6 | **Banner lettering about 1.5 deg tall** (user, 2026-10-12). The text of the banner (P2) is about 1.5 degrees tall (about 60 px: 61.5 px at 1920 x 1080 @ 100 %, 650 mm), computed from the monitor's px per degree by the same visual-angle maths as the target sizes and the cell gap (SPEC-target-size-and-motion-paths), never a fixed px: `src/engine/prompt_text.py`, resolved against the run's screen like `grid.gap_px` and handed to the canvas as `scene["prompt_text_px"]`. One line for every Park prompt at that size; it shrinks to fit only if a sentence would overflow the scene width less the margins. |
 
 ---
 
@@ -337,7 +339,7 @@ effects with sound (W7). Glow follows the gaze in Switch mode (W3). Layout of th
 | 5 | Look-back module + report rows; pytest on synthetic gaze. **DONE 2026-10-11** (sections 7, 8; moving AOI wired by the hub) | step 3 |
 | 6 | Full art and audio; `ASSETS.md`; the user approves every file. **DONE 2026-10-11** (section 7): layers cut from the anchor, `scene.yaml`, 8 Lyria effect cues | step 2 |
 | 7 | Live check with the user: Mouse + Dwell first (no device), then Gaze + Dwell and Gaze + Switch on the GP3 HD. **Part 1 (Mouse + Dwell) PASSED 2026-10-11** (section 7); part 2 open | steps 4-6; GP3 HD for the gaze part |
-| 8 | Text prompt and border-trace dwell (section 3.7, P1-P4): wireframe update (UI gate, **approved 2026-10-12**), then the `prompt_mode` setting, the banner, text-mode timing, metadata and report row, and the border trace; pytest. Live check folds into step 7 part 2 | steps 3-5 |
+| 8 | Text prompt and border-trace dwell (section 3.7, P1-P6): wireframe update (UI gate, **approved 2026-10-12**), then the `prompt_mode` setting, the banner, text-mode timing, metadata and report row, the border trace, the inset instant outline (P5) and the 1.5 deg lettering (P6); pytest. **DONE 2026-10-12** (sections 7, 8). Live check folds into step 7 part 2 | steps 3-5 |
 
 ## 6. Acceptance criteria
 
@@ -517,6 +519,21 @@ effects with sound (W7). Glow follows the gaze in Switch mode (W3). Layout of th
   wrong choices, and the Cloud effect played but is easy to miss. The user heard the prompts. Side note: the
   saved settings use smoothing alpha 0.05 (very heavy, the pointer lags). Outcome: the user asked for a
   text prompt as an alternative to the voice (section 3.7, P1-P3; plan step 8).
+
+- **2026-10-12 (step 8, hub review)** - `spec-implementer` built P1-P6 in worktree `choice-step8` (section 8).
+  Hub review: the diff touches only Choice-making files, the two new modules (`src/engine/prompt_text.py`,
+  `src/ui/scene_banner.py`) and tests; the other four tests, `canvas.py`, the dwell logic and the configs are untouched.
+  Checked against the code: P1 the registry radio group, metadata and report row; P2 `prompt_text` only in
+  `WAIT_INPUT` in the two text modes; P3 `text` skips `on_prompt` and opens selection at once, `voice_text` blocks
+  as `voice`; P4 the trace path (Qt arc angles clockwise from top-centre, inset by half the pen), rendered offscreen and
+  seen inside the button at 30 / 75 / 100 %; P5 the instant outline inset (forest theme dark green on the white
+  button, visible); P6 1.5 deg from the visual-angle maths (61.5 px at 1920 x 1080). Section 9 readings D1, D2, D6 kept.
+  Wireframe updated with P5 / P6 notes. Full pytest in the worktree (JUnit): 3895 tests, 3890 passed, 5 failed: all 5
+  are the skip-worktree `configs/default.yaml` baseline (alpha 0.35 committed vs the local 0.22;
+  `test_config_flow` 1, `test_task_config_page` 4), none touch Choice-making. Not built (user to decide): the
+  provisional Start-page text in `task_instructions.py` still says "You will hear which button to choose" for a
+  Text-mode run; sections 4.8 / 4.9 and `docs/CLINICAL_DATA_REFERENCE.md` do not yet mention `prompt_mode` or
+  `duration_source` "text". Live check (banner, trace, sounds) folds into step 7 part 2.
 
 ## 8. Impl log
 
@@ -955,6 +972,105 @@ effects with sound (W7). Glow follows the gaze in Switch mode (W3). Layout of th
     list (`report_flow`) whose `report.json` is missing or old is also a fresh build and so also fills the
     columns (the user's "any fresh build"); an old run folder already filled is rewritten with the same values.
 
+- **2026-10-12 - claude-sonnet-5-5 - step 8 (text prompt and border-trace dwell, section 3.7 P1-P6),
+  implemented; uncommitted.** Sections 3.7 (P1-P4 as briefed, P5 and P6 added by the user in the same session),
+  4.1, 4.3, 4.8 and 4.9 as they apply; the wireframe `docs/wireframes/choice-making.md` (Scene card "Prompt" radio
+  group, B1b banner, B2 border trace, report "Prompt" row). Not touched: the other four tests, `canvas.py`, the dwell
+  logic (`eye_input.py`), look-back, effects, the glow halo, audio files, art, smoothing defaults, `configs/default.yaml`,
+  `configs/local_state.json`, `settings_registry.py` (499 lines, unchanged), the wireframe.
+  - **Setup note.** My first worktree was at `c7e61cf`, not `e55d22e`: I stopped and reported before any edit. The hub
+    then gave me `.claude/worktrees/choice-step8` (branch `choice-step8`, `e55d22e`, with the SPEC and the wireframe);
+    all work is there. No commit, no stage, no stash, no branch change.
+  - **P1, the setting.** `prompt_mode` = `voice` / `text` / `voice_text`, default `voice`, a `StructuralSetting` (kind
+    `choice`, so a radio group; label "Prompt"; "Voice" / "Text" / "Voice and text") in `src/ui/choice_settings.py`,
+    `applies_to=("choice_making",)`, placed in the Scene card after Prompt language
+    (`scene, language, prompt_mode, visual_cue, idle_animation, grid.gap`), and `prompt_mode: voice` in
+    `configs/tasks/choice_making.yaml`. Plumbed like `visual_cue`: the registry stores it with the test and the
+    configuration, `run_settings` writes it to `metadata.json` `settings.structural.prompt_mode`, the task reads it
+    (`ChoiceMakingTask.prompt_mode`), the report's Test Configuration shows **Prompt: Voice / Text / Voice and text**
+    right after Scene (`src/data/report_config.py` `_choice_rows`, so on screen and in the PDF) and `run_extras` puts it
+    in the `choice` block. An unknown value is `voice` everywhere: the registry (`initial_structural_values`,
+    `run_settings`), the task, and the report row; a run with no value (made before the setting) reads "not recorded",
+    as the idle animation row does. The constants and helpers (`PROMPT_MODES`, `normalise_prompt_mode`,
+    `prompt_has_voice`, `prompt_has_text`) are in `src/tasks/choice_layout.py`.
+  - **P2, the banner.** `scene_spec()` has `prompt_text`: the prompted object's `prompt` sentence from the scene manifest
+    (`scene.yaml` `prompt:` / `choice_scene_defaults.py`) from the trial start while the trial waits for a choice
+    (`WAIT_INPUT`) in `text` / `voice_text`, else `None`: hidden in `voice`, during the effect (`RESULT`, a hit or the
+    modelled one after a timeout), the pause after it (`ITI`), after a skip, while paused (the trial in flight is
+    dropped) and at the end. New `src/ui/scene_banner.py` (Qt): a rounded caption strip across the top of `scene_rect`
+    (0.4 x the lettering in from the top, left and right; 1.6 x the lettering tall; opaque `PANEL` fill, `BORDER_STRONG`
+    border, `INK` bold text, one line), drawn by `SceneView.paint` over the scene, before the buttons.
+  - **P3, the timing.** `text`: `_start_trial` makes the prompt zero-length (`PROMPT_START` `duration_ms` 0,
+    `duration_source` "text"), does not call `on_prompt` (no voice at all), so selection is open from the first frame and
+    `t_selectable_start_ns`, the reaction time and the timeout all count from the trial start. `voice_text` and `voice`
+    are untouched (the voice plays and blocks selection, H4 / A3). The effect sounds still play in `text`.
+  - **P4, the border trace.** `scene_buttons.draw_button`: the circle arc is gone; with the same `show_ring` / `progress`
+    inputs an 8 px `ACCENT` line (round caps and joins) runs clockwise along the button's own rounded border from top-centre
+    back to top-centre, in proportion to the progress, stroked on the border rect inset by half the pen
+    (`inset_border`, corners concentric). `border_trace_path` builds the path from lines and arcs cut to length (checked
+    in the Qt docs with qt-docs: `QPainterPath.arcTo` takes negative angles for clockwise; `QPainterPath.trimmed` exists only
+    from Qt 6.10 and the project allows PySide6 >= 6.6, so it is not used). `canvas.py` and the other tests' circle ring are
+    untouched.
+  - **P5, the instant outline.** The same function draws the 5 px instant outline on the border rect inset by 2.5 px
+    (half its pen), so it lies inside the button instead of 5 px outside. The glow halo (`_glow`) is unchanged and
+    still reaches outside.
+  - **P6, the lettering size.** New `src/engine/prompt_text.py` (Qt-free): `extent_px_for(deg, mm_per_px, distance)` is
+    the same visual-angle maths as `radius_px_for` / `gap_px_for` (a test pins that the three agree),
+    `prompt_text_px_for` is 1.5 deg (61.5 px at 1920 x 1080 @ 100 %, 650 mm, 43.7 px on a 1366-wide screen),
+    `apply_prompt_text(task_cfg, scale, distance)` writes `prompt_text_px` into the choice-making task config against the
+    run's own screen scale, called from `AssessmentApp._resolve_target_size` right after `apply_grid_gap` (and logged as
+    "Prompt text: 1.5° (≈62 px)"); the task passes it to the canvas as `scene["prompt_text_px"]`. A task built with no resolved
+    value (tests, headless replay) uses the reference monitor's. The banner draws at that size on one line and shrinks to
+    fit (`fit_text_px`: the full size, else the largest that fits, never below 8 px) only if a sentence would overflow the
+    scene width less the margins; with the real Segoe UI every Park prompt fits at full size, with room to spare, on a
+    1920 x 1080 and on a 1366 x 768 display (tested).
+  - **Files changed.** New: `src/engine/prompt_text.py`, `src/ui/scene_banner.py`. Changed: `src/tasks/choice_layout.py`,
+    `src/tasks/choice_making.py` (473 lines), `src/ui/choice_settings.py`, `src/ui/scene_buttons.py` (188), `src/ui/scene_canvas.py`,
+    `src/app.py` (the import and 4 lines), `src/data/report_config.py`, `src/data/report_choice.py`,
+    `configs/tasks/choice_making.yaml`, this SPEC (P5, P6, the step 8 row, this entry, section 9).
+  - **Decisions I took (small; the hub may overrule any of them).**
+    - D1. In `text` mode `PROMPT_END` is still written, at the trial start (a zero-length prompt), so the report's waiting
+      phase and RT (which read `PROMPT_END`) work unchanged; the SPEC names only `PROMPT_START`.
+    - D2. If a scene gives an object no `prompt` sentence the banner shows the object's label instead (the built-in and the
+      shipped Park scene have all eight).
+    - D3. The size reaches the task through the task config (`prompt_text_px`, like `grid.gap_px`) and the scene spec, not
+      through new metadata: the viewing distance is already in `metadata.json`.
+    - D4. The shared visual-angle maths is in the new `prompt_text.py`, not in `target_size.py` (498 lines, the project's
+      limit is 500); `target_size.py` is untouched.
+    - D5. The banner panel is opaque (a translucent one let the cloud and the tree show through the text).
+    - D6. The REPORT_VERSION is not bumped: a cached `report.json` of a Choice-making run made before this step has no
+      "Prompt" row until it is rebuilt (those runs have no `prompt_mode` anyway, so the row would only say "not recorded").
+  - **Tests added (100).** New files: `tests/test_choice_prompt_mode.py` (32: P1 the setting, its default, the registry, a
+    stored configuration, the metadata, an unknown value; P2 `prompt_text` per phase and mode; P3 text mode plays no voice,
+    is selectable at once, `PROMPT_START` 0 / "text", the timeout from the trial start, the switch, a pause; `voice_text`
+    blocks and times out like `voice`), `tests/test_prompt_text.py` (13: the 1.5 deg size, about 60 px, agreement with
+    the target-size and cell-gap maths, scale and distance, fallbacks, `apply_prompt_text`, the task and the scene spec),
+    `tests/test_scene_buttons_trace.py` (28, offscreen Qt: the path starts at top-centre and runs clockwise, its length is
+    in proportion to the progress, it stays in its rectangle, and on rendered `QImage`s no pixel outside the button differs from
+    the same button not looked at, for the trace at 0.05 / 0.25 / 0.5 / 0.75 / 1.0 and for the instant outline, on three
+    button sizes with whole and fractional edges; 0 / 0.25 / 0.5 / 0.75 / 1.0 give increasing line lengths in proportion; the
+    picture and label stay clear; the glow is still outside), `tests/test_scene_banner.py` (15, offscreen Qt: the strip geometry,
+    the fit rule, one line at full size for every Park prompt with real Segoe UI, the drawing only inside the strip and only
+    with text, the lettering as tall as it is told). Added to existing files: `tests/test_choice_scene_app.py` (+5: the mode
+    reaches the task, the canvas and `metadata.json`; no voice in `text`; an unknown value runs as voice; the size is resolved
+    from the screen), `tests/test_choice_report_ui.py` (+6: the "Prompt" row for each mode and an unknown value, "not
+    recorded", the PDF row and page 1 still holds the configuration), `tests/test_choice_report.py` (+1: `prompt_mode` in the block);
+    `tests/test_choice_making_setup.py` has the new key in its expected lists. Mutation checks: no inset in `inset_border`
+    fails 17 of the trace tests; a voice in `text` mode fails 3, a non-zero text-mode prompt fails 6 of the prompt-mode tests.
+  - **pytest (full, venv, from the worktree):** `5 failed, 3890 passed in 826.59s (0:13:46)` (3895 tests; 100 new on the
+    3795 of the previous entry). The 5 are the known worktree baseline (the worktree has the committed `configs/default.yaml`:
+    alpha 0.35 against the local 0.22): `test_config_flow.py::test_a_new_test_opens_at_standard_with_the_task_defaults` (1) and
+    `test_task_config_page.py::test_a_new_test_opens_with_standard_and_the_defaults[...]` for the other four tasks (4);
+    `test_config_merges_task_over_default` passes here; no other failure. `ruff` is clean on every file I touched or added
+    (the import-order warning in `src/app.py` was there before).
+  - **Deviations from the SPEC:** none beyond D1-D6.
+  - **Left undone (by scope):** the wireframe (`docs/wireframes/choice-making.md`) does not yet show P5 and P6 (the instant
+    outline inside the button, the 1.5 deg lettering); sections 4.8 and 4.9 do not yet list `prompt_mode` and the `text`
+    `duration_source`; `docs/CLINICAL_DATA_REFERENCE.md` (`prompt_mode`, `duration_source` "text"); the Start page wording in
+    `src/ui/task_instructions.py` still says "You will hear which button to choose" (provisional text awaiting the clinician
+    review, section 9 Q3: a Text-mode child does not hear it); the live check on the GP3 HD (step 7 part 2): the banner on
+    the real screen, the border trace and the inset outline by eye, the sound with `voice_text`.
+
 ## 9. Open questions
 
 Written by the step 3 implementer (2026-10-10, claude-sonnet-5-5). The engine builds and passes its
@@ -1052,3 +1168,10 @@ the user on 2026-10-11 and are implemented** (answers below; section 8, follow-u
   - **Answer (user, 2026-10-11): all four kept as built** (100 ms cap; "elsewhere" includes off-canvas gaze;
     wrong choices = selections on another button, first choice = `attempts == 1`; no samples = a dash).
     Nothing to change.
+- **2026-10-12 - step 8 (text prompt), claude-sonnet-5-5: three readings I took, none blocks anything; each is one
+  marked place, the hub may overrule.** P1-P6 are built as written; these are what they do not spell out (section 8, D1,
+  D2, D6): (1) in `text` mode `PROMPT_END` is written at the trial start (zero-length prompt), so the report's waiting
+  phase and RT keep reading it; (2) an object with no `prompt` sentence in the scene shows its label in the banner; (3) the
+  report cache version is not bumped, so an old cached Choice-making report has no "Prompt" row until it is rebuilt.
+  - **Answer (hub, 2026-10-12): all three kept as built** (no design change; the user pre-authorised the hub to
+    commit if the review passed).

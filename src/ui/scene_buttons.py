@@ -5,7 +5,11 @@ swatch until the art exists) and its English label. On top of a button, when the
 
 * the **glow** on the button being looked at (Switch only: ``canvas.show_glow``; greyed with Dwell,
   W3), a soft halo in the theme's particle colour;
-* the **instant ring** and the **dwell ring** of the other tests, around the button being looked at;
+* the **instant outline** and the **dwell progress** on the button being looked at. Both lie INSIDE the
+  button's rectangle, on its own rounded border inset by half the pen, so nothing drawn for the looked-at
+  button leaves it (SPEC 3.7, P4, P5): the instant outline is a thin line round the border, the dwell
+  progress an 8 px accent line that runs clockwise along the border from top-centre back to top-centre,
+  in proportion to the progress (it replaces the circle ring, which overflowed the button by 16 px);
 * the **visual-cue pulse** on the prompted button (S3): its border thickens and fades back about once
   a second;
 * the **selected highlight** of the chosen button at the start of its effect.
@@ -19,11 +23,13 @@ from dataclasses import dataclass
 from math import pi, sin
 
 from PySide6.QtCore import QPointF, QRectF, Qt
-from PySide6.QtGui import QColor, QFont, QPainter, QPen, QPixmap, QPolygonF
+from PySide6.QtGui import QColor, QFont, QPainter, QPainterPath, QPen, QPixmap, QPolygonF
 
 from .design_tokens import ACCENT, ACCENT_SUBTLE, BORDER_STRONG, FONT_FAMILY, INK, PANEL
 
 PULSE_PERIOD_S = 1.0
+TRACE_PEN_PX = 8.0  # the dwell progress line (P4)
+INSTANT_PEN_PX = 5.0  # the instant on-target outline (P5)
 SELECTED_MS = 1200.0  # how long the chosen button keeps its highlight at the start of the effect
 
 
@@ -51,6 +57,62 @@ def pulse_phase(t_s: float) -> float:
 
 def selected_strength(elapsed_ms: float) -> float:
     return max(0.0, 1.0 - elapsed_ms / SELECTED_MS)
+
+
+def inset_border(rect: QRectF, radius: float, pen_px: float) -> tuple[QRectF, float]:
+    """The rectangle and corner radius to stroke a ``pen_px`` line on so that it lies entirely inside
+    ``rect``: the border inset by half the pen, its corners concentric with the button's (P4, P5)."""
+    half = pen_px / 2.0
+    return rect.adjusted(half, half, -half, -half), max(0.0, radius - half)
+
+
+def border_trace_path(rect: QRectF, radius: float, fraction: float) -> QPainterPath:
+    """The first ``fraction`` (0..1) of the rounded rectangle ``rect`` (corner ``radius``) as a path
+    that runs clockwise from top-centre, so ``fraction`` 1 ends back at top-centre (P4). Built from
+    lines and arcs, each cut to length, so its length is in proportion to ``fraction`` and it needs
+    no newer Qt than the project's (``QPainterPath.trimmed`` is Qt 6.10)."""
+    path = QPainterPath()
+    fraction = max(0.0, min(1.0, fraction))
+    if fraction <= 0.0 or rect.width() <= 0 or rect.height() <= 0:
+        return path
+    r = max(0.0, min(radius, rect.width() / 2.0, rect.height() / 2.0))
+    left, top, right, bottom, cx = rect.left(), rect.top(), rect.right(), rect.bottom(), rect.center().x()
+    quarter = pi * r / 2.0
+    top_mid = QPointF(cx, top)
+
+    def line(x0: float, y0: float, x1: float, y1: float) -> tuple[tuple[QPointF, QPointF] | None, None, float]:
+        return (QPointF(x0, y0), QPointF(x1, y1)), None, abs(x1 - x0) + abs(y1 - y0)
+
+    def corner(x: float, y: float, start: float) -> tuple[None, tuple[QRectF, float], float]:
+        return None, (QRectF(x, y, 2 * r, 2 * r), start), quarter
+
+    # Clockwise from top-centre: (a line's two points | None, an arc's corner square and start
+    # angle | None, the piece's length).
+    pieces = [
+        line(cx, top, right - r, top),
+        corner(right - 2 * r, top, 90.0),
+        line(right, top + r, right, bottom - r),
+        corner(right - 2 * r, bottom - 2 * r, 0.0),
+        line(right - r, bottom, left + r, bottom),
+        corner(left, bottom - 2 * r, -90.0),
+        line(left, bottom - r, left, top + r),
+        corner(left, top, 180.0),
+        line(left + r, top, cx, top),
+    ]
+    remaining = fraction * sum(length for _line, _arc, length in pieces)
+    path.moveTo(top_mid)
+    for ends, arc, length in pieces:
+        if remaining <= 0.0:
+            break
+        if length > 0.0:
+            part = min(1.0, remaining / length)
+            if ends is not None:
+                a, b = ends
+                path.lineTo(QPointF(a.x() + (b.x() - a.x()) * part, a.y() + (b.y() - a.y()) * part))
+            elif arc is not None:
+                path.arcTo(arc[0], arc[1], -90.0 * part)  # clockwise = a negative sweep
+        remaining -= length
+    return path
 
 
 def _glow(painter: QPainter, rect: QRectF, colour: QColor, radius: float) -> None:
@@ -118,14 +180,14 @@ def draw_button(
         painter.setPen(QPen(cue, 3.0 + 7.0 * look.pulse))
         painter.drawRoundedRect(rect, radius, radius)
     if looked_at:
-        ring = QColor(theme.get("cursor_color", "#ffffff"))
         painter.setBrush(Qt.BrushStyle.NoBrush)
-        if look.show_instant:
-            painter.setPen(QPen(ring, 5.0))
-            painter.drawRoundedRect(rect.adjusted(-5, -5, 5, 5), radius + 5, radius + 5)
-        if look.show_ring and look.progress > 0:
-            r = min(rect.width(), rect.height()) / 2 + 12
-            painter.setPen(QPen(ring, 8.0))
-            span = int(-360 * 16 * max(0.0, min(1.0, look.progress)))
-            c = rect.center()
-            painter.drawArc(QRectF(c.x() - r, c.y() - r, 2 * r, 2 * r), 90 * 16, span)
+        if look.show_instant:  # P5: inside the button, on its border inset by half the pen
+            inner, inner_radius = inset_border(rect, radius, INSTANT_PEN_PX)
+            painter.setPen(QPen(QColor(theme.get("cursor_color", "#ffffff")), INSTANT_PEN_PX))
+            painter.drawRoundedRect(inner, inner_radius, inner_radius)
+        if look.show_ring and look.progress > 0:  # P4: the border trace, clockwise from top-centre
+            inner, inner_radius = inset_border(rect, radius, TRACE_PEN_PX)
+            painter.setPen(
+                QPen(QColor(ACCENT), TRACE_PEN_PX, Qt.PenStyle.SolidLine, Qt.PenCapStyle.RoundCap, Qt.PenJoinStyle.RoundJoin)
+            )
+            painter.drawPath(border_trace_path(inner, inner_radius, look.progress))

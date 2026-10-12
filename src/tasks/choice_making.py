@@ -5,7 +5,9 @@ SPEC-scene-cause-effect-task.md 4.1-4.3 and 4.9 (engine side). One trial::
     prompt plays (selection blocked) -> the child selects a button -> the effect plays -> pause
 
 * The prompt names an object; the response clock (``t_selectable_start_ns``, reaction time,
-  the timeout) starts at the END of the prompt (H4, H9).
+  the timeout) starts at the END of the prompt (H4, H9). With ``prompt_mode`` ``text`` (P3) there
+  is no voice: the prompt is zero-length, so selection is open and the clock runs from the trial
+  start; ``voice_text`` is the voice as above plus the text banner (P2).
 * **Any** of the eight buttons can be selected, with the test's own selection method (H5): a
   completed dwell or a switch press on a wrong button is a ``MISS_CLICK`` and the trial goes
   on; looking at the scene or a gap selects nothing. The base task hit-tests the target only,
@@ -26,7 +28,8 @@ from __future__ import annotations
 from pathlib import Path
 from typing import Any
 
-from ..engine.target_size import CellGeometry
+from ..engine.prompt_text import prompt_text_px_for
+from ..engine.target_size import DEFAULT_VIEWING_DISTANCE_MM, REFERENCE_MM_PER_PX, CellGeometry
 from ..inputs.base import Pointer, norm_to_px
 from .base_task import BaseTask, FrameResult, Phase, TargetSpec
 from .choice_layout import (
@@ -38,6 +41,9 @@ from .choice_layout import (
     button_at,
     button_centre_norm,
     button_rect,
+    normalise_prompt_mode,
+    prompt_has_text,
+    prompt_has_voice,
     prompt_wav_path,
     scene_rect,
     side_of,
@@ -77,6 +83,14 @@ class ChoiceMakingTask(BaseTask):
         self.gap_capped_px: float | None = None
         self.post_effect_ns = int(float(cfg.get("post_effect_ms", DEFAULT_POST_EFFECT_MS)) * 1e6)
         self.visual_cue = bool(cfg.get("visual_cue", False))
+        # How the prompt is given (P1): voice | text | voice_text; an unknown value is voice.
+        self.prompt_mode = normalise_prompt_mode(cfg.get("prompt_mode"))
+        # The banner lettering's height in px (P6, 1.5 deg), resolved from the screen by
+        # ``apply_prompt_text``; on the reference monitor when nothing resolved it (tests, replay).
+        self.prompt_text_px = float(
+            cfg.get("prompt_text_px")
+            or prompt_text_px_for(REFERENCE_MM_PER_PX, DEFAULT_VIEWING_DISTANCE_MM)
+        )
         # The picture's idle life between trials (N3): off / blinks / blinks_bob; the canvas reads it.
         self.idle_animation = normalise_idle(cfg.get("idle_animation"))
         self.scene_name = str(cfg.get("scene", "park"))
@@ -297,7 +311,10 @@ class ChoiceMakingTask(BaseTask):
         assert self._current is not None
         _ = self.manifest  # read the scene file now, not in the middle of an effect
         obj = OBJECTS[self.targets[self._trial_index].slot_index]
-        prompt_ms, source = self.prompt_length(obj)
+        if prompt_has_voice(self.prompt_mode):
+            prompt_ms, source = self.prompt_length(obj)
+        else:  # text only (P3): nothing to wait for, the time to choose starts with the text
+            prompt_ms, source = 0.0, "text"
         self._prompt_object = obj
         self._prompt_end_ns = t_ns + int(prompt_ms * 1e6)
         self._prompt_over = False
@@ -308,7 +325,8 @@ class ChoiceMakingTask(BaseTask):
             "PROMPT_START", t_ns, trial=self._trial_index, object=obj.id, slot=obj.slot,
             side=side_of(obj.slot), duration_ms=round(prompt_ms, 1), duration_source=source,
         )
-        self._audio("on_prompt", obj.id)
+        if prompt_has_voice(self.prompt_mode):
+            self._audio("on_prompt", obj.id)
 
     def _prompt_playing(self, t_ns: int) -> bool:
         """Whether the prompt is still playing at ``t_ns``. On the first frame it is over, the
@@ -412,7 +430,10 @@ class ChoiceMakingTask(BaseTask):
         it). ``prompt_object`` is the prompted object's id from the prompt's start to the
         effect's end (the run bar's "Prompt: ..." line, W2); ``cue_slot`` is the button to pulse
         when the visual cue is on (S3); ``hover_slot`` the button the pointer is on (the glow
-        of W3 and the dwell ring belong to it); ``idle_animation`` the picture's idle life (N3)."""
+        of W3 and the dwell ring belong to it); ``idle_animation`` the picture's idle life (N3).
+        ``prompt_text`` is the sentence for the banner (P2) while a trial waits for a choice in a
+        text mode (``text`` / ``voice_text``), else ``None`` (hidden during the effect, the pause
+        and between trials); ``prompt_text_px`` is the lettering's height (P6)."""
         w, h = self.screen_w, self.screen_h
         geometry = self._geometry()
         effect = None
@@ -422,6 +443,12 @@ class ChoiceMakingTask(BaseTask):
         cue_slot = -1
         if self.visual_cue and self._phase is Phase.WAIT_INPUT and self._prompt_object is not None:
             cue_slot = self._prompt_object.slot
+        prompt_text = None
+        if (
+            prompt_has_text(self.prompt_mode) and self._phase is Phase.WAIT_INPUT
+            and self._current is not None and self._prompt_object is not None
+        ):
+            prompt_text = self.manifest.object(self._prompt_object.id).prompt or self._prompt_object.label
         return {
             "mode": "scene",
             "theme": self.scene_name,
@@ -438,6 +465,8 @@ class ChoiceMakingTask(BaseTask):
             "cue_slot": cue_slot,
             "hover_slot": self._hover_slot,
             "idle_animation": self.idle_animation,
+            "prompt_text": prompt_text,
+            "prompt_text_px": self.prompt_text_px,
         }
 
     def _shrink_details(self) -> dict[str, Any]:
