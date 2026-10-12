@@ -48,6 +48,13 @@ Prompt language
 
 Traditional Chinese is added later (Q7); the list has one item in v1.
 
+Prompt
+- (*) Voice
+- ( ) Text
+- ( ) Voice and text
+
+Voice by default. Text shows the prompt sentence in a banner at the top of the scene (B1b) and works with no audio device; in Text mode the child can choose as soon as the text appears. The report marks the run's prompt mode (P1-P3).
+
 - [ ] Visual cue: the target button gently pulses
 
 Off by default (S3). When on, the report marks the run "Visual cue on".
@@ -172,14 +179,36 @@ No "Play hit sound": a correct choice plays the object's own animation and sound
 
 > **Prompt (H4, A3):** the spoken prompt plays at trial start. While it plays, the buttons are drawn normally, the dwell ring does not fill and a switch press does nothing. The 10 s to choose start when the prompt ends.
 
-### B2 · Choosing
+### B1b · Text prompt (Prompt = Text, or Voice and text)
 
 ```
 +-------------+-----------------------------------------------------------+-------------+
-| [picture] ◔ |                                                           | [picture]   |
-| Balloons    |      o gaze cursor on the Balloons button, ring filling   | Cloud       |
+|             |  +-----------------------------------------------------+  |             |
+|  (empty)    |  |            Make the balloons pop!                   |  |  (empty)    |
+|             |  +-----------------------------------------------------+  |             |
++-------------+      cloud          rainbow                  balloons     +-------------+
+| [picture]   |                                                           | [picture]   |
+| Balloons    |   apple tree               seesaw                         | Cloud       |
++-------------+                                                           +-------------+
+|    ...      |                    SCENE (park picture)                   |    ...      |
++-------------+-----------------------------------------------------------+-------------+
+| Trial 4 of 16   Prompt: Balloons   (● Tracking OK)   [ Pause (Alt-P) ]  [ Skip trial ]  [ Quit (Alt-Q) ] |
++---------------------------------------------------------------------------------------+
+```
+
+> **Text banner (P2):** a rounded caption strip across the top of the scene, large dark text on a light panel, the same sentence as the spoken prompt. It appears at the trial start and stays until the right choice or the timeout; it is hidden while the effect plays and between trials.
+> **Timing (P3):** **Text:** no voice, selection is open at once, and the 10 s to choose start when the text appears. **Voice and text:** the voice plays as in B1 and blocks selection until it ends; the banner shows at the same time.
+
+### B2 · Choosing
+
+```
++----==>------+-----------------------------------------------------------+-------------+
+| [picture]   |                                                           | [picture]   |
+| Balloons    |      o gaze cursor on the Balloons button, border filling | Cloud       |
 +-------------+                                                           +-------------+
 ```
+
+> **Dwell progress (P4):** a thick accent line runs clockwise along the looked-at button's own rounded border, from top-centre back to top-centre (`====>` above is about 30 %). It stays on the button: nothing spills into the gap, the picture and the label stay clear. It replaces the circle ring, which overflowed the button by 16 px at the top and bottom.
 
 > **Selection (H5):** a completed dwell (or a switch press) on any button selects it. **Right button:** the effect plays (B3). **Wrong button:** the miss sound, no animation (S4), the dwell ring resets and the trial goes on until the right choice or the 10 s run out. Gaze on the scene or in a gap selects nothing.
 
@@ -215,6 +244,7 @@ No "Play hit sound": a correct choice plays the object's own animation and sound
 |---|---|
 | Task | Choice-making |
 | Scene | Park, prompts in English |
+| Prompt | Voice (or Text / Voice and text) |
 | Visual cue | Off |
 | Number of trials | 16 (each object twice; any number allowed) |
 | Button size | 6.6° x 5.0° cell, gap Standard |

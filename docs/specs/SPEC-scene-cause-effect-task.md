@@ -3,8 +3,8 @@ name: SPEC-scene-cause-effect-task
 title: A fifth test - an animated scene with 8 side buttons; a spoken prompt names the button; the selected object animates; gaze look-back to the effect is measured
 status: approved 2026-10-10 (H1-H14 approved, S1-S8 answered, section 3.4); test name "Choice-making", task id choice_making
 created: 2026-10-10
-last_updated: 2026-10-11
-next_step: steps 1-6 DONE; step 7 part 1 (Mouse + Dwell, fake tracker) PASSED 2026-10-11; next step 7 part 2 (Gaze + Dwell / Switch on the GP3 HD, the user as subject) and the user's listen check of the scene sounds
+last_updated: 2026-10-12
+next_step: step 8 (text prompt, section 3.7) at the wireframe gate; then step 7 part 2 on the GP3 HD (Gaze + Dwell / Switch, sound listen check, text prompt)
 related:
   - SPEC-grid3-calibration-parklife-feasibility.md (Part B feasibility, decisions U4, Q6-Q8)
   - docs/grid3/park-life/README.md (reference: layout, effects, timings, object regions - section 9)
@@ -143,6 +143,19 @@ return to idle, not reproducible) are not needed. The user decided:
 | N4 | **Rainbow** twinkle = a few pre-tinted copies of the rainbow art, cross-faded in code (keeps the art style). |
 | N5 | **Frame rate (A9):** the idle scene is cached as one pixmap and the scene repaints are capped at about 60 Hz (the gaze loop keeps its own rate); measured on the target laptop in the live check. |
 | N6 | **Extra art** (section 4.7): each balloon as its own layer plus a strings layer, the bush as a front layer, pivots for the swing and seesaw, optional bike wheels, the bubbles child's blowing pose, eyes-closed blink patches. A blink patch is accepted only if the edited image differs from the original inside the eye box alone; otherwise the eyelids are drawn in code. *(Step 6: no bush front layer, the bike stands in front of the bush in the approved anchor; user decision, section 7.)* |
+
+### 3.7 Text prompt (user, 2026-10-12)
+
+From the user's GP3 HD trial run (section 7, 2026-10-12): the test works as designed, but a spoken-only
+prompt (H4) needs an audio device and a child who follows speech. The user decided to add a text prompt
+as an alternative:
+
+| # | Decision |
+|---|---|
+| P1 | **Setting `prompt_mode` = `voice` / `text` / `voice_text`, default `voice`** (radio group "Prompt" in the Scene card, after Prompt language). Registered with `applies_to=("choice_making",)`, stored with the test, written to the run metadata and shown in the report's Test Configuration ("Prompt: Voice / Text / Voice and text"), like the visual cue. |
+| P2 | **Text banner at the top of the scene:** a rounded caption strip across the top of `scene_rect`, large dark text on a light panel, the object's `prompt` sentence from `scene.yaml` (no new assets). Shown from the trial start until the hit or the timeout; hidden during the effect and between trials. |
+| P3 | **Timing:** `text` = no voice, **no blocking**: selection is open from the trial start and the time to choose starts when the text appears (`PROMPT_START` `duration_ms` 0, source `text`). `voice_text` = the voice plays and blocks selection exactly as `voice` (H4, A3); the banner shows at the same time. *(`voice_text` blocking confirmed by the user at the wireframe gate, 2026-10-12.)* |
+| P4 | **Dwell progress = border trace** (replaces the circle ring on the scene buttons only). Found in the trial video and in `scene_buttons.draw_button`: the circle of radius `min(w, h)/2 + 12` with an 8 px pen goes **16 px past the top and bottom** of a 250 x 182 px button (Standard gap at 1920 x 1032; the same 16 px at Wide / Extra wide), into the 25 px gap, and crosses the picture and the label. New look: an 8 px accent line (`ACCENT`) runs **clockwise along the button's own rounded border**, from top-centre back to top-centre, proportional to the dwell progress. It is drawn on the border rect inset by half the pen, so it never leaves the button and never covers the picture or the label. Same "Dwell ring" setting; the circle ring of the other four tests is unchanged. |
 
 ---
 
@@ -324,6 +337,7 @@ effects with sound (W7). Glow follows the gaze in Switch mode (W3). Layout of th
 | 5 | Look-back module + report rows; pytest on synthetic gaze. **DONE 2026-10-11** (sections 7, 8; moving AOI wired by the hub) | step 3 |
 | 6 | Full art and audio; `ASSETS.md`; the user approves every file. **DONE 2026-10-11** (section 7): layers cut from the anchor, `scene.yaml`, 8 Lyria effect cues | step 2 |
 | 7 | Live check with the user: Mouse + Dwell first (no device), then Gaze + Dwell and Gaze + Switch on the GP3 HD. **Part 1 (Mouse + Dwell) PASSED 2026-10-11** (section 7); part 2 open | steps 4-6; GP3 HD for the gaze part |
+| 8 | Text prompt and border-trace dwell (section 3.7, P1-P4): wireframe update (UI gate, **approved 2026-10-12**), then the `prompt_mode` setting, the banner, text-mode timing, metadata and report row, and the border trace; pytest. Live check folds into step 7 part 2 | steps 3-5 |
 
 ## 6. Acceptance criteria
 
@@ -493,6 +507,16 @@ effects with sound (W7). Glow follows the gaze in Switch mode (W3). Layout of th
   look-back columns on every fresh Choice-making build (helper shared with `write_report_safely`); a cached
   report touches nothing. Hub check: full pytest on the main checkout 3795 passed, 0 failed; rebuilding run
   `_1554` filled its blank columns (bike trial look-back 1, latency 63.3 ms, as in its report).
+
+- **2026-10-12 (user's GP3 HD trial run, hub analysis)** - The user ran Choice-making with Gaze + Dwell
+  (subject `1111`, 5-point calibration 11.8 / 15.9 px; the run was not saved, so there is no `events.jsonl`)
+  and reported "the gaze fills the ring but nothing in the scene moves". From the user's 11 s phone video
+  (`resources/images/813490020.643246.mp4`, analysed with talkthrough): the ring filled fully on Bike and
+  Bubbles with no effect, then on Cloud, which showed the hit tick, and the cloud slid out and back in. So the app
+  behaved as designed (H6: a wrong button gives the miss cue and no animation). Bike and Bubbles were
+  wrong choices, and the Cloud effect played but is easy to miss. The user heard the prompts. Side note: the
+  saved settings use smoothing alpha 0.05 (very heavy, the pointer lags). Outcome: the user asked for a
+  text prompt as an alternative to the voice (section 3.7, P1-P3; plan step 8).
 
 ## 8. Impl log
 

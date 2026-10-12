@@ -620,6 +620,22 @@ body.wmd-root {
   </select>
 </div>
     <p class="wmd-paragraph">Traditional Chinese is added later (Q7); the list has one item in v1.</p>
+    <p class="wmd-paragraph">Prompt</p>
+    <ul class="wmd-list">
+  <label class="wmd-radio">
+    <input type="radio" checked />
+    <span>Voice</span>
+  </label>
+  <label class="wmd-radio">
+    <input type="radio" />
+    <span>Text</span>
+  </label>
+  <label class="wmd-radio">
+    <input type="radio" />
+    <span>Voice and text</span>
+  </label>
+</ul>
+    <p class="wmd-paragraph">Voice by default. Text shows the prompt sentence in a banner at the top of the scene (B1b) and works with no audio device; in Text mode the child can choose as soon as the text appears. The report marks the run&#039;s prompt mode (P1-P3).</p>
     <ul class="wmd-list">
   <label class="wmd-checkbox">
     <input type="checkbox" />
@@ -799,11 +815,31 @@ body.wmd-root {
 <blockquote class="wmd-blockquote">
   <p class="wmd-paragraph"><strong>Prompt (H4, A3):</strong> the spoken prompt plays at trial start. While it plays, the buttons are drawn normally, the dwell ring does not fill and a switch press does nothing. The 10 s to choose start when the prompt ends.</p>
 </blockquote>
-<h3 class="wmd-h3">B2 · Choosing</h3>
+<h3 class="wmd-h3">B1b · Text prompt (Prompt = Text, or Voice and text)</h3>
 <pre class="wmd-code-block"><code>+-------------+-----------------------------------------------------------+-------------+
-| [picture] ◔ |                                                           | [picture]   |
-| Balloons    |      o gaze cursor on the Balloons button, ring filling   | Cloud       |
+|             |  +-----------------------------------------------------+  |             |
+|  (empty)    |  |            Make the balloons pop!                   |  |  (empty)    |
+|             |  +-----------------------------------------------------+  |             |
++-------------+      cloud          rainbow                  balloons     +-------------+
+| [picture]   |                                                           | [picture]   |
+| Balloons    |   apple tree               seesaw                         | Cloud       |
++-------------+                                                           +-------------+
+|    ...      |                    SCENE (park picture)                   |    ...      |
++-------------+-----------------------------------------------------------+-------------+
+| Trial 4 of 16   Prompt: Balloons   (● Tracking OK)   [ Pause (Alt-P) ]  [ Skip trial ]  [ Quit (Alt-Q) ] |
++---------------------------------------------------------------------------------------+</code></pre>
+<blockquote class="wmd-blockquote">
+  <p class="wmd-paragraph"><strong>Text banner (P2):</strong> a rounded caption strip across the top of the scene, large dark text on a light panel, the same sentence as the spoken prompt. It appears at the trial start and stays until the right choice or the timeout; it is hidden while the effect plays and between trials.
+<strong>Timing (P3):</strong> <strong>Text:</strong> no voice, selection is open at once, and the 10 s to choose start when the text appears. <strong>Voice and text:</strong> the voice plays as in B1 and blocks selection until it ends; the banner shows at the same time.</p>
+</blockquote>
+<h3 class="wmd-h3">B2 · Choosing</h3>
+<pre class="wmd-code-block"><code>+----==&gt;------+-----------------------------------------------------------+-------------+
+| [picture]   |                                                           | [picture]   |
+| Balloons    |      o gaze cursor on the Balloons button, border filling | Cloud       |
 +-------------+                                                           +-------------+</code></pre>
+<blockquote class="wmd-blockquote">
+  <p class="wmd-paragraph"><strong>Dwell progress (P4):</strong> a thick accent line runs clockwise along the looked-at button's own rounded border, from top-centre back to top-centre (<code>====></code> above is about 30 %). It stays on the button: nothing spills into the gap, the picture and the label stay clear. It replaces the circle ring, which overflowed the button by 16 px at the top and bottom.</p>
+</blockquote>
 <blockquote class="wmd-blockquote">
   <p class="wmd-paragraph"><strong>Selection (H5):</strong> a completed dwell (or a switch press) on any button selects it. <strong>Right button:</strong> the effect plays (B3). <strong>Wrong button:</strong> the miss sound, no animation (S4), the dwell ring resets and the trial goes on until the right choice or the 10 s run out. Gaze on the scene or in a gap selects nothing.</p>
 </blockquote>
@@ -848,6 +884,10 @@ body.wmd-root {
     <tr>
     <td class="wmd-table-cell wmd-align-left">Scene</td>
     <td class="wmd-table-cell wmd-align-left">Park, prompts in English</td>
+  </tr>
+    <tr>
+    <td class="wmd-table-cell wmd-align-left">Prompt</td>
+    <td class="wmd-table-cell wmd-align-left">Voice (or Text / Voice and text)</td>
   </tr>
     <tr>
     <td class="wmd-table-cell wmd-align-left">Visual cue</td>
