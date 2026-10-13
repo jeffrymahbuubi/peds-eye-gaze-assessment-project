@@ -4,7 +4,7 @@ title: Feasibility study - Grid 3-style calibration (full replica, built-in icon
 status: feasibility done 2026-10-10 - Q1-Q8 answered (section 7.1); image tool wired, uses the audio server's key (already set), loads after a restart; probes P1-P3 PASSED without a device 2026-10-11 (section 6.1); P4-P5 wait for the GP3 HD
 created: 2026-10-10
 last_updated: 2026-10-11
-next_step: the scene test continues in SPEC-scene-cause-effect-task.md (approved, step 1 done); the user decides on the image-tool gaps (section 7.2); P1-P3 done (6.1); SPEC-app-drawn-calibration.md can be drafted now; P4-P5 (accuracy, eye position) when the GP3 HD is available
+next_step: none here - continued in SPEC-app-drawn-calibration.md (approved e587da4; probes P4-P5 folded into its live step) and SPEC-gaze-stability-and-positioning.md (C17/C18 head-position widget)
 related:
   - docs/calibration-video/README.md (Grid 3 calibration recording, frame-timed)
   - docs/grid3/park-life/README.md (Park Life gridset offline analysis + live walk-through, section 9)
@@ -381,3 +381,4 @@ The scene test does not depend on the probe and can be specified first.
   Control calibrates without one): all pass at the message level (section 6.1). New facts: extra
   `CALIB_RESULT_PT` PT 6, points run 10-70 ms long, no DELAY/TIMEOUT boundary record, stale result
   summary, Control TIMEOUT 1.50 s. P4-P5 still need the GP3 HD.
+- **2026-10-13** - Follow-up SPECs written and approved: `SPEC-app-drawn-calibration.md` (`e587da4`; decisions D1-D8, incl. Speed via `CALIBRATE_DELAY`/`CALIBRATE_TIMEOUT` and Size drawn by the app) and `SPEC-gaze-stability-and-positioning.md` (`5a035d7`; it takes over C17/C18, the head-position widget). Probes P4-P5 move into those SPECs' live steps.
