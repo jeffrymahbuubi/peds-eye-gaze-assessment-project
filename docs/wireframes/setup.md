@@ -90,6 +90,33 @@ Point Count (1–9)
 [Do Calibration]* [Load Calibration File]{.outline} [View Calibration Details]{.outline state:disabled} |▲ Not calibrated|{.warning}
 :::
 
+#### Head position
+
+```text
+ +--------------------------------+
+ |                                |
+ |            .------.            |
+ |           ( o    o )           |   green face, smile
+ |           (   \__/ )           |   moves, tilts and resizes
+ |            '------'            |   with the child's head
+ |                                |
+ +--------------------------------+
+  Close |--------[====*====]------| Far
+        45 cm     55   64   75   85
+```
+
+● Good position, 64 cm
+
+> **Head-position widget** (SPEC-gaze-stability-and-positioning.md 4.5-4.7; Grid 3 track-status look, `docs/calibration-video/frames/16_*.png`, `34_*.png`): a grey head box (the GP3 HD's 35 x 22 cm) with a stylised face drawn in QPainter. The face **moves** with the midpoint of the two eyes (mirrored, like a selfie camera), **grows/shrinks** with distance and **tilts** with the line between the eyes. Under it, the **Close-Far bar** (45-85 cm, the 55-75 cm band shaded green) with a dot at the measured distance, then one status line: glyph + hint + distance.
+> **Placement:** to the right of the calibration buttons; stacked under them in a narrow window. About 240 x 200 px. Live (about 15 Hz) whenever the tracker is connected.
+> **States (4.6, bands tuned at the live check):**
+> - **Green** (success token), smile: both eyes, 55-75 cm, centred (inner 70 % of the box). "● Good position, 64 cm".
+> - **Orange** (warning token), flat mouth: one eye only, 50-55 or 75-80 cm, or near the box edge. "▲ Move closer, 52 cm" / "Move back" / "Move left" / "Move right" / "Move up" / "Move down" (the largest fault first).
+> - **Red** (danger token), frown: under 50 or over 80 cm, or outside the box. Same hints with "■".
+> - **No eyes**: empty grey box, "No eyes detected" (neither eye for more than 0.5 s).
+> - **Not connected**: empty grey box, "Tracker not connected".
+> The colour changes only after about 0.3 s in the new state, so it does not flicker at a boundary. **It gates nothing**: Do Calibration and Continue behave exactly as without it.
+
 > **Calibration badge** (phase 2 H4, V1): ▲ Not calibrated (warning triangle) until a calibration exists; then ● Calibrated, 5 points, 1.8° (success, the measured mean error). Do Calibration keeps the primary tier even while disabled.
 
 ::: alert warning

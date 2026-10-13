@@ -578,7 +578,7 @@ body.wmd-root {
   <button class="wmd-button wmd-outline">Go to Setup</button>
 </div>
 <blockquote class="wmd-blockquote">
-  <p class="wmd-paragraph"><strong>Design system phase 2</strong> (SPEC-design-system-phase2.md H7): the blocker is a danger alert box, 1200 px wide: a ■ glyph tile, the bold word "Blocked:", then <strong>one missing item per line</strong> at 16 px, and Go to Setup as a secondary button inside the alert at its right edge. No interpunct chain, no amber tint, no left stripe.</p>
+  <p class="wmd-paragraph"><strong>Design system phase 2</strong> (SPEC-design-system-phase2.md H7): the blocker is a danger alert box, as wide as the page inside its gutters (no 1200 px column, section 9, 2026-10-09): a ■ glyph tile, the bold word "Blocked:", then <strong>one missing item per line</strong> at 16 px, and Go to Setup as a secondary button inside the alert at its right edge. No interpunct chain, no amber tint, no left stripe.</p>
 </blockquote>
 <blockquote class="wmd-blockquote">
   <p class="wmd-paragraph"><strong>Blocker banner:</strong> shown only when something is missing (the list comes from <code>SetupPage.run_blockers()</code>). Start and Practice are disabled while it shows. It is checked again every second, because the tracker can drop. It is hidden when there is nothing to fix.</p>
@@ -615,7 +615,19 @@ body.wmd-root {
   <p class="wmd-paragraph">To pause the test: click the &quot;Pause&quot; button, or press ALT-P. To quit the test: click the &quot;Quit&quot; button, or press ALT-Q.</p>
   <p class="wmd-paragraph">Practice runs 3 targets with these settings. Nothing is recorded. Repeat it as often as needed.</p>
   <p class="wmd-paragraph">Start records 18 trials. Check that the bottom bar shows &quot;Tracking OK&quot; before you begin.</p>
+  <h4 class="wmd-h4">Head position</h4>
+  <pre class="wmd-code-block"><code data-lang="text"> +----------------------+
+ |       .------.       |
+ |      ( o    o )      |
+ |      (   \__/ )      |
+ |       &#039;------&#039;       |
+ +----------------------+
+  Close |---[==*==]---| Far</code></pre>
+  <p class="wmd-paragraph">● Good position, 64 cm</p>
 </div>
+<blockquote class="wmd-blockquote">
+  <p class="wmd-paragraph"><strong>Head-position widget</strong> (SPEC-gaze-stability-and-positioning.md 4.7, G1): the same widget as on the Setup page's Calibration card, at the end of the clinician block so the clinician can re-check the seating just before Start. <strong>Gaze tests only</strong>: hidden for Pointer = Mouse. Live while the tracker is connected; "Tracker not connected" otherwise (the blocker banner above already explains it). It gates nothing: Start and Practice keep their own rules. The state, distance and centre offset at the moment Start is pressed are saved as <code>head_position_at_start</code> in the run's <code>metadata.json</code>.</p>
+</blockquote>
 <blockquote class="wmd-blockquote">
   <p class="wmd-paragraph">The numbers (0.8 seconds, 8 seconds, 18 trials) come from this test's own configuration. The "small dot" sentence appears only when the gaze cursor is on, and the "ring" sentence only when the progress ring is on. Each task has its own four steps (SPEC 4C.3). <strong>The text is read to children and needs clinician review before release.</strong></p>
 </blockquote>
@@ -637,7 +649,7 @@ body.wmd-root {
   </div>
 </div>
 <blockquote class="wmd-blockquote">
-  <p class="wmd-paragraph"><strong>Button tiers</strong> (phase 2 H7): Start is always the primary (filled) button, a disabled primary while blocked, so it never changes tier with state; Practice secondary (outlined); Cancel tertiary (text only). The row sits directly under the card, left-aligned at the content edge. The card is 1200 px: the read-aloud block at 16 px on white, the clinician block at 14 px on the page.</p>
+  <p class="wmd-paragraph"><strong>Button tiers</strong> (phase 2 H7): Start is always the primary (filled) button, a disabled primary while blocked, so it never changes tier with state; Practice secondary (outlined); Cancel tertiary (text only). The row sits directly under the card, left-aligned at the content edge. The card is as wide as the page inside its gutters, like the alerts above it: the read-aloud block at 16 px on white, the clinician block at 14 px on the page.</p>
 </blockquote>
 <blockquote class="wmd-blockquote">
   <p class="wmd-paragraph">There is no default button, so Enter starts nothing. Esc = Cancel, which goes back to the Test List.</p>

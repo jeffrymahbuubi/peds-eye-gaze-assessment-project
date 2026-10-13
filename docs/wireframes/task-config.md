@@ -87,12 +87,30 @@ Inter-trial interval (s)
 
 ### C · Gaze Pointer Settings: Gaze Smoothing
 
+Gaze signal (what drives the cursor)
+- (*) Raw gaze (BPOG)
+- ( ) Fixation (FPOG)
+- ( ) Assistive (APOG)
+
+AAC filter length (samples)
+[15____]{type:number state:disabled}
+
 - [x] Smoothing enabled
+
+Smoothing type
+- (*) Simple
+- ( ) Adaptive (One Euro)
 
 Smoothing alpha
 [0.22__]{type:number}
 
-Greyed (not hidden) while Smoothing enabled is off: the only dependent control.
+Steadiness (Hz)
+[1.0___]{type:number state:disabled}
+
+Responsiveness
+[1.0___]{type:number state:disabled}
+
+Greyed, not hidden (SPEC-gaze-stability-and-positioning.md 4.1-4.3): AAC filter length only for Assistive; alpha only for Simple; Steadiness and Responsiveness only for Adaptive; all three smoothing numbers while Smoothing enabled is off; the whole card for Pointer = Mouse.
 
 :::
 

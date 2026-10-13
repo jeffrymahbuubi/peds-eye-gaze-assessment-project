@@ -572,7 +572,7 @@ body.wmd-root {
   <p class="wmd-paragraph">SPEC-compass-task-flow.md 4B. A full page opened by Configure Test on the Test List. It replaces the Settings dialog inside the dashboard (the old dialog stays only for standalone <code>--task X --gui</code>, see <code>task-settings.md</code>). Shown: Grid Click in its Standard state. Compass reference: <code>docs/compass/screenshots/06-*.png</code>. The nav is locked while this page is open.</p>
 </blockquote>
 <blockquote class="wmd-blockquote">
-  <p class="wmd-paragraph">Three columns of cards, ordered by clinical weight (SPEC-design-system-phase2.md H6, V4). <strong>Column A:</strong> Test, Input, Target (Icons for Scanning Search). <strong>Column B:</strong> the task card (here Grid Layout; Motion for Follow the Target; none for Static Click), Timing, Feedback. <strong>Column C, under the quieter title "Advanced" (20 px, grey):</strong> Dwell, Gaze Smoothing. Every number is a slider plus a spin box (the existing SliderSpinRow), shown here as a number box.</p>
+  <p class="wmd-paragraph">Three columns of cards, ordered by clinical weight (SPEC-design-system-phase2.md H6, V4). <strong>Column A:</strong> Test, Input, Target (Icons for Scanning Search). <strong>Column B:</strong> the task card (here Grid Layout; Motion for Follow the Target; none for Static Click), Timing, Feedback. <strong>Column C, under the quieter title "Gaze Pointer Settings" (20 px, grey; renamed from "Advanced" on 2026-10-09):</strong> Dwell, Gaze Smoothing. Every number is a slider plus a spin box (the existing SliderSpinRow), shown here as a number box.</p>
 </blockquote>
 <blockquote class="wmd-blockquote">
   <p class="wmd-paragraph">SPEC-input-selection-and-follow.md 4.1 (added 2026-10-07): the <strong>Input</strong> card (Pointer + Selection), the card "Selection (Dwell)" renamed <strong>Dwell</strong>, and "Glow on target" in Feedback. Shown: Gaze + Dwell, the default.</p>
@@ -632,7 +632,7 @@ body.wmd-root {
     <p class="wmd-paragraph">Warning alert (▲ glyph, no tint) when it does not fit: &quot;Targets will be shrunk to about 180 px to fit a 3x3 grid with this gap.&quot;</p>
   </div>
   <div class="wmd-grid-item wmd-card wmd-grid-item-card">
-    <h3 class="wmd-h3">C · Advanced: Dwell</h3>
+    <h3 class="wmd-h3">C · Gaze Pointer Settings: Dwell</h3>
     <div class="wmd-container-form-group">
   Dwell threshold (s)
   <input type="number" class="wmd-input" placeholder="0.8" style="width: 9ch; max-width: 9ch;" />
@@ -687,18 +687,56 @@ body.wmd-root {
 </div>
   </div>
   <div class="wmd-grid-item wmd-card wmd-grid-item-card">
-    <h3 class="wmd-h3">C · Advanced: Gaze Smoothing</h3>
+    <h3 class="wmd-h3">C · Gaze Pointer Settings: Gaze Smoothing</h3>
+    <p class="wmd-paragraph">Gaze signal (what drives the cursor)</p>
+    <ul class="wmd-list">
+  <label class="wmd-radio">
+    <input type="radio" checked />
+    <span>Raw gaze (BPOG)</span>
+  </label>
+  <label class="wmd-radio">
+    <input type="radio" />
+    <span>Fixation (FPOG)</span>
+  </label>
+  <label class="wmd-radio">
+    <input type="radio" />
+    <span>Assistive (APOG)</span>
+  </label>
+</ul>
+    <div class="wmd-container-form-group">
+  AAC filter length (samples)
+  <input type="number" class="wmd-input wmd-state-disabled" placeholder="15" style="width: 8ch; max-width: 8ch;" />
+</div>
     <ul class="wmd-list">
   <label class="wmd-checkbox">
     <input type="checkbox" checked />
     <span>Smoothing enabled</span>
   </label>
 </ul>
+    <p class="wmd-paragraph">Smoothing type</p>
+    <ul class="wmd-list">
+  <label class="wmd-radio">
+    <input type="radio" checked />
+    <span>Simple</span>
+  </label>
+  <label class="wmd-radio">
+    <input type="radio" />
+    <span>Adaptive (One Euro)</span>
+  </label>
+</ul>
     <div class="wmd-container-form-group">
   Smoothing alpha
   <input type="number" class="wmd-input" placeholder="0.22" style="width: 10ch; max-width: 10ch;" />
 </div>
-    <p class="wmd-paragraph">Greyed (not hidden) while Smoothing enabled is off: the only dependent control.</p>
+    <div class="wmd-container-form-group">
+  Steadiness (Hz)
+  <input type="number" class="wmd-input wmd-state-disabled" placeholder="1.0" style="width: 9ch; max-width: 9ch;" />
+</div>
+    <div class="wmd-container-form-group">
+  Responsiveness
+  <input type="number" class="wmd-input wmd-state-disabled" placeholder="1.0" style="width: 9ch; max-width: 9ch;" />
+</div>
+    <p class="wmd-paragraph">Greyed, not hidden (SPEC-gaze-stability-and-positioning.md 4.1-4.3): AAC filter length only for Assistive; alpha only for Simple; Steadiness and Responsiveness only for Adaptive; all three smoothing numbers while Smoothing enabled is off; the whole card for Pointer = Mouse.</p>
   </div>
 </div>
 <div class="wmd-grid wmd-grid-3" style="--grid-columns: 3">
@@ -782,10 +820,10 @@ body.wmd-root {
   <ul class="wmd-list">
   <li class="wmd-list-item">Column A: Test, then Input, then Target (Icons for Scanning Search, one card with size and count).</li>
   <li class="wmd-list-item">Column B: the task card (Grid Layout / Motion), then Timing, then Feedback.</li>
-  <li class="wmd-list-item">Column C, titled &quot;Advanced&quot;: Dwell, then Gaze Smoothing (Follow the Target has no Dwell card).</li>
+  <li class="wmd-list-item">Column C, titled &quot;Gaze Pointer Settings&quot;: Dwell, then Gaze Smoothing (Follow the Target has no Dwell card).</li>
   <li class="wmd-list-item">The &quot;Changed from Standard&quot; caption line under Configuration Name is always there (empty when unmodified), so the page never shifts when it appears.</li>
   <li class="wmd-list-item">Sliders: 240 px when the range has 10 steps or fewer (with ticks: trials, icons, rows, cols), 360 px otherwise; spin boxes 88 px.</li>
-  <li class="wmd-list-item">The footer row is centred under the three columns. The grid stays 1500 px wide.</li>
+  <li class="wmd-list-item">The footer row is centred under the three columns. The three columns share the window&#039;s width equally inside the 32 px gutters, with no 1500 px cap (section 9, 2026-10-09): the cards and slider rows grow wider, not taller.</li>
   <li class="wmd-list-item">At 1920x1080 @ 100 % nothing scrolls. At larger scaling the cards scroll and the footer stays visible.</li>
 </ul>
 </blockquote>

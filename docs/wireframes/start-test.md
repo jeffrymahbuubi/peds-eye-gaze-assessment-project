@@ -56,7 +56,23 @@ Practice runs 3 targets with these settings. Nothing is recorded. Repeat it as o
 
 Start records 18 trials. Check that the bottom bar shows "Tracking OK" before you begin.
 
+#### Head position
+
+```text
+ +----------------------+
+ |       .------.       |
+ |      ( o    o )      |
+ |      (   \__/ )      |
+ |       '------'       |
+ +----------------------+
+  Close |---[==*==]---| Far
+```
+
+● Good position, 64 cm
+
 :::
+
+> **Head-position widget** (SPEC-gaze-stability-and-positioning.md 4.7, G1): the same widget as on the Setup page's Calibration card, at the end of the clinician block so the clinician can re-check the seating just before Start. **Gaze tests only**: hidden for Pointer = Mouse. Live while the tracker is connected; "Tracker not connected" otherwise (the blocker banner above already explains it). It gates nothing: Start and Practice keep their own rules. The state, distance and centre offset at the moment Start is pressed are saved as `head_position_at_start` in the run's `metadata.json`.
 
 > The numbers (0.8 seconds, 8 seconds, 18 trials) come from this test's own configuration. The "small dot" sentence appears only when the gaze cursor is on, and the "ring" sentence only when the progress ring is on. Each task has its own four steps (SPEC 4C.3). **The text is read to children and needs clinician review before release.**
 

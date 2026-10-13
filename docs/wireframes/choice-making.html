@@ -718,16 +718,41 @@ body.wmd-root {
   </div>
   <div class="wmd-grid-item wmd-card wmd-grid-item-card">
     <h3 class="wmd-h3">C · Gaze Pointer Settings: Gaze Smoothing</h3>
+    <p class="wmd-paragraph">Gaze signal (what drives the cursor)</p>
     <ul class="wmd-list">
+  <label class="wmd-radio">
+    <input type="radio" checked />
+    <span>Raw gaze (BPOG)</span>
+  </label>
+  <label class="wmd-radio">
+    <input type="radio" />
+    <span>Fixation (FPOG)</span>
+  </label>
+  <label class="wmd-radio">
+    <input type="radio" />
+    <span>Assistive (APOG)</span>
+  </label>
   <label class="wmd-checkbox">
     <input type="checkbox" checked />
     <span>Smoothing enabled</span>
+  </label>
+</ul>
+    <p class="wmd-paragraph">Smoothing type</p>
+    <ul class="wmd-list">
+  <label class="wmd-radio">
+    <input type="radio" checked />
+    <span>Simple</span>
+  </label>
+  <label class="wmd-radio">
+    <input type="radio" />
+    <span>Adaptive (One Euro)</span>
   </label>
 </ul>
     <div class="wmd-container-form-group">
   Smoothing alpha
   <input type="number" class="wmd-input" placeholder="0.22" style="width: 10ch; max-width: 10ch;" />
 </div>
+    <p class="wmd-paragraph">Same card as <code>task-config.md</code> (SPEC-gaze-stability-and-positioning.md 4.8); the greyed AAC filter length, Steadiness and Responsiveness rows are drawn there.</p>
   </div>
 </div>
 <div class="wmd-grid wmd-grid-3" style="--grid-columns: 3">
