@@ -1,6 +1,7 @@
 """AAC_FILTER and the pointer columns of a run (SPEC-gaze-stability-and-positioning.md 4.1, 4.2,
-4.4; acceptance A5, A6): the client reads the device's value on connect, sets the Assistive window
-at a run start and gives the original back on stop; a gaze run records the cursor as drawn."""
+4.4, 4.9; acceptance A5, A6, A12, A13, A14): the client reads the device's value on connect, sets
+the Assistive window at a run start and gives the original back on stop; a gaze run records the
+cursor as drawn, builds no app smoothing for Gazepoint Assistive and says so in metadata.json."""
 
 # The fixtures are imported from input_run_fixtures and then used by name.
 # ruff: noqa: F811
@@ -151,6 +152,16 @@ def test_closing_the_window_gives_the_filter_back():
 # -- a run (A5, A6) ---------------------------------------------------------------------------
 
 
+class StaticSource:
+    """A pointer source that always answers with one sample."""
+
+    def __init__(self, sample: GazeSample) -> None:
+        self.sample = sample
+
+    def latest(self) -> GazeSample:
+        return self.sample
+
+
 class SignalTracker(MouseGazeSource):
     """The default test tracker (the mouse) that also takes the gaze-signal commands."""
 
@@ -185,21 +196,105 @@ def test_a5_a_run_with_the_assistive_signal_sets_the_window_and_records_it(make_
                                                    "dwell.aac_filter_samples": 25})
     assert tracker.calls == [("signal", "assistive"), ("aac", 25)]
     log = session_log(app)
-    assert "Gaze signal: Assistive (APOG)." in log and "AAC filter set to 25 samples." in log
+    assert "Gaze signal: Gazepoint Assistive (APOG)." in log and "AAC filter set to 25 samples." in log
     app.recorder.write_metadata()
     live = metadata(app)["settings"]["live"]
     assert (live["dwell.pointer_signal"], live["dwell.aac_filter_samples"]) == ("assistive", 25)
 
 
-@pytest.mark.parametrize("signal", ["best", "fixation"])
-def test_a_run_with_another_signal_never_sends_the_filter_and_records_null(make_app, signal):
+def test_a_run_with_app_smoothing_never_sends_the_filter_and_records_null(make_app):
     tracker = SignalTracker()
-    app = make_app(trials=1, client=tracker, live={"dwell.pointer_signal": signal})
-    assert tracker.calls == [("signal", signal)]
-    assert "AAC filter" not in session_log(app)
+    app = make_app(trials=1, client=tracker, live={"dwell.pointer_signal": "best"})
+    assert tracker.calls == [("signal", "best")]
+    log = session_log(app)
+    assert "Gaze signal: App smoothing (raw gaze)." in log and "AAC filter" not in log
+    assert "no longer offered" not in log
     app.recorder.write_metadata()
     live = metadata(app)["settings"]["live"]
-    assert live["dwell.pointer_signal"] == signal and live["dwell.aac_filter_samples"] is None
+    assert live["dwell.pointer_signal"] == "best" and live["dwell.aac_filter_samples"] is None
+
+
+def test_a12_a_stored_fixation_runs_as_app_smoothing_and_the_session_log_says_so(make_app):
+    tracker = SignalTracker()
+    app = make_app(trials=1, client=tracker, live={"dwell.pointer_signal": "fixation",
+                                                   "dwell.smoothing.enabled": True})
+    assert tracker.calls == [("signal", "best")]  # the tracker is never asked for FPOG
+    log = session_log(app).splitlines()
+    note = "Gaze signal 'fixation' is no longer offered; using App smoothing (raw gaze)."
+    assert note in log and "Gaze signal: App smoothing (raw gaze)." in log
+    assert app.eye.smoother.config.enabled is True  # App smoothing, as the setting says
+    app.recorder.write_metadata()
+    meta = metadata(app)
+    assert meta["settings"]["live"]["dwell.pointer_signal"] == "best"
+    assert meta["smoothing_applied"] is True
+
+
+def test_a12_a_mouse_test_with_a_stored_fixation_logs_no_signal_note(make_app):
+    app = make_app(trials=1, client=SignalTracker(), choice={"pointer": "mouse", "selection": "dwell"},
+                   live={"dwell.pointer_signal": "fixation"})
+    assert "no longer offered" not in session_log(app)
+
+
+# -- A13, A14: Gazepoint Assistive is never smoothed by the app --------------------------------
+
+
+def test_a13_an_assistive_run_builds_the_smoother_off_and_keeps_the_saved_values(make_app):
+    app = make_app(trials=1, client=SignalTracker(), live={
+        "dwell.pointer_signal": "assistive", "dwell.smoothing.enabled": True,
+        "dwell.smoothing.type": "one_euro", "dwell.smoothing.alpha": 0.1,
+    })
+    assert app.eye.smoother.config.enabled is False
+    app.recorder.write_metadata()
+    meta = metadata(app)
+    assert meta["smoothing_applied"] is False
+    # The settings are recorded as saved: the values are kept for the way back to App smoothing.
+    live = meta["settings"]["live"]
+    assert (live["dwell.smoothing.enabled"], live["dwell.smoothing.type"], live["dwell.smoothing.alpha"]) == (
+        True, "one_euro", 0.1
+    )
+
+
+def test_a13_with_assistive_the_pointer_reaches_the_sample_unsmoothed(make_app):
+    """The same samples through an Assistive run with smoothing on and one with it off give one pointer."""
+    def pointers(smoothing: bool) -> list[tuple[float, float]]:
+        app = make_app(trials=1, client=SignalTracker(), live={
+            "dwell.pointer_signal": "assistive", "dwell.smoothing.enabled": smoothing,
+            "dwell.smoothing.alpha": 0.05,
+        })
+        track = []
+        for i, x in enumerate([0.2, 0.2, 0.8, 0.8]):
+            app.eye._source = StaticSource(GazeSample(t_ns=1000 + i * 10_000_000, x=x, y=x, valid=True,
+                                                      pointer_x=x, pointer_y=x, pointer_valid=True))
+            p = app.eye.poll(1000 + i * 10_000_000)
+            track.append((p.x, p.y))
+        return track
+
+    assert pointers(True) == pointers(False) == [(0.2, 0.2), (0.2, 0.2), (0.8, 0.8), (0.8, 0.8)]
+
+
+@pytest.mark.parametrize(
+    ("live", "choice", "expected"),
+    [
+        ({"dwell.pointer_signal": "best", "dwell.smoothing.enabled": True}, None, True),
+        ({"dwell.pointer_signal": "best", "dwell.smoothing.enabled": False}, None, False),
+        ({"dwell.pointer_signal": "assistive", "dwell.smoothing.enabled": True}, None, False),
+        ({"dwell.pointer_signal": "best", "dwell.smoothing.enabled": True},
+         {"pointer": "mouse", "selection": "dwell"}, False),
+    ],
+)
+def test_a14_metadata_records_whether_the_app_smoothing_ran(make_app, live, choice, expected):
+    app = make_app(trials=1, client=SignalTracker(), live=live, choice=choice)
+    assert app.eye.smoother.config.enabled is expected
+    app.recorder.write_metadata()
+    assert metadata(app)["smoothing_applied"] is expected
+
+
+def test_a14_an_older_session_has_no_smoothing_applied():
+    from src.data.schema import SessionMetadata
+
+    old = {k: v for k, v in SessionMetadata(subject_id="P", session_id="s", started_ns=1).to_dict().items()
+           if k != "smoothing_applied"}
+    assert SessionMetadata(**old).smoothing_applied is None
 
 
 def test_a_mouse_test_does_not_touch_the_trackers_signal(make_app):

@@ -23,6 +23,7 @@ from src.app import AssessmentApp
 from src.data.recorder import NullRecorder
 from src.data.schema import GazeSample
 from src.engine.calibration import CalibrationResult
+from src.engine.calibration_settings import SCREEN_CONTROL, CalibrationSettings
 from src.engine.clock import now_ns
 from src.engine.config import load_task_config
 from src.inputs.mouse_gaze import MouseGazeSource
@@ -646,6 +647,7 @@ def test_a_gaze_test_previewed_during_a_calibration_gets_the_mouse(win, monkeypa
     win.setup_page._on_state_changed()
     page = open_page(win, new_test(win))
     smoothing_on(page)
+    win.setup_page.calibration_settings_panel.set_settings(CalibrationSettings(screen=SCREEN_CONTROL))
     win.setup_page._on_do_calibration_clicked()
     assert setup_threads.calibration.started.wait(5) and win.setup_page.device_busy()
     assert win.setup_page.tracker_ready() == (True, True)  # what the old rule would have trusted

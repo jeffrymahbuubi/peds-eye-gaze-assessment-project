@@ -25,6 +25,10 @@ seating can be re-checked just before Start. It is for gaze tests only (hidden f
 Mouse), gates nothing, and :meth:`StartTestPage.head_position_at_start` hands the run the reading
 as Start is pressed.
 
+Calibrate (SPEC-app-drawn-calibration.md 4.3a, D4) sits next to Practice, for gaze tests only: it runs
+the Setup card's calibration and comes back here. It is on while a tracker is connected and nothing
+else is using it; the page only emits ``calibrateRequested``, the dashboard's run flow starts it.
+
 A second, separate line is the path blocker (SPEC-subject-data-layout.md H9, wireframe
 W3): :meth:`StartTestPage.set_path_error` shows a danger alert when the run would write a
 path over 240 characters. It disables **Start only**; Practice writes nothing, so it stays
@@ -48,12 +52,13 @@ from PySide6.QtWidgets import (
     QWidget,
 )
 
-from ..engine.input_choice import drop_gaze_only_blockers, resolve_input
+from ..engine.input_choice import TRACKER_BLOCKER, drop_gaze_only_blockers, resolve_input
 from ..engine.run_result import RunResult, practice_result_text
 from .alert_box import AlertBox
 from .design_tokens import TYPE_BODY, TYPE_BODY_LARGE, TYPE_HEADING
 from .head_position_panel import HeadPositionPanel, HeadPositionSource
 from .page_layout import CARD_PADDING, page_frame
+from .setup_status import CALIBRATING_BLOCKER, CONNECTING_BLOCKER
 from .task_instructions import Instructions, build_instructions
 
 BLOCKER_REFRESH_MS = 1000
@@ -78,11 +83,16 @@ _SCROLL_STYLE = (
 )
 
 
+# Calibrate needs a connected tracker that nothing else is using (SPEC-app-drawn-calibration.md 4.3a).
+_CALIBRATE_BLOCKERS = (TRACKER_BLOCKER, CALIBRATING_BLOCKER, CONNECTING_BLOCKER)
+
+
 class StartTestPage(QWidget):
     startRequested = Signal()
     practiceRequested = Signal(int)  # the 0-based practice number since the page was set up
     cancelRequested = Signal()
     goToSetupRequested = Signal()
+    calibrateRequested = Signal()  # runs the Setup card's calibration, then returns here (D4)
 
     def __init__(self, parent: QWidget | None = None) -> None:
         super().__init__(parent)
@@ -126,6 +136,8 @@ class StartTestPage(QWidget):
         self._practice_count = 0
         self._mouse_test = resolve_input(cfg).is_mouse
         self.head_panel.setVisible(not self._mouse_test)  # gaze tests only (4.7)
+        self.calibrate_button.setVisible(not self._mouse_test)  # likewise: only a gaze test needs one
+        self.show_calibration_alert("")
         self.set_practice_result(None)
         self.show_note("")
         self.instructions = build_instructions(task_id, cfg, values)
@@ -148,6 +160,13 @@ class StartTestPage(QWidget):
         or a new test clears it."""
         self.message_label.setText(text)
         self.message_label.setVisible(bool(text))
+
+    def show_calibration_alert(self, text: str) -> None:
+        """A warning under the buttons after a Calibrate, e.g. that Gazepoint Control's own
+        window was used because the app's did not respond (SPEC-app-drawn-calibration.md 4.2);
+        ``""`` hides it. A new test or the next Calibrate clears it."""
+        self.calibration_alert_label.setText(text)
+        self.calibration_alert.setVisible(bool(text))
 
     def blockers(self) -> list[str]:
         """The reasons as of the last check."""
@@ -179,6 +198,7 @@ class StartTestPage(QWidget):
         by them, and a one-line note says whether eye data will be recorded alongside."""
         provider = self._blockers_provider
         blockers = list(provider()) if provider is not None else []
+        self.calibrate_button.setEnabled(not any(reason in blockers for reason in _CALIBRATE_BLOCKERS))
         if self._mouse_test:
             blockers, tracker_ok, calibrated = drop_gaze_only_blockers(blockers)
             if tracker_ok and calibrated:
@@ -273,13 +293,22 @@ class StartTestPage(QWidget):
         self.practice_button = self._button(
             "startTestPractice", "Practice", "wtmhGhost", self._on_practice
         )
+        self.calibrate_button = self._button(
+            "startTestCalibrate", "Calibrate", "wtmhGhost", self._on_calibrate
+        )
         self.cancel_button = self._button(
             "startTestCancel", "Cancel", "wtmhTertiary", self.cancelRequested.emit
         )
-        for button in (self.start_button, self.practice_button, self.cancel_button):
+        for button in (self.start_button, self.practice_button, self.calibrate_button, self.cancel_button):
             buttons.addWidget(button)
         buttons.addStretch(1)
         outer.addLayout(buttons)
+
+        # After a Calibrate that fell back to Control's own window (4.2); under the buttons.
+        self.calibration_alert = AlertBox("warning")
+        self.calibration_alert_label = self.calibration_alert.label
+        self.calibration_alert.hide()
+        outer.addWidget(self.calibration_alert)
 
         self.practice_label = QLabel("")
         self.practice_label.setObjectName("wtmhMuted")
@@ -366,6 +395,14 @@ class StartTestPage(QWidget):
         if self.refresh_blockers() or self._path_error:
             return  # a stale enabled button still cannot launch
         self.startRequested.emit()
+
+    def _on_calibrate(self) -> None:
+        self.show_note("")
+        self.show_calibration_alert("")
+        self.refresh_blockers()
+        if not self.calibrate_button.isEnabled() or self._mouse_test:
+            return  # a stale enabled button still cannot start one
+        self.calibrateRequested.emit()
 
     def _on_practice(self) -> None:
         self.show_note("")

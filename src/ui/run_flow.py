@@ -7,6 +7,9 @@ steps 6 and 7).
 * **Start page** (:class:`~src.ui.start_test_page.StartTestPage`): always opens, with the
   Setup gate's reasons as its banner (R2: Start and Practice are off while any shows).
   Cancel, or Esc, goes back to the Test List; the nav is locked here as in a run.
+* **Calibrate** (gaze tests only, SPEC-app-drawn-calibration.md 4.3a) -- the Setup page runs its
+  calibration with the Setup card's settings over this page; Back returns here and the result
+  replaces the subject's calibration for every later test.
 * **Practice** -- a new ``AssessmentApp(run_mode="practice")`` with the same settings and
   at most 3 trials, driven by the gaze, recording nothing. Its end or its Quit returns to
   the Start page (with a one-line result after a finished practice); it can be repeated.
@@ -46,6 +49,7 @@ from ..engine.subject_tests import (
     TestLockedError,
     TestStoreError,
 )
+from .calibration_flow import CalibrationOutcome
 from .dashboard_flow import Flow, find_test
 from .run_dialogs import PRIMARY, ask_choice, ask_run_end
 from .settings_snapshot import merged_config
@@ -105,6 +109,7 @@ class RunFlow:
         page.set_path_error(path_budget_error(window.output_root, test.subject_id, test.task_id))
         page.startRequested.connect(self._on_start)
         page.practiceRequested.connect(self._on_practice)
+        page.calibrateRequested.connect(self._on_calibrate)
         page.cancelRequested.connect(lambda: self._leave())
         page.goToSetupRequested.connect(lambda: self._leave(setup=True))
         self.page, self.test = page, test
@@ -194,6 +199,24 @@ class RunFlow:
         )
         if app is not None:
             self._show(app, Flow.PRACTICE)
+
+    def _on_calibrate(self) -> None:
+        """Calibrate on the Start page (SPEC-app-drawn-calibration.md 4.3a): the Setup page runs
+        its calibration with the card's settings; Back (or Esc) closes the window and this page is
+        under it again. The new result replaces the subject's for every later test."""
+        window = self._window
+        if window.flow is not Flow.START or self.page is None:
+            return
+        if window.setup_page.start_calibration(on_finished=self._on_calibrated):
+            self.page.refresh_blockers()  # "Calibration in progress": Start, Practice and Calibrate are off
+
+    def _on_calibrated(self, outcome: CalibrationOutcome) -> None:
+        page = self.page
+        if page is None:  # the flow ended while the window was up
+            return
+        page.show_calibration_alert(outcome.alert)  # only when Control's own window made it (4.2)
+        page.refresh_blockers()  # a "No calibration yet" blocker clears on success
+        page.setFocus()
 
     def _build(
         self, test: SubjectTest, mode: str, structural: dict[str, Any], **extra: Any

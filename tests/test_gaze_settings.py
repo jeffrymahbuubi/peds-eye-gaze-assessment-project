@@ -1,7 +1,8 @@
-"""The gaze-signal and smoothing settings (SPEC-gaze-stability-and-positioning.md 4.2, 4.3, 4.8;
-acceptance A10): the registry entries and their order, what greys each one on the configuration
-page, saved profiles (an old one loads as `best` + `ema`) and the metadata snapshot. Offscreen Qt
-for the page; the rest is headless."""
+"""The gaze-signal and smoothing settings (SPEC-gaze-stability-and-positioning.md 4.2, 4.3, 4.8,
+4.9; acceptance A10, A12, A13): the registry entries and their order, what greys each one on the
+configuration page (two approaches: App smoothing or Gazepoint Assistive), saved profiles (an old
+one loads as `best` + `ema`, a retired `fixation` as `best`) and the metadata snapshot. Offscreen
+Qt for the page; the rest is headless."""
 
 from __future__ import annotations
 
@@ -65,9 +66,10 @@ def test_the_new_settings_have_the_specs_ranges_and_options():
     assert (aac.min, aac.max, aac.step) == (1, 60, 1)
     cutoff, beta = by_key["dwell.smoothing.min_cutoff_hz"], by_key["dwell.smoothing.beta"]
     assert (cutoff.min, cutoff.max) == (0.05, 5.0) and (beta.min, beta.max) == (0.0, 10.0)
-    assert [v for v, _ in by_key["dwell.pointer_signal"].choices] == ["best", "fixation", "assistive"]
-    assert [label for _, label in by_key["dwell.pointer_signal"].choices] == [
-        "Raw gaze (BPOG)", "Fixation (FPOG)", "Assistive (APOG)"
+    # A12: two approaches; Fixation is no longer offered.
+    assert by_key["dwell.pointer_signal"].label == "Cursor stabilisation"
+    assert list(by_key["dwell.pointer_signal"].choices) == [
+        ("best", "App smoothing (raw gaze)"), ("assistive", "Gazepoint Assistive (APOG)")
     ]
     assert list(by_key["dwell.smoothing.type"].choices) == [
         ("ema", "Simple"), ("one_euro", "Adaptive (One Euro)")
@@ -86,14 +88,17 @@ def test_every_page_has_the_card_and_every_setting_has_exactly_one_control(task_
 def test_the_greying_rules_of_4_8(task_id):
     card = next(g for g in config_groups_for_task(task_id) if g.id == "smoothing")
     by_key = {c.key: c for c in card.controls}
-    mouse = ("input.pointer", "mouse")
+    mouse, assistive = ("input.pointer", "mouse"), ("dwell.pointer_signal", "assistive")
     assert by_key["dwell.pointer_signal"].greyed_by == (mouse,)
-    assert set(by_key["dwell.aac_filter_samples"].greyed_by) == {
-        mouse, ("dwell.pointer_signal", "best"), ("dwell.pointer_signal", "fixation")
+    assert set(by_key["dwell.aac_filter_samples"].greyed_by) == {mouse, ("dwell.pointer_signal", "best")}
+    # The app never smooths an Assistive cursor (G10): every app-smoothing row is greyed by it.
+    for key in ("dwell.smoothing.enabled", "dwell.smoothing.type"):
+        assert set(by_key[key].greyed_by) == {mouse, assistive}
+    assert set(by_key["dwell.smoothing.alpha"].greyed_by) == {
+        mouse, assistive, ("dwell.smoothing.type", "one_euro")
     }
-    assert set(by_key["dwell.smoothing.alpha"].greyed_by) == {mouse, ("dwell.smoothing.type", "one_euro")}
     for key in ("dwell.smoothing.min_cutoff_hz", "dwell.smoothing.beta"):
-        assert set(by_key[key].greyed_by) == {mouse, ("dwell.smoothing.type", "ema")}
+        assert set(by_key[key].greyed_by) == {mouse, assistive, ("dwell.smoothing.type", "ema")}
     # The three numbers follow the check box; the type and the signal do not.
     assert {k: c.depends_on for k, c in by_key.items() if c.depends_on} == {
         "dwell.smoothing.alpha": "dwell.smoothing.enabled",
@@ -139,7 +144,7 @@ def test_a10_an_old_profile_loads_as_best_and_ema(task_id):
 
 def test_the_new_keys_are_saved_in_a_profile_and_applied_from_it(tmp_path):
     new = {
-        "dwell.pointer_signal": "fixation", "dwell.aac_filter_samples": 40,
+        "dwell.pointer_signal": "assistive", "dwell.aac_filter_samples": 40,
         "dwell.smoothing.type": "one_euro", "dwell.smoothing.min_cutoff_hz": 0.5,
         "dwell.smoothing.beta": 3.0,
     }
@@ -148,7 +153,7 @@ def test_the_new_keys_are_saved_in_a_profile_and_applied_from_it(tmp_path):
     assert stored == new
     config = load_task_config("click_grid")
     apply_live_values_to_config(config, stored)
-    assert config["dwell"]["pointer_signal"] == "fixation"
+    assert config["dwell"]["pointer_signal"] == "assistive"
     assert config["dwell"]["smoothing"]["type"] == "one_euro"
     assert {k: initial_live_values(config)[k] for k in new} == new
 
@@ -172,8 +177,31 @@ def test_the_run_snapshot_records_the_signal_and_filter_and_nulls_the_window_unl
     live = run_settings("click_grid", config)["live"]
     assert (live["dwell.pointer_signal"], live["dwell.aac_filter_samples"]) == ("assistive", 22)
     # The page's own snapshot keeps the number whatever the signal (it is a control's value).
-    config["dwell"]["pointer_signal"] = "fixation"
+    config["dwell"]["pointer_signal"] = "best"
     assert settings_snapshot("click_grid", config)["live"]["dwell.aac_filter_samples"] == 22
+
+
+@pytest.mark.parametrize("task_id", TASKS)
+def test_a12_a_retired_fixation_loads_as_best_everywhere(task_id):
+    """An old profile, config or hand edit that says `fixation` reads, saves and records as
+    `best`: the app smoothing it would have had."""
+    config = load_task_config(task_id)
+    apply_live_values_to_config(config, {"dwell.pointer_signal": "fixation", "dwell.smoothing.alpha": 0.1})
+    assert config["dwell"]["pointer_signal"] == "fixation"  # the file is read as it stands
+    assert initial_live_values(config)["dwell.pointer_signal"] == "best"
+    assert settings_snapshot(task_id, config)["live"]["dwell.pointer_signal"] == "best"
+    live = run_settings(task_id, config)["live"]
+    assert (live["dwell.pointer_signal"], live["dwell.aac_filter_samples"]) == ("best", None)
+    assert live["dwell.smoothing.alpha"] == 0.1  # the rest of the profile is unchanged
+
+
+def test_a12_a_profile_saved_with_fixation_still_loads(tmp_path):
+    save_settings_profile(tmp_path, "S1", "click_grid", {"dwell.pointer_signal": "fixation"}, {})
+    stored = load_settings_profile(tmp_path, "S1", "click_grid")["live"]
+    assert stored == {"dwell.pointer_signal": "fixation"}  # as stored; the reader normalizes
+    config = load_task_config("click_grid")
+    apply_live_values_to_config(config, stored)
+    assert initial_live_values(config)["dwell.pointer_signal"] == "best"
 
 
 # -- the page (4.8) ---------------------------------------------------------------------------------
@@ -219,12 +247,53 @@ def test_a_new_page_opens_at_best_and_simple_with_only_the_matching_rows_active(
     }
 
 
-def test_choosing_assistive_wakes_the_aac_length_and_only_that(qapp):
+def test_a12_the_card_offers_two_approaches_and_no_fixation(qapp):
+    page = page_for()
+    radio = control(page, "dwell.pointer_signal")
+    assert list(radio.buttons()) == ["best", "assistive"]
+    assert [b.text() for b in radio.buttons().values()] == [
+        "App smoothing (raw gaze)", "Gazepoint Assistive (APOG)"
+    ]
+    assert radio.value() == "best"
+    radio.setValue("fixation")  # not a choice: ignored, as every unknown value is
+    assert radio.value() == "best"
+
+
+def test_a12_a_stored_fixation_opens_the_page_at_app_smoothing(qapp):
+    page = page_for(live={"dwell.pointer_signal": "fixation"})
+    assert page.collect_values()["live"]["dwell.pointer_signal"] == "best"
+    assert active(page, "dwell.smoothing.alpha") and not active(page, "dwell.aac_filter_samples")
+
+
+def test_a13_choosing_assistive_wakes_the_aac_length_and_greys_all_app_smoothing(qapp):
     page = page_for()
     control(page, "dwell.pointer_signal").setValue("assistive")
-    assert active(page, "dwell.aac_filter_samples") and not active(page, "dwell.smoothing.min_cutoff_hz")
-    control(page, "dwell.pointer_signal").setValue("fixation")
-    assert not active(page, "dwell.aac_filter_samples")
+    assert states(page) == {
+        "dwell.pointer_signal": True, "dwell.aac_filter_samples": True,
+        "dwell.smoothing.enabled": False, "dwell.smoothing.type": False,
+        "dwell.smoothing.alpha": False, "dwell.smoothing.min_cutoff_hz": False,
+        "dwell.smoothing.beta": False,
+    }
+    assert not control(page, "dwell.smoothing.type").isHidden()  # greyed in place, never hidden
+    control(page, "dwell.pointer_signal").setValue("best")
+    assert not active(page, "dwell.aac_filter_samples") and active(page, "dwell.smoothing.alpha")
+
+
+def test_a13_the_saved_smoothing_values_come_back_after_a_trip_through_assistive(qapp):
+    live = {
+        "dwell.smoothing.enabled": True, "dwell.smoothing.type": "one_euro",
+        "dwell.smoothing.min_cutoff_hz": 0.7, "dwell.smoothing.beta": 3.5, "dwell.smoothing.alpha": 0.4,
+        "dwell.aac_filter_samples": 30,
+    }
+    page = page_for(live=live)
+    before = page.collect_values()["live"]
+    control(page, "dwell.pointer_signal").setValue("assistive")
+    during = page.collect_values()["live"]
+    # Greyed rows keep what they hold and what is saved with the test.
+    assert {k: during[k] for k in live} == live
+    control(page, "dwell.pointer_signal").setValue("best")
+    assert page.collect_values()["live"] == before
+    assert active(page, "dwell.smoothing.min_cutoff_hz") and not active(page, "dwell.smoothing.alpha")
 
 
 def test_choosing_adaptive_swaps_alpha_for_steadiness_and_responsiveness(qapp):
@@ -247,14 +316,22 @@ def test_unticking_smoothing_greys_all_three_numbers_but_not_the_type(qapp):
 
 
 def test_a_mouse_pointer_greys_the_whole_card_and_gaze_gives_back_exactly_the_matching_rows(qapp):
-    page = page_for(live={"dwell.pointer_signal": "assistive", "dwell.smoothing.type": "one_euro"})
+    page = page_for(live={"dwell.pointer_signal": "best", "dwell.smoothing.type": "one_euro"})
     before = states(page)
-    assert before["dwell.aac_filter_samples"] and before["dwell.smoothing.beta"]
+    assert before["dwell.smoothing.beta"] and not before["dwell.aac_filter_samples"]
     control(page, "input.pointer").setValue("mouse")
     assert not any(states(page).values())
     assert not control(page, "dwell.smoothing.type").isHidden()  # greyed in place, never hidden
     control(page, "input.pointer").setValue("gaze")
     assert states(page) == before
+    # Under Assistive another set of rows is awake, and the Mouse still greys all of them.
+    control(page, "dwell.pointer_signal").setValue("assistive")
+    assistive = states(page)
+    assert assistive["dwell.aac_filter_samples"] and not assistive["dwell.smoothing.beta"]
+    control(page, "input.pointer").setValue("mouse")
+    assert not any(states(page).values())
+    control(page, "input.pointer").setValue("gaze")
+    assert states(page) == assistive
 
 
 def test_the_label_of_a_greyed_row_greys_with_its_slider(qapp):
@@ -268,7 +345,7 @@ def test_the_label_of_a_greyed_row_greys_with_its_slider(qapp):
 
 def test_the_page_round_trips_the_new_values(qapp):
     live = {
-        "dwell.pointer_signal": "fixation", "dwell.aac_filter_samples": 40,
+        "dwell.pointer_signal": "assistive", "dwell.aac_filter_samples": 40,
         "dwell.smoothing.type": "one_euro", "dwell.smoothing.min_cutoff_hz": 0.5,
         "dwell.smoothing.beta": 3.0,
     }

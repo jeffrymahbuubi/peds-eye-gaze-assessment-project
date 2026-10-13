@@ -440,6 +440,11 @@ class SessionMetadata:
     # run, a run not started from the Start page, and older sessions. Information only: nothing is
     # gated on it. Additive; ``schema_version`` not bumped.
     head_position_at_start: dict[str, Any] | None = None
+    # Whether the app's own smoothing filtered the cursor (SPEC-gaze-stability-and-positioning.md
+    # 4.9): False for Gazepoint Assistive, whatever ``settings`` say (the saved smoothing values
+    # are kept there, as configured), and for a Mouse pointer. None on older sessions. Additive;
+    # ``schema_version`` not bumped.
+    smoothing_applied: bool | None = None
 
     def to_dict(self) -> dict[str, Any]:
         return {f.name: getattr(self, f.name) for f in fields(self)}

@@ -38,7 +38,7 @@ def test_a_full_run_gives_the_18_rows_in_order_with_the_values_it_used():
         "Theme": "Forest",
         "Gaze cursor": "Shown",
         "Feedback": "Hit sound on, miss sound on",
-        "Gaze signal": "Raw gaze (BPOG)",
+        "Gaze signal": "App smoothing (raw gaze)",
         "Gaze smoothing": "On, alpha 0.22, jitter tolerance 40 px",
         "Display": "1920×1080 @ 100% (standard)",
         "Viewing distance": "650 mm",

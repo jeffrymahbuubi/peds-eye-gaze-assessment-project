@@ -213,7 +213,12 @@ def _signal_row(snapshot: dict[str, Any]) -> str:
     return text
 
 
-def _smoothing_row(snapshot: dict[str, Any]) -> str:
+def _smoothing_row(snapshot: dict[str, Any], meta: dict[str, Any]) -> str:
+    """The "Gaze smoothing" row. "Off (Gazepoint Assistive)" only when the run itself says the
+    app did not smooth (``smoothing_applied`` false) and its signal was Assistive (4.9); a run
+    without the field (made before 4.9, including a live-check run of Assistive with the app's
+    average on) is described by its recorded settings, as before: the report never claims
+    smoothing was off when it may have been applied."""
     enabled = setting(snapshot, "dwell.smoothing.enabled", "dwell", "smoothing", "enabled")
     alpha = _num(setting(snapshot, "dwell.smoothing.alpha", "dwell", "smoothing", "alpha"))
     jitter = _num(setting(snapshot, "dwell.jitter_tolerance_px", "dwell", "jitter_tolerance_px"))
@@ -221,6 +226,11 @@ def _smoothing_row(snapshot: dict[str, Any]) -> str:
         return NOT_RECORDED
     head = NOT_RECORDED if enabled is None else (f"On, alpha {alpha:g}" if enabled and alpha is not None
                                                  else ("On" if enabled else "Off"))
+    if (
+        setting(snapshot, "dwell.pointer_signal", "dwell", "pointer_signal") == SIGNAL_ASSISTIVE
+        and meta.get("smoothing_applied") is False
+    ):
+        head, enabled = "Off (Gazepoint Assistive)", False
     if enabled and setting(snapshot, "dwell.smoothing.type", "dwell", "smoothing", "type") == SMOOTHING_ONE_EURO:
         # The adaptive filter has no alpha: its two settings are what was chosen.
         cutoff = _num(setting(snapshot, "dwell.smoothing.min_cutoff_hz", "dwell", "smoothing", "min_cutoff_hz"))
@@ -379,7 +389,7 @@ def build_config_rows(
         ("Gaze cursor", _shown_hidden(cursor)),
         ("Feedback", _feedback_row(snapshot)),
         ("Gaze signal", _signal_row(snapshot)),
-        ("Gaze smoothing", _smoothing_row(snapshot)),
+        ("Gaze smoothing", _smoothing_row(snapshot, meta)),
         ("Display", _display_row(meta)),
         ("Viewing distance", f"{distance:g} mm" if distance else NOT_RECORDED),
         ("Calibration", _calibration_row(meta, geometry)),

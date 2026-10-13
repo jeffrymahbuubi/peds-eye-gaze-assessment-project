@@ -102,6 +102,7 @@ top-left) unless the field name ends in `_px`.
 | `raw_clock_offset_ns` | int\|null | host-clock time of `all_gaze.csv` `TIME=0`, so `t_ns = raw_clock_offset_ns + TIME * 1e9` puts a device-rate row on the trial clock; null when no raw file was written |
 | `hitbox_margin_px` | float\|null | the run's `dwell.jitter_tolerance_px`, the margin added to the target radius to make the hitbox ("on target" for Follow the Target's time on target and for the first-fixation metric). Recorded for every task so a report can draw the hitbox; null on older sessions |
 | `head_position_at_start` | object\|null | where the child's head was when Start was pressed, from the head-position widget of the Start page: `state` (`"green"`, `"orange"`, `"red"`, `"no_eyes"` or `"not_connected"`), `z_cm` (eye distance from the tracker, one decimal) and `centre_x_cm` / `centre_y_cm` (the eye midpoint's offset from the well-seated position, on the device's X / Y axes, one decimal); the last three are null when no eyes were measured. Information only: nothing is gated on it, and the full stream is `eye_geometry.csv`. Null for a Mouse run, and on older sessions |
+| `smoothing_applied` | bool\|null | whether the app's own smoothing filtered the cursor (the running average or the One Euro filter of `settings.live`): false for Gazepoint Assistive (the app never smooths its APOG signal, whatever `dwell.smoothing.*` holds) and for a Mouse pointer, true when App smoothing was on. The report's Gaze smoothing row reads "Off (Gazepoint Assistive)" only when this is false and the signal is Assistive; a session without the field is described by its recorded smoothing settings, as before. Null on older sessions |
 | `settings` | object\|null | everything the run was configured with; see below |
 
 All of the rows from `test_id` on are additive and null on older sessions;
@@ -115,7 +116,7 @@ The complete configuration the run used, written from the final merged config
 | key | type | notes |
 |-----|------|-------|
 | `config_name` | str\|null | `"Standard"` or the saved configuration's name; null for a standalone run |
-| `live` | object | flat, keyed by dotted setting key: `dwell.threshold_ms`, `dwell.refractory_ms`, `dwell.jitter_tolerance_px`, `dwell.visual_cursor`, `dwell.progress_ring`, `dwell.instant_feedback`, `dwell.pointer_signal` (`best` / `fixation` / `assistive`: which Gazepoint POG moved the cursor), `dwell.aac_filter_samples` (the Assistive window length, **null unless `dwell.pointer_signal` is `assistive`**), `dwell.smoothing.enabled`, `dwell.smoothing.type` (`ema` / `one_euro`), `dwell.smoothing.alpha`, `dwell.smoothing.min_cutoff_hz` and `dwell.smoothing.beta` (the One Euro filter's Steadiness and Responsiveness), `task.timeout_ms`, `task.inter_trial_interval_ms`, and `motion.speed_frac_per_s` for `follow_moving` only |
+| `live` | object | flat, keyed by dotted setting key: `dwell.threshold_ms`, `dwell.refractory_ms`, `dwell.jitter_tolerance_px`, `dwell.visual_cursor`, `dwell.progress_ring`, `dwell.instant_feedback`, `dwell.pointer_signal` (`best` = App smoothing on the raw gaze / `assistive` = Gazepoint Assistive, its APOG signal: the card's "Cursor stabilisation"; the retired `fixation` of older sessions reads as "Fixation (FPOG), no longer offered", and a profile that still says it loads as `best`), `dwell.aac_filter_samples` (the Assistive window length, **null unless `dwell.pointer_signal` is `assistive`**), `dwell.smoothing.enabled` (as saved: Gazepoint Assistive runs have no app smoothing whatever it says, see `smoothing_applied`), `dwell.smoothing.type` (`ema` / `one_euro`), `dwell.smoothing.alpha`, `dwell.smoothing.min_cutoff_hz` and `dwell.smoothing.beta` (the One Euro filter's Steadiness and Responsiveness), `task.timeout_ms`, `task.inter_trial_interval_ms`, and `motion.speed_frac_per_s` for `follow_moving` only |
 | `structural` | object | nested like the task's YAML block: one entry per control of the task (trial count, target size, grid rows / columns / gap, motion path, icon count and layout, ...), `feedback.hit_sound` / `feedback.miss_sound` where the task has them, plus `theme` and `feedback.particles` (recorded, not offered as controls) |
 
 Sessions recorded before the Compass-style redesign may carry a partial or no
@@ -275,6 +276,45 @@ Columns, in order: `CNT`, `TIME`, `LEYEX`, `LEYEY`, `LEYEZ`, `LPUPILD`,
   `gazepoint.enable.eye_left`/`eye_right`/`pog_left`/`pog_right`) is an
   **empty cell**.
 - Headless `--replay` (no GUI) writes neither this file nor `all_gaze.csv`.
+
+## calibration.json
+
+The calibration a run used is written into its run folder as `calibration.json`; Save
+Calibration writes the same file as `<subject folder>/calibrations/calibration_<n>pt.json`
+(`specs/SPEC-app-drawn-calibration.md`). The first six fields are the same for every file; the
+rest describe how an app-drawn run was made, and are **absent from a file written before that
+change** (a loader reads named keys and treats a missing one as unknown).
+
+| field | type | notes |
+|-------|------|-------|
+| `subject_id` | str | the verbatim Subject ID |
+| `n_points` | int | points calibrated |
+| `mean_error_px` | float\|null | the mean calibration error in pixels of the tracked monitor: Gazepoint Control's `AVE_ERROR` for `mode` `control` and `control_fallback`; for `app_drawn` computed from `CALIB_RESULT` (the mean distance of each valid eye's estimate from its target, over every point), because the summary Control keeps is retained state |
+| `valid` | bool | at least one valid point (`app_drawn`: any eye of any point was valid in `CALIB_RESULT`) |
+| `per_point` | list\|null | one entry per point of `CALIB_RESULT`: `point`, `target_x`, `target_y`, and per eye (`left`, `right`: `x`, `y`, `valid`, or null); null when `CALIB_RESULT` never arrived. An app-drawn run adds `score` and `error_deg` to each entry |
+| `calibrated_at` | str | UTC timestamp |
+| `mode` | str | `"app_drawn"` (the app's calibration window), `"control"` (the operator chose Gazepoint Control's own window) or `"control_fallback"` (the app's window did not respond, so Control's own was used) |
+| `speed` | str | `"slow"`, `"normal"` or `"fast"` |
+| `delay_s`, `timeout_s` | float | `CALIBRATE_DELAY` (the glide, before sampling) and `CALIBRATE_TIMEOUT` (the hold, while Control samples) that the speed sent |
+| `icon` | str | the target icon: `bee`, `star`, `ball`, `fish`, `flower` or `car` (drawn by the app screen only) |
+| `size` | str | `"small"`, `"normal"` or `"large"` (degrees of visual angle, app screen only) |
+| `background` | str | `"white"`, `"black"` or `"grey"` (app screen only) |
+| `layout` | str | `"grid3"` (the app's 10 % / 90 % layout, in the order top-left, bottom-right, top-right, bottom-left, centre, then the edge midpoints) or `"vendor"` (Control's own 0.15 / 0.85 layout) |
+| `improve_runs` | int | how many times Improve calibration re-ran all points before Back |
+| `per_point[].score` | int | `round(100 x max(0, 1 - error_deg / 3))`, 0 when no eye was valid |
+| `per_point[].error_deg` | float\|null | the point's gaze error in degrees of visual angle, the mean over the valid eyes; null when no eye was valid |
+
+The settings (screen, points, speed, target, size, background) are saved per PC in the local
+state (`configs/local_state.json`, `calibration` block), never in the data folder.
+
+`_system/diagnostics/calibration_timing.jsonl` gains `mode` on every record (`"control"`,
+`"control_fallback"` with `fallback_reason`, or `"app_drawn"`). An app-drawn run writes one record
+with `outcome` (`calib_result`, `calib_result_never`, `cancelled`, `fallback`, `socket_error`),
+`delay_s`, `timeout_s` and `points`: for each point `t_start_s`, `t_result_s`, `t_glide_end_s` and
+`t_hold_start_s`, in seconds after `CALIBRATE_START`. The hold rule (the icon is still and small no
+later than `delay_s` after `CALIB_START_PT`) can be read as `t_hold_start_s - t_start_s`. A second
+record, `"kind": "app_window"`, lists per run and point `hold_scheduled_s` and `hold_painted_s`,
+seconds after the point's start, as the window kept them.
 
 ## Device and quality fields in metadata.json
 

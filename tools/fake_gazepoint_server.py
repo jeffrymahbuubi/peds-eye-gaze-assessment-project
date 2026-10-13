@@ -4,7 +4,13 @@ connection without a real GP3HD attached.
 Accepts a connection the same way Gazepoint Control does, and answers
 ``CALIBRATE_RESULT_SUMMARY`` queries with a fixed, immediately-valid result
 -- enough for ``Calibration.run()`` to complete and for ``AssessmentApp`` to
-auto-save ``calibration.json`` (SPEC-2026-09-02.md item 7, Goal 1). Once
+auto-save ``calibration.json`` (SPEC-2026-09-02.md item 7, Goal 1). It also
+runs a calibration the way Control does (SPEC-app-drawn-calibration.md):
+``CALIBRATE_START`` sends ``CALIB_START_PT`` / ``CALIB_RESULT_PT`` for every point,
+each lasting DELAY + TIMEOUT (+ ``CAL_JITTER_S``), then ``CALIB_RESULT``; it honours
+``CALIBRATE_SHOW`` / ``CLEAR`` / ``RESET`` / ``ADDPOINT`` and answers GET / SET of
+``CALIBRATE_DELAY`` and ``CALIBRATE_TIMEOUT``. A test drives it through ``CalibrationState``
+(``silent_runs``, ``extra_result_pt``, ``valid_eyes``, ``eye_offset``). Once
 ``ENABLE_SEND_DATA`` is set, streams a ``REC`` at ``REC_RATE_HZ`` that steps
 through ``WAYPOINTS`` (SPEC-ui-setup-task-selection.md S24.4's original
 fixed-center point, extended for SPEC-result-logic.md's Results-tab demo
@@ -42,6 +48,7 @@ device's address afterward.
 
 from __future__ import annotations
 
+import contextlib
 import math
 import socket
 import sys
@@ -93,6 +100,141 @@ DEVICE_INFO_REPLIES = {
     # parity.md S5.1); the real GP3 HD reports 1e9 (OpenCV tick counter).
     "TIME_TICK_FREQUENCY": '<ACK ID="TIME_TICK_FREQUENCY" FREQ="1000000000" />\r\n',
 }
+
+
+# -- calibration (SPEC-app-drawn-calibration.md): what Control does on CALIBRATE_START ---------
+CAL_DEFAULT_DELAY = 0.5  # the device's own CALIBRATE_DELAY / CALIBRATE_TIMEOUT
+CAL_DEFAULT_TIMEOUT = 1.5
+CAL_DEFAULT_POINTS = [(0.5, 0.5), (0.85, 0.15), (0.85, 0.85), (0.15, 0.85), (0.15, 0.15)]
+CAL_JITTER_S = 0.02  # probe P3: a point runs 10-70 ms longer than DELAY + TIMEOUT
+CAL_EYE_OFFSET = (0.003, 0.002)  # the fake gaze's error at each point (left eye; right mirrored)
+CAL_SCREEN_PX = (1920, 1080)
+CAL_COMMANDS = {
+    "CALIBRATE_SHOW", "CALIBRATE_DELAY", "CALIBRATE_TIMEOUT", "CALIBRATE_CLEAR",
+    "CALIBRATE_RESET", "CALIBRATE_ADDPOINT", "CALIBRATE_START",
+}
+
+
+class CalibrationState:
+    """The calibration side of one fake connection: Control's settings, the point list, what
+    the connection received, and the knobs a test turns."""
+
+    def __init__(self) -> None:
+        self.delay = CAL_DEFAULT_DELAY
+        self.timeout = CAL_DEFAULT_TIMEOUT
+        self.show = 1
+        self.points = list(CAL_DEFAULT_POINTS)
+        self.running = False
+        self.cancel = threading.Event()
+        self.thread: threading.Thread | None = None
+        self.commands: list[str] = []  # every calibration command line received
+        self.runs = 0
+        self.ave_error = AVE_ERROR  # retained state until a run finishes
+        self.valid_points = N_POINTS
+        self.silent_runs = 0  # the next this-many runs send no CAL records (the app-drawn fallback)
+        self.extra_result_pt = False  # an extra CALIB_RESULT_PT above the count (probe P3)
+        self.valid_eyes = True  # False: no camera, every eye invalid and zero
+        self.eye_offset = CAL_EYE_OFFSET
+
+
+def _attr(line: str, name: str) -> str | None:
+    marker = f'{name}="'
+    return line.split(marker, 1)[1].split('"', 1)[0] if marker in line else None
+
+
+def calibration_result_attrs(points: list[tuple[float, float]], state: CalibrationState) -> str:
+    """The ``CALIB_RESULT`` attributes: each point's target and both eyes' gaze estimate (the
+    target plus ``eye_offset``, left and right mirrored), or zeros and invalid flags with no
+    camera."""
+    parts = []
+    dx, dy = state.eye_offset
+    for i, (x, y) in enumerate(points, 1):
+        parts.append(f'CALX{i}="{x:.5f}" CALY{i}="{y:.5f}"')
+        if state.valid_eyes:
+            parts.append(
+                f'LX{i}="{x - dx:.5f}" LY{i}="{y + dy:.5f}" LV{i}="1" '
+                f'RX{i}="{x + dx:.5f}" RY{i}="{y - dy:.5f}" RV{i}="1"'
+            )
+        else:
+            parts.append(f'LX{i}="0.00000" LY{i}="0.00000" LV{i}="0" RX{i}="0.00000" RY{i}="0.00000" RV{i}="0"')
+    return " ".join(parts)
+
+
+def run_calibration_records(state: CalibrationState, send) -> None:
+    """The records of one calibration, each point lasting DELAY + TIMEOUT (+ jitter); a
+    ``CALIBRATE_START STATE="0"`` (``state.cancel``) ends it with no ``CALIB_RESULT``."""
+    points = list(state.points)
+    state.runs += 1
+    try:
+        if state.silent_runs > 0:
+            state.silent_runs -= 1
+            return
+        for i, (x, y) in enumerate(points, 1):
+            send(f'<CAL ID="CALIB_START_PT" PT="{i}" CALX="{x:.5f}" CALY="{y:.5f}" />\r\n')
+            if state.cancel.wait(state.delay + state.timeout + CAL_JITTER_S):
+                return
+            send(f'<CAL ID="CALIB_RESULT_PT" PT="{i}" CALX="{x:.5f}" CALY="{y:.5f}" />\r\n')
+        if state.extra_result_pt and points:
+            last_x, last_y = points[-1]
+            send(f'<CAL ID="CALIB_RESULT_PT" PT="{len(points) + 1}" CALX="{last_x:.5f}" CALY="{last_y:.5f}" />\r\n')
+        if state.valid_eyes and points:
+            px = math.hypot(state.eye_offset[0] * CAL_SCREEN_PX[0], state.eye_offset[1] * CAL_SCREEN_PX[1])
+            state.ave_error, state.valid_points = f"{px:.2f}", len(points)
+        else:
+            state.ave_error, state.valid_points = "1510.04", 0
+        state.commands.append("<sent CALIB_RESULT>")  # so a test can order it against the queries
+        send(f'<CAL ID="CALIB_RESULT" {calibration_result_attrs(points, state)} />\r\n')
+    finally:
+        state.running = False
+
+
+def handle_calibration_command(line: str, state: CalibrationState, send) -> bool:
+    """Answer the calibration commands in ``line``; True when it was one. ``send(text)`` writes
+    to the client."""
+    if "<GET" not in line and "<SET" not in line:
+        return False
+    command = _attr(line, "ID")
+    if command not in CAL_COMMANDS:
+        return False
+    state.commands.append(line)
+    is_set = "<SET" in line
+    value = _attr(line, "VALUE")
+    if command == "CALIBRATE_SHOW":
+        if is_set and _attr(line, "STATE") is not None:
+            state.show = int(_attr(line, "STATE"))
+        reply = f'<ACK ID="CALIBRATE_SHOW" STATE="{state.show}" />'
+    elif command in ("CALIBRATE_DELAY", "CALIBRATE_TIMEOUT"):
+        name = "delay" if command == "CALIBRATE_DELAY" else "timeout"
+        if is_set and value is not None:
+            try:
+                wanted = float(value)
+            except ValueError:
+                wanted = -1.0
+            if wanted > 0 or (name == "delay" and wanted >= 0):  # TIMEOUT > 0, DELAY >= 0 (API 3.5, 3.6)
+                setattr(state, name, wanted)
+        shown = value if is_set and value is not None else f"{getattr(state, name):g}"
+        reply = f'<ACK ID="{command}" VALUE="{shown}" />'
+    elif command in ("CALIBRATE_CLEAR", "CALIBRATE_RESET", "CALIBRATE_ADDPOINT"):
+        if is_set and command == "CALIBRATE_CLEAR":
+            state.points = []
+        elif is_set and command == "CALIBRATE_RESET":
+            state.points = list(CAL_DEFAULT_POINTS)
+        elif is_set and _attr(line, "X") is not None and _attr(line, "Y") is not None:
+            state.points.append((float(_attr(line, "X")), float(_attr(line, "Y"))))
+        reply = f'<ACK ID="{command}" PTS="{len(state.points)}" />'
+    else:  # CALIBRATE_START
+        wanted = _attr(line, "STATE")
+        if is_set and wanted == "1" and not state.running:
+            state.running = True
+            state.cancel.clear()
+            state.thread = threading.Thread(target=run_calibration_records, args=(state, send), daemon=True)
+            state.thread.start()
+        elif is_set and wanted == "0":
+            state.cancel.set()
+            state.running = False
+        reply = f'<ACK ID="CALIBRATE_START" STATE="{1 if state.running else 0}" />'
+    send(reply + "\r\n")
+    return True
 
 
 class HeadPose(NamedTuple):
@@ -182,6 +324,7 @@ def send_rec_loop(
     stop_event: threading.Event,
     enabled: set[str] | None = None,
     aac_state: dict[str, int] | None = None,
+    send_lock: threading.Lock | None = None,
 ) -> None:
     """Streams an always-valid REC at REC_RATE_HZ, stepping through
     WAYPOINTS one fixation at a time, until the connection drops or
@@ -237,14 +380,25 @@ def send_rec_loop(
         )
         counter += 1
         try:
-            conn.sendall(line.encode("ascii"))
+            with send_lock if send_lock is not None else contextlib.nullcontext():
+                conn.sendall(line.encode("ascii"))
         except OSError:
             return
 
 
-def handle_client(conn: socket.socket) -> None:
+def handle_client(conn: socket.socket, cal: CalibrationState | None = None) -> None:
     conn.settimeout(0.2)
     buffer = ""
+    cal = cal if cal is not None else CalibrationState()
+    send_lock = threading.Lock()  # the REC thread, the calibration thread and this one share the socket
+
+    def send(text: str) -> None:
+        try:
+            with send_lock:
+                conn.sendall(text.encode("ascii"))
+        except OSError:
+            cal.cancel.set()
+
     stop_rec = threading.Event()
     enabled: set[str] = set()  # ENABLE_SEND_* ids the client switched on
     aac_state = {"samples": AAC_FILTER_DEFAULT}  # the AAC_FILTER window: SET changes it, GET reads it
@@ -265,12 +419,15 @@ def handle_client(conn: socket.socket) -> None:
             while "\r\n" in buffer:
                 line, buffer = buffer.split("\r\n", 1)
                 print(f"[fake-server] recv: {line}", flush=True)
+                if handle_calibration_command(line, cal, send):
+                    continue
                 if 'ID="CALIBRATE_RESULT_SUMMARY"' in line and "<GET" in line:
+                    cal.commands.append(line)
                     ack = (
-                        f'<ACK ID="CALIBRATE_RESULT_SUMMARY" AVE_ERROR="{AVE_ERROR}" '
-                        f'VALID_POINTS="{N_POINTS}" />\r\n'
+                        f'<ACK ID="CALIBRATE_RESULT_SUMMARY" AVE_ERROR="{cal.ave_error}" '
+                        f'VALID_POINTS="{cal.valid_points}" />\r\n'
                     )
-                    conn.sendall(ack.encode("ascii"))
+                    send(ack)
                     print(f"[fake-server] sent: {ack.strip()}", flush=True)
                     continue
                 if 'ID="AAC_FILTER"' in line:
@@ -281,7 +438,7 @@ def handle_client(conn: socket.socket) -> None:
                         except ValueError:
                             pass
                     ack = f'<ACK ID="AAC_FILTER" VALUE="{aac_state["samples"]}" />\r\n'
-                    conn.sendall(ack.encode("ascii"))
+                    send(ack)
                     print(f"[fake-server] sent: {ack.strip()}", flush=True)
                     continue
                 if "<SET" in line and 'ID="ENABLE_SEND_' in line:
@@ -292,7 +449,7 @@ def handle_client(conn: socket.socket) -> None:
                         enabled.discard(record_id)
                 if 'ID="ENABLE_SEND_DATA"' in line and 'STATE="1"' in line and rec_thread is None:
                     rec_thread = threading.Thread(
-                        target=send_rec_loop, args=(conn, stop_rec, enabled, aac_state), daemon=True
+                        target=send_rec_loop, args=(conn, stop_rec, enabled, aac_state, send_lock), daemon=True
                     )
                     rec_thread.start()
                     print(f"[fake-server] streaming REC at {REC_RATE_HZ:.0f} Hz", flush=True)
@@ -300,10 +457,11 @@ def handle_client(conn: socket.socket) -> None:
                 if "<GET" in line:
                     for query_id, reply in DEVICE_INFO_REPLIES.items():
                         if f'ID="{query_id}"' in line:
-                            conn.sendall(reply.encode("ascii"))
+                            send(reply)
                             print(f"[fake-server] sent: {reply.strip()}", flush=True)
                             break
     finally:
+        cal.cancel.set()  # a calibration still running ends with its connection
         stop_rec.set()
         if rec_thread is not None:
             rec_thread.join(timeout=1.0)

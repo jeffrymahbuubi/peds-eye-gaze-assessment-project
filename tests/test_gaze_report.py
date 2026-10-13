@@ -109,11 +109,10 @@ def rows(live, meta=RIG_META):
 
 
 def test_the_rows_name_the_gaze_signal_and_the_filter():
-    assert rows({"dwell.pointer_signal": "best"})["Gaze signal"] == "Raw gaze (BPOG)"
-    assert rows({"dwell.pointer_signal": "fixation"})["Gaze signal"] == "Fixation (FPOG)"
+    assert rows({"dwell.pointer_signal": "best"})["Gaze signal"] == "App smoothing (raw gaze)"
     assert rows({"dwell.pointer_signal": "assistive", "dwell.aac_filter_samples": 25})[
         "Gaze signal"
-    ] == "Assistive (APOG), AAC filter 25 samples"
+    ] == "Gazepoint Assistive (APOG), AAC filter 25 samples"
     # The default filter reads as before, with no mention of a type.
     assert rows({})["Gaze smoothing"] == "On, alpha 0.22, jitter tolerance 40 px"
     assert rows({"dwell.smoothing.type": "ema"})["Gaze smoothing"] == "On, alpha 0.22, jitter tolerance 40 px"
@@ -122,6 +121,66 @@ def test_the_rows_name_the_gaze_signal_and_the_filter():
         "dwell.smoothing.beta": 4.0,
     })["Gaze smoothing"] == "On, adaptive (One Euro), steadiness 0.5 Hz, responsiveness 4, jitter tolerance 40 px"
     assert rows({"dwell.smoothing.enabled": False, "dwell.smoothing.type": "one_euro"})[
+        "Gaze smoothing"
+    ] == "Off, jitter tolerance 40 px"
+
+
+ASSISTIVE = {"dwell.pointer_signal": "assistive", "dwell.aac_filter_samples": 15}
+NOT_SMOOTHED = dict(RIG_META, smoothing_applied=False)  # a run recorded under 4.9, App smoothing off
+
+
+def test_a14_a_new_assistive_run_reports_the_app_smoothing_as_off_whatever_was_saved():
+    got = rows({**ASSISTIVE, "dwell.smoothing.enabled": True, "dwell.smoothing.type": "ema"}, NOT_SMOOTHED)
+    assert got["Gaze signal"] == "Gazepoint Assistive (APOG), AAC filter 15 samples"
+    assert got["Gaze smoothing"] == "Off (Gazepoint Assistive), jitter tolerance 40 px"
+    for extra in ({"dwell.smoothing.type": "one_euro"}, {"dwell.smoothing.enabled": False}):
+        assert rows({**ASSISTIVE, **extra}, NOT_SMOOTHED)["Gaze smoothing"] == (
+            "Off (Gazepoint Assistive), jitter tolerance 40 px"
+        )
+    # An Assistive run that did not record its window still says what it was.
+    assert rows({"dwell.pointer_signal": "assistive"}, NOT_SMOOTHED)["Gaze signal"] == (
+        "Gazepoint Assistive (APOG)"
+    )
+
+
+def test_a14_an_old_assistive_session_that_was_smoothed_describes_the_smoothing():
+    """Before 4.9 an Assistive run could have the app's average on top (the live-check finding): with
+    no `smoothing_applied` in the folder the report describes the recorded settings, never "Off"."""
+    assert "smoothing_applied" not in RIG_META
+    on = rows({**ASSISTIVE, "dwell.smoothing.enabled": True, "dwell.smoothing.type": "ema"})
+    assert on["Gaze signal"] == "Gazepoint Assistive (APOG), AAC filter 15 samples"
+    assert on["Gaze smoothing"] == "On, alpha 0.22, jitter tolerance 40 px"
+    adaptive = rows({**ASSISTIVE, "dwell.smoothing.enabled": True, "dwell.smoothing.type": "one_euro",
+                     "dwell.smoothing.min_cutoff_hz": 0.5, "dwell.smoothing.beta": 4.0})
+    assert adaptive["Gaze smoothing"] == (
+        "On, adaptive (One Euro), steadiness 0.5 Hz, responsiveness 4, jitter tolerance 40 px"
+    )
+    assert rows({**ASSISTIVE, "dwell.smoothing.enabled": False})["Gaze smoothing"] == (
+        "Off, jitter tolerance 40 px"
+    )
+
+
+def test_a14_a_run_that_says_its_smoothing_was_applied_is_described_not_called_off():
+    applied = dict(RIG_META, smoothing_applied=True)
+    assert rows(ASSISTIVE, applied)["Gaze smoothing"] == "On, alpha 0.22, jitter tolerance 40 px"
+
+
+def test_a14_the_field_changes_nothing_for_app_smoothing_runs():
+    for meta in (RIG_META, dict(RIG_META, smoothing_applied=True), NOT_SMOOTHED):  # e.g. a Mouse run
+        assert rows({"dwell.pointer_signal": "best"}, meta)["Gaze smoothing"] == (
+            "On, alpha 0.22, jitter tolerance 40 px"
+        )
+
+
+def test_a14_an_app_smoothing_run_keeps_the_smoothing_row_as_it_was():
+    assert rows({"dwell.pointer_signal": "best"})["Gaze smoothing"] == "On, alpha 0.22, jitter tolerance 40 px"
+
+
+def test_a14_an_old_session_with_fixation_reads_as_what_it_was():
+    got = rows({"dwell.pointer_signal": "fixation"})
+    assert got["Gaze signal"] == "Fixation (FPOG), no longer offered"
+    assert got["Gaze smoothing"] == "On, alpha 0.22, jitter tolerance 40 px"  # it was smoothed by the app
+    assert rows({"dwell.pointer_signal": "fixation", "dwell.smoothing.enabled": False})[
         "Gaze smoothing"
     ] == "Off, jitter tolerance 40 px"
 

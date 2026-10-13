@@ -227,6 +227,8 @@ def test_with_a_ready_tracker_the_note_has_no_second_sentence(qapp):
 def test_no_alert_on_the_start_page_sits_inside_a_card(qapp):
     page = make_page([TRACKER_BLOCKER], pointer="gaze")
     boxes = page.findChildren(AlertBox)
-    assert {id(b) for b in boxes} == {id(page.banner), id(page.path_alert), id(page.mouse_note), id(page.help_bar)}
+    assert {id(b) for b in boxes} == {
+        id(page.banner), id(page.path_alert), id(page.mouse_note), id(page.help_bar), id(page.calibration_alert),
+    }
     for box in boxes:
         assert not any(w.objectName() == "wtmhCard" for w in ancestors(box))

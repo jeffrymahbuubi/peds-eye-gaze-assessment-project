@@ -4,9 +4,11 @@ and the defaults the config file falls back to. Split out of :mod:`settings_regi
 under the project's 500-line limit; the registry splices :data:`GAZE_LIVE` into ``LIVE_SETTINGS``
 at the place the two old smoothing entries sat. No PySide6 import.
 
-The card, in order: Gaze signal, AAC filter length, Smoothing enabled, Smoothing type, alpha,
-Steadiness, Responsiveness. Defaults stay ``best`` + ``ema`` (G5), so an old profile or config
-without the new keys behaves exactly as before.
+The card, in order: Cursor stabilisation, AAC filter length, Smoothing enabled, Smoothing type,
+alpha, Steadiness, Responsiveness. Cursor stabilisation is two approaches (4.9): App smoothing
+(raw gaze) plus the app's own filter, or Gazepoint Assistive, whose own signal the app never
+smooths. Defaults stay ``best`` + ``ema`` (G5), so an old profile or config without the new
+keys behaves exactly as before, and a retired ``fixation`` loads as ``best`` (G9).
 """
 
 from __future__ import annotations
@@ -18,20 +20,20 @@ from ..inputs.gaze_signal import (
     AAC_FILTER_DEFAULT,
     AAC_FILTER_MAX,
     AAC_FILTER_MIN,
-    DEFAULT_SIGNAL,
     DEFAULT_SMOOTHING_TYPE,
     ONE_EURO_BETA_DEFAULT,
     ONE_EURO_BETA_RANGE,
     ONE_EURO_MIN_CUTOFF_DEFAULT,
     ONE_EURO_MIN_CUTOFF_RANGE,
     POINTER_SIGNALS,
+    SIGNAL_ASSISTIVE,
     SIGNAL_BEST,
-    SIGNAL_FIXATION,
     SIGNAL_LABELS,
     SMOOTHING_EMA,
     SMOOTHING_LABELS,
     SMOOTHING_ONE_EURO,
     SMOOTHING_TYPES,
+    normalize_signal,
 )
 from .setting_types import LiveSetting
 
@@ -45,12 +47,13 @@ SMOOTHING_TYPE_CHOICES: tuple[tuple[str, str], ...] = tuple(
 GAZE_LIVE: list[LiveSetting] = [
     LiveSetting(
         "dwell.pointer_signal",
-        "Gaze signal (what drives the cursor)",
+        "Cursor stabilisation",
         "settings",
         "choice",
-        tooltip="Which Gazepoint signal moves the cursor. Raw gaze is today's cursor. Fixation"
-        " holds steady within a fixation and jumps to the next one. Assistive is Gazepoint's"
-        " moving-window average, made for eye typing. The recorded gaze is always the raw gaze.",
+        tooltip="Who steadies the cursor. App smoothing filters the raw gaze with the settings"
+        " below. Gazepoint Assistive uses Gazepoint's own moving-window average, made for eye"
+        " typing, and the app adds no smoothing of its own. The recorded gaze is always the"
+        " raw gaze.",
         choices=POINTER_SIGNAL_CHOICES,
     ),
     LiveSetting(
@@ -61,7 +64,7 @@ GAZE_LIVE: list[LiveSetting] = [
         AAC_FILTER_MIN,
         AAC_FILTER_MAX,
         1,
-        tooltip="Only for the Assistive signal: how many samples Gazepoint averages. Longer ="
+        tooltip="Only for Gazepoint Assistive: how many samples Gazepoint averages. Longer ="
         " steadier, slower. This is the same setting as Gazepoint Control's Cursor Smoothing and"
         " is put back to its own value when the tracker disconnects or the app closes.",
     ),
@@ -124,23 +127,22 @@ GAZE_DEPENDS_ON = {
     "dwell.smoothing.beta": "dwell.smoothing.enabled",
 }
 
-# Greyed while ANY of its ``(choice key, value)`` pairs holds (4.1-4.3): the AAC length is for
-# Assistive only, alpha for Simple only, Steadiness and Responsiveness for Adaptive only, and a
-# Mouse pointer has no gaze signal and is never smoothed (SPEC-preview-gaze-pointer.md P2, H6),
-# which greys the whole card. A page that lacks a named choice never applies that pair.
+# Greyed while ANY of its ``(choice key, value)`` pairs holds (4.1-4.3, 4.9): the AAC length is for
+# Gazepoint Assistive only; every app-smoothing row is for App smoothing only, since the app never
+# smooths an Assistive cursor (G10), and within those alpha is for Simple only, Steadiness and
+# Responsiveness for Adaptive only. A Mouse pointer has no gaze signal and is never smoothed
+# (SPEC-preview-gaze-pointer.md P2, H6), which greys the whole card. A page that lacks a named
+# choice never applies that pair. The greyed rows keep their values.
 _MOUSE = ("input.pointer", POINTER_MOUSE)
+_ASSISTIVE = ("dwell.pointer_signal", SIGNAL_ASSISTIVE)
 GAZE_GREYED_BY: dict[str, tuple[tuple[str, str], ...]] = {
     "dwell.pointer_signal": (_MOUSE,),
-    "dwell.aac_filter_samples": (
-        _MOUSE,
-        ("dwell.pointer_signal", SIGNAL_BEST),
-        ("dwell.pointer_signal", SIGNAL_FIXATION),
-    ),
-    "dwell.smoothing.enabled": (_MOUSE,),
-    "dwell.smoothing.type": (_MOUSE,),
-    "dwell.smoothing.alpha": (_MOUSE, ("dwell.smoothing.type", SMOOTHING_ONE_EURO)),
-    "dwell.smoothing.min_cutoff_hz": (_MOUSE, ("dwell.smoothing.type", SMOOTHING_EMA)),
-    "dwell.smoothing.beta": (_MOUSE, ("dwell.smoothing.type", SMOOTHING_EMA)),
+    "dwell.aac_filter_samples": (_MOUSE, ("dwell.pointer_signal", SIGNAL_BEST)),
+    "dwell.smoothing.enabled": (_MOUSE, _ASSISTIVE),
+    "dwell.smoothing.type": (_MOUSE, _ASSISTIVE),
+    "dwell.smoothing.alpha": (_MOUSE, _ASSISTIVE, ("dwell.smoothing.type", SMOOTHING_ONE_EURO)),
+    "dwell.smoothing.min_cutoff_hz": (_MOUSE, _ASSISTIVE, ("dwell.smoothing.type", SMOOTHING_EMA)),
+    "dwell.smoothing.beta": (_MOUSE, _ASSISTIVE, ("dwell.smoothing.type", SMOOTHING_EMA)),
 }
 
 SMOOTHING_DEFAULTS = {
@@ -155,12 +157,11 @@ SMOOTHING_DEFAULTS = {
 def gaze_live_values(dwell_cfg: dict[str, Any]) -> dict[str, Any]:
     """The seven live values of the card, from the merged config's ``dwell`` block, each
     falling back to its default when missing; a choice that is not one of its options (a
-    hand-edited file) is its default too."""
+    hand-edited file, or the retired ``fixation`` of an old profile) is its default too."""
     smoothing = dwell_cfg.get("smoothing", {})
-    signal = dwell_cfg.get("pointer_signal", DEFAULT_SIGNAL)
     kind = smoothing.get("type", SMOOTHING_DEFAULTS["type"])
     return {
-        "dwell.pointer_signal": signal if signal in POINTER_SIGNALS else DEFAULT_SIGNAL,
+        "dwell.pointer_signal": normalize_signal(dwell_cfg.get("pointer_signal")),
         "dwell.aac_filter_samples": dwell_cfg.get("aac_filter_samples", AAC_FILTER_DEFAULT),
         "dwell.smoothing.enabled": smoothing.get("enabled", SMOOTHING_DEFAULTS["enabled"]),
         "dwell.smoothing.type": kind if kind in SMOOTHING_TYPES else DEFAULT_SMOOTHING_TYPE,

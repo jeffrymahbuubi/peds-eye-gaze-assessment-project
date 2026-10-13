@@ -147,7 +147,7 @@ def test_the_tab_and_reading_order_is_subject_tracker_display_calibration(qapp):
             break
     firsts = [
         chain.index(w)
-        for w in (page.subject_id_edit, page.address_edit, page.display_ack_checkbox, page.point_count_spin)
+        for w in (page.subject_id_edit, page.address_edit, page.display_ack_checkbox, page.points_combo)
     ]
     assert firsts == sorted(firsts)  # Subject, Tracker, Display, Calibration
     assert chain.index(page.notes_edit) < chain.index(page.address_edit)  # all of Subject before Tracker
@@ -161,7 +161,7 @@ def test_the_fields_fill_their_card_as_on_the_feature_branch(qapp, width):
     """User, 2026-10-10: field widths as on feature/compass-task-flow; the H4 fixed widths are gone."""
     page = shown_setup(width)
     inner = page.subject_card.contentsRect().width() - 2 * page_layout.CARD_PADDING
-    for field in (page.subject_id_edit, page.date_edit, page.sex_combo, page.notes_edit, page.point_count_spin):
+    for field in (page.subject_id_edit, page.date_edit, page.sex_combo, page.notes_edit):
         assert field.width() >= inner - 4, type(field).__name__  # the card's width, less its padding
     address, port = page.address_edit.width(), page.port_spin.width()
     assert abs(address - 2 * port) <= 2 * page_layout.FIELD_GAP  # Address : Port = 2 : 1

@@ -111,7 +111,7 @@ LIVE_SETTINGS: list[LiveSetting] = [
         " on-target. Higher = steadier cursor, slightly less precise selection.",
         excludes=TASKS_WITHOUT_SELECTION,
     ),
-    *GAZE_LIVE,  # Gaze signal, AAC filter, smoothing on / type / alpha / One Euro (gaze_settings.py)
+    *GAZE_LIVE,  # Cursor stabilisation, AAC filter, smoothing on / type / alpha / One Euro (gaze_settings.py)
     LiveSetting(
         "task.timeout_ms",
         "Trial timeout (s)",

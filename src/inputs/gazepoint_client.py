@@ -666,7 +666,7 @@ class GazepointClient:
 
     def set_pointer_signal(self, signal: str) -> None:
         """Choose which POG the samples' ``pointer_*`` fields carry from now on (``best`` /
-        ``fixation`` / ``assistive``, SPEC-gaze-stability-and-positioning.md 4.1). The raw
+        ``assistive``, SPEC-gaze-stability-and-positioning.md 4.1, 4.9). The raw
         ``x`` / ``y`` are unaffected. Live sockets only: a replayed fixture keeps ``best``."""
         self._pointer_signal = signal
 

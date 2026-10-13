@@ -113,6 +113,16 @@ class CalibrationResult:
     # Per-point/per-eye breakdown from CALIB_RESULT, if seen during polling
     # (see _parse_calib_result); None when unmeasured/stub/not observed.
     per_point: tuple[dict[str, Any], ...] | None = None
+    # How the run was made (SPEC-app-drawn-calibration.md 4.7): the screen mode, speed,
+    # DELAY/TIMEOUT, icon, size, background, layout and improve_runs, written into
+    # calibration.json beside the result. None for an older file or a result nobody annotated.
+    record: dict[str, Any] | None = None
+
+
+# The keys of CalibrationResult.record, written at the top level of calibration.json.
+RECORD_KEYS = (
+    "mode", "speed", "delay_s", "timeout_s", "icon", "size", "background", "layout", "improve_runs",
+)
 
 
 class CalibrationFileError(Exception):
@@ -141,6 +151,7 @@ def save_calibration_result(path: str | Path, subject_id: str, result: Calibrati
         "valid": result.valid,
         "per_point": list(result.per_point) if result.per_point else None,
         "calibrated_at": datetime.now(timezone.utc).isoformat(),
+        **{key: value for key, value in (result.record or {}).items() if key in RECORD_KEYS},
     }
     Path(path).write_text(json.dumps(payload, ensure_ascii=False, indent=2), encoding="utf-8")
 
@@ -167,11 +178,14 @@ def load_calibration_result(path: str | Path) -> SavedCalibration:
         # capture) -- unlike the fields above, its absence in an older
         # calibration.json is not an error.
         per_point_raw = data.get("per_point")
+        # Likewise the record of how an app-drawn run was made (4.7).
+        record = {key: data[key] for key in RECORD_KEYS if key in data}
         result = CalibrationResult(
             n_points=int(data["n_points"]),
             mean_error_px=float(mean_error_px) if mean_error_px is not None else None,
             valid=bool(data["valid"]),
             per_point=tuple(per_point_raw) if per_point_raw else None,
+            record=record or None,
         )
         calibrated_at = str(data["calibrated_at"])
     except (KeyError, TypeError, ValueError) as exc:
@@ -307,6 +321,8 @@ class Calibration:
         point_delay_s: float | None = None,
         preset_result: CalibrationResult | None = None,
         timing_log_path: str | Path | None = None,
+        mode: str = "control",
+        timing_extra: dict[str, Any] | None = None,
     ) -> None:
         # A preset result (from --calibration-file) means run() returns it
         # immediately without touching the socket at all -- skip point-count
@@ -317,6 +333,11 @@ class Calibration:
         # (SPEC-gui-audit-2026-09-10.md S7). None = don't log, which is what
         # every unit test does; the app always passes a real path.
         self.timing_log_path = timing_log_path
+        # Written into that record (SPEC-app-drawn-calibration.md 4.2): "control" for the
+        # operator's choice of Gazepoint Control's window, "control_fallback" when the app's own
+        # screen did not respond, with the reason in ``timing_extra``.
+        self.mode = mode
+        self.timing_extra = dict(timing_extra) if timing_extra else {}
         if preset_result is not None:
             self._layout = None  # never consulted: run() returns preset_result directly
             self._client = client
@@ -496,6 +517,7 @@ class Calibration:
                     self.timing_log_path,
                     {
                         "ts": datetime.now(timezone.utc).isoformat(),
+                        "mode": self.mode,
                         "n_points": self.n_points,
                         "outcome": outcome,
                         # The number that matters: how long after the summary
@@ -517,6 +539,7 @@ class Calibration:
                         "per_point_captured": bool(result.per_point),
                         "valid": result.valid,
                         "mean_error_px": result.mean_error_px,
+                        **self.timing_extra,
                     },
                 )
             return result

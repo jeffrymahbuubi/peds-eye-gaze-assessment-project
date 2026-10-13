@@ -107,7 +107,7 @@
 ### Fallback alert (shown on the opening page afterwards)
 
 ::: alert warning
-▲ Warning: The app's calibration screen did not respond, so Gazepoint Control's own calibration was used.
+▲ Warning: The app's calibration screen did not respond; Gazepoint Control's own calibration was used.
 :::
 
 > 4.2: no `CAL` record within DELAY + 1 s (or a later point more than DELAY + TIMEOUT + 1 s late) closes the window, re-runs the calibration once with Control's own window, and shows this alert on Setup or the Start-test page. Logged to `_diagnostics/calibration_timing.jsonl` as `mode: control_fallback`.

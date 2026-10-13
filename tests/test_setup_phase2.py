@@ -246,7 +246,7 @@ def test_the_fields_have_no_fixed_width_and_notes_keep_three_lines(qapp):
     page = page_with()
     for field in (
         page.subject_id_edit, page.date_edit, page.sex_combo,
-        page.address_edit, page.port_spin, page.point_count_spin,
+        page.address_edit, page.port_spin, page.points_combo,
     ):
         assert field.maximumWidth() > 1000, field.objectName() or type(field)
     assert page.notes_edit.minimumHeight() == page.notes_edit.maximumHeight() == 84  # three lines

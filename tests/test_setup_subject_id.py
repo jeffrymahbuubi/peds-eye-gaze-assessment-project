@@ -65,7 +65,8 @@ def test_the_hint_is_always_there_whatever_is_typed(page):
 
 
 def test_there_is_no_folder_name_choice_and_no_folder_line(page):
-    assert page.findChildren(QRadioButton) == []
+    # (the Calibration card's "Calibration screen" choice is a radio group of its own)
+    assert [r for r in page.findChildren(QRadioButton) if not page.calibration_settings_panel.isAncestorOf(r)] == []
     texts = [label.text() for label in page.findChildren(QLabel)]
     assert not any("Anonymous" in t or "Folder name" in t or t.startswith("Folder:") for t in texts)
     assert not hasattr(page, "folder_row") and not hasattr(page, "folder_mode")

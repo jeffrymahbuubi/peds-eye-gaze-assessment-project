@@ -129,18 +129,17 @@ def test_the_greying_rules_of_4_1(task_id):
     greyed = {k: c.greyed_by for k, c in controls(task_id).items() if c.greyed_by}
     # A Mouse pointer has no gaze signal and is never smoothed (SPEC-preview-gaze-pointer.md H7,
     # SPEC-gaze-stability-and-positioning.md 4.8): the whole Gaze Smoothing card is greyed by it,
-    # on every page, and its other rules (a pair each) name the signal and the smoothing type.
-    mouse = ("input.pointer", "mouse")
+    # on every page, and its other rules (a pair each) name the signal and the smoothing type:
+    # Gazepoint Assistive greys every app-smoothing row (4.9), App smoothing the AAC length.
+    mouse, assistive = ("input.pointer", "mouse"), ("dwell.pointer_signal", "assistive")
     smoothing = {
         "dwell.pointer_signal": (mouse,),
-        "dwell.aac_filter_samples": (
-            mouse, ("dwell.pointer_signal", "best"), ("dwell.pointer_signal", "fixation")
-        ),
-        "dwell.smoothing.enabled": (mouse,),
-        "dwell.smoothing.type": (mouse,),
-        "dwell.smoothing.alpha": (mouse, ("dwell.smoothing.type", "one_euro")),
-        "dwell.smoothing.min_cutoff_hz": (mouse, ("dwell.smoothing.type", "ema")),
-        "dwell.smoothing.beta": (mouse, ("dwell.smoothing.type", "ema")),
+        "dwell.aac_filter_samples": (mouse, ("dwell.pointer_signal", "best")),
+        "dwell.smoothing.enabled": (mouse, assistive),
+        "dwell.smoothing.type": (mouse, assistive),
+        "dwell.smoothing.alpha": (mouse, assistive, ("dwell.smoothing.type", "one_euro")),
+        "dwell.smoothing.min_cutoff_hz": (mouse, assistive, ("dwell.smoothing.type", "ema")),
+        "dwell.smoothing.beta": (mouse, assistive, ("dwell.smoothing.type", "ema")),
     }
     if task_id == "follow_moving":
         # No Selection to grey anything by, and no threshold or ring to grey: only the glow's
@@ -299,7 +298,7 @@ def test_pointer_mouse_greys_only_the_gaze_smoothing_card(qapp):
     mouse = page_for("click_grid", input={"pointer": "mouse", "selection": "dwell"})
     state = lambda page: {k: w.isEnabled() for k, w in page._form.controls.items()}  # noqa: E731
     # Of the card's seven controls, the AAC length and the One Euro numbers are already greyed
-    # under the default Raw gaze + Simple, so the Mouse changes the other four.
+    # under the default App smoothing + Simple, so the Mouse changes the other four.
     assert {k for k in state(plain) if state(plain)[k] != state(mouse)[k]} == {
         "dwell.pointer_signal",
         "dwell.smoothing.enabled",

@@ -1,5 +1,7 @@
-"""The cursor's gaze signal: BPOG / FPOG / APOG (SPEC-gaze-stability-and-positioning.md 4.1,
-acceptance A2, A4) from the REC record to the pointer, with the recorded raw gaze untouched."""
+"""The cursor's gaze signal: BPOG / APOG, and the retired FPOG (SPEC-gaze-stability-and-positioning.md
+4.1, 4.9, acceptance A2, A4, A12, A13) from the REC record to the pointer, with the recorded raw
+gaze untouched. FPOG ("Fixation") is no longer offered by any setting; its internal path stays
+tested here because a dwell must survive the same gaps for APOG."""
 
 from __future__ import annotations
 
@@ -13,11 +15,14 @@ from src.inputs.gaze_signal import (
     SIGNAL_ASSISTIVE,
     SIGNAL_BEST,
     SIGNAL_FIXATION,
+    app_smoothing_on,
     apply_gaze_signal,
     clamp_aac_filter,
     normalize_signal,
     normalize_smoothing_type,
     pointer_from_rec,
+    retired_signal_note,
+    signal_label,
 )
 from src.inputs.gazepoint_client import parse_rec, rec_to_sample
 from src.tasks.base_task import BaseTask, TargetSpec
@@ -77,6 +82,7 @@ def test_pointer_from_rec_gives_zero_for_a_missing_coordinate_and_never_valid():
 
 def test_unknown_values_fall_back_to_the_defaults():
     assert normalize_signal("bogus") == SIGNAL_BEST and normalize_signal(None) == SIGNAL_BEST
+    assert normalize_signal(SIGNAL_FIXATION) == SIGNAL_BEST  # A12: the retired one is App smoothing
     assert normalize_smoothing_type("bogus") == "ema" and normalize_smoothing_type("one_euro") == "one_euro"
     assert (clamp_aac_filter(0), clamp_aac_filter(99), clamp_aac_filter("x")) == (1, 60, AAC_FILTER_DEFAULT)
 
@@ -105,6 +111,60 @@ def test_an_invalid_signal_freezes_the_pointer_even_though_the_raw_gaze_is_valid
     source.sample = _sample(REC.replace('FPOGV="1"', 'FPOGV="0"').replace('FPOGX="0.30"', 'FPOGX="0.9"'), SIGNAL_FIXATION)
     frozen = eye.poll(1)
     assert (frozen.x, frozen.y, frozen.valid) == (0.30, 0.40, False)
+
+
+# -- A12: the retired Fixation, A13: Assistive is never smoothed by the app ----------------------
+
+
+def test_a12_the_signals_are_named_as_the_two_approaches_and_the_retired_one_keeps_its_name():
+    assert signal_label(SIGNAL_BEST) == "App smoothing (raw gaze)"
+    assert signal_label(SIGNAL_ASSISTIVE) == "Gazepoint Assistive (APOG)"
+    assert signal_label(SIGNAL_FIXATION) == "Fixation (FPOG), no longer offered"
+    assert signal_label("bogus") == "App smoothing (raw gaze)"
+
+
+def test_a12_a_retired_signal_has_a_session_log_note_and_nothing_else_does():
+    assert retired_signal_note("fixation") == (
+        "Gaze signal 'fixation' is no longer offered; using App smoothing (raw gaze)."
+    )
+    assert all(retired_signal_note(v) is None for v in (SIGNAL_BEST, SIGNAL_ASSISTIVE, "bogus", None))
+
+
+@pytest.mark.parametrize("signal", [SIGNAL_BEST, SIGNAL_ASSISTIVE])
+def test_a13_the_app_never_smooths_assistive_whatever_the_setting_says(signal):
+    assert app_smoothing_on(signal, True) is (signal == SIGNAL_BEST)
+    assert app_smoothing_on(signal, False) is False
+
+
+def test_a13_a_retired_signal_smooths_as_app_smoothing_does():
+    assert app_smoothing_on(SIGNAL_FIXATION, True) is True and app_smoothing_on(SIGNAL_FIXATION, False) is False
+
+
+def _pointer_track(signal: str, smoothing_enabled: bool) -> list[tuple[float, float]]:
+    """The pointer for APOG samples that jump from (0.2, 0.2) to (0.8, 0.8), through the same
+    EyeInput a run builds (smoothing as ``app_smoothing_on`` decides)."""
+    source = _Source()
+    config = SmoothingConfig(enabled=app_smoothing_on(signal, smoothing_enabled), alpha=0.1)
+    eye = EyeInput(source, smoothing_config=config)
+    track = []
+    for i, (x, y) in enumerate([(0.2, 0.2)] * 3 + [(0.8, 0.8)] * 3):
+        rec = f'<REC BPOGX="{x}" BPOGY="{y}" BPOGV="1" APOGX="{x}" APOGY="{y}" APOGV="1" />'
+        source.sample = rec_to_sample(parse_rec(rec), 1000 + i * 10_000_000, signal)
+        p = eye.poll(1000 + i * 10_000_000)
+        track.append((p.x, p.y))
+    return track
+
+
+def test_a13_with_assistive_the_pointer_is_the_same_with_the_app_smoothing_on_or_off():
+    on, off = _pointer_track(SIGNAL_ASSISTIVE, True), _pointer_track(SIGNAL_ASSISTIVE, False)
+    assert on == off
+    assert on[3] == (0.8, 0.8)  # a jump lands at once: nothing lags behind Gazepoint's own average
+
+
+def test_a13_with_app_smoothing_the_setting_still_makes_the_pointer_lag():
+    smoothed, raw = _pointer_track(SIGNAL_BEST, True), _pointer_track(SIGNAL_BEST, False)
+    assert raw[3] == (0.8, 0.8)
+    assert 0.2 < smoothed[3][0] < 0.5  # alpha 0.1: far from landed one frame after the jump
 
 
 # -- A4: a fixation dwell survives the microsaccade gaps ------------------------------------------
@@ -177,20 +237,29 @@ class _Tracker:
         return self._sends
 
 
-def test_a_non_assistive_run_start_sets_the_signal_and_never_touches_aac_filter():
-    for signal in (SIGNAL_BEST, SIGNAL_FIXATION):
-        tracker = _Tracker()
-        assert apply_gaze_signal(tracker, signal, 30) == [
-            f"Gaze signal: {'Raw gaze (BPOG)' if signal == SIGNAL_BEST else 'Fixation (FPOG)'}."
-        ]
-        assert (tracker.signal, tracker.aac) == (signal, [])
+def test_an_app_smoothing_run_start_sets_the_signal_and_never_touches_aac_filter():
+    tracker = _Tracker()
+    assert apply_gaze_signal(tracker, SIGNAL_BEST, 30) == ["Gaze signal: App smoothing (raw gaze)."]
+    assert (tracker.signal, tracker.aac) == (SIGNAL_BEST, [])
+
+
+def test_a12_a_retired_signal_run_start_notes_it_first_and_runs_on_app_smoothing():
+    tracker = _Tracker()
+    lines = apply_gaze_signal(tracker, normalize_signal("fixation"), 30, "fixation")
+    assert lines == [
+        "Gaze signal 'fixation' is no longer offered; using App smoothing (raw gaze).",
+        "Gaze signal: App smoothing (raw gaze).",
+    ]
+    assert (tracker.signal, tracker.aac) == (SIGNAL_BEST, [])
+    # The note is about the config, so a source with no signal methods still carries it.
+    assert apply_gaze_signal(object(), SIGNAL_BEST, 15, "fixation") == [lines[0]]
 
 
 def test_an_assistive_run_start_sends_the_filter_length_and_logs_it():
     tracker = _Tracker()
     lines = apply_gaze_signal(tracker, SIGNAL_ASSISTIVE, 30)
     assert (tracker.signal, tracker.aac) == (SIGNAL_ASSISTIVE, [30])
-    assert lines == ["Gaze signal: Assistive (APOG).", "AAC filter set to 30 samples."]
+    assert lines == ["Gaze signal: Gazepoint Assistive (APOG).", "AAC filter set to 30 samples."]
     assert apply_gaze_signal(_Tracker(), SIGNAL_ASSISTIVE, 500)[1] == "AAC filter set to 60 samples."
 
 

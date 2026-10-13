@@ -17,6 +17,7 @@ os.environ.setdefault("QT_QPA_PLATFORM", "offscreen")
 from PySide6.QtWidgets import QApplication
 
 from src.data.exporter import load_trials_rows
+from src.engine.calibration_settings import SCREEN_CONTROL, CalibrationSettings
 from src.engine.run_result import SAVE
 from src.ui import setup_page as setup_page_module
 from src.ui.dashboard_flow import Flow
@@ -194,6 +195,7 @@ def test_closing_during_a_calibration_waits_for_its_thread(rig, monkeypatch):
     SlowCalibration.started = threading.Event()
     monkeypatch.setattr(setup_page_module, "Calibration", SlowCalibration)
     setup = win.setup_page
+    setup.calibration_settings_panel.set_settings(CalibrationSettings(screen=SCREEN_CONTROL))  # stands in for Calibration
     setup._client = Client()
     setup._on_state_changed()
     setup.do_calibration_button.click()

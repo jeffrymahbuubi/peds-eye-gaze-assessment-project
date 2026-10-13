@@ -10,6 +10,8 @@ app (``GazepointClient``'s own reader thread).
 
 from __future__ import annotations
 
+import threading
+from collections.abc import Callable
 from pathlib import Path
 
 from PySide6.QtCore import QDate, QStringListModel, Qt, QThread, Signal
@@ -44,6 +46,13 @@ from ..engine.calibration import (
     per_point_errors_px,
     save_calibration_result,
 )
+from ..engine.calibration_run import CalibrationRun, run_calibration
+from ..engine.calibration_settings import (
+    CalibrationSettings,
+    geometry_for_screen,
+    load_settings,
+    settings_state,
+)
 from ..engine.config import load_default
 from ..engine.display_check import DisplayCheck, check_display
 from ..engine.input_choice import (
@@ -60,9 +69,12 @@ from ..engine.subject_store import (
     output_root,
     same_subject,
 )
+from ..engine.target_size import screen_scale, viewing_distance_mm
 from ..inputs.gazepoint_client import DeviceInfo, GazepointClient
 from ..inputs.head_position import EyePosition
 from .alert_box import AlertBox
+from .calibration_flow import CalibrationFlow, CalibrationOutcome
+from .calibration_settings_panel import CalibrationSettingsPanel
 from .design_tokens import BORDER_STRONG, PANEL, RADIUS, TABLE_ROW_HEIGHT
 from .head_position_panel import HeadPositionPanel
 from .page_layout import (
@@ -287,32 +299,62 @@ class _DeviceInfoRefreshThread(QThread):
 
 
 class _CalibrationThread(QThread):
+    """One calibration run (SPEC-app-drawn-calibration.md): :func:`run_calibration` for the
+    Setup card's settings, on either screen. ``calibrationEvent`` carries the engine's ``CAL``
+    records to the App window (the signal is not called ``event``: that is ``QObject.event``);
+    ``finished_ok`` carries the :class:`CalibrationRun`."""
+
     finished_ok = Signal(object)
+    calibrationEvent = Signal(object)  # noqa: N815 (a Qt signal name)
 
     def __init__(
-        self, client: GazepointClient, n_points: int, show: bool, output_root: str | Path, parent=None
+        self,
+        client: GazepointClient,
+        settings: CalibrationSettings,
+        geometry,
+        cancel: threading.Event,
+        output_root: str | Path,
+        parent=None,
     ) -> None:
         super().__init__(parent)
         self._client = client
-        self._n_points = n_points
-        self._show = show
+        self._settings = settings
+        self._geometry = geometry
+        self._cancel = cancel
         self._output_root = output_root
 
     def run(self) -> None:
         # The page stays locked until this signal arrives (SPEC-audit-fixes.md H1), so an
         # error must end as an unmeasured result, not as a thread that never reports.
-        try:
-            calibration = Calibration(
+        timing_log = calibration_timing_log_path(self._output_root)
+
+        def make_control(**kwargs):
+            # Today's Control-window calibration (the Control screen, and the App screen's fallback).
+            return Calibration(
                 self._client,
-                n_points=self._n_points,
+                n_points=self._settings.points,
                 enabled=True,
-                show=self._show,
-                timing_log_path=calibration_timing_log_path(self._output_root),
+                show=True,
+                timing_log_path=timing_log,
+                **kwargs,
             )
-            result = calibration.run()
+
+        try:
+            run = run_calibration(
+                self._client,
+                self._settings,
+                make_control=make_control,
+                on_event=self.calibrationEvent.emit,
+                cancel=self._cancel,
+                timing_log_path=timing_log,
+                geometry=self._geometry,
+            )
         except Exception:  # noqa: BLE001
-            result = CalibrationResult(n_points=self._n_points, mean_error_px=None, valid=False)
-        self.finished_ok.emit(result)
+            run = CalibrationRun(
+                CalibrationResult(n_points=self._settings.points, mean_error_px=None, valid=False),
+                mode="control",
+            )
+        self.finished_ok.emit(run)
 
 
 class SetupPage(QWidget):
@@ -335,6 +377,11 @@ class SetupPage(QWidget):
         self._connect_thread: _ConnectThread | None = None
         self._recheck_thread: _DeviceInfoRefreshThread | None = None
         self._calibration_thread: _CalibrationThread | None = None
+        # The App screen's flow (window and runs) while it is open, and who asked for the
+        # calibration (the Start page's Calibrate hears how it ended).
+        self._calibration_flow: CalibrationFlow | None = None
+        self._calibration_callback: Callable[[CalibrationOutcome], None] | None = None
+        self._alert_before: tuple[str, str] | None = None  # the calibration alert to give back on Esc
         self._defaults = load_default()
         # The one output root (SPEC-subject-data-layout.md H8): the window reads it the
         # same way, so Setup and the Tests tab always look at the same subject folders.
@@ -401,10 +448,14 @@ class SetupPage(QWidget):
         Re-check or Do Calibration. While one is, the device actions are locked
         (SPEC-audit-fixes.md H1), so two threads never share a socket and a test never
         starts under a calibration."""
-        return any(
-            thread is not None
-            for thread in (self._connect_thread, self._recheck_thread, self._calibration_thread)
+        return self._calibrating() or any(
+            thread is not None for thread in (self._connect_thread, self._recheck_thread)
         )
+
+    def _calibrating(self) -> bool:
+        """Whether a calibration owns the device: a run on its thread, or the App window's flow
+        (which includes the time the results map is open)."""
+        return self._calibration_thread is not None or self._calibration_flow is not None
 
     def device_busy(self) -> bool:
         """Public :meth:`_busy`, for the pages that read the tracker from outside Setup: while a
@@ -417,6 +468,9 @@ class SetupPage(QWidget):
         Qt never destroys a running ``QThread``. A calibration is ended by closing the
         client's socket under it (its poll then returns); the others end on their own.
         Returns whether none is left running."""
+        if self._calibration_flow is not None:
+            self._calibration_flow.abort()  # the App window closes and its run is cancelled
+            self._calibration_flow = None
         if self._calibration_thread is not None and self._client is not None:
             self._client.stop()
         return wait_for_threads((self._connect_thread, self._recheck_thread, self._calibration_thread))
@@ -440,7 +494,7 @@ class SetupPage(QWidget):
         a timer.
         """
         blockers: list[str] = []
-        if self._calibration_thread is not None:
+        if self._calibrating():
             blockers.append(CALIBRATING_BLOCKER)
         if self._connect_thread is not None:
             blockers.append(CONNECTING_BLOCKER)
@@ -820,15 +874,15 @@ class SetupPage(QWidget):
         card, layout = self._card("Calibration")
         self.calibration_card = card
 
-        self.point_count_spin = QSpinBox()
-        self.point_count_spin.setRange(1, 9)
-        cal_defaults = self._defaults.get("calibration", {})
-        self.point_count_spin.setValue(int(cal_defaults.get("points", 5)))
-        layout.addWidget(labeled("Point Count (1–9)", self.point_count_spin))
-
-        self.show_calibration_checkbox = QCheckBox("Show calibration window to the subject")
-        self.show_calibration_checkbox.setChecked(bool(cal_defaults.get("show", True)))
-        layout.addWidget(self.show_calibration_checkbox)
+        # Calibration screen, Points, Speed, Background, Target and Target size (SPEC-app-drawn-
+        # calibration.md 4.3): this PC's saved choices over the defaults of default.yaml's
+        # ``calibration:`` block (``show: true`` is the App screen, A12).
+        self.calibration_settings_panel = CalibrationSettingsPanel(
+            load_settings(load_local_state(), self._defaults.get("calibration"))
+        )
+        self.points_combo = self.calibration_settings_panel.points_combo
+        self.calibration_settings_panel.changed.connect(self._on_calibration_settings_changed)
+        layout.addWidget(self.calibration_settings_panel)
 
         # The four buttons and the badge wrap onto a second line when the half-width card is
         # narrower than they are (a 1366 px window); on a wide one they are a single row.
@@ -1062,32 +1116,118 @@ class SetupPage(QWidget):
 
     # -- calibration ------------------------------------------------------
 
-    def _on_do_calibration_clicked(self) -> None:
-        if self._client is None or self._busy():
-            return
-        self._set_calibration_alert("info", "Calibrating…")
-        thread = _CalibrationThread(
-            self._client,
-            self.point_count_spin.value(),
-            self.show_calibration_checkbox.isChecked(),
-            self.output_root,
-            parent=self,
-        )
-        self._calibration_thread = thread
-        thread.finished_ok.connect(self._on_calibration_finished)
-        thread.finished.connect(thread.deleteLater)
-        self._on_state_changed()  # locks the device actions while it runs
-        thread.start()
+    def calibration_settings(self) -> CalibrationSettings:
+        """The Setup card's calibration choices as they are now."""
+        return self.calibration_settings_panel.settings()
 
-    def _on_calibration_finished(self, result: CalibrationResult) -> None:
+    def _on_calibration_settings_changed(self, settings: CalibrationSettings) -> None:
+        # Per PC, like the Control address (SPEC-app-drawn-calibration.md 4.3).
+        save_local_state(settings_state(settings))
+
+    def _on_do_calibration_clicked(self) -> None:
+        self.start_calibration()
+
+    def start_calibration(self, on_finished: Callable[[CalibrationOutcome], None] | None = None) -> bool:
+        """Do Calibration, and the Start page's Calibrate (SPEC-app-drawn-calibration.md 4.3a): run
+        the calibration with the card's settings. The App screen opens the calibration window
+        (:class:`~src.ui.calibration_flow.CalibrationFlow`); Gazepoint Control's screen runs
+        today's path on a thread. ``on_finished`` is called with the outcome once the page has
+        taken it in. Returns whether it started (it does not without a tracker or while busy)."""
+        if self._client is None or self._busy():
+            return False
+        settings = self.calibration_settings_panel.settings()
+        self._calibration_callback = on_finished
+        self._alert_before = (self.calibration_alert.kind(), self.calibration_alert_label.text())
+        self._set_calibration_alert("info", "Calibrating…")
+        screen = self.screen()
+        app_cfg = self._defaults.get("app", {})
+        scale = screen_scale(screen, app_cfg)
+        distance = viewing_distance_mm(app_cfg)
+        geometry = self._calibration_geometry(screen, scale.mm_per_px, distance)
+        if settings.is_app:
+            flow = CalibrationFlow(
+                self._make_calibration_thread,
+                settings,
+                screen,
+                geometry,
+                mm_per_px=scale.mm_per_px,
+                viewing_distance_mm=distance,
+                head_source=self.head_position_input,
+                timing_log_path=calibration_timing_log_path(self.output_root),
+                parent=self,
+            )
+            flow.finished.connect(self._conclude_calibration)
+            self._calibration_flow = flow
+            self._on_state_changed()  # locks the device actions while it runs
+            flow.start()
+        else:
+            thread = self._make_calibration_thread(settings, geometry, threading.Event())
+            self._on_state_changed()  # locks the device actions while it runs
+            thread.start()
+        return True
+
+    def _calibration_geometry(self, screen, mm_per_px: float, distance_mm: float):
+        """The tracked monitor in physical px, for the scores' degrees (4.4); the configured
+        ``app.screen_*_px`` when this page has no screen."""
+        if screen is not None:
+            size = screen.geometry()
+            ratio = float(screen.devicePixelRatio())
+            return geometry_for_screen(size.width() * ratio, size.height() * ratio, mm_per_px, ratio, distance_mm)
+        app_cfg = self._defaults.get("app", {})
+        return geometry_for_screen(
+            int(app_cfg.get("screen_width_px", 1920)), int(app_cfg.get("screen_height_px", 1080)),
+            mm_per_px, 1.0, distance_mm,
+        )
+
+    def _make_calibration_thread(self, settings: CalibrationSettings, geometry, cancel: threading.Event):
+        """A calibration thread for the settings, not started; its end reaches
+        :meth:`_on_calibration_run_done`."""
+        thread = _CalibrationThread(self._client, settings, geometry, cancel, self.output_root, parent=self)
+        self._calibration_thread = thread
+        thread.finished_ok.connect(self._on_calibration_run_done)
+        thread.finished.connect(thread.deleteLater)
+        return thread
+
+    def _on_calibration_run_done(self, run: CalibrationRun) -> None:
+        """A calibration thread ended: the App window's flow takes the run on, a Control-screen
+        run is the whole calibration."""
         self._calibration_thread = None
+        if self._calibration_flow is not None:
+            self._calibration_flow.run_done(run)
+            return
+        self._conclude_calibration(CalibrationOutcome(run.result, mode=run.mode))
+
+    def _conclude_calibration(self, outcome: CalibrationOutcome) -> None:
+        """The calibration is over: take the result in (Esc/X keeps what the page had, 4.1) and
+        tell whoever asked."""
+        flow, self._calibration_flow = self._calibration_flow, None
+        if flow is not None:
+            flow.deleteLater()
+        callback, self._calibration_callback = self._calibration_callback, None
+        if outcome.cancelled:
+            if self._alert_before is not None:
+                kind, text = self._alert_before
+                self.calibration_alert.set_kind(kind)
+                self.calibration_alert_label.setText(text)
+            self._on_state_changed()
+        else:
+            self._on_calibration_finished(outcome.result, alert=outcome.alert)
+        self._alert_before = None
+        if callback is not None:
+            callback(outcome)
+
+    def _on_calibration_finished(self, result: CalibrationResult, alert: str = "") -> None:
         self._calibration_result = result
         self._calibration_source = "measured"
         self._calibration_file = None
         self.calibration_details_section.setVisible(False)  # collapse any stale prior breakdown
         if result.valid:
             error_txt = f"{result.mean_error_px:.0f}px" if result.mean_error_px is not None else "n/a"
-            self._set_calibration_alert("success", calibration_measured_alert_text(result, error_txt))
+            text = calibration_measured_alert_text(result, error_txt)
+            if alert:  # Control's own window was used (SPEC-app-drawn-calibration.md 4.2)
+                self._set_calibration_alert("warning", f"{alert} {text}")
+            else:
+                self._set_calibration_alert("success", text)
         else:
             self._calibration_result = None
             self._calibration_source = None
@@ -1247,7 +1387,7 @@ class SetupPage(QWidget):
         missing = []
         # No tracker and no calibration are not missing requirements any more: a Mouse test
         # needs neither (the gaze_note under the page says what is left).
-        if self._calibration_thread is not None:
+        if self._calibrating():
             missing.append("wait for the calibration to finish")
         if self._connect_thread is not None:
             missing.append("wait for the connection to finish")
@@ -1338,6 +1478,7 @@ class SetupPage(QWidget):
         self.test_connection_button.setEnabled(not busy)
         self.recheck_device_info_button.setEnabled(not busy)
         self.do_calibration_button.setEnabled(not busy and self._client is not None)
+        self.calibration_settings_panel.setEnabled(not busy)
         self.load_calibration_button.setEnabled(not busy)
         self.continue_button.setEnabled(not self._missing_requirements())
 

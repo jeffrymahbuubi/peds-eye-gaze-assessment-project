@@ -83,7 +83,12 @@ from .engine.task_runner import build_task
 from .engine.tracking_status import run_status, tracking_status
 from .inputs.base import Pointer
 from .inputs.eye_input import DwellConfig, EyeInput, SmoothingConfig
-from .inputs.gaze_signal import apply_gaze_signal, normalize_signal, normalize_smoothing_type
+from .inputs.gaze_signal import (
+    app_smoothing_on,
+    apply_gaze_signal,
+    normalize_signal,
+    normalize_smoothing_type,
+)
 from .inputs.gazepoint_client import GazepointClient
 from .inputs.mouse_gaze import MouseGazeSource
 from .inputs.no_tracker import NoTracker
@@ -531,8 +536,12 @@ class AssessmentApp:
             self.pointer_source = self.client
         # Gaze smoothing is for gaze: off whenever the *test's* pointer is the mouse, in every
         # run mode (P2, H6). A Gaze test previewed on the mouse fallback keeps it on (H1), so
-        # this reads the test's pointer, not ``_pointer_is_mouse``.
-        smoothing_on = bool(lv["dwell.smoothing.enabled"]) and not self.input_choice.is_mouse
+        # this reads the test's pointer, not ``_pointer_is_mouse``. It is also off for Gazepoint
+        # Assistive whatever the setting says (G10); the saved values are kept.
+        smoothing_on = (
+            app_smoothing_on(lv["dwell.pointer_signal"], lv["dwell.smoothing.enabled"])
+            and not self.input_choice.is_mouse
+        )
         self.eye = EyeInput(
             self.pointer_source,
             DwellConfig(
@@ -557,6 +566,7 @@ class AssessmentApp:
                 self.client,
                 normalize_signal(lv["dwell.pointer_signal"]),
                 lv["dwell.aac_filter_samples"],
+                self.config.get("dwell", {}).get("pointer_signal"),  # a retired one is noted
             )
         )
         self.switch = SwitchInput()
@@ -619,6 +629,7 @@ class AssessmentApp:
             notes=notes,
             display_nonstandard_acknowledged=display_acknowledged,
             head_position_at_start=head_position_at_start,
+            smoothing_applied=smoothing_on,
             test_id=test_id,
             test_name=test_name,
             seed=int(seed),

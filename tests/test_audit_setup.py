@@ -23,6 +23,7 @@ from PySide6.QtCore import QThread, Signal
 from PySide6.QtWidgets import QApplication
 
 from src.engine.calibration import CalibrationResult, save_calibration_result
+from src.engine.calibration_settings import SCREEN_CONTROL, CalibrationSettings
 from src.engine.display_check import check_display
 from src.engine.input_choice import CALIBRATION_BLOCKER, TRACKER_BLOCKER
 from src.inputs.gazepoint_client import DeviceInfo
@@ -63,6 +64,9 @@ def page(qapp, tmp_path, monkeypatch):
     monkeypatch.chdir(tmp_path)  # sessions/ and the calibration timing log land under tmp
     monkeypatch.setattr(setup_page_module, "save_local_state", lambda *a, **k: None)
     page = SetupPage()
+    # These tests stand in for Calibration, which the Gazepoint Control screen runs; the App
+    # screen's window has its own tests (test_calibration_flow.py).
+    page.calibration_settings_panel.set_settings(CalibrationSettings(screen=SCREEN_CONTROL))
     page._apply_display_check(check_display(1920, 1080, 1.0))
     page.subject_id_edit.setText("P001")
     page.sex_combo.setCurrentIndex(1)

@@ -45,8 +45,9 @@ single Gazepoint `<REC .../>` record.
 
 **`pointer_x`, `pointer_y`, `pointer_valid` (added 2026-10-13, last three columns):** the
 position the on-screen cursor was drawn and hit-tested at — the chosen Gazepoint signal
-(`BPOG`, `FPOG` or `APOG`, setting `dwell.pointer_signal`) after the smoothing filter
-(running average or One Euro), canvas-normalized. They are **UI signals, not analysis
+(`BPOG` or Gazepoint's `APOG`, setting `dwell.pointer_signal`) after the app's smoothing filter
+(running average or One Euro; none for `APOG`, which Gazepoint already averages),
+canvas-normalized. They are **UI signals, not analysis
 inputs**: they describe what the child was shown, are filtered on purpose, and are blank on
 older sessions and on a Mouse run. Every metric in this document is still derived from the raw
 `x`, `y` and `valid` above (and `all_gaze.csv`); the report only uses the pointer columns to
