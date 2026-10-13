@@ -144,7 +144,7 @@ Target size
 > **Placement:** to the right of the calibration buttons; stacked under them in a narrow window. About 240 x 200 px. Live (about 15 Hz) whenever the tracker is connected.
 > **States (4.6, bands tuned at the live check):**
 > - **Green** (success token), smile: both eyes, 55-75 cm, centred (inner 70 % of the box). "● Good position, 64 cm".
-> - **Orange** (warning token), flat mouth: one eye only, 50-55 or 75-80 cm, or near the box edge. "▲ Move closer, 52 cm" / "Move back" / "Move left" / "Move right" / "Move up" / "Move down" (the largest fault first).
+> - **Orange** (warning token), flat mouth: one eye only, 50-55 or 75-80 cm, or near the box edge. "▲ Move back, 52 cm" (too near) / "Move closer" (too far) / "Only one eye seen" / "Move left" / "Move right" / "Move up" / "Move down" (the largest fault first).
 > - **Red** (danger token), frown: under 50 or over 80 cm, or outside the box. Same hints with "■".
 > - **No eyes**: empty grey box, "No eyes detected" (neither eye for more than 0.5 s).
 > - **Not connected**: empty grey box, "Tracker not connected".
