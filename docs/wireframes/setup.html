@@ -657,16 +657,67 @@ body.wmd-root {
 </blockquote>
 <hr class="wmd-separator" />
 <h3 class="wmd-h3">Calibration</h3>
-<div class="wmd-container-form-group">
-  Point Count (1–9)
-  <input type="number" class="wmd-input" placeholder="5" style="width: 28ch; max-width: 28ch;" />
-</div>
+<p class="wmd-paragraph">Calibration screen</p>
 <ul class="wmd-list">
-  <label class="wmd-checkbox">
-    <input type="checkbox" checked />
-    <span>Show calibration window to the subject</span>
+  <label class="wmd-radio">
+    <input type="radio" checked />
+    <span>App (Grid 3 style)</span>
+  </label>
+  <label class="wmd-radio">
+    <input type="radio" />
+    <span>Gazepoint Control</span>
   </label>
 </ul>
+<div class="wmd-container-form-group">
+  Points
+  <select class="wmd-select">
+    <option value="" disabled selected>5 points</option>
+    <option value="5 points">5 points</option>
+    <option value="9 points">9 points</option>
+  </select>
+</div>
+<div class="wmd-container-form-group">
+  Speed
+  <select class="wmd-select">
+    <option value="" disabled selected>Normal</option>
+    <option value="Slow (glide 1.0 s, hold 1.5 s)">Slow (glide 1.0 s, hold 1.5 s)</option>
+    <option value="Normal (glide 0.8 s, hold 1.0 s)">Normal (glide 0.8 s, hold 1.0 s)</option>
+    <option value="Fast (glide 1.8 s, hold 0.4 s)">Fast (glide 1.8 s, hold 0.4 s)</option>
+  </select>
+</div>
+<div class="wmd-container-form-group">
+  Background
+  <select class="wmd-select">
+    <option value="" disabled selected>White</option>
+    <option value="White">White</option>
+    <option value="Black">Black</option>
+    <option value="Grey">Grey</option>
+  </select>
+</div>
+<div class="wmd-container-form-group">
+  Target
+  <select class="wmd-select">
+    <option value="" disabled selected>🐝 Bee</option>
+    <option value="🐝 Bee">🐝 Bee</option>
+    <option value="⭐ Star">⭐ Star</option>
+    <option value="⚽ Ball">⚽ Ball</option>
+    <option value="🐟 Fish">🐟 Fish</option>
+    <option value="🌼 Flower">🌼 Flower</option>
+    <option value="🚗 Car">🚗 Car</option>
+  </select>
+</div>
+<div class="wmd-container-form-group">
+  Target size
+  <select class="wmd-select">
+    <option value="" disabled selected>Normal</option>
+    <option value="Small">Small</option>
+    <option value="Normal">Normal</option>
+    <option value="Large">Large</option>
+  </select>
+</div>
+<blockquote class="wmd-blockquote">
+  <p class="wmd-paragraph"><strong>Calibration settings</strong> (SPEC-app-drawn-calibration.md 4.3, 4.3b, D1, D3, D5-D8). <strong>Layout:</strong> the five drop-downs sit in one row of three (Points, Speed, Background) and one row of two (Target, Target size) at full card width; drawn stacked here. "Calibration screen" replaces the old "Show calibration window to the subject" tick box. <strong>App</strong> (default) draws the Grid 3-style calibration in our own full-screen window (<code>calibration-window.md</code>); <strong>Gazepoint Control</strong> runs today's path with Control's own window and greys Background, Target and Target size; Points and Speed stay active, because Speed is sent through the Gazepoint API (CALIBRATE_DELAY / CALIBRATE_TIMEOUT, SPEC 4.3b) while Size is drawn by the app. Points is now 5 or 9 only (Control rejects fewer than 4); the layout is Grid 3's 10 % / 90 % insets in the order TL, BR, TR, BL, C. The Target list shows a thumbnail of each built-in icon (emoji here are placeholders for the approved art). All settings are saved per PC and written into <code>calibration.json</code>.</p>
+</blockquote>
 <div class="wmd-row">
   <div class="wmd-grid-item">
     <p class="wmd-paragraph">[Do Calibration]* [Load Calibration File]{.outline} [View Calibration Details]{.outline state:disabled} <span class="wmd-badge wmd-badge-warning">▲ Not calibrated</span></p>

@@ -81,10 +81,43 @@ To change it: Windows Settings → System → Display, set Display resolution to
 
 ### Calibration
 
-Point Count (1–9)
-[5____________________________]{type:number min:1 max:9}
+Calibration screen
+- (*) App (Grid 3 style)
+- ( ) Gazepoint Control
 
-- [x] Show calibration window to the subject
+Points
+[5 points____________v]
+- 5 points
+- 9 points
+
+Speed
+[Normal______________v]
+- Slow (glide 1.0 s, hold 1.5 s)
+- Normal (glide 0.8 s, hold 1.0 s)
+- Fast (glide 1.8 s, hold 0.4 s)
+
+Background
+[White_______________v]
+- White
+- Black
+- Grey
+
+Target
+[🐝 Bee______________v]
+- 🐝 Bee
+- ⭐ Star
+- ⚽ Ball
+- 🐟 Fish
+- 🌼 Flower
+- 🚗 Car
+
+Target size
+[Normal______________v]
+- Small
+- Normal
+- Large
+
+> **Calibration settings** (SPEC-app-drawn-calibration.md 4.3, 4.3b, D1, D3, D5-D8). **Layout:** the five drop-downs sit in one row of three (Points, Speed, Background) and one row of two (Target, Target size) at full card width; drawn stacked here. "Calibration screen" replaces the old "Show calibration window to the subject" tick box. **App** (default) draws the Grid 3-style calibration in our own full-screen window (`calibration-window.md`); **Gazepoint Control** runs today's path with Control's own window and greys Background, Target and Target size; Points and Speed stay active, because Speed is sent through the Gazepoint API (CALIBRATE_DELAY / CALIBRATE_TIMEOUT, SPEC 4.3b) while Size is drawn by the app. Points is now 5 or 9 only (Control rejects fewer than 4); the layout is Grid 3's 10 % / 90 % insets in the order TL, BR, TR, BL, C. The Target list shows a thumbnail of each built-in icon (emoji here are placeholders for the approved art). All settings are saved per PC and written into `calibration.json`.
 
 ::: row
 [Do Calibration]* [Load Calibration File]{.outline} [View Calibration Details]{.outline state:disabled} |▲ Not calibrated|{.warning}

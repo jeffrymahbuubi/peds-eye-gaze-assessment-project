@@ -82,8 +82,10 @@ Start records 18 trials. Check that the bottom bar shows "Tracking OK" before yo
 > - **Follow the Target**: "1. A circle will appear and start to move across the screen. 2. Follow the moving circle with your eyes and keep looking at it while it moves. 3. The circle glows while you are looking at it. 4. After about 10 seconds a new circle will appear. Continue until no more circles appear." No NOTE line (nothing to select, so no timeout). 10 = this test's trial duration; the "glows" step only when "Glow on target" is on.
 
 ::: row
-[Start]*{state:disabled} [Practice]{.outline} [Cancel]{.secondary}
+[Start]*{state:disabled} [Practice]{.outline} [Calibrate]{.outline} [Cancel]{.secondary}
 :::
+
+> **Calibrate** (SPEC-app-drawn-calibration.md 4.3a, D4): secondary tier, next to Practice; gaze tests only, enabled while the tracker is connected. It runs the same calibration with the Setup card's settings (results map, Improve calibration, Show Monitor), and **Back returns here**, not to Setup. The new result replaces the subject's calibration for every later test and updates the Setup badge; a "No calibration yet" blocker clears on success. Not available during Practice or a run.
 
 > **Button tiers** (phase 2 H7): Start is always the primary (filled) button, a disabled primary while blocked, so it never changes tier with state; Practice secondary (outlined); Cancel tertiary (text only). The row sits directly under the card, left-aligned at the content edge. The card is as wide as the page inside its gutters, like the alerts above it: the read-aloud block at 16 px on white, the clinician block at 14 px on the page.
 
