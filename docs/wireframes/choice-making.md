@@ -107,10 +107,9 @@ The next prompt starts only after the animation and this pause.
 
 ### C · Gaze Pointer Settings: Gaze Smoothing
 
-Gaze signal (what drives the cursor)
-- (*) Raw gaze (BPOG)
-- ( ) Fixation (FPOG)
-- ( ) Assistive (APOG)
+Cursor stabilisation
+- (*) App smoothing (raw gaze)
+- ( ) Gazepoint Assistive (APOG)
 
 - [x] Smoothing enabled
 
@@ -121,7 +120,7 @@ Smoothing type
 Smoothing alpha
 [0.22__]{type:number}
 
-Same card as `task-config.md` (SPEC-gaze-stability-and-positioning.md 4.8); the greyed AAC filter length, Steadiness and Responsiveness rows are drawn there.
+Same card as `task-config.md` (SPEC-gaze-stability-and-positioning.md 4.8, 4.9); the AAC filter length, Steadiness and Responsiveness rows and the greying rules are drawn there.
 
 :::
 

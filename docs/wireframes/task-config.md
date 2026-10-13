@@ -87,10 +87,9 @@ Inter-trial interval (s)
 
 ### C · Gaze Pointer Settings: Gaze Smoothing
 
-Gaze signal (what drives the cursor)
-- (*) Raw gaze (BPOG)
-- ( ) Fixation (FPOG)
-- ( ) Assistive (APOG)
+Cursor stabilisation
+- (*) App smoothing (raw gaze)
+- ( ) Gazepoint Assistive (APOG)
 
 AAC filter length (samples)
 [15____]{type:number state:disabled}
@@ -110,7 +109,7 @@ Steadiness (Hz)
 Responsiveness
 [5.0___]{type:number state:disabled}
 
-Greyed, not hidden (SPEC-gaze-stability-and-positioning.md 4.1-4.3): AAC filter length only for Assistive; alpha only for Simple; Steadiness and Responsiveness only for Adaptive; all three smoothing numbers while Smoothing enabled is off; the whole card for Pointer = Mouse.
+Greyed, not hidden (SPEC-gaze-stability-and-positioning.md 4.9, G9-G11): two approaches. **App smoothing** = raw gaze plus our own filter: Smoothing enabled, Smoothing type and its numbers are active, AAC filter length is greyed; alpha only for Simple, Steadiness and Responsiveness only for Adaptive, all three while Smoothing enabled is off. **Gazepoint Assistive** = Gazepoint's own filtered signal: only AAC filter length is active, and every app-smoothing row is greyed (the app does not smooth an Assistive cursor; saved values come back when switching to App smoothing). Fixation is no longer offered (it felt jumpy at the live check). The whole card is greyed for Pointer = Mouse.
 
 :::
 

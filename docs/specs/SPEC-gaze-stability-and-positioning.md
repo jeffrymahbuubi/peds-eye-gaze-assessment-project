@@ -4,7 +4,7 @@ title: Steadier gaze cursor (FPOG / APOG signal, One Euro filter) and a live hea
 status: IMPLEMENTED 2026-10-13 - parts A + B merged and committed (hub review, pytest 4164 passed, 5 known worktree-baseline failures); live check on the GP3 HD (plan step 5) pending
 created: 2026-10-13
 last_updated: 2026-10-13
-next_step: plan step 5 live check on the GP3 HD with the user as subject (probe P5 signs + centred Y + tape measure, tune 4.6 bands, side-by-side signal and smoothing comparison, A4/A5/A9 live)
+next_step: implement 4.9 (G9-G11: Fixation removed, Assistive forces app smoothing off, card reworded) by spec-implementer; then finish the live comparison (App smoothing Simple 0.05 vs Adaptive 0.3/5.0 vs Gazepoint Assistive AAC 15/30) and set the winner as default
 related:
   - SPEC-gaze-cursor-redesign.md (frozen pointer on invalid samples; cursor look)
   - SPEC-gui-audit-2026-09-10.md (alpha 0.22 chosen live)
@@ -69,6 +69,16 @@ gap on our side.
 - **G6 (Q2) - No "Eyes" view**; the face only.
 - **G7 (Q3) - Restore `AAC_FILTER`** to Gazepoint's original value on disconnect and app close.
 - **G8 (Q4) - Show the operator hint text** ("Move closer", "Good position", ...).
+- **G9 (live check 2026-10-13) - Fixation (FPOG) is removed** from the choices: the user found it
+  "jumpy" (it freezes during every eye movement, then jumps). A saved profile or config that still
+  says `fixation` loads as Raw gaze with its own smoothing, and the session log notes the fallback.
+- **G10 (live check 2026-10-13) - Assistive turns the app's smoothing off.** Assistive + any app
+  smoothing "lags a lot" (two averages in a row). With Assistive, the app's smoothing is not
+  applied, whatever the smoothing settings say, and its controls are greyed.
+- **G11 - Two approaches, named as such.** The user's model: **App smoothing** = raw gaze (BPOG)
+  plus our own filter (Simple or Adaptive); **Gazepoint Assistive** = Gazepoint's own filtered
+  signal (APOG, tuned only by the AAC filter length). The card shows one radio "Cursor
+  stabilisation" with those two choices (section 4.9).
 
 ## 3. Current code (as of `cbaa4c5`)
 
@@ -238,6 +248,31 @@ the widget can be tested without the device.
 - They are saved in settings profiles like every other key.
 - An old profile without them loads as `best` + `ema`, so it behaves exactly as today.
 
+### 4.9 Revision after the live check (G9-G11, 2026-10-13)
+
+- **Card layout** (wireframes `task-config.md`, `choice-making.md`), top to bottom:
+  1. **Cursor stabilisation** (radio): **App smoothing (raw gaze)** (default) / **Gazepoint
+     Assistive (APOG)**. It stores `dwell.pointer_signal` as `best` / `assistive`, the same keys
+     as before.
+  2. **AAC filter length**: active only for Gazepoint Assistive.
+  3. **Smoothing enabled**, **Smoothing type** (Simple / Adaptive), **Smoothing alpha**,
+     **Steadiness**, **Responsiveness**: active only for App smoothing, with the same greying among
+     themselves as before.
+- **Fixation removed (G9):** `fixation` is no longer offered. `normalize_signal` maps `fixation`
+  (an old profile, config or hand edit) to `best`, and the run's session log says "Gaze signal
+  'fixation' is no longer offered; using App smoothing (raw gaze)." The FPOG code path in
+  `pointer_from_rec` may stay as an internal function but is unreachable from settings.
+- **Assistive forces the app's smoothing off (G10):** the smoother is built disabled for
+  `assistive`, whatever `dwell.smoothing.enabled` says. The settings keep their saved values, so
+  switching back to App smoothing restores them.
+- **Recording and report:** `metadata.json` records the settings as saved, plus
+  `smoothing_applied` (bool, false for Assistive). The report's "Gaze signal" row reads "App
+  smoothing (raw gaze)" or "Gazepoint Assistive (APOG), AAC filter 15 samples". The "Gaze
+  smoothing" row reads "Off (Gazepoint Assistive)" for Assistive runs; it is unchanged otherwise.
+  Older sessions with `fixation` show "Fixation (FPOG), no longer offered".
+- **Defaults unchanged:** App smoothing with Simple (G5), until the comparison of App smoothing
+  (Simple 0.05 vs Adaptive 0.3 / 5.0) and Gazepoint Assistive (AAC 15 / 30) picks a winner.
+
 ## 5. Scope
 
 **In:** sections 4.1-4.8; the fake tracker's `APOG` and head drift; `DATA_SCHEMA.md`;
@@ -268,6 +303,9 @@ inputs); tests.
 | A9 | The widget is live on Setup and Start-test (gaze tests only) and gates nothing | live |
 | A10 | Old settings profiles load as `best` + `ema` | unit test |
 | A11 | Full pytest stays green | hub rerun |
+| A12 | The card offers only App smoothing / Gazepoint Assistive; `fixation` loads as `best` with a session-log note | unit test |
+| A13 | With Assistive, the pointer is never smoothed by the app (same output with smoothing on or off) and the smoothing controls are greyed; switching back restores the saved values | unit test |
+| A14 | Report rows and `smoothing_applied` follow 4.9 for best, assistive and an old fixation session | unit test |
 
 ## 7. Plan
 
@@ -536,3 +574,5 @@ Implementer questions (part B):
   Next: the wireframe (plan step 1).
 - **2026-10-13** - Wireframe rendered (setup, start-test, task-config, choice-making) and approved by the user ("OK"); the SPEC is approved. Plan step 1 DONE. Next: part A by the spec-implementer.
 - **2026-10-13** - Hub review and integration. Parts A (`gaze-stability-a`) and B (`gaze-stability-b`) were applied as patches on `c3f6c24` in the integration worktree `gaze-stability-int`. Conflicts (both sides additive) were resolved by keeping both: the imports in `gazepoint_client.py`, the fake tracker REC line (head drift + APOG), and the section 8 / 9 logs. Wireframes updated to the decisions (`task-config.md` Steadiness 0.3 / Responsiveness 5.0; `report-summary.md` "Gaze signal" row). Full pytest on the combined code (JUnit): 4169 tests, 4164 passed, 5 failed, 0 errors; the 5 are the known fresh-worktree baseline (skip-worktree `default.yaml`, alpha 0.35 vs 0.22). Acceptance A1-A3, A6-A8, A10, A11 pass by test; A4, A5, A9 pass by test and are also checked live. Accepted additions: the 1 s stale rule, the StatusBadge status line. Known limits: `gazepoint_client.py` is 856 lines (it, `app.py` and `setup_page.py` were over 500 before); the AAC restore edge case after a second Connect (section 9). Plan steps 2-4 DONE; committed on the user's OK; the live check (step 5) is pending.
+- **2026-10-13** - Live check (plan step 5), user as subject on the GP3 HD, first finding: **Fixation (FPOG) is rejected** ("definitely no, it feels jumpy"). This is expected from 4.1: FPOG holds still during a fixation, is invalid during every saccade (the cursor freezes), then jumps to the next fixation. Fixation + Adaptive is ruled out with it. Remaining comparison: Raw + Simple 0.05 (baseline), Raw + Adaptive 0.3 / 5.0, Assistive AAC 15 / 30 with smoothing off.
+- **2026-10-13** - Live check, second finding: **Assistive + app smoothing is rejected** ("lags a lot"). User decisions G9-G11 (section 2) and new section 4.9: Fixation removed (old values load as Raw), Assistive turns the app's smoothing off and greys it, and the card is reworded as two approaches, "App smoothing (raw gaze)" and "Gazepoint Assistive (APOG)". Acceptance A12-A14 added. Wireframe update approved by the user ("OK"); next: an implementer.

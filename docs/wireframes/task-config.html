@@ -688,19 +688,15 @@ body.wmd-root {
   </div>
   <div class="wmd-grid-item wmd-card wmd-grid-item-card">
     <h3 class="wmd-h3">C · Gaze Pointer Settings: Gaze Smoothing</h3>
-    <p class="wmd-paragraph">Gaze signal (what drives the cursor)</p>
+    <p class="wmd-paragraph">Cursor stabilisation</p>
     <ul class="wmd-list">
   <label class="wmd-radio">
     <input type="radio" checked />
-    <span>Raw gaze (BPOG)</span>
+    <span>App smoothing (raw gaze)</span>
   </label>
   <label class="wmd-radio">
     <input type="radio" />
-    <span>Fixation (FPOG)</span>
-  </label>
-  <label class="wmd-radio">
-    <input type="radio" />
-    <span>Assistive (APOG)</span>
+    <span>Gazepoint Assistive (APOG)</span>
   </label>
 </ul>
     <div class="wmd-container-form-group">
@@ -736,7 +732,7 @@ body.wmd-root {
   Responsiveness
   <input type="number" class="wmd-input wmd-state-disabled" placeholder="5.0" style="width: 9ch; max-width: 9ch;" />
 </div>
-    <p class="wmd-paragraph">Greyed, not hidden (SPEC-gaze-stability-and-positioning.md 4.1-4.3): AAC filter length only for Assistive; alpha only for Simple; Steadiness and Responsiveness only for Adaptive; all three smoothing numbers while Smoothing enabled is off; the whole card for Pointer = Mouse.</p>
+    <p class="wmd-paragraph">Greyed, not hidden (SPEC-gaze-stability-and-positioning.md 4.9, G9-G11): two approaches. <strong>App smoothing</strong> = raw gaze plus our own filter: Smoothing enabled, Smoothing type and its numbers are active, AAC filter length is greyed; alpha only for Simple, Steadiness and Responsiveness only for Adaptive, all three while Smoothing enabled is off. <strong>Gazepoint Assistive</strong> = Gazepoint's own filtered signal: only AAC filter length is active, and every app-smoothing row is greyed (the app does not smooth an Assistive cursor; saved values come back when switching to App smoothing). Fixation is no longer offered (it felt jumpy at the live check). The whole card is greyed for Pointer = Mouse.</p>
   </div>
 </div>
 <div class="wmd-grid wmd-grid-3" style="--grid-columns: 3">
