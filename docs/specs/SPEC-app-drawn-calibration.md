@@ -4,7 +4,7 @@ title: Grid 3-style calibration drawn by the app (own icons, glide, results map,
 status: APPROVED 2026-10-13 - SPEC + wireframe approved by the user (D1-D8); plan step 1 DONE
 created: 2026-10-13
 last_updated: 2026-10-13
-next_step: plan step 2 (icons) and step 3 (implementation), after SPEC-gaze-stability-and-positioning parts A and B are merged (shared Setup / Start-test files)
+next_step: plan step 3 (implementation), after SPEC-gaze-stability-and-positioning parts A and B are merged (shared Setup / Start-test files)
 related:
   - SPEC-grid3-calibration-parklife-feasibility.md (verdicts C1-C19, probes P1-P3 PASSED 6.1, answers Q1-Q8 7.1)
   - SPEC-gaze-stability-and-positioning.md (head-position widget, reused here as "Show Monitor")
@@ -258,7 +258,7 @@ greyed for Gazepoint Control.
 
 1. **DONE 2026-10-13 - Wireframe:** the Setup Calibration card settings (with the Calibration screen choice); the Start-test Calibrate button; the calibration window states (glide, hold,
    processing, results map, Show Monitor). User GATE 1.
-2. Icons: generate 6, then the user approves them (they can be made in parallel with step 3).
+2. **DONE 2026-10-13 - Icons:** generate 6, then the user approves them (they can be made in parallel with step 3).
 3. Implement 4.1-4.5 and 4.7 with the fake Control.
 4. Hub review and the full pytest.
 5. Live on the GP3 HD, with the user as subject:
@@ -289,3 +289,4 @@ Implementer questions: (none yet)
 - **2026-10-13** - User answered D1 (speed presets as proposed), D2 (results map in the calibration window), D3 (bee, star, ball, fish, flower, car) and D5 (Grid 3 layout). D4 and D6: the user asked for more explanation first.
 - **2026-10-13** - After the explanation, the user answered D4 (Calibrate button on the Start-test page, next to Practice) and D6 (replace the tick box with "Calibration screen: App / Gazepoint Control", default App). All open decisions are closed. Next: the wireframe.
 - **2026-10-13** - The user asked whether Grid 3's Size and Speed can be set through the Gazepoint API. Answer: Speed yes (`CALIBRATE_DELAY` / `CALIBRATE_TIMEOUT`, proven by probe P3); Size no (no API command), but it is feasible because the app draws the target. The user accepted both (D7, D8): new section 4.3b with the preset values (Size in degrees), Speed also applies to the Gazepoint Control screen, and Control's DELAY/TIMEOUT are restored after a run. Acceptance A10a/A10b added. Wireframe approved; plan step 1 DONE; SPEC approved.
+- **2026-10-13** - Plan step 2 DONE: six icons (bee, star, ball, fish, flower, car) generated with `mcp-image-openrouter` (`google/gemini-3.1-flash-image`, bee as the style anchor), keyed with `tools/chroma_key.py`, 384 x 384, in `configs/assets/calibration/` with `ASSETS.md`; raws in `reference/` (not shipped). Grid 3's own bee is compiled into its EyeGaze DLLs (no loose files) and is licensed art (U2), so it was not used. All six approved by the user.
