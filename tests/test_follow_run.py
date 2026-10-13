@@ -143,7 +143,8 @@ def test_the_settings_recorded_hold_the_trial_duration_and_no_dwell_values(make_
     meta = json.loads((app.recorder.session_dir / "metadata.json").read_text(encoding="utf-8"))
     live = meta["settings"]["live"]
     assert live["task.timeout_ms"] == DURATION_MS
-    assert not any(key.startswith("dwell.") and key not in ("dwell.visual_cursor",) and
+    cursor_keys = ("dwell.visual_cursor", "dwell.pointer_signal", "dwell.aac_filter_samples")
+    assert not any(key.startswith("dwell.") and key not in cursor_keys and
                    not key.startswith("dwell.smoothing") for key in live)
     assert "select_window_ms" not in json.dumps(meta["settings"])
     assert meta["settings"]["structural"]["input"] == {"pointer": "gaze"}

@@ -101,6 +101,7 @@ top-left) unless the field name ends in `_px`.
 | `layout_slots` | list[[x, y]]\|null | canvas-normalized centres of the task's fixed layout (grid cells, scanning icons), so a report can outline the empty slots; null for `click_static` and `follow_moving` |
 | `raw_clock_offset_ns` | int\|null | host-clock time of `all_gaze.csv` `TIME=0`, so `t_ns = raw_clock_offset_ns + TIME * 1e9` puts a device-rate row on the trial clock; null when no raw file was written |
 | `hitbox_margin_px` | float\|null | the run's `dwell.jitter_tolerance_px`, the margin added to the target radius to make the hitbox ("on target" for Follow the Target's time on target and for the first-fixation metric). Recorded for every task so a report can draw the hitbox; null on older sessions |
+| `head_position_at_start` | object\|null | where the child's head was when Start was pressed, from the head-position widget of the Start page: `state` (`"green"`, `"orange"`, `"red"`, `"no_eyes"` or `"not_connected"`), `z_cm` (eye distance from the tracker, one decimal) and `centre_x_cm` / `centre_y_cm` (the eye midpoint's offset from the well-seated position, on the device's X / Y axes, one decimal); the last three are null when no eyes were measured. Information only: nothing is gated on it, and the full stream is `eye_geometry.csv`. Null for a Mouse run, and on older sessions |
 | `settings` | object\|null | everything the run was configured with; see below |
 
 All of the rows from `test_id` on are additive and null on older sessions;
@@ -114,7 +115,7 @@ The complete configuration the run used, written from the final merged config
 | key | type | notes |
 |-----|------|-------|
 | `config_name` | str\|null | `"Standard"` or the saved configuration's name; null for a standalone run |
-| `live` | object | flat, keyed by dotted setting key: `dwell.threshold_ms`, `dwell.refractory_ms`, `dwell.jitter_tolerance_px`, `dwell.visual_cursor`, `dwell.progress_ring`, `dwell.instant_feedback`, `dwell.smoothing.enabled`, `dwell.smoothing.alpha`, `task.timeout_ms`, `task.inter_trial_interval_ms`, and `motion.speed_frac_per_s` for `follow_moving` only |
+| `live` | object | flat, keyed by dotted setting key: `dwell.threshold_ms`, `dwell.refractory_ms`, `dwell.jitter_tolerance_px`, `dwell.visual_cursor`, `dwell.progress_ring`, `dwell.instant_feedback`, `dwell.pointer_signal` (`best` / `fixation` / `assistive`: which Gazepoint POG moved the cursor), `dwell.aac_filter_samples` (the Assistive window length, **null unless `dwell.pointer_signal` is `assistive`**), `dwell.smoothing.enabled`, `dwell.smoothing.type` (`ema` / `one_euro`), `dwell.smoothing.alpha`, `dwell.smoothing.min_cutoff_hz` and `dwell.smoothing.beta` (the One Euro filter's Steadiness and Responsiveness), `task.timeout_ms`, `task.inter_trial_interval_ms`, and `motion.speed_frac_per_s` for `follow_moving` only |
 | `structural` | object | nested like the task's YAML block: one entry per control of the task (trial count, target size, grid rows / columns / gap, motion path, icon count and layout, ...), `feedback.hit_sound` / `feedback.miss_sound` where the task has them, plus `theme` and `feedback.particles` (recorded, not offered as controls) |
 
 Sessions recorded before the Compass-style redesign may carry a partial or no
@@ -181,6 +182,15 @@ One row per rendered frame.
 | `fixation_id` | int\|"" | FPOGID (blank if not fixating) |
 | `fix_duration_s` | float\|"" | fixation duration so far |
 | `pupil_left`, `pupil_right` | float\|"" | pupil diameter (mm), v2 analysis |
+| `pointer_x`, `pointer_y` | float\|"" | the cursor as the canvas drew and hit-tested it (the chosen gaze signal plus the smoothing filter), **canvas-normalized** like `pointer_stream.csv` (a value outside 0-1 is a cursor off the canvas); the raw `x`, `y` above are monitor-normalized and unchanged by it. While `pointer_valid` is 0 the cursor is frozen at its last position |
+| `pointer_valid` | 0/1\|"" | whether the cursor was driven by a valid sample of the chosen signal |
+
+The three `pointer_*` columns (`specs/SPEC-gaze-stability-and-positioning.md` 4.4) are last,
+so a reader that takes columns by name is unaffected, and are blank on older sessions and on a
+Mouse run (whose cursor is `pointer_stream.csv`). They are what the screen showed, not an
+analysis input: every metric still derives from `x`, `y` and `valid`. The report's Detailed view
+draws these columns as the gaze path when they are present, and replays the running average over
+`x`, `y` otherwise.
 
 ## pointer_stream.csv
 
@@ -323,7 +333,7 @@ pages and in the PDF, shows seconds.
 | top-level key | contents |
 |---------------|----------|
 | `report_version` | `REPORT_VERSION` (currently `4`); a cache with another value is rebuilt |
-| `params` | the analysis parameters used (`ivt` saccade detector, `entries` exit hold, `pupil`, `heat`, `path`), so the numbers are reproducible. `path` holds the gaze path's thinning (`min_step_deg`, `min_step_ms`, `split_gap_ms`, `max_points`, applied to the raw stream) and `smoothing` (`{enabled, alpha}`), the on-screen cursor's own filter the path is drawn through (`alpha` is the run's `dwell.smoothing.alpha`, 0.22 when none was recorded; `enabled: false` leaves the raw stream) |
+| `params` | the analysis parameters used (`ivt` saccade detector, `entries` exit hold, `pupil`, `heat`, `path`), so the numbers are reproducible. `path` holds the gaze path's thinning (`min_step_deg`, `min_step_ms`, `split_gap_ms`, `max_points`, applied to the raw stream) and `smoothing` (`{enabled, alpha}`), the on-screen cursor's own filter the path is drawn through (`alpha` is the run's `dwell.smoothing.alpha`, 0.22 when none was recorded; `enabled: false` leaves the raw stream, and is also what a run that recorded its cursor reports, since its path is the recorded `pointer_x` / `pointer_y` and nothing is replayed) |
 | `session` | `session_id`, `task_id`, `subject`, `test_name`, `config_name`, `started_ns`, `planned_trials`, `completed_trials`, `outcome`, `n_rows`, `n_scored`, `n_skipped`, `n_not_presented`, `pointer`, `selection`, `gaze_recorded` (the three input facts of `metadata.json`; null on an older folder; `gaze_recorded: false` makes the Eye Metrics table say "not recorded" instead of a dash), and `sources` (which input files the folder had, so the UI can say why a value is shown as a dash; includes `pointer_stream`) |
 | `geometry` | the monitor / canvas geometry the degree and pixel figures use, and `assumed_for_visuals` (true when the folder lacks the monitor size) |
 | `config` | `rows`: the Test Configuration table, `[label, value]` pairs |

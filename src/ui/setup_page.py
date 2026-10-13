@@ -61,13 +61,16 @@ from ..engine.subject_store import (
     same_subject,
 )
 from ..inputs.gazepoint_client import DeviceInfo, GazepointClient
+from ..inputs.head_position import EyePosition
 from .alert_box import AlertBox
 from .design_tokens import BORDER_STRONG, PANEL, RADIUS, TABLE_ROW_HEIGHT
+from .head_position_panel import HeadPositionPanel
 from .page_layout import (
     CARD_PADDING,
     CONTINUE_WIDTH,
     FIELD_GAP,
     NOTES_HEIGHT,
+    BesideRow,
     CardGrid,
     FlowLayout,
     labeled,
@@ -418,6 +421,14 @@ class SetupPage(QWidget):
             self._client.stop()
         return wait_for_threads((self._connect_thread, self._recheck_thread, self._calibration_thread))
 
+    def release_tracker(self) -> None:
+        """When the window closes: give Gazepoint Control its own ``AAC_FILTER`` back if a run
+        changed it, so Windows Eye Control on this PC keeps its smoothing (SPEC-gaze-stability-
+        and-positioning.md 4.2, G7). The connection itself ends with the process."""
+        restore = getattr(self._client, "restore_aac_filter", None)  # a stand-in client has none
+        if restore is not None:
+            restore()
+
     def run_blockers(self) -> list[str]:
         """Why a test cannot be started right now, as sentences for the Start
         page's banner (SPEC-compass-task-flow.md 4C.2); empty when it can.
@@ -463,6 +474,16 @@ class SetupPage(QWidget):
         """``(tracker connected, calibrated)``: what a gaze test needs."""
         connected = self._client is not None and bool(self._client.is_connected())
         return connected, self._calibration_result is not None
+
+    def head_position_input(self) -> tuple[bool, EyePosition | None]:
+        """``(tracker connected, its latest eye position)``, what the head-position widget polls
+        here and on the Start page (SPEC-gaze-stability-and-positioning.md 4.7). Reads state only;
+        it never gates anything."""
+        client = self._client
+        if client is None or not client.is_connected():
+            return False, None
+        latest = getattr(client, "latest_eye_position", None)
+        return True, latest() if latest is not None else None
 
     # -- UI -----------------------------------------------------------------
 
@@ -811,7 +832,8 @@ class SetupPage(QWidget):
 
         # The four buttons and the badge wrap onto a second line when the half-width card is
         # narrower than they are (a 1366 px window); on a wide one they are a single row.
-        buttons = FlowLayout()
+        buttons_box = QWidget()
+        buttons = FlowLayout(parent=buttons_box)
         self.do_calibration_button = QPushButton("Do Calibration")
         self.do_calibration_button.setObjectName("wtmhPrimary")
         self.do_calibration_button.setEnabled(False)  # needs a connected tracker first
@@ -848,7 +870,13 @@ class SetupPage(QWidget):
         # Not calibrated / Calibrated, 5 points, 1.8°, glyph + word, beside the buttons (V3).
         self.calibration_badge = StatusBadge("not_calibrated")
         buttons.addWidget(self.calibration_badge)
-        layout.addLayout(buttons)
+
+        # The head-position picture beside the buttons (under them in a narrow window); live
+        # whenever the tracker is connected, and it gates nothing (SPEC-gaze-stability-and-
+        # positioning.md 4.7).
+        self.head_position_panel = HeadPositionPanel()
+        self.head_position_panel.set_source(self.head_position_input)
+        layout.addWidget(BesideRow(buttons_box, self.head_position_panel))
 
         layout.addWidget(self._build_calibration_details_section())
 

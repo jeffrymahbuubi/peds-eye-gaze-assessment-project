@@ -43,6 +43,15 @@ single Gazepoint `<REC .../>` record.
 | `fix_duration_s` | `FPOGD` | Duration of the current fixation so far, seconds | **Fixation duration** — one of the most-used eye-tracking metrics in developmental/cognitive research generally, and specifically one of the features with AUC ≥0.90 distinguishing CVI/CP children from controls in the 2025 study cited below. Not currently aggregated. |
 | `pupil_left`, `pupil_right` | `LPMM`/`RPMM` — enabled by `ENABLE_SEND_PUPILMM` (see API note below) | Pupil diameter, millimeters | Used in the literature mainly as a cognitive-load / attention / arousal signal rather than a CP-specific oculomotor marker — secondary priority unless the clinical goal explicitly includes engagement/attention tracking. Not currently aggregated. |
 
+**`pointer_x`, `pointer_y`, `pointer_valid` (added 2026-10-13, last three columns):** the
+position the on-screen cursor was drawn and hit-tested at — the chosen Gazepoint signal
+(`BPOG`, `FPOG` or `APOG`, setting `dwell.pointer_signal`) after the smoothing filter
+(running average or One Euro), canvas-normalized. They are **UI signals, not analysis
+inputs**: they describe what the child was shown, are filtered on purpose, and are blank on
+older sessions and on a Mouse run. Every metric in this document is still derived from the raw
+`x`, `y` and `valid` above (and `all_gaze.csv`); the report only uses the pointer columns to
+draw the gaze path as the cursor moved. See [`DATA_SCHEMA.md`](DATA_SCHEMA.md).
+
 **API note (corrected 2026-09-02):** pupil diameter is gated by
 `ENABLE_SEND_PUPILMM` (OpenGaze manual §5.16), **not**
 `ENABLE_SEND_PUPIL_LEFT`/`ENABLE_SEND_PUPIL_RIGHT` — those instead gate the

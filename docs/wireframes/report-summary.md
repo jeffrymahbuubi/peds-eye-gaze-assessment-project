@@ -53,6 +53,7 @@ Configuration Name: **Large targets**
 | Theme | Forest |
 | Gaze cursor | Shown |
 | Feedback | Hit sound on, miss sound on, glow off |
+| Gaze signal | Raw gaze (BPOG) |
 | Gaze smoothing | On, alpha 0.22, jitter tolerance 40 px |
 | Display | 1920x1080 @ 100 % (standard) |
 | Viewing distance | 600 mm |

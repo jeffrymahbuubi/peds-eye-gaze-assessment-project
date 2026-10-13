@@ -31,6 +31,8 @@ _DEVICE_INFO_REPLIES = {
     "SCREEN_SIZE": '<ACK ID="SCREEN_SIZE" X="0" Y="0" WIDTH="1920" HEIGHT="1080" />\n',
     # all_gaze.csv's TIMETICK(f=..) header (SPEC-gazepoint-analysis-export-parity.md S5.1).
     "TIME_TICK_FREQUENCY": '<ACK ID="TIME_TICK_FREQUENCY" FREQ="10000000" />\n',
+    # The APOG window Gazepoint Control holds (SPEC-gaze-stability-and-positioning.md 4.2).
+    "AAC_FILTER": '<ACK ID="AAC_FILTER" VALUE="15" />\n',
 }
 
 
@@ -451,6 +453,7 @@ def test_connect_populates_device_info_from_get_replies(fake_server):
         assert info.screen_width == 1920
         assert info.screen_height == 1080
         assert info.tick_frequency == 10_000_000
+        assert info.aac_filter == 15
     finally:
         client.stop()
 
@@ -471,6 +474,7 @@ def test_device_info_fields_stay_none_when_queries_go_unanswered(silent_fake_ser
         assert info.api_version is None
         assert info.screen_width is None
         assert info.screen_height is None
+        assert info.aac_filter is None
     finally:
         client.stop()
 

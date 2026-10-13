@@ -349,7 +349,7 @@ def config_table(laid: Laid) -> QTextTable:
 def test_the_pdfs_configuration_labels_are_the_configuration_pages_and_build_config_rows(qapp, segoe, tmp_path):
     report = selection(tmp_path)
     expected = [label for label, _value in build_config_rows(RIG_META["settings"], RIG_META)]
-    assert len(expected) == 17
+    assert len(expected) == 18
     laid = Laid(html_of(report))  # the tables belong to the document: keep it
     table = config_table(laid)
     printed = [table.cellAt(r, 0).firstCursorPosition().block().text() for r in range(1, table.rows())]

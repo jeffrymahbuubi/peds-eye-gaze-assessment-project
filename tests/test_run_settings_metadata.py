@@ -97,7 +97,8 @@ def test_settings_holds_one_value_for_every_setting_of_the_task(make_app, task_i
 def test_a_run_with_no_overrides_records_the_task_defaults_in_full(make_app):
     block = written_metadata(make_app("click_grid"))["settings"]
     default = settings_snapshot("click_grid", load_task_config("click_grid"))
-    assert block["live"] == default["live"]
+    # The AAC window is recorded only for the Assistive signal (SPEC-gaze-stability-and-positioning.md 4.4).
+    assert block["live"] == {**default["live"], "dwell.aac_filter_samples": None}
     assert block["structural"]["trials"] == 18 and block["structural"]["grid"]["rows"] == 3
 
 

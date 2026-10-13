@@ -11,6 +11,7 @@ from __future__ import annotations
 import functools
 import sys
 import time
+from dataclasses import replace
 from datetime import datetime
 from collections.abc import Callable
 from pathlib import Path
@@ -82,6 +83,7 @@ from .engine.task_runner import build_task
 from .engine.tracking_status import run_status, tracking_status
 from .inputs.base import Pointer
 from .inputs.eye_input import DwellConfig, EyeInput, SmoothingConfig
+from .inputs.gaze_signal import apply_gaze_signal, normalize_signal, normalize_smoothing_type
 from .inputs.gazepoint_client import GazepointClient
 from .inputs.mouse_gaze import MouseGazeSource
 from .inputs.no_tracker import NoTracker
@@ -285,6 +287,7 @@ class AssessmentApp:
         config_name: str | None = None,
         pointer_source: MouseGazeSource | None = None,
         preview_pointer: str | None = None,
+        head_position_at_start: dict | None = None,
     ) -> None:
         """Build one task run.
 
@@ -350,6 +353,10 @@ class AssessmentApp:
         :class:`~src.inputs.mouse_gaze.MouseGazeSource` the caller binds to the canvas; for
         a Gaze test (the tracker was not ready) the gaze settings, smoothing included,
         still apply to it.
+
+        ``head_position_at_start`` is the Start page's head-position reading as Start was
+        pressed (:meth:`~src.ui.head_position_panel.HeadPositionPanel.snapshot`), written to
+        ``metadata.json`` as is (SPEC-gaze-stability-and-positioning.md 4.7).
         """
         self.run_mode = validate_run_mode(run_mode)
         if preview_pointer not in (None, POINTER_GAZE, POINTER_MOUSE):
@@ -532,7 +539,25 @@ class AssessmentApp:
                 threshold_ms=float(lv["dwell.threshold_ms"]),
                 refractory_ms=float(lv["dwell.refractory_ms"]),
             ),
-            SmoothingConfig(enabled=smoothing_on, alpha=float(lv["dwell.smoothing.alpha"])),
+            SmoothingConfig(
+                enabled=smoothing_on,
+                alpha=float(lv["dwell.smoothing.alpha"]),
+                type=normalize_smoothing_type(lv["dwell.smoothing.type"]),
+                min_cutoff_hz=float(lv["dwell.smoothing.min_cutoff_hz"]),
+                beta=float(lv["dwell.smoothing.beta"]),
+            ),
+        )
+        # The cursor's gaze signal (SPEC-gaze-stability-and-positioning.md 4.1, 4.2): for a gaze
+        # test only (a mouse pointer has none). The tracker restores the device's AAC_FILTER on
+        # stop(), so no hook is needed here for it.
+        self._gaze_signal_lines = (
+            []
+            if self.input_choice.is_mouse
+            else apply_gaze_signal(
+                self.client,
+                normalize_signal(lv["dwell.pointer_signal"]),
+                lv["dwell.aac_filter_samples"],
+            )
         )
         self.switch = SwitchInput()
 
@@ -593,6 +618,7 @@ class AssessmentApp:
             sex=sex,
             notes=notes,
             display_nonstandard_acknowledged=display_acknowledged,
+            head_position_at_start=head_position_at_start,
             test_id=test_id,
             test_name=test_name,
             seed=int(seed),
@@ -669,6 +695,8 @@ class AssessmentApp:
         self.recorder.log(self._input_log_line())
         if self.input_choice.is_mouse:
             self.recorder.log("Gaze smoothing: off (mouse pointer).")  # H6; metadata keeps the setting
+        for line in self._gaze_signal_lines:
+            self.recorder.log(line)
 
         self.metadata.calibration_source = cal_source
         self.metadata.calibration_points = cal.n_points
@@ -1172,6 +1200,9 @@ class AssessmentApp:
             sample = self.client.latest() if self._gaze_recorded else None
         fresh = self._is_fresh_gaze_sample(sample)
         if fresh and self.config.get("recording", {}).get("save_gaze_stream", True):
+            # A gaze run also records the cursor as drawn (a Mouse run's is pointer_stream.csv).
+            if not self._pointer_is_mouse:
+                sample = self._with_cursor(sample, pointer)
             self.recorder.record_gaze(sample)
         if fresh and self.client.is_live and not self._pointer_is_mouse:
             self._record_latency(sample.t_ns, t_ns)
@@ -1212,6 +1243,13 @@ class AssessmentApp:
 
         if self.task.is_done:
             self._shutdown()
+
+    def _with_cursor(self, sample, pointer):
+        """``sample`` with the cursor the canvas is about to draw and hit-test (the pointer, signal
+        plus filter), canvas-normalized, in its ``pointer_*`` fields (SPEC-gaze-stability-and-
+        positioning.md 4.4). The raw ``x`` / ``y`` / ``valid`` are not touched."""
+        cx, cy = self.task.pointer_to_canvas_norm(pointer)
+        return replace(sample, pointer_x=cx, pointer_y=cy, pointer_valid=pointer.valid)
 
     def _is_fresh_gaze_sample(self, sample) -> bool:
         """Whether ``sample`` is one the gaze files do not hold yet, from a tracker that is

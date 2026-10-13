@@ -76,9 +76,9 @@ def test_the_subject_can_be_given_by_the_host(qapp, tmp_path):
     assert "TESTING" in page.subject_label.text() and "P001" not in page.subject_label.text()
 
 
-def test_the_left_column_has_the_seventeen_configuration_rows_and_the_name(qapp, tmp_path):
+def test_the_left_column_has_the_eighteen_configuration_rows_and_the_name(qapp, tmp_path):
     page = make_page(tmp_path)
-    assert page.config_table.rowCount() == 17 and page.config_table.columnCount() == 2
+    assert page.config_table.rowCount() == 18 and page.config_table.columnCount() == 2
     assert page.config_table.cell_text(0, 0) == "Configuration name"
     assert page.config_table.cell_text(1, 0) == "Task" and page.config_table.cell_text(1, 1) == "Grid Click"
     assert "Standard" in page.config_name_label.text()

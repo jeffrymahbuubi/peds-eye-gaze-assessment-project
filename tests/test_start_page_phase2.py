@@ -146,7 +146,9 @@ def test_the_card_and_the_alerts_fill_the_window_width_with_no_maximum(qapp):
         assert alert.maximumWidth() == QWIDGETSIZE_MAX  # section 9, 2026-10-09: no 1200 px column
     assert page.card.parentWidget().maximumWidth() == QWIDGETSIZE_MAX
     for width in (1920, 1366):
-        page.resize(width, 900)
+        # Tall enough for the whole text, the head-position block included: a scroll bar would
+        # take 14 px of the card's width, and this test is about the width the page gives it.
+        page.resize(width, 1500)
         page.show()
         QApplication.processEvents()
         full = page.width() - 2 * PAGE_GUTTER

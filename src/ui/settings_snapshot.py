@@ -25,6 +25,7 @@ from copy import deepcopy
 from typing import Any
 
 from ..engine.config import deep_merge
+from ..inputs.gaze_signal import SIGNAL_ASSISTIVE
 from .settings_registry import (
     apply_live_values_to_config,
     get_nested,
@@ -90,8 +91,14 @@ def run_settings(task_id: str, config: dict[str, Any], config_name: str | None =
     are what the report's Theme and Feedback rows read (``report_config.py``): the
     theme name, resolved as ``AssessmentApp`` resolves it, and the YAML's
     ``feedback.particles``. They are recorded, never offered.
+
+    ``dwell.aac_filter_samples`` is recorded only when the run used the Assistive signal (the
+    window length was sent to the tracker then); otherwise it is ``null`` here, although the
+    configuration page keeps its value (SPEC-gaze-stability-and-positioning.md 4.4).
     """
     block = settings_snapshot(task_id, config)
+    if block["live"].get("dwell.pointer_signal") != SIGNAL_ASSISTIVE:
+        block["live"]["dwell.aac_filter_samples"] = None
     task_cfg = config.get("task", {})
     block["structural"]["theme"] = task_cfg.get("theme") or config.get("theme", {}).get(
         "name", "forest"

@@ -3,9 +3,10 @@ answer of 2026-10-09 on empty space; ``docs/design/fable-proposal.md`` 2.3).
 
 Form pages fill the window's width inside a 32 px gutter, there is no maximum width:
 :func:`page_frame` gives a page that frame. :class:`CardGrid` lays cards in two columns of equal
-width, and :class:`FlowLayout` lets a row of buttons wrap when its card is narrow. :func:`labeled`
-is one form field (the label 4 px above its control, the control as wide as its card);
-the gap constants are the proposal's. The widths are set in code, so they hold on any screen;
+width, and :class:`FlowLayout` lets a row of buttons wrap when its card is narrow.
+:class:`BesideRow` puts one widget beside another, or under it when the row is narrow.
+:func:`labeled` is one form field (the label 4 px above its control, the control as wide as
+its card); the gap constants are the proposal's. The widths are set in code, so they hold on any screen;
 nothing here depends on a measured size.
 """
 
@@ -13,6 +14,7 @@ from __future__ import annotations
 
 from PySide6.QtCore import QPoint, QRect, QSize, Qt
 from PySide6.QtWidgets import (
+    QBoxLayout,
     QHBoxLayout,
     QLabel,
     QLayout,
@@ -29,6 +31,7 @@ CARD_PADDING = 24
 LABEL_GAP = 4  # between a label and its control
 FIELD_GAP = 16  # between two fields
 CARD_COLUMNS = 2  # columns of a CardGrid
+BESIDE_STACK_BELOW = 640  # a BesideRow narrower than this puts its side widget under the main one
 
 # Setup's fields fill their card's width, as on feature/compass-task-flow (user, 2026-10-10)
 NOTES_HEIGHT = 84  # three lines
@@ -186,6 +189,44 @@ class FlowLayout(QLayout):
                     x += hint.width() + self._h_spacing
             y += line_height + (self._v_spacing if index < len(lines) - 1 else 0)
         return y + margins.bottom() - rect.y()
+
+
+class BesideRow(QWidget):
+    """``main`` (it takes the room left) with ``side`` at its own size to the right of it; when
+    the row is narrower than ``stack_below`` px, ``side`` goes under ``main`` instead. The head-
+    position block beside the Calibration buttons (SPEC-gaze-stability-and-positioning.md 4.7)."""
+
+    def __init__(
+        self,
+        main: QWidget,
+        side: QWidget,
+        *,
+        stack_below: int = BESIDE_STACK_BELOW,
+        gap: int = CARD_GAP,
+        parent: QWidget | None = None,
+    ) -> None:
+        super().__init__(parent)
+        self._stack_below = stack_below
+        self._box = QBoxLayout(QBoxLayout.Direction.LeftToRight, self)
+        self._box.setContentsMargins(0, 0, 0, 0)
+        self._box.setSpacing(gap)
+        self._box.addWidget(main, 1)
+        # Top left in either direction: beside, it is not stretched down; stacked, not across.
+        self._box.addWidget(side, 0, Qt.AlignmentFlag.AlignTop | Qt.AlignmentFlag.AlignLeft)
+
+    def stacked(self) -> bool:
+        """Whether ``side`` is under ``main`` (the row is narrower than ``stack_below``)."""
+        return self._box.direction() == QBoxLayout.Direction.TopToBottom
+
+    def resizeEvent(self, event) -> None:  # noqa: N802 (Qt naming)
+        super().resizeEvent(event)
+        wanted = (
+            QBoxLayout.Direction.TopToBottom
+            if self.width() < self._stack_below
+            else QBoxLayout.Direction.LeftToRight
+        )
+        if self._box.direction() != wanted:
+            self._box.setDirection(wanted)
 
 
 def labeled(

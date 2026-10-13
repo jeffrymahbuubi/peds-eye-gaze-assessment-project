@@ -86,6 +86,32 @@ def load_pointer_frames(session_dir: str | Path, geometry: Geometry) -> list[Gaz
     return frames
 
 
+def load_cursor_frames(session_dir: str | Path, geometry: Geometry) -> list[GazeFrame]:
+    """The cursor as the run drew it, from ``gaze_stream.csv``'s ``pointer_x`` / ``pointer_y`` /
+    ``pointer_valid`` columns (signal plus filter, SPEC-gaze-stability-and-positioning.md 4.4),
+    as :class:`GazeFrame` objects so the gaze-path code serves it unchanged. The columns are
+    canvas-normalized and the frames **monitor**-normalized like gaze, converted as
+    :func:`load_pointer_frames` does. Sorted by time and de-duplicated on ``t_ns``; rows with a
+    blank cursor are skipped, so ``[]`` for a session without the columns (older runs, a Mouse
+    run's tracker-alongside file) and for a missing file."""
+    path = Path(session_dir) / "gaze_stream.csv"
+    if not path.exists():
+        return []
+    frames: list[GazeFrame] = []
+    seen: set[int] = set()
+    with path.open(encoding="utf-8", newline="") as fh:
+        for row in csv.DictReader(fh):
+            t_ns = to_int(row.get("t_ns"))
+            x, y = to_float(row.get("pointer_x")), to_float(row.get("pointer_y"))
+            if t_ns is None or x is None or y is None or t_ns in seen:
+                continue
+            seen.add(t_ns)
+            mx, my = geometry.canvas_to_monitor_norm(x, y)
+            frames.append(GazeFrame(t_ns, mx, my, row.get("pointer_valid") == "1", None, None))
+    frames.sort(key=lambda f: f.t_ns)
+    return frames
+
+
 class FrameIndex:
     """Frames plus their times, so a trial window is a bisect, not a scan."""
 

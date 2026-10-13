@@ -33,6 +33,7 @@ from .report_config import build_config_rows, setting
 from .report_eye import (
     DEFAULT_PUPIL,
     FrameIndex,
+    load_cursor_frames,
     load_gaze_frames,
     load_pointer_frames,
     load_raw_samples,
@@ -128,11 +129,19 @@ def build_report(session_dir: str | Path) -> dict[str, Any]:
         setting(settings, "dwell.smoothing.alpha", "dwell", "smoothing", "alpha"),
     )
     # The path drawn is the *pointer's*: the gaze, or -- a Mouse run -- the mouse
-    # (SPEC-input-selection-and-follow.md 4.5), through the same cursor filter.
+    # (SPEC-input-selection-and-follow.md 4.5), through the same cursor filter. A gaze run that
+    # recorded its cursor (``pointer_x`` / ``pointer_y``, signal plus filter) draws that as it
+    # was; only an older run replays the running average over the raw gaze
+    # (SPEC-gaze-stability-and-positioning.md 4.4).
     pointer_frames = (
         load_pointer_frames(session_dir, geometry) if meta.get("input_pointer") == "mouse" else []
     )
-    path_index = FrameIndex(smooth_frames(pointer_frames or index.frames, smoothing))
+    cursor_frames = [] if pointer_frames else load_cursor_frames(session_dir, geometry)
+    if cursor_frames:
+        smoothing = SmoothParams(enabled=False, alpha=smoothing.alpha)  # nothing is replayed
+        path_index = FrameIndex(cursor_frames)
+    else:
+        path_index = FrameIndex(smooth_frames(pointer_frames or index.frames, smoothing))
     raw_samples = load_raw_samples(session_dir)
     raw = analyse_raw(raw_samples, meta, geometry)
     track = load_target_track(session_dir)

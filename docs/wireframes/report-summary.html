@@ -569,7 +569,7 @@ body.wmd-root {
 <h2 class="wmd-h2">Summary Results</h2>
 <h3 class="wmd-h3">Grid Click 1</h3>
 <blockquote class="wmd-blockquote">
-  <p class="wmd-paragraph"><strong>Design system phases 1 and 4</strong> (SPEC-design-system-phase1.md, SPEC-design-system-phase4.md H1-H9, X1): title without the colon, the test name under it at 20 px. Main column at most 1100 px, sidebar 460 px. Test Name field 480 px, Evaluator 320 px, Notes 84 px tall. Dates read yyyy-MM-dd HH:mm.</p>
+  <p class="wmd-paragraph"><strong>Design system phases 1 and 4</strong> (SPEC-design-system-phase1.md, SPEC-design-system-phase4.md H1-H9, X1): title without the colon, the test name under it at 20 px. Sidebar 460 px; the main column takes all the width the window leaves beside it (the 1100 px cap is lifted, the user's decision of 2026-10-09: no empty space at the right). Test Name field 480 px, Evaluator 320 px, Notes 84 px tall. Dates read yyyy-MM-dd HH:mm.</p>
 </blockquote>
 <blockquote class="wmd-blockquote">
   <p class="wmd-paragraph">SPEC-compass-task-flow.md 4D.2–4D.3 and 4D.7–4D.8 (U9–U11). It opens from View Report on the Test List, or from "Save and View Report" in the Test Complete dialog. It replaces the old Results tab (<code>results.md</code>, superseded). The numbers come from <code>report.json</code>, which P4 built at the end of the run. The nav is locked while the report shows. Compass reference: <code>docs/compass/screenshots/08a-*.png</code>.</p>
@@ -655,6 +655,10 @@ body.wmd-root {
     <tr>
     <td class="wmd-table-cell wmd-align-left">Feedback</td>
     <td class="wmd-table-cell wmd-align-left">Hit sound on, miss sound on, glow off</td>
+  </tr>
+    <tr>
+    <td class="wmd-table-cell wmd-align-left">Gaze signal</td>
+    <td class="wmd-table-cell wmd-align-left">Raw gaze (BPOG)</td>
   </tr>
     <tr>
     <td class="wmd-table-cell wmd-align-left">Gaze smoothing</td>
@@ -863,11 +867,12 @@ body.wmd-root {
   <p class="wmd-paragraph">Numbers = trials shown at that place</p>
 </div>
     <blockquote class="wmd-blockquote">
+  <p class="wmd-paragraph"><strong>Size of the map</strong> (the user's decision of 2026-10-09, after testing the try-all build: "empty space"): on screen the map grows to fill its column, as wide as the column at the canvas's aspect (16:9 for the standard canvas), but never taller than the pane shows, so the "Target Map" heading, the three switches and the whole map are in view together once the page is scrolled to them. It never gets smaller than 720 x 405 px and it follows the window. The legend box under it is as wide as the map. The ASCII picture above is only the layout. The PDF keeps its own fixed size.</p>
   <p class="wmd-paragraph"><strong>Overlays:</strong></p>
   <ul class="wmd-list">
   <li class="wmd-list-item">Scanpath draws one dot (3 px) per fixation, joined by straight lines (1.5 px) in time order, all trials in one blue (#1F669E, alpha 200; phase 4 X1), so the hit and miss marks and the trial numbers stay readable. Per-trial colour lives only in the Detailed view&#039;s selected trial. The Detailed per-trial view draws the full gaze path smoothed like the on-screen cursor (the run&#039;s smoothing alpha), with numbered fixation circles.</li>
   <li class="wmd-list-item">Heat map is an alpha ramp over the whole test (unchanged: the Gazepoint Analysis ramp).</li>
-  <li class="wmd-list-item">Follow the Target also shows the target&#039;s track as a faint line, with the mark at its end position. Its legend adds &quot;on target&quot; (dark path) and &quot;off target&quot; (light path) entries.</li>
+  <li class="wmd-list-item">Follow the Target also shows the target&#039;s track as a faint line, with the mark at its end position. Its legend adds &quot;on target&quot; (solid dark path) and &quot;off target&quot; (dashed grey path) entries.</li>
   <li class="wmd-list-item">A Mouse run draws the mouse path (from pointer_stream.csv) in place of the gaze path; Scanpath and Heat map are disabled with &quot;not recorded&quot; when no gaze was recorded.</li>
 </ul>
 </blockquote>
@@ -946,7 +951,7 @@ body.wmd-root {
   <ul class="wmd-list">
   <li class="wmd-list-item">Save &amp; Continue keeps Test Name, Evaluator and Notes (the only editable fields), then returns to the Test List.</li>
   <li class="wmd-list-item">Cancel drops those edits.</li>
-  <li class="wmd-list-item">Print Report exports a PDF (A4 portrait) to &lt;subject&gt;/reports/2026-10-06_Grid Click 1.pdf (SPEC-subject-data-layout.md H7). One stacked column (phase 4 H8): page 1 holds the header, configuration, summary and Eye Metrics; the map with Targets only and its legend box start page 2; then the Trial-by-Trial table and the definitions. Title &quot;Summary Results, Grid Click 1&quot;; body 9.5 pt, trial table 8 pt, definitions 8.5 pt; table headers grey with dark text; a missing text value prints &quot;not recorded&quot;.</li>
+  <li class="wmd-list-item">Print Report exports a PDF (A4 portrait) to &lt;subject&gt;/reports/2026-10-06_Grid Click 1.pdf (SPEC-subject-data-layout.md H7). One stacked column (phase 4 H8): page 1 holds the header, configuration, summary and Eye Metrics; the map (the Targets, plus the Scanpath when gaze was recorded) and its legend box start page 2; then the Trial-by-Trial table and the definitions. Title &quot;Summary Results, Grid Click 1&quot;; body 9.5 pt, trial table 8 pt, definitions 8.5 pt; table headers grey with dark text; a missing text value prints &quot;not recorded&quot;.</li>
   <li class="wmd-list-item">The run data itself is never editable.</li>
 </ul>
 </blockquote>

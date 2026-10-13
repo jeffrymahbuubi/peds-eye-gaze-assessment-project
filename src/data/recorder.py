@@ -52,6 +52,11 @@ _GAZE_HEADER = [
     "fix_duration_s",
     "pupil_left",
     "pupil_right",
+    # The cursor as drawn and hit-tested, canvas-normalized (SPEC-gaze-stability-and-positioning.md
+    # 4.4). Last, so a reader that takes columns by name is unaffected; blank where there is none.
+    "pointer_x",
+    "pointer_y",
+    "pointer_valid",
 ]
 
 # The moving target's path (SPEC-compass-task-flow.md 4D.4-2): ``t_ns`` is the

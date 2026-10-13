@@ -16,7 +16,7 @@ class LiveSetting:
     key: str  # dotted key identifying this field (matches AssessmentApp's dispatch table)
     label: str
     group: str  # "settings" (dwell.*) | "pacing" (everything else)
-    kind: str  # "bool" | "int" | "float"
+    kind: str  # "bool" | "int" | "float" | "choice"
     min: float | None = None
     max: float | None = None
     step: float | None = None
@@ -31,6 +31,9 @@ class LiveSetting:
     display_divisor: float = 1.0
     # Tasks it does not apply to even though ``applies_to`` is empty ("every task but ...").
     excludes: tuple[str, ...] = ()
+    # "choice" only (SPEC-gaze-stability-and-positioning.md 4.8): ``(value, label)`` pairs shown as
+    # radio buttons; the stored value is the string. The first is not assumed to be the default.
+    choices: tuple[tuple[str, str], ...] = ()
 
     def applies(self, task_id: str) -> bool:
         return task_id not in self.excludes and (not self.applies_to or task_id in self.applies_to)

@@ -14,7 +14,9 @@ task sees a real dwell-then-saccade gaze pattern -- enough to exercise hit/
 miss scoring and the fixation/saccade aggregation in
 ``compute_fixation_saccade_metrics`` (real fixation clustering, real
 saccade count), not just a live sample-rate number. Still not a real
-recorded gaze trace (no noise/smooth pursuit/blinks) -- use ``--replay``
+recorded gaze trace (no noise/smooth pursuit/blinks; APOG, sent once
+``ENABLE_SEND_POG_AAC`` is set, is the moving average of FPOG over the
+``AAC_FILTER`` window, which the server also ACKs for GET and SET) -- use ``--replay``
 with ``tools/make_replay_fixture.py`` output for that instead, though note
 that path only wires into the old standalone ``--gui`` launch today, not
 the ``DashboardWindow``'s embedded task-run flow.
@@ -30,16 +32,23 @@ up in git status" section) and run the app *without* ``--replay``, e.g.::
 
     python -m src.main --task click_static --gui --subject DEMO01
 
+The eyes drift slowly (X, Y, Z and tilt) and vanish for 3 s every 20 s, so the head-position
+widget (Setup's Calibration card, the Start page) passes through green, orange, red and "No eyes
+detected" without a subject; see ``head_pose``.
+
 Ctrl+C to stop. Remember to point ``gazepoint.host`` back at the real
 device's address afterward.
 """
 
 from __future__ import annotations
 
+import math
 import socket
 import sys
 import threading
 import time
+from collections import deque
+from typing import NamedTuple
 
 PORT = int(sys.argv[1]) if len(sys.argv) > 1 else 4242
 N_POINTS = 5
@@ -58,6 +67,8 @@ WAYPOINTS: list[tuple[float, float]] = [
     (0.15, 0.85), (0.50, 0.85), (0.85, 0.85),
 ]
 FIXATION_HOLD_S = 1.8  # comfortably above dwell.threshold_ms's 800ms default
+AAC_FILTER_DEFAULT = 15  # the device's own APOG window, in samples (API manual 3.22)
+AAC_FILTER_MAX = 60
 
 # Canned replies for the connect-time device-info GET queries
 # (SPEC-ui-setup-task-selection.md S23). Deliberately reproduces the real
@@ -84,16 +95,69 @@ DEVICE_INFO_REPLIES = {
 }
 
 
-def eye_geometry_attrs(x: float, y: float, enabled: set[str]) -> str:
+class HeadPose(NamedTuple):
+    """Where the fake child's eyes are: ``(x, y, z)`` in metres from the camera focal point,
+    and whether the tracker sees them (``LPUPILV`` / ``RPUPILV``)."""
+
+    left: tuple[float, float, float]
+    right: tuple[float, float, float]
+    eyes_valid: bool
+
+
+# A head that never moves: eyes at +-0.03 m on X and 0.65 m from the camera.
+STILL_HEAD = HeadPose((-0.03, 0.01, 0.65), (0.03, 0.01, 0.65), True)
+
+# The slow head drift of SPEC-gaze-stability-and-positioning.md 4.5, so the head-position widget
+# can be tried without the device: X, Y and Z (and the head's tilt) swing on their own periods and
+# pass through the widget's green, orange and red bands; every HEAD_GAP_PERIOD_S the tracker loses
+# the eyes for HEAD_GAP_S (the pupil valid flags go to 0 and the positions to zeros, as a real
+# device sends them). It starts at HEAD_CENTRE_M and 0.65 m, so the first seconds are green.
+# HEAD_CENTRE_M is the eye midpoint's (X, Y) of a well-seated head: keep it equal to the widget's
+# CENTRED_X_CM / CENTRED_Y_CM (src/inputs/head_position.py), which the live check sets.
+HEAD_CENTRE_M = (0.0, 0.0)
+HEAD_X_SWING_M, HEAD_X_PERIOD_S = 0.15, 47.0
+HEAD_Y_SWING_M, HEAD_Y_PERIOD_S = 0.09, 61.0
+HEAD_Z_SWING_M, HEAD_Z_PERIOD_S = 0.17, 83.0
+HEAD_TILT_SWING_M, HEAD_TILT_PERIOD_S = 0.008, 29.0  # each eye's Y moves this far, opposite ways
+HEAD_GAP_PERIOD_S = 20.0
+HEAD_GAP_S = 3.0
+
+
+def head_pose(elapsed_s: float) -> HeadPose:
+    """The drifting head ``elapsed_s`` seconds after the stream started."""
+    if elapsed_s % HEAD_GAP_PERIOD_S >= HEAD_GAP_PERIOD_S - HEAD_GAP_S:
+        return HeadPose((0.0, 0.0, 0.0), (0.0, 0.0, 0.0), False)
+
+    def swing(amplitude: float, period_s: float) -> float:
+        return amplitude * math.sin(2.0 * math.pi * elapsed_s / period_s)
+
+    x = HEAD_CENTRE_M[0] + swing(HEAD_X_SWING_M, HEAD_X_PERIOD_S)
+    y = HEAD_CENTRE_M[1] + swing(HEAD_Y_SWING_M, HEAD_Y_PERIOD_S)
+    z = 0.65 + swing(HEAD_Z_SWING_M, HEAD_Z_PERIOD_S)
+    tilt = swing(HEAD_TILT_SWING_M, HEAD_TILT_PERIOD_S)
+    return HeadPose((x - 0.03, y - tilt, z), (x + 0.03, y + tilt, z), True)
+
+
+def eye_geometry_attrs(
+    x: float, y: float, enabled: set[str], head: HeadPose = STILL_HEAD
+) -> str:
     """REC attributes for the ENABLE_SEND_EYE_* / ENABLE_SEND_POG_* records the
     client asked for (SPEC-gazepoint-analysis-export-parity.md S10.6.4):
-    eyes at +-0.03 m on X and ~0.65 m from the camera, per-eye POG = the
-    fixation point plus a small fixed offset."""
+    eyes where ``head`` puts them (by default still, +-0.03 m on X and 0.65 m
+    from the camera), per-eye POG = the fixation point plus a small fixed
+    offset."""
+    valid = "1" if head.eyes_valid else "0"
     out = ""
     if "ENABLE_SEND_EYE_LEFT" in enabled:
-        out += 'LEYEX="-0.03000" LEYEY="0.01000" LEYEZ="0.65000" LPUPILD="0.00300" LPUPILV="1" '
+        out += (
+            f'LEYEX="{head.left[0]:.5f}" LEYEY="{head.left[1]:.5f}" LEYEZ="{head.left[2]:.5f}" '
+            f'LPUPILD="0.00300" LPUPILV="{valid}" '
+        )
     if "ENABLE_SEND_EYE_RIGHT" in enabled:
-        out += 'REYEX="0.03000" REYEY="0.01000" REYEZ="0.65000" RPUPILD="0.00300" RPUPILV="1" '
+        out += (
+            f'REYEX="{head.right[0]:.5f}" REYEY="{head.right[1]:.5f}" REYEZ="{head.right[2]:.5f}" '
+            f'RPUPILD="0.00300" RPUPILV="{valid}" '
+        )
     if "ENABLE_SEND_POG_LEFT" in enabled:
         out += f'LPOGX="{x - 0.005:.5f}" LPOGY="{y:.5f}" LPOGV="1" '
     if "ENABLE_SEND_POG_RIGHT" in enabled:
@@ -101,8 +165,23 @@ def eye_geometry_attrs(x: float, y: float, enabled: set[str]) -> str:
     return out
 
 
+def aac_attrs(history: deque[tuple[float, float]], samples: int) -> str:
+    """REC attributes of the ENABLE_SEND_POG_AAC record (SPEC-gaze-stability-and-positioning.md
+    4.1): APOG is a moving-window average of FPOG over the last ``samples`` points of
+    ``history`` (newest last), as the real device does; always valid here."""
+    window = list(history)[-max(1, samples):]
+    if not window:
+        return 'APOGX="0.00000" APOGY="0.00000" APOGV="0" '
+    x = sum(p[0] for p in window) / len(window)
+    y = sum(p[1] for p in window) / len(window)
+    return f'APOGX="{x:.5f}" APOGY="{y:.5f}" APOGV="1" '
+
+
 def send_rec_loop(
-    conn: socket.socket, stop_event: threading.Event, enabled: set[str] | None = None
+    conn: socket.socket,
+    stop_event: threading.Event,
+    enabled: set[str] | None = None,
+    aac_state: dict[str, int] | None = None,
 ) -> None:
     """Streams an always-valid REC at REC_RATE_HZ, stepping through
     WAYPOINTS one fixation at a time, until the connection drops or
@@ -116,8 +195,11 @@ def send_rec_loop(
 
     ``enabled`` is the live set of ``ENABLE_SEND_*`` ids the client has
     switched on (shared with the connection handler, read per record).
+    ``aac_state["samples"]`` is the AAC_FILTER window the client set (default 15).
     """
     enabled = enabled if enabled is not None else set()
+    aac_state = aac_state if aac_state is not None else {"samples": AAC_FILTER_DEFAULT}
+    history: deque[tuple[float, float]] = deque(maxlen=AAC_FILTER_MAX)
     t0 = time.monotonic()
     interval_s = 1.0 / REC_RATE_HZ
     waypoint_index = -1
@@ -132,6 +214,7 @@ def send_rec_loop(
             fixation_id += 1
             fixation_start = elapsed
         x, y = WAYPOINTS[waypoint_index]
+        history.append((x, y))
         fix_duration = elapsed - fixation_start
         # Every attribute all_gaze.csv records (SPEC-gazepoint-analysis-
         # export-parity.md S5), with plausible constants for the ones this
@@ -148,7 +231,9 @@ def send_rec_loop(
             f'BKID="0" BKDUR="0.00000" BKPMIN="19" '
             f'LPMM="3.00000" LPMMV="1" RPMM="3.00000" RPMMV="1" '
             f'PIXS="0.00000" PIXV="0" '
-            f'{eye_geometry_attrs(x, y, enabled)}/>\r\n'
+            f'{eye_geometry_attrs(x, y, enabled, head_pose(elapsed))}'
+            f'{aac_attrs(history, aac_state["samples"]) if "ENABLE_SEND_POG_AAC" in enabled else ""}'
+            f'/>\r\n'
         )
         counter += 1
         try:
@@ -162,6 +247,7 @@ def handle_client(conn: socket.socket) -> None:
     buffer = ""
     stop_rec = threading.Event()
     enabled: set[str] = set()  # ENABLE_SEND_* ids the client switched on
+    aac_state = {"samples": AAC_FILTER_DEFAULT}  # the AAC_FILTER window: SET changes it, GET reads it
     rec_thread: threading.Thread | None = None
     print("[fake-server] client connected", flush=True)
     try:
@@ -187,6 +273,17 @@ def handle_client(conn: socket.socket) -> None:
                     conn.sendall(ack.encode("ascii"))
                     print(f"[fake-server] sent: {ack.strip()}", flush=True)
                     continue
+                if 'ID="AAC_FILTER"' in line:
+                    if "<SET" in line and 'VALUE="' in line:
+                        try:
+                            wanted = int(line.split('VALUE="', 1)[1].split('"', 1)[0])
+                            aac_state["samples"] = max(1, min(AAC_FILTER_MAX, wanted))
+                        except ValueError:
+                            pass
+                    ack = f'<ACK ID="AAC_FILTER" VALUE="{aac_state["samples"]}" />\r\n'
+                    conn.sendall(ack.encode("ascii"))
+                    print(f"[fake-server] sent: {ack.strip()}", flush=True)
+                    continue
                 if "<SET" in line and 'ID="ENABLE_SEND_' in line:
                     record_id = line.split('ID="', 1)[1].split('"', 1)[0]
                     if 'STATE="1"' in line:
@@ -195,7 +292,7 @@ def handle_client(conn: socket.socket) -> None:
                         enabled.discard(record_id)
                 if 'ID="ENABLE_SEND_DATA"' in line and 'STATE="1"' in line and rec_thread is None:
                     rec_thread = threading.Thread(
-                        target=send_rec_loop, args=(conn, stop_rec, enabled), daemon=True
+                        target=send_rec_loop, args=(conn, stop_rec, enabled, aac_state), daemon=True
                     )
                     rec_thread.start()
                     print(f"[fake-server] streaming REC at {REC_RATE_HZ:.0f} Hz", flush=True)

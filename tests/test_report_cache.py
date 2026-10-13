@@ -87,7 +87,7 @@ def test_a_full_folder_gives_every_block(tmp_path):
     assert all(s["sources"].values()) is False  # no target_track, no layout_slots, ...
     assert s["sources"]["raw_gaze"] and s["sources"]["entries"] and s["sources"]["saccades"]
     assert [t["outcome"] for t in report["trials"]] == ["hit", "timeout", "hit"]
-    assert len(report["config"]["rows"]) == 17
+    assert len(report["config"]["rows"]) == 18
     assert report["geometry"]["canvas_aspect"] == round(1640 / 957, 5)
     assert report["geometry"]["assumed_for_visuals"] is False
     assert report["map"]["aspect"] == round(1640 / 957, 5)
@@ -220,7 +220,7 @@ def test_g10_a_legacy_folder_degrades_to_none_without_an_exception(tmp_path):
     assert report["heat"]["empty"] and report["heat"]["off_canvas_share"] is None
     assert report["map"]["aspect"] is None and report["geometry"]["assumed_for_visuals"] is True
     assert report["quality"]["warnings"] == [] and report["quality"]["valid_share"] is None
-    assert len(report["config"]["rows"]) == 17
+    assert len(report["config"]["rows"]) == 18
     # The whole thing is still plain JSON.
     assert json.loads(report_json(report)) == report
 

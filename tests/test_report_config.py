@@ -1,4 +1,5 @@
-"""SPEC-compass-task-flow.md 4D.3: the 17-row Test Configuration table (R7)."""
+"""SPEC-compass-task-flow.md 4D.3: the 18-row Test Configuration table (R7; the Gaze signal row
+is SPEC-gaze-stability-and-positioning.md 4.4)."""
 
 from __future__ import annotations
 
@@ -12,7 +13,7 @@ from tests.report_fixtures import RIG_META
 LABELS = [
     "Configuration name", "Task", "Input", "Number of trials", "Selection", "Target size",
     "Layout", "Trial timeout", "Inter-trial interval", "Theme", "Gaze cursor",
-    "Feedback", "Gaze smoothing", "Display", "Viewing distance", "Calibration", "Canvas",
+    "Feedback", "Gaze signal", "Gaze smoothing", "Display", "Viewing distance", "Calibration", "Canvas",
 ]
 
 
@@ -21,7 +22,7 @@ def rows(meta=None, **kw):
     return dict(build_config_rows(meta.get("settings"), meta, **kw))
 
 
-def test_a_full_run_gives_the_17_rows_in_order_with_the_values_it_used():
+def test_a_full_run_gives_the_18_rows_in_order_with_the_values_it_used():
     out = build_config_rows(RIG_META["settings"], RIG_META, geometry=Geometry.from_metadata(RIG_META))
     assert [label for label, _ in out] == LABELS
     assert dict(out) == {
@@ -37,6 +38,7 @@ def test_a_full_run_gives_the_17_rows_in_order_with_the_values_it_used():
         "Theme": "Forest",
         "Gaze cursor": "Shown",
         "Feedback": "Hit sound on, miss sound on",
+        "Gaze signal": "Raw gaze (BPOG)",
         "Gaze smoothing": "On, alpha 0.22, jitter tolerance 40 px",
         "Display": "1920×1080 @ 100% (standard)",
         "Viewing distance": "650 mm",
@@ -45,7 +47,7 @@ def test_a_full_run_gives_the_17_rows_in_order_with_the_values_it_used():
     }
 
 
-def test_nothing_known_is_17_not_recorded_not_17_guesses():
+def test_nothing_known_is_18_not_recorded_not_18_guesses():
     out = build_config_rows(None, None)
     assert [label for label, _ in out] == LABELS
     assert {v for _, v in out} == {NOT_RECORDED}

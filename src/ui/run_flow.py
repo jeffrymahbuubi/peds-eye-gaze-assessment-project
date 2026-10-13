@@ -98,6 +98,7 @@ class RunFlow:
         self._config = merged_config(config, saved.get("live"), saved.get("structural"))
         page = StartTestPage()
         page.set_blockers_provider(window.setup_page.run_blockers)
+        page.set_head_position_source(window.setup_page.head_position_input)
         page.set_test(test_name=test.name, task_id=test.task_id, cfg=self._config)
         # H9: a recorded run must not write a path over 240 characters. Checked once, as the
         # page opens; Start is off while it shows, Practice (which writes nothing) is not.
@@ -161,7 +162,7 @@ class RunFlow:
 
     def _on_start(self) -> None:
         test = self._ready()
-        if test is None:
+        if test is None or self.page is None:
             return
         app = self._build(
             test,
@@ -171,6 +172,8 @@ class RunFlow:
             test_name=test.name,
             seed=test.seed,
             on_finished=self._on_run_finished,
+            # The seating as Start was pressed (SPEC-gaze-stability-and-positioning.md 4.7).
+            head_position_at_start=self.page.head_position_at_start(),
         )
         if app is not None:
             self._show(app, Flow.RUN)

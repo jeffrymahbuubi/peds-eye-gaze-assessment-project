@@ -20,6 +20,11 @@ The page fills the window's width inside its gutters (SPEC-design-system-phase2.
 sits on the page under it; Start is always the primary button (a disabled primary while
 blocked), Practice the secondary, Cancel the tertiary, in one row at the left.
 
+The head-position block (SPEC-gaze-stability-and-positioning.md 4.7) ends the clinician text, so the
+seating can be re-checked just before Start. It is for gaze tests only (hidden for Pointer =
+Mouse), gates nothing, and :meth:`StartTestPage.head_position_at_start` hands the run the reading
+as Start is pressed.
+
 A second, separate line is the path blocker (SPEC-subject-data-layout.md H9, wireframe
 W3): :meth:`StartTestPage.set_path_error` shows a danger alert when the run would write a
 path over 240 characters. It disables **Start only**; Practice writes nothing, so it stays
@@ -47,6 +52,7 @@ from ..engine.input_choice import drop_gaze_only_blockers, resolve_input
 from ..engine.run_result import RunResult, practice_result_text
 from .alert_box import AlertBox
 from .design_tokens import TYPE_BODY, TYPE_BODY_LARGE, TYPE_HEADING
+from .head_position_panel import HeadPositionPanel, HeadPositionSource
 from .page_layout import CARD_PADDING, page_frame
 from .task_instructions import Instructions, build_instructions
 
@@ -119,6 +125,7 @@ class StartTestPage(QWidget):
         self.title_label.setText(f"Start {test_name}")
         self._practice_count = 0
         self._mouse_test = resolve_input(cfg).is_mouse
+        self.head_panel.setVisible(not self._mouse_test)  # gaze tests only (4.7)
         self.set_practice_result(None)
         self.show_note("")
         self.instructions = build_instructions(task_id, cfg, values)
@@ -145,6 +152,16 @@ class StartTestPage(QWidget):
     def blockers(self) -> list[str]:
         """The reasons as of the last check."""
         return list(self._blockers)
+
+    def set_head_position_source(self, source: HeadPositionSource | None) -> None:
+        """Where the head-position block's eye positions come from (``SetupPage.
+        head_position_input``)."""
+        self.head_panel.set_source(source)
+
+    def head_position_at_start(self) -> dict[str, object] | None:
+        """The head position as of now, for the run's ``metadata.json`` (SPEC-gaze-stability-and-
+        positioning.md 4.7); ``None`` for a Mouse test, which shows no head position."""
+        return None if self._mouse_test else self.head_panel.snapshot()
 
     def set_path_error(self, text: str | None) -> None:
         """Show (or, with ``None`` / "", hide) the path-too-long alert. While it shows,
@@ -315,6 +332,11 @@ class StartTestPage(QWidget):
         self.clinician_layout = QVBoxLayout()
         self.clinician_layout.setSpacing(6)
         self._clinician_box_layout.addLayout(self.clinician_layout)
+        # The head position, so the seating can be re-checked just before Start; for gaze tests
+        # only (set_test hides it for a Mouse test). It gates nothing (SPEC-gaze-stability-and-
+        # positioning.md 4.7).
+        self.head_panel = HeadPositionPanel()
+        self._clinician_box_layout.addWidget(self.head_panel, 0, Qt.AlignmentFlag.AlignLeft)
 
     def _show_instructions(self, text: Instructions) -> None:
         self.heading_label.setText(text.heading)

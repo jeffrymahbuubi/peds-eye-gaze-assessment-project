@@ -43,6 +43,12 @@ class GazeSample:
         Fixation duration so far, seconds (FPOGD).
     pupil_left, pupil_right:
         Pupil diameters if available (v2 analysis); ``None`` otherwise.
+    pointer_x, pointer_y, pointer_valid:
+        The cursor's signal (SPEC-gaze-stability-and-positioning.md 4.1), kept apart from the
+        raw gaze above. From the client they are the chosen POG (``dwell.pointer_signal``:
+        BPOG, FPOG or APOG); on the sample the app hands the recorder they are the cursor as
+        drawn and hit-tested (signal plus filter, canvas-normalized). ``None`` where there is
+        no cursor signal (a source without one, a Mouse run), which writes blank columns.
     """
 
     t_ns: int
@@ -53,6 +59,9 @@ class GazeSample:
     fix_duration_s: float | None = None
     pupil_left: float | None = None
     pupil_right: float | None = None
+    pointer_x: float | None = None
+    pointer_y: float | None = None
+    pointer_valid: bool | None = None
 
     def as_row(self) -> dict[str, Any]:
         return {
@@ -64,6 +73,9 @@ class GazeSample:
             "fix_duration_s": self.fix_duration_s if self.fix_duration_s is not None else "",
             "pupil_left": self.pupil_left if self.pupil_left is not None else "",
             "pupil_right": self.pupil_right if self.pupil_right is not None else "",
+            "pointer_x": "" if self.pointer_x is None else round(self.pointer_x, 5),
+            "pointer_y": "" if self.pointer_y is None else round(self.pointer_y, 5),
+            "pointer_valid": "" if self.pointer_valid is None else int(self.pointer_valid),
         }
 
 
@@ -422,6 +434,12 @@ class SessionMetadata:
     # (SPEC-input-selection-and-follow.md 4.1), so the report reads it here to colour the path
     # on / off target. None on older sessions. Additive; ``schema_version`` not bumped.
     hitbox_margin_px: float | None = None
+    # The child's head position as Start was pressed (SPEC-gaze-stability-and-positioning.md 4.7):
+    # ``{"state": "green" | "orange" | "red" | "no_eyes" | "not_connected", "z_cm", "centre_x_cm",
+    # "centre_y_cm"}``, the last three null when there were no eyes to measure. None for a Mouse
+    # run, a run not started from the Start page, and older sessions. Information only: nothing is
+    # gated on it. Additive; ``schema_version`` not bumped.
+    head_position_at_start: dict[str, Any] | None = None
 
     def to_dict(self) -> dict[str, Any]:
         return {f.name: getattr(self, f.name) for f in fields(self)}

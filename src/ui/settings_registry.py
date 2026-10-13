@@ -21,7 +21,6 @@ from typing import Any
 
 from ..engine.input_choice import (
     POINTER_GAZE,
-    POINTER_MOUSE,
     SELECTION_DWELL,
     SELECTION_SWITCH,
     TASKS_WITHOUT_SELECTION,
@@ -34,6 +33,7 @@ from .choice_lists import (  # re-exported: the dialog and the tests import them
     TARGET_SIZE_CHOICES,
 )
 from .choice_settings import CHOICE_LIVE, CHOICE_STRUCTURAL, CHOICE_TIMEOUT, choice_cards
+from .gaze_settings import GAZE_DEPENDS_ON, GAZE_GREYED_BY, GAZE_LIVE, gaze_live_values
 from .setting_types import (  # re-exported: the two records live in setting_types.py
     MS_PER_S,
     LiveSetting,
@@ -111,24 +111,7 @@ LIVE_SETTINGS: list[LiveSetting] = [
         " on-target. Higher = steadier cursor, slightly less precise selection.",
         excludes=TASKS_WITHOUT_SELECTION,
     ),
-    LiveSetting(
-        "dwell.smoothing.enabled",
-        "Gaze smoothing enabled",
-        "settings",
-        "bool",
-        tooltip="Smooth out small frame-to-frame jitter in the raw gaze signal.",
-    ),
-    LiveSetting(
-        "dwell.smoothing.alpha",
-        "Smoothing alpha",
-        "settings",
-        "float",
-        0.05,
-        1.0,
-        0.05,
-        tooltip="Lower = steadier cursor, slightly slower to follow a new look."
-        " Higher = snappier cursor, more visible jitter.",
-    ),
+    *GAZE_LIVE,  # Gaze signal, AAC filter, smoothing on / type / alpha / One Euro (gaze_settings.py)
     LiveSetting(
         "task.timeout_ms",
         "Trial timeout (s)",
@@ -294,7 +277,6 @@ _DWELL_DEFAULTS = {
     "progress_ring": True,
     "instant_feedback": True,
 }
-_SMOOTHING_DEFAULTS = {"enabled": True, "alpha": 0.35}
 
 
 def get_nested(d: dict[str, Any], dotted_key: str, default: Any = None) -> Any:
@@ -323,7 +305,6 @@ def initial_live_values(config: dict[str, Any]) -> dict[str, Any]:
     task config's ``motion`` block.
     """
     dwell_cfg = config.get("dwell", {})
-    smoothing_cfg = dwell_cfg.get("smoothing", {})
     task_cfg = config.get("task", {})
     motion_cfg = task_cfg.get("motion", {})
     return {
@@ -337,8 +318,7 @@ def initial_live_values(config: dict[str, Any]) -> dict[str, Any]:
         "dwell.jitter_tolerance_px": dwell_cfg.get(
             "jitter_tolerance_px", _DWELL_DEFAULTS["jitter_tolerance_px"]
         ),
-        "dwell.smoothing.enabled": smoothing_cfg.get("enabled", _SMOOTHING_DEFAULTS["enabled"]),
-        "dwell.smoothing.alpha": smoothing_cfg.get("alpha", _SMOOTHING_DEFAULTS["alpha"]),
+        **gaze_live_values(dwell_cfg),
         "task.timeout_ms": task_cfg.get("timeout_ms", 8000),
         "task.inter_trial_interval_ms": task_cfg.get("inter_trial_interval_ms", 800),
         "task.post_effect_ms": task_cfg.get("post_effect_ms", 1000),
@@ -407,10 +387,11 @@ class ConfigControl:
     label: str
     depends_on: str | None = None  # key of a check box that greys this one while it is off
     setting: LiveSetting | StructuralSetting | None = None  # None for a "page" control
-    # ``(key of a radio group, value)``: greyed while that group holds that value
-    # (SPEC-input-selection-and-follow.md 4.1). A page without the group (Follow has
-    # no Selection) never greys it.
-    greyed_by: tuple[str, str] | None = None
+    # ``((key of a radio group, value), ...)``: greyed while any of those radio groups holds its
+    # value (SPEC-input-selection-and-follow.md 4.1; several pairs since the gaze signal and
+    # smoothing type, SPEC-gaze-stability-and-positioning.md 4.8). A page without the group
+    # (Follow has no Selection) never applies that pair.
+    greyed_by: tuple[tuple[str, str], ...] = ()
 
 
 @dataclass(frozen=True, slots=True)
@@ -431,19 +412,18 @@ _PAGE_CONTROLS = {
 }
 _WIDGET_BY_KIND = {"bool": "check", "int": "slider_int", "float": "slider_float", "choice": "radio"}
 # 4B.3: greyed in place, never hidden, while the control it names is off.
-_DEPENDS_ON = {"dwell.smoothing.alpha": "dwell.smoothing.enabled"}
+_DEPENDS_ON = {**GAZE_DEPENDS_ON}
 # 4.1, greyed in place the same way, but by what Selection says: Switch has no dwell
 # threshold and no dwell ring; Dwell has no glow. The refractory period and the jitter
 # tolerance stay active under Switch -- the debounce and the hitbox apply to it too.
-# A Mouse pointer is never smoothed (SPEC-preview-gaze-pointer.md P2, H6), so both smoothing
-# controls are greyed by Pointer = Mouse; the alpha is also in ``_DEPENDS_ON``, and the page
-# greys it when either rule says so (H7).
-_GREYED_BY = {
-    "dwell.threshold_ms": ("input.selection", SELECTION_SWITCH),
-    "dwell.progress_ring": ("input.selection", SELECTION_SWITCH),
-    "feedback.target_glow": ("input.selection", SELECTION_DWELL),
-    "dwell.smoothing.enabled": ("input.pointer", POINTER_MOUSE),
-    "dwell.smoothing.alpha": ("input.pointer", POINTER_MOUSE),
+# A Mouse pointer has no gaze signal and is never smoothed (SPEC-preview-gaze-pointer.md P2, H6),
+# so the whole Gaze Smoothing card is greyed by Pointer = Mouse; the rules of that card are in
+# ``gaze_settings`` and the page greys a control when any rule says so (H7).
+_GREYED_BY: dict[str, tuple[tuple[str, str], ...]] = {
+    "dwell.threshold_ms": (("input.selection", SELECTION_SWITCH),),
+    "dwell.progress_ring": (("input.selection", SELECTION_SWITCH),),
+    "feedback.target_glow": (("input.selection", SELECTION_DWELL),),
+    **GAZE_GREYED_BY,
 }
 # The cards in order of clinical weight (SPEC-design-system-phase2.md H6, V4): (id, title,
 # column, hint, control keys in order). Column 0 holds what the clinician sets first (the
@@ -466,7 +446,10 @@ _CARDS = (
         "feedback.target_glow", "feedback.hit_sound", "feedback.miss_sound")),
     ("selection", "Dwell", 2, None, (
         "dwell.threshold_ms", "dwell.refractory_ms", "dwell.jitter_tolerance_px")),
-    ("smoothing", "Gaze Smoothing", 2, None, ("dwell.smoothing.enabled", "dwell.smoothing.alpha")),
+    ("smoothing", "Gaze Smoothing", 2, None, (
+        "dwell.pointer_signal", "dwell.aac_filter_samples", "dwell.smoothing.enabled",
+        "dwell.smoothing.type", "dwell.smoothing.alpha", "dwell.smoothing.min_cutoff_hz",
+        "dwell.smoothing.beta")),
 )
 
 
@@ -487,7 +470,7 @@ def config_groups_for_task(task_id: str) -> list[ConfigGroup]:
         for s in settings:
             known[s.key] = ConfigControl(
                 s.key, layer, _WIDGET_BY_KIND[s.kind], s.label, _DEPENDS_ON.get(s.key), s,
-                _GREYED_BY.get(s.key),
+                _GREYED_BY.get(s.key, ()),
             )
     for key, (label, widget) in _PAGE_CONTROLS.items():
         known[key] = ConfigControl(key, "page", widget, label)

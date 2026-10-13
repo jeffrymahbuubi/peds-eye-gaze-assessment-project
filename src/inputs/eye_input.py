@@ -27,6 +27,13 @@ from dataclasses import dataclass
 
 from ..data.schema import GazeSample
 from .base import Pointer
+from .gaze_signal import (
+    ONE_EURO_BETA_DEFAULT,
+    ONE_EURO_MIN_CUTOFF_DEFAULT,
+    SMOOTHING_EMA,
+    SMOOTHING_ONE_EURO,
+)
+from .one_euro import OneEuroFilter
 
 
 @dataclass(frozen=True, slots=True)
@@ -45,10 +52,17 @@ class SmoothingConfig:
     # ground -- responsive enough for follow_moving's tracked target, smooth
     # enough to stop click_static-style dwell from resetting on noise.
     alpha: float = 0.35
+    # ``dwell.smoothing.type`` (SPEC-gaze-stability-and-positioning.md 4.3): ``ema`` is the
+    # running average above, ``one_euro`` the speed-adaptive filter with the two settings below
+    # (``alpha`` is then unused).
+    type: str = SMOOTHING_EMA
+    min_cutoff_hz: float = ONE_EURO_MIN_CUTOFF_DEFAULT  # lower = steadier at rest
+    beta: float = ONE_EURO_BETA_DEFAULT  # higher = less lag on a jump
 
 
 class GazeSmoother:
-    """Exponential moving average over the raw (x, y) point of gaze.
+    """Exponential moving average (or, for ``type="one_euro"``, the One Euro filter) over
+    the (x, y) point of the cursor's gaze signal.
 
     Deliberately applied only to the pointer used for cursor rendering and
     on-target hit-testing (see :meth:`EyeInput.poll`) -- never to the raw
@@ -61,14 +75,27 @@ class GazeSmoother:
         self.config = config or SmoothingConfig()
         self._x: float | None = None
         self._y: float | None = None
+        self._one_euro = (
+            OneEuroFilter(self.config.min_cutoff_hz, self.config.beta)
+            if self.config.type == SMOOTHING_ONE_EURO
+            else None
+        )
 
     def reset(self) -> None:
         """Drop the running average (e.g. after a gaze drop-out) so the next
         sample starts fresh instead of blending with a stale position."""
         self._x = None
         self._y = None
+        if self._one_euro is not None:
+            self._one_euro.reset()
 
-    def update(self, x: float, y: float) -> tuple[float, float]:
+    def update(self, x: float, y: float, t_ns: int | None = None) -> tuple[float, float]:
+        """The smoothed point. ``t_ns`` (the time of this sample) is what the One Euro filter
+        measures speed against and is required for it; the running average ignores it."""
+        if self._one_euro is not None and self.config.enabled:
+            if t_ns is None:
+                raise ValueError("The One Euro filter needs the time of each sample (t_ns).")
+            return self._one_euro.update(x, y, t_ns)
         if not self.config.enabled or self._x is None:
             self._x, self._y = x, y
             return x, y
@@ -241,7 +268,14 @@ class EyeInput:
             if self._last_valid is None:
                 return Pointer(x=0.5, y=0.5, valid=False, clicked=False)
             sample = self._last_valid
-        if not sample.valid:
+        # The cursor's own signal (SPEC-gaze-stability-and-positioning.md 4.1): the client fills
+        # it from the chosen POG; a source that has none (the mouse, a replayed fixture) drives
+        # the pointer from the sample's x / y / valid, which is the raw gaze.
+        if sample.pointer_x is None or sample.pointer_y is None:
+            px, py, valid = sample.x, sample.y, sample.valid
+        else:
+            px, py, valid = sample.pointer_x, sample.pointer_y, bool(sample.pointer_valid)
+        if not valid:
             # Don't let an invalid/stale point smear the running average --
             # the next valid sample should start a fresh average rather than
             # blend toward wherever gaze happened to be lost.
@@ -253,7 +287,7 @@ class EyeInput:
                 return Pointer(x=0.5, y=0.5, valid=False, clicked=False)
             fx, fy = self._last_pointer_xy
             return Pointer(x=fx, y=fy, valid=False, clicked=False)
-        sx, sy = self.smoother.update(sample.x, sample.y)
+        sx, sy = self.smoother.update(px, py, t_ns)
         self._last_pointer_xy = (sx, sy)
         return Pointer(x=sx, y=sy, valid=True, clicked=False)
 

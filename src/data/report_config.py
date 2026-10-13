@@ -1,11 +1,11 @@
 """The report's Test Configuration table (SPEC-compass-task-flow.md 4D.3, R7).
 
-``build_config_rows(snapshot, metadata)`` turns what a run used into 17 label/value
+``build_config_rows(snapshot, metadata)`` turns what a run used into 18 label/value
 rows like Compass's. ``snapshot`` is ``metadata["settings"]``
 (``{config_name, live, structural}``, R7): what was *requested*. The resolved facts
 (target size in px, the capped cell gap, the display, the calibration) come from the
 rest of ``metadata.json``. A value its source lacks is "not recorded", never a guess, so an old
-folder with a partial snapshot still gives all 17 rows.
+folder with a partial snapshot still gives all 18 rows.
 
 Pure and Qt-free. ``live`` is a flat dict keyed like ``dwell.threshold_ms``;
 ``structural`` mirrors the task YAML (``{"trials": 6, "target": {"size": ...}}``).
@@ -17,6 +17,12 @@ from typing import Any
 
 from ..engine.target_size import GAP_NAMES, SIZE_NAMES
 from ..engine.task_info import TASK_INFO
+from ..inputs.gaze_signal import (
+    SIGNAL_ASSISTIVE,
+    SMOOTHING_ONE_EURO,
+    normalize_signal,
+    signal_label,
+)
 from ..tasks.choice_layout import normalise_prompt_mode
 from ..tasks.follow_moving import MOTION_PATH_LABELS
 from .report_util import NOT_RECORDED, seconds_text
@@ -193,6 +199,20 @@ def _feedback_row(snapshot: dict[str, Any]) -> str:
     return f"{text[:1].upper()}{text[1:]}" if parts else NOT_RECORDED
 
 
+def _signal_row(snapshot: dict[str, Any]) -> str:
+    """The "Gaze signal" row: which POG moved the cursor, with the AAC window for Assistive
+    (SPEC-gaze-stability-and-positioning.md 4.4). Not recorded on a run made before the setting."""
+    signal = setting(snapshot, "dwell.pointer_signal", "dwell", "pointer_signal")
+    if signal is None:
+        return NOT_RECORDED
+    text = signal_label(signal)
+    if normalize_signal(signal) == SIGNAL_ASSISTIVE:
+        samples = _num(setting(snapshot, "dwell.aac_filter_samples", "dwell", "aac_filter_samples"))
+        if samples is not None:
+            text += f", AAC filter {samples:g} samples"
+    return text
+
+
 def _smoothing_row(snapshot: dict[str, Any]) -> str:
     enabled = setting(snapshot, "dwell.smoothing.enabled", "dwell", "smoothing", "enabled")
     alpha = _num(setting(snapshot, "dwell.smoothing.alpha", "dwell", "smoothing", "alpha"))
@@ -201,6 +221,15 @@ def _smoothing_row(snapshot: dict[str, Any]) -> str:
         return NOT_RECORDED
     head = NOT_RECORDED if enabled is None else (f"On, alpha {alpha:g}" if enabled and alpha is not None
                                                  else ("On" if enabled else "Off"))
+    if enabled and setting(snapshot, "dwell.smoothing.type", "dwell", "smoothing", "type") == SMOOTHING_ONE_EURO:
+        # The adaptive filter has no alpha: its two settings are what was chosen.
+        cutoff = _num(setting(snapshot, "dwell.smoothing.min_cutoff_hz", "dwell", "smoothing", "min_cutoff_hz"))
+        beta = _num(setting(snapshot, "dwell.smoothing.beta", "dwell", "smoothing", "beta"))
+        head = "On, adaptive (One Euro)"
+        if cutoff is not None:
+            head += f", steadiness {cutoff:g} Hz"
+        if beta is not None:
+            head += f", responsiveness {beta:g}"
     return head if jitter is None else f"{head}, jitter tolerance {jitter:g} px"
 
 
@@ -311,15 +340,15 @@ def build_config_rows(
     geometry: Any = None,
     follow_layout: bool = False,
 ) -> list[tuple[str, str]]:
-    """The 17 ``(label, value)`` rows of the Test Configuration table.
+    """The 18 ``(label, value)`` rows of the Test Configuration table.
 
     ``task_id`` falls back to ``metadata["tasks"][0]``; ``shrunk`` is the run's
     ``TARGET_SHRUNK`` event payload (the preset did not fit its cell); ``geometry``
     (a :class:`~.report_geometry.Geometry`) adds the calibration error in degrees.
     ``follow_layout`` is a Follow the Target run (SPEC-input-selection-and-follow.md 4.5): it
-    has nothing to select, so the **Selection** row is left out (16 rows), and its trials last
+    has nothing to select, so the **Selection** row is left out (17 rows), and its trials last
     a fixed time, so "Trial timeout" reads **Trial duration**. Choice-making's rows are
-    :func:`_choice_rows` (20: the button size, time to choose, pause after the animation, scene,
+    :func:`_choice_rows` (21: the button size, time to choose, pause after the animation, scene,
     prompt, visual cue and idle animation in place of the target size, timeout, interval and theme).
     """
     snapshot = snapshot if isinstance(snapshot, dict) else {}
@@ -349,6 +378,7 @@ def build_config_rows(
         ("Theme", _theme_row(snapshot)),
         ("Gaze cursor", _shown_hidden(cursor)),
         ("Feedback", _feedback_row(snapshot)),
+        ("Gaze signal", _signal_row(snapshot)),
         ("Gaze smoothing", _smoothing_row(snapshot)),
         ("Display", _display_row(meta)),
         ("Viewing distance", f"{distance:g} mm" if distance else NOT_RECORDED),

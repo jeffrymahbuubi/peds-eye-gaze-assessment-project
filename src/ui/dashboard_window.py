@@ -180,6 +180,7 @@ class DashboardWindow(QMainWindow):
             return
         self._close_pending = False
         self.setup_page.stop_threads()
+        self.setup_page.release_tracker()
         super().closeEvent(event)
 
     def close_if_pending(self) -> None:

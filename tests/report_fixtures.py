@@ -54,6 +54,7 @@ RIG_META: dict[str, Any] = {
         "live": {
             "dwell.threshold_ms": 800, "dwell.refractory_ms": 500,
             "dwell.jitter_tolerance_px": 40, "dwell.visual_cursor": True,
+            "dwell.pointer_signal": "best",
             "dwell.smoothing.enabled": True, "dwell.smoothing.alpha": 0.22,
             "task.timeout_ms": 8000, "task.inter_trial_interval_ms": 800,
         },

@@ -339,8 +339,8 @@ def test_unticking_smoothing_greys_the_alpha_and_reticking_restores_it(qapp):
     page, _ = _page("click_static")
     enabled = page._form.controls["dwell.smoothing.enabled"]
     alpha = page._form.controls["dwell.smoothing.alpha"]
-    (_master, widgets), = page._form.dependents
-    assert alpha in widgets and len(widgets) == 2  # the control and its label
+    widgets, = [ws for _master, ws in page._form.dependents if alpha in ws]
+    assert len(widgets) == 2  # the control and its label
     enabled.setChecked(False)
     assert all(not w.isEnabled() for w in widgets)
     assert not alpha.isHidden()  # greyed in place, never hidden

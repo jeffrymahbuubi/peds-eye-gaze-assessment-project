@@ -385,8 +385,10 @@ def test_the_alpha_is_greyed_if_either_rule_says_so(qapp, pointer, checked):
     expected = checked and pointer == "gaze"
     assert active(page, "dwell.smoothing.alpha") is expected
     # The label greys with its slider, whichever rule did it.
+    alpha = control(page, "dwell.smoothing.alpha")
     for _master, widgets in page._form.dependents:
-        assert all(w.isEnabled() is expected for w in widgets)
+        if alpha in widgets:  # the One Euro numbers are greyed under Simple whatever these say
+            assert all(w.isEnabled() is expected for w in widgets)
     assert active(page, "dwell.smoothing.enabled") is (pointer == "gaze")
 
 

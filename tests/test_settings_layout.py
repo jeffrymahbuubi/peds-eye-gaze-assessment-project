@@ -35,7 +35,11 @@ FEEDBACK = [
 FOLLOW_FEEDBACK = ["dwell.visual_cursor", "feedback.target_glow", "feedback.hit_sound"]
 INPUT = ["input.pointer", "input.selection"]  # Follow the Target has no Selection (I9)
 SELECTION = ["dwell.threshold_ms", "dwell.refractory_ms", "dwell.jitter_tolerance_px"]
-SMOOTHING = ["dwell.smoothing.enabled", "dwell.smoothing.alpha"]
+SMOOTHING = [
+    "dwell.pointer_signal", "dwell.aac_filter_samples", "dwell.smoothing.enabled",
+    "dwell.smoothing.type", "dwell.smoothing.alpha", "dwell.smoothing.min_cutoff_hz",
+    "dwell.smoothing.beta",
+]
 TEST_CARD = ["test.name", "test.config_name", "trials", "test.notes"]
 TIMING = ["task.timeout_ms", "task.inter_trial_interval_ms"]
 
@@ -163,10 +167,12 @@ def test_widget_kinds_follow_the_compass_principle():
 
 
 @pytest.mark.parametrize("task_id", TASKS)
-def test_only_smoothing_alpha_depends_on_something(task_id):
+def test_only_the_three_smoothing_numbers_depend_on_something(task_id):
     controls = {c.key: c for c in _controls(task_id)}
     assert {k: c.depends_on for k, c in controls.items() if c.depends_on} == {
-        "dwell.smoothing.alpha": "dwell.smoothing.enabled"
+        "dwell.smoothing.alpha": "dwell.smoothing.enabled",
+        "dwell.smoothing.min_cutoff_hz": "dwell.smoothing.enabled",
+        "dwell.smoothing.beta": "dwell.smoothing.enabled",
     }
     # The control it names exists on the same page and is a check box.
     assert controls["dwell.smoothing.enabled"].widget == "check"

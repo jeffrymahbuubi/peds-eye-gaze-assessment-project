@@ -35,6 +35,8 @@ from pathlib import Path
 
 from ..data.schema import GazeSample
 from ..engine.clock import now_ns
+from .gaze_signal import SIGNAL_BEST, pointer_from_rec
+from .head_position import EyePosition, eye_position_from_attrs
 
 _log = logging.getLogger(__name__)
 
@@ -173,10 +175,14 @@ class DeviceInfo:
     # TIME_TICK_FREQUENCY: divisor turning TIME_TICK into seconds; recorded in
     # all_gaze.csv's TIMETICK(f=..) header for parity with Analysis's export.
     tick_frequency: int | None = None
+    # AAC_FILTER: the APOG moving-window length Gazepoint Control holds now. The first value a
+    # client reads is the one it restores when it lets go (SPEC-gaze-stability-and-positioning.md 4.2).
+    aac_filter: int | None = None
 
 
 _DEVICE_INFO_QUERY_IDS = (
     "PRODUCT_ID", "SERIAL_ID", "CAMERA_SIZE", "API_ID", "SCREEN_SIZE", "TIME_TICK_FREQUENCY",
+    "AAC_FILTER",
 )
 _DEVICE_INFO_TIMEOUT_S = 0.5
 
@@ -229,6 +235,7 @@ def _query_device_info(sock: socket.socket) -> DeviceInfo:
     api = fields.get("API_ID", {})
     screen = fields.get("SCREEN_SIZE", {})
     tick = fields.get("TIME_TICK_FREQUENCY", {})
+    aac = fields.get("AAC_FILTER", {})
     return DeviceInfo(
         model=_clean_placeholder(product.get("VALUE"), placeholders=("NONE",)),
         bus=product.get("BUS") or None,
@@ -242,6 +249,7 @@ def _query_device_info(sock: socket.socket) -> DeviceInfo:
         screen_width=_parse_int(screen.get("WIDTH")),
         screen_height=_parse_int(screen.get("HEIGHT")),
         tick_frequency=_parse_int(tick.get("FREQ")),
+        aac_filter=_parse_int(aac.get("VALUE")),
     )
 
 
@@ -261,12 +269,16 @@ def _clean_placeholder(raw: str | None, *, placeholders: tuple[str, ...]) -> str
     return raw
 
 
-def rec_to_sample(attrs: dict[str, str], t_ns: int) -> GazeSample:
+def rec_to_sample(
+    attrs: dict[str, str], t_ns: int, pointer_signal: str = SIGNAL_BEST
+) -> GazeSample:
     """Convert parsed REC attributes to a normalized :class:`GazeSample`.
 
-    Uses the *best* POG (BPOG) as the pointer when valid, otherwise falls back
-    to the fixation POG (FPOG). ``t_ns`` is the capture timestamp to stamp on
-    the sample (callers pass the receive time for live data).
+    The sample's ``x`` / ``y`` / ``valid`` (the recorded raw gaze) use the *best* POG (BPOG)
+    when valid, otherwise the fixation POG (FPOG), whatever ``pointer_signal`` is. The
+    ``pointer_*`` fields carry the signal the cursor is built from (``best`` / ``fixation`` /
+    ``assistive``; SPEC-gaze-stability-and-positioning.md 4.1). ``t_ns`` is the capture
+    timestamp to stamp on the sample (callers pass the receive time for live data).
     """
     bpogv = _to_bool(attrs, "BPOGV")
     fpogv = _to_bool(attrs, "FPOGV")
@@ -282,6 +294,7 @@ def rec_to_sample(attrs: dict[str, str], t_ns: int) -> GazeSample:
 
     fix_id = attrs.get("FPOGID")
     fixation_id = int(fix_id) if (fix_id not in (None, "") and fpogv) else None
+    pointer_x, pointer_y, pointer_valid = pointer_from_rec(attrs, pointer_signal, (x, y, valid))
 
     return GazeSample(
         t_ns=t_ns,
@@ -292,6 +305,9 @@ def rec_to_sample(attrs: dict[str, str], t_ns: int) -> GazeSample:
         fix_duration_s=_to_float(attrs, "FPOGD"),
         pupil_left=_to_float(attrs, "LPMM"),
         pupil_right=_to_float(attrs, "RPMM"),
+        pointer_x=pointer_x,
+        pointer_y=pointer_y,
+        pointer_valid=pointer_valid,
     )
 
 
@@ -418,11 +434,20 @@ class GazepointClient:
         self._lock = threading.Lock()
         self._latest: GazeSample | None = None
         self._last_raw_pog: dict[str, str] | None = None
+        # The newest 3D eye positions, for the head-position widget (SPEC-gaze-stability-and-
+        # positioning.md 4.7); kept apart from ``_latest`` so the recording schema is unaffected.
+        self._latest_eye: EyePosition | None = None
         # Every raw <REC> since the last drain_raw(), for all_gaze.csv -- the
         # recorder needs each record at device rate, not the one-per-GUI-frame
         # view latest() gives.
         self._raw_queue: deque[tuple[int, dict[str, str]]] = deque(maxlen=_RAW_QUEUE_MAX)
         self._device_info: DeviceInfo | None = None
+        # The cursor's signal (``dwell.pointer_signal``, set per run) and the AAC_FILTER value
+        # Gazepoint Control held when this client first connected, restored by
+        # :meth:`restore_aac_filter` once this client changed it (G7).
+        self._pointer_signal = SIGNAL_BEST
+        self._aac_original: int | None = None
+        self._aac_changed = False
         # Replay mode has no socket to lose, so it's always "connected".
         self._connected = replay_path is not None
         # Pause bookkeeping (SPEC-audit-fixes.md H2). ``_pause_depth`` counts the pauses
@@ -457,10 +482,15 @@ class GazepointClient:
         try:
             sock.settimeout(1.0)
             self._device_info = _query_device_info(sock)
+            if self._aac_original is None:  # the value to give back, read once (a reconnect keeps it)
+                self._aac_original = self._device_info.aac_filter
             for key, enabled in self._enable.items():
                 record_id = _ENABLE_RECORDS.get(key)
                 if record_id and enabled:
                     sock.sendall(enable_command(record_id, True))
+            # Always on, whatever gazepoint.enable.* says: a run can switch to the Assistive
+            # signal without reconnecting (SPEC-gaze-stability-and-positioning.md 4.1).
+            sock.sendall(enable_command("ENABLE_SEND_POG_AAC", True))
             # Master switch: individual ENABLE_SEND_* calls above only select
             # which fields appear in each REC; the server won't stream any REC
             # records at all until ENABLE_SEND_DATA is set (API manual §3.1).
@@ -634,9 +664,53 @@ class GazepointClient:
         finally:
             self.resume_streaming()
 
+    def set_pointer_signal(self, signal: str) -> None:
+        """Choose which POG the samples' ``pointer_*`` fields carry from now on (``best`` /
+        ``fixation`` / ``assistive``, SPEC-gaze-stability-and-positioning.md 4.1). The raw
+        ``x`` / ``y`` are unaffected. Live sockets only: a replayed fixture keeps ``best``."""
+        self._pointer_signal = signal
+
+    def set_aac_filter(self, samples: int) -> bool:
+        """Send ``SET AAC_FILTER`` (the APOG moving-window length, SPEC 4.2). The setting is
+        shared with Windows Eye Control on this PC, so :meth:`restore_aac_filter` gives the
+        original value back on :meth:`stop`. Returns whether the command was sent."""
+        if self._aac_original is None:
+            _log.warning("AAC_FILTER original value unknown; it cannot be restored later.")
+        if not self._send_aac_filter(samples):
+            return False
+        self._aac_changed = True
+        return True
+
+    def restore_aac_filter(self) -> bool:
+        """Give Gazepoint Control its own ``AAC_FILTER`` value back, if this client changed it.
+        Called by :meth:`stop` (a Disconnect or a closing app); safe to call again."""
+        if not self._aac_changed or self._aac_original is None:
+            return False
+        sent = self._send_aac_filter(self._aac_original)
+        self._aac_changed = False
+        return sent
+
+    def _send_aac_filter(self, samples: int) -> bool:
+        sock = self._sock
+        if sock is None:
+            return False
+        try:
+            sock.sendall(f'<SET ID="AAC_FILTER" VALUE="{int(samples)}" />\r\n'.encode("ascii"))
+        except OSError:
+            return False
+        _log.info("Sent AAC_FILTER %d", samples)
+        return True
+
     def latest(self) -> GazeSample | None:
         with self._lock:
             return self._latest
+
+    def latest_eye_position(self) -> EyePosition | None:
+        """The 3D eye positions of the most recent REC that carried any, for the head-position
+        widget (SPEC-gaze-stability-and-positioning.md 4.7). Thread-safe like :meth:`latest`;
+        ``None`` before one has arrived and after the link is lost."""
+        with self._lock:
+            return self._latest_eye
 
     def last_raw_pog(self) -> dict[str, str] | None:
         """The raw point-of-gaze attributes of the most recent REC, verbatim.
@@ -681,6 +755,7 @@ class GazepointClient:
         if self._thread is not None:
             self._thread.join(timeout=2.0)
             self._thread = None
+        self.restore_aac_filter()  # before the socket goes: Eye Control keeps its own smoothing
         if self._sock is not None:
             try:
                 self._sock.close()
@@ -694,6 +769,7 @@ class GazepointClient:
         with self._lock:
             self._latest = None
             self._last_raw_pog = None
+            self._latest_eye = None
 
     # -- reader loops ------------------------------------------------------
 
@@ -707,6 +783,9 @@ class GazepointClient:
             if attrs is not None:
                 self._last_raw_pog = {k: attrs[k] for k in self._RAW_POG_KEYS if k in attrs}
                 self._raw_queue.append((sample.t_ns, attrs))
+                eye = eye_position_from_attrs(attrs, time.monotonic())
+                if eye is not None:
+                    self._latest_eye = eye
 
     def _run_socket(self) -> None:
         buffer = ""
@@ -736,7 +815,16 @@ class GazepointClient:
                 line, buffer = buffer.split("\n", 1)
                 attrs = parse_rec(line)
                 if attrs is not None:
-                    self._set_latest(rec_to_sample(attrs, now_ns()), attrs)
+                    self._set_latest(rec_to_sample(attrs, now_ns(), self._pointer_signal), attrs)
+                else:
+                    self._log_ack(line)
+
+    @staticmethod
+    def _log_ack(line: str) -> None:
+        """Log the device's ACK of an ``AAC_FILTER`` command (the one reply the reader keeps)."""
+        parsed = parse_attrs(line)
+        if parsed is not None and parsed[0] == "ACK" and parsed[1].get("ID") == "AAC_FILTER":
+            _log.info("Gazepoint ACK AAC_FILTER VALUE=%s", parsed[1].get("VALUE"))
 
     def _on_disconnected(self) -> None:
         # Before the flag: whoever sees "disconnected" never finds the old sample still there.

@@ -168,7 +168,7 @@ def test_every_table_of_the_report_page_fits_when_the_page_is_built_before_the_d
     QCoreApplication.processEvents()
     QCoreApplication.processEvents()
     tables = report_tables(page)
-    assert tables["config"].rowCount() == 17 and tables["summary"].rowCount() >= 3
+    assert tables["config"].rowCount() == 18 and tables["summary"].rowCount() >= 3
     assert tables["eye"].rowCount() == 10
     for table in tables.values():
         assert_fits(table)

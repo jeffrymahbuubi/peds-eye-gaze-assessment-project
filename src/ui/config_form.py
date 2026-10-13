@@ -109,8 +109,9 @@ class ConfigForm:
         self.kinds: dict[str, str] = {}  # registry key -> bool | int | float | choice
         self.dependents: list[tuple[str, list[QWidget]]] = []  # (master key, widgets greyed)
         # (radio key, value, widgets): greyed while that radio group holds that value
-        # (SPEC-input-selection-and-follow.md 4.1). A control may be in both lists (the
-        # smoothing alpha, SPEC-preview-gaze-pointer.md H7): it is greyed if either says so.
+        # (SPEC-input-selection-and-follow.md 4.1). A control may be in both lists, or have
+        # several entries (the smoothing alpha, SPEC-preview-gaze-pointer.md H7; the gaze-signal
+        # card, SPEC-gaze-stability-and-positioning.md 4.8): it is greyed if any says so.
         self.greyed_when: list[tuple[str, str, list[QWidget]]] = []
         self.cards: dict[str, QFrame] = {}
         self.fit_hint: AlertBox | None = None
@@ -196,8 +197,7 @@ class ConfigForm:
             self.kinds[control.key] = setting.kind
         if control.depends_on:
             self.dependents.append((control.depends_on, [w for w in (label, widget) if w]))
-        if control.greyed_by:
-            master, value = control.greyed_by
+        for master, value in control.greyed_by:  # greyed while any of the pairs holds
             self.greyed_when.append((master, value, [w for w in (label, widget) if w]))
 
     def _widget(self, control: ConfigControl) -> QWidget:

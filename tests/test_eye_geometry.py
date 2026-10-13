@@ -184,7 +184,12 @@ def test_all_gaze_layout_and_gaze_stream_header_unchanged(tmp_path: Path):
     assert len(gaze_header) == len(ALL_GAZE_COLUMNS) == 62
     assert not any(c in gaze_header for c in ("LEYEZ", "LPOGX"))
     stream_header = (session_dir / "gaze_stream.csv").read_text(encoding="utf-8").splitlines()[0]
-    assert stream_header == "t_ns,x,y,valid,fixation_id,fix_duration_s,pupil_left,pupil_right"
+    # The raw columns are unchanged; the cursor columns (SPEC-gaze-stability-and-positioning.md
+    # 4.4) come after them.
+    assert stream_header == (
+        "t_ns,x,y,valid,fixation_id,fix_duration_s,pupil_left,pupil_right,"
+        "pointer_x,pointer_y,pointer_valid"
+    )
 
 
 def test_rec_to_eye_geometry_row_formats_time():
