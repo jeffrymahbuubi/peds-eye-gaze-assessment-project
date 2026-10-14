@@ -1,10 +1,10 @@
 ---
 name: SPEC-design-system-phase3
 title: Design system v1, phase 3: canvas feedback ladder, theme colour keys and full screen during a run
-status: approved 2026-10-08 (W1-W2 user decisions, H1-H10 hub decisions approved by the user)
+status: DROPPED 2026-10-14 by the user after the live look (prefers the current canvas and its sparkle burst); was approved 2026-10-08, implemented + hub-reviewed 2026-10-09, never committed
 created: 2026-10-08
 last_updated: 2026-10-08
-next_step: /spec-run after phase 2 (no wireframe gate: the canvas is not wireframed; live check with the user as subject)
+next_step: none (dropped; the canvas stays as on feature/compass-task-flow)
 related:
   - docs/design/fable-proposal.md (source: §2.6 canvas rules, §3.6 R1 and R4, §5.2 phase 3, §6.1 and §6.3)
   - docs/design/fable-evaluation.md §5 (canvas findings)
@@ -162,3 +162,4 @@ not built); any new setting on the configuration page.
   proposed, awaiting approval. Found while drafting: today's hit particles age per paint (frame-rate
   dependent), so H7 moves the burst and the flash to a clock.
 - **2026-10-08** — The user approved H1-H10 as written. SPEC committed on `feature/compass-task-flow`.
+- **2026-10-14** - **DROPPED by the user.** The implementation (worktree `design-phase3`, hub-reviewed 2026-10-09, never committed) was applied onto `feature/compass-task-flow` at `075a7d0` with no conflicts (pytest 4441: 4435 passed, 5 known alpha baseline + 1 test-isolation failure from a copied `local_state.json`) and tried live by the user on the GP3 HD. The user prefers the current canvas, especially the sparkle burst after a completed dwell over the 500 ms flash, and chose to drop all of phase 3 (not only the success cue): flat target, shape-following outline, single on-target ring, glow cap, full screen during runs and the theme colour keys all stay as today. Both worktrees (`design-phase3`, `phase3-int`) removed without merging.
