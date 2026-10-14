@@ -1,10 +1,10 @@
 ---
 name: SPEC-app-drawn-calibration
 title: Grid 3-style calibration drawn by the app (own icons, glide, results map, Improve calibration) with Gazepoint Control's window as fallback
-status: IMPLEMENTED 2026-10-13 - plan steps 3-4 DONE (hub-reviewed, pytest 4310: 4305 + 5 worktree baseline; device-free live check against real Gazepoint Control PASSED); GP3 HD accuracy check (A8, A9, A10) pending
+status: REVISION APPROVED 2026-10-14 - live-check revision 4.8 (D9 centre first, D10 Check accuracy view, D11 one error measure), wireframe OK; implementation next; first version IMPLEMENTED 2026-10-13 (`8db9e56`)
 created: 2026-10-13
-last_updated: 2026-10-13
-next_step: plan step 5 on the GP3 HD with the user as subject: P4 accuracy App vs Control screen per speed preset (Fast hold), A8-A10, Show Monitor with a real head; check why point 1 took ~1 s longer than DELAY + TIMEOUT
+last_updated: 2026-10-14
+next_step: plan step 7 (implement 4.8 R1-R3, A14-A16) and step 8 (repeat the 4 + 4 GP3 HD runs)
 related:
   - SPEC-grid3-calibration-parklife-feasibility.md (verdicts C1-C19, probes P1-P3 PASSED 6.1, answers Q1-Q8 7.1)
   - SPEC-gaze-stability-and-positioning.md (head-position widget, reused here as "Show Monitor")
@@ -17,7 +17,7 @@ related:
 
 # SPEC-app-drawn-calibration
 
-**Status: IMPLEMENTED 2026-10-13 (hub-reviewed, device-free check passed); the GP3 HD accuracy check is pending.**
+**Status: REVISION APPROVED 2026-10-14 (section 4.8, from the first GP3 HD runs; wireframe OK); the first version is IMPLEMENTED 2026-10-13 (`8db9e56`).**
 
 ## 1. Origin
 
@@ -51,6 +51,9 @@ related:
 | D6 | **The "Show calibration window" tick box becomes a choice "Calibration screen: App (Grid 3 style) / Gazepoint Control"**, default App. The automatic fallback (4.2) stays (user, 2026-10-13). |
 | D7 | **Speed is set through the Gazepoint API** (`CALIBRATE_DELAY` = glide, `CALIBRATE_TIMEOUT` = hold), as in 4.3b (user, 2026-10-13). |
 | D8 | **Size is drawn by the app**: the API has no target-size command, so it applies to the App screen only (4.3b) (user, 2026-10-13). |
+| D9 | **Centre point first** (amends D5's order): C, TL, BR, TR, BL; the 9-point layout then adds the edge midpoints as before. Positions stay at 10 % / 90 % (user, 2026-10-14, 4.8). |
+| D10 | **Check accuracy view after the results map** (a copy of Gazepoint Control's after-calibration window: target circles plus a live green gaze trail), opened by a **Check accuracy** button on the map (user, 2026-10-14, 4.8). |
+| D11 | **One error measure for both screens:** the badge's mean error comes from `CALIB_RESULT` for the Gazepoint Control screen too, not from Control's `AVE_ERROR` (hub proposal from the 2026-10-14 data, agreed by the user 2026-10-14, 4.8). |
 
 ## 3. Current code (as of `5a035d7`)
 
@@ -225,6 +228,76 @@ greyed for Gazepoint Control.
 - `_diagnostics/calibration_timing.jsonl` adds per-point times (start, result, glide end, hold
   start) to verify the hold rule in 4.1.
 
+### 4.8 Live-check revision (2026-10-14)
+
+**Evidence.** On 2026-10-14 the user (as subject, GP3 HD, Slow speed, Large ball, white background)
+ran 4 calibrations on each screen, saved as subjects `GRID3STYLE`, `GRID3STYLE-TEST-1..3`,
+`GAZEPOINTSTYLE`, `GAZEPOINTSTYLE-TEST-1..3`. The same measure is used for both (per-point error from
+`CALIB_RESULT`, `error_deg`, mean of both eyes):
+
+| Run | Screen | Mean, 5 pts | 4 corners | Centre (its order) | Badge (as shown) |
+|---|---|---|---|---|---|
+| GRID3STYLE | App | 0.71 deg | 0.44 | 1.77 (5th) | 29.3 px (ours) |
+| GRID3STYLE-TEST-1 | App | 0.87 | 0.54 | 2.17 (5th) | 35.9 px (ours) |
+| GRID3STYLE-TEST-2 | App | 0.49 | 0.30 | 1.21 (5th) | 20.1 px (ours) |
+| GRID3STYLE-TEST-3 | App | 0.66 | 0.41 | 1.65 (5th) | 27.3 px (ours) |
+| **App, average** | | **0.68** | **0.42** | **1.70** | |
+| GAZEPOINTSTYLE | Control | 0.56 | 0.35 | 1.41 (1st) | 37.7 px (Control's) |
+| GAZEPOINTSTYLE-TEST-1 | Control | 0.29 | 0.18 | 0.74 (1st) | 43.2 px (Control's) |
+| GAZEPOINTSTYLE-TEST-2 | Control | 0.45 | 0.28 | 1.12 (1st) | 31.5 px (Control's) |
+| GAZEPOINTSTYLE-TEST-3 | Control | 0.50 | 0.31 | 1.25 (1st) | 19.5 px (Control's) |
+| **Control, average** | | **0.45** | **0.28** | **1.13** | |
+
+Findings:
+- The centre is the weakest point on **both** screens; on the App screen it is amber in every run
+  (what the user saw). Control's own window shows no score, so its weak centre was not visible.
+- The App screen is about 0.2 deg worse overall: 0.68 vs 0.45 deg mean, 1.70 vs 1.13 deg at the
+  centre. Its corners are further out (10/90 % vs Control's 15/85 %) and its centre comes last;
+  Control's comes first.
+- In every run the centre's estimate sits mostly **above** the target (dy -0.02 to -0.09 of the
+  screen height).
+- The badge numbers of the two screens are not comparable: the Control screen's badge is Control's
+  own `AVE_ERROR`, which does not follow the per-point data (the best Control run, 0.29 deg, had
+  the worst badge, 43.2 px).
+- All runs are within the GP3 HD's rated 0.5-1 deg, so a live accuracy check (D10) is worth having.
+
+**R1 - Centre first (D9).** `_APP_LAYOUT` order becomes C, TL, BR, TR, BL, then (9 points) top,
+right, bottom, left midpoints. Positions unchanged. The icon still enters from the top-left corner,
+so the first glide goes to the centre. The results map shows the points where they are; nothing
+else changes. If the 4 + 4 re-runs (plan step 8) still show a clear gap, the next candidate is
+moving the corners to 15/85 % (not part of this revision).
+
+**R2 - One error measure (D11).** For the Gazepoint Control screen and the fallback, the badge's
+`mean_error_px` is computed from `CALIB_RESULT` with `calibration_settings.mean_error_px`, the same
+as the App screen; `valid` = any eye of any point valid. The per-point `score` / `error_deg` are
+added to their `calibration.json` too (`annotate_result` for every mode). Control's `AVE_ERROR`
+is still logged in `calibration_timing.jsonl` (as `control_ave_error_px`) for comparison but no
+longer shown or saved as the result. When no `CALIB_RESULT` arrives (the old path's
+`calib_result_never`), today's behaviour stays.
+
+**R3 - Check accuracy view (D10).** A sixth state of the calibration window (App screen only),
+a copy of Gazepoint Control's after-calibration window
+(`resources/images/window-after-calibration.png`):
+- Opened by a **Check accuracy** button on the results map (beside Show Monitor). Buttons in the
+  view: **Repeat calibration** (= Improve calibration: full re-run, then the results map),
+  **Results** (back to the map), **Done** (= Back: closes the window, keeps the result). Esc / X =
+  Done.
+- **Targets:** 11 circles in rows of 4-3-4 as Control draws them: centres at x 18 / 39 / 61 /
+  82 % (top and bottom rows) and 29 / 50 / 71 % (middle row), y 18 / 50 / 82 %. Each is a thin
+  ring with a small "+" at its centre; ring radius 3 deg (from the geometry, like the icon sizes).
+  Ring and "+" use the background's contrast colour (dark on white/grey, light on black).
+- **Live gaze trail:** the current point of gaze (the session's POG as recorded, with **no app
+  smoothing**, so the view shows the calibration, not the cursor filter), drawn as small green
+  circles for the samples of the last 1 s, joined by a thin green line; only valid samples. No
+  gaze for 0.5 s: the trail fades out and the line "No gaze. Check the head position." appears.
+- **Status lines** bottom left (green, like Control's): "Left eye: n of N points valid",
+  "Right eye: n of N points valid", from `CALIB_RESULT`.
+- The gaze stream is needed here: the reader thread is resumed after `CALIB_RESULT` (it is paused
+  only around the run), and the view reads the latest samples from the client (no new socket).
+- Not recorded: the view is a visual check only; `calibration.json` only adds
+  `accuracy_checked: true|false` (whether the view was opened before Done).
+- The Gazepoint Control screen is unchanged: Control shows its own window there.
+
 ## 5. Scope
 
 **In:**
@@ -263,6 +336,10 @@ greyed for Gazepoint Control.
 | A11 | Full pytest stays green | hub rerun |
 | A12 | Calibration screen = Gazepoint Control runs today's path; App is the default; the old `calibration.show` value maps to the new setting (`true` -> App) | unit test |
 | A13 | The Start-test Calibrate button (gaze tests only) runs the calibration, Back returns to the Start page, and the blocker clears on success | unit test + live |
+| A14 | (4.8 R1) The App screen sends the centre point first: 5 points C, TL, BR, TR, BL; 9 points then add top, right, bottom, left; the map still places each point at its position | unit test |
+| A15 | (4.8 R2) For every mode the badge's mean error and `valid` come from `CALIB_RESULT`; `AVE_ERROR` only in the timing log; `calibration.json` has per-point `score` / `error_deg` for the Control screen too | unit test |
+| A16 | (4.8 R3) Check accuracy opens from the map; 11 rings at the 4-3-4 positions; the trail shows the last 1 s of valid unsmoothed gaze from the client; no gaze for 0.5 s gives the hint; Repeat = full re-run, Results = map, Done / Esc / X = Back keeping the result; `accuracy_checked` recorded | unit test with the fake Control + fake gaze |
+| A17 | (4.8) On the GP3 HD: 4 runs per screen again; App centre and mean error compared with Control's; the trail sits on the rings the user looks at | live, user as subject |
 
 ## 7. Plan
 
@@ -276,6 +353,8 @@ greyed for Gazepoint Control.
    - A8-A10;
    - Show Monitor with the real head data.
 6. Commit on the user's OK.
+7. **Revision 4.8** (2026-10-14): wireframe states 4 and 6 DONE (user OK 2026-10-14); then implement R1-R3 (A14-A16), hub review, full pytest.
+8. Live on the GP3 HD (A17): 4 + 4 runs with the user as subject, Check accuracy with real gaze; decide whether the corners move to 15/85 %.
 
 **Depends on:** SPEC-gaze-stability-and-positioning part B (the widget), for Show Monitor only.
 Steps 1-4 can run before it.
@@ -327,3 +406,5 @@ Implementer open questions (all answered by the hub, 2026-10-13):
 - **2026-10-13** - The user asked whether Grid 3's Size and Speed can be set through the Gazepoint API. Answer: Speed yes (`CALIBRATE_DELAY` / `CALIBRATE_TIMEOUT`, proven by probe P3); Size no (no API command), but it is feasible because the app draws the target. The user accepted both (D7, D8): new section 4.3b with the preset values (Size in degrees), Speed also applies to the Gazepoint Control screen, and Control's DELAY/TIMEOUT are restored after a run. Acceptance A10a/A10b added. Wireframe approved; plan step 1 DONE; SPEC approved.
 - **2026-10-13** - Plan step 2 DONE: six icons (bee, star, ball, fish, flower, car) generated with `mcp-image-openrouter` (`google/gemini-3.1-flash-image`, bee as the style anchor), keyed with `tools/chroma_key.py`, 384 x 384, in `configs/assets/calibration/` with `ASSETS.md`; raws in `reference/` (not shipped). Grid 3's own bee is compiled into its EyeGaze DLLs (no loose files) and is licensed art (U2), so it was not used. All six approved by the user.
 - **2026-10-13** - Hub review, integration and device-free live check. Implemented by `calib-app-drawn` (Impl log section 8); hub answers to its Q1-Q5 applied (Esc/X on the results map = Back, `mode` app_drawn | control | control_fallback, tracked monitor = the Setup window's screen, checked live at A10). Hub review caught that the first version took the badge's mean error and validity from `CALIBRATE_RESULT_SUMMARY` (retained state, feasibility 6.1); fixed: the result comes from `CALIB_RESULT` only and the summary is never queried (test added). Combined with the gaze revision 4.9 on `0b808b6`; full pytest (JUnit) 4310 tests, 4305 passed, 5 failed = the known fresh-worktree baseline (skip-worktree `default.yaml`, alpha 0.35 vs 0.22). **Device-free live check** (app launched from the integration worktree with the qt-mcp probe, real Gazepoint Control on 4242 with the GP3 HD attached but no subject): Setup Calibration card and settings render as the wireframe; App calibration ran end to end (5 points, results map with grey "-" circles and "5 points need attention", no eyes), Show Monitor overlays the live head panel, Improve re-runs, Esc during a run cancels (`cancelled` after 2 points) and leaves Setup "Not calibrated". `calibration_timing.jsonl`: Control took DELAY 0.8 / TIMEOUT 1.0; points 2-5 lasted 1.83-1.87 s, point 1 2.77 s (about 1 s extra, harmless because the icon holds until `CALIB_RESULT_PT`; to watch on the device); the window record shows the hold painted at 0.75 s (max 0.766 s) of every point, before DELAY 0.8 s; `improve_runs` 2. After closing the app Control reported DELAY 0.50, TIMEOUT 1.50 (its own values, restored), `CALIBRATE_SHOW` 0, `AAC_FILTER` 15; app log clean. Not checked live: the fallback and the Gazepoint Control screen (kept off the real Control, which has stuck after its own-window calibration before; covered by tests with the fake Control), the Start-page Calibrate button (tests, A13), accuracy (A8, A9 need a subject). Committed on the user's overnight authorisation (commit if green, no push).
+- **2026-10-14** - First GP3 HD accuracy runs by the user (4 per screen, subjects GRID3STYLE* and GAZEPOINTSTYLE*): App screen 0.68 deg mean / 1.70 deg centre vs Control screen 0.45 / 1.13; the centre is the weakest point on both; the two badges use different measures (Control's `AVE_ERROR` vs ours). User decisions: D9 centre first, D10 a Check accuracy view (copy of Control's after-calibration window) after the results map. Hub proposal D11: one error measure (from `CALIB_RESULT`) for both screens. New section 4.8, acceptance A14-A17, plan steps 7-8. Next: the wireframe (GATE 1).
+- **2026-10-14** - User approved the revision wireframe (calibration-window.md: state 2 order, state 4 Check accuracy button, new state 6) and agreed D11 (one error measure from `CALIB_RESULT` for both screens). Revision 4.8 APPROVED; next: implementation (plan step 7).

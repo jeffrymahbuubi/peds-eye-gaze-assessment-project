@@ -568,7 +568,7 @@ body.wmd-root {
 </nav>
 <h2 class="wmd-h2">Calibration window (App, Grid 3 style)</h2>
 <blockquote class="wmd-blockquote">
-  <p class="wmd-paragraph">SPEC-app-drawn-calibration.md 4.1-4.6. A frameless <strong>full-screen window</strong> on the tracked monitor, over the taskbar, opened by <strong>Do Calibration</strong> (Setup) or <strong>Calibrate</strong> (Start-test page) when "Calibration screen" = App. The nav bar above is only the wireframe's; the real window has none. Reference: the Grid 3 recording, <code>docs/calibration-video/frames/</code>. Five states, shown one after another below.</p>
+  <p class="wmd-paragraph">SPEC-app-drawn-calibration.md 4.1-4.6. A frameless <strong>full-screen window</strong> on the tracked monitor, over the taskbar, opened by <strong>Do Calibration</strong> (Setup) or <strong>Calibrate</strong> (Start-test page) when "Calibration screen" = App. The nav bar above is only the wireframe's; the real window has none. Reference: the Grid 3 recording, <code>docs/calibration-video/frames/</code>. Six states, shown one after another below (state 6 added 2026-10-14).</p>
 </blockquote>
 <hr class="wmd-separator" />
 <h3 class="wmd-h3">State 1 · Glide (one point, DELAY seconds)</h3>
@@ -599,7 +599,7 @@ body.wmd-root {
 |                                                     shrunk (~1.8 %), still  |
 +------------------------------------------------------------------------------+</code></pre>
 <blockquote class="wmd-blockquote">
-  <p class="wmd-paragraph">At most DELAY after the point started, the icon has shrunk to the small size and <strong>holds still</strong> until that point's <code>CALIB_RESULT_PT</code>, because Control samples gaze from then on. Order of the 5 points: top-left, bottom-right, top-right, bottom-left, centre, at 10 % / 90 % (9 points add the edge midpoints).</p>
+  <p class="wmd-paragraph">At most DELAY after the point started, the icon has shrunk to the small size and <strong>holds still</strong> until that point's <code>CALIB_RESULT_PT</code>, because Control samples gaze from then on. Order of the 5 points (revised 2026-10-14, SPEC 4.8 R1): <strong>centre first</strong>, then top-left, bottom-right, top-right, bottom-left, at 10 % / 90 % (9 points add the edge midpoints).</p>
 </blockquote>
 <h3 class="wmd-h3">State 3 · Processing</h3>
 <pre class="wmd-code-block"><code data-lang="text">+------------------------------------------------------------------------------+
@@ -628,7 +628,7 @@ body.wmd-root {
 |        1 point needs attention. Check the head position, then Improve        |
 |        calibration.                                                          |
 |                                                                              |
-|   [Improve calibration]   [Show Monitor]                           [Back]    |
+|   [Improve calibration]   [Show Monitor]   [Check accuracy]        [Back]    |
 +------------------------------------------------------------------------------+</code></pre>
 <blockquote class="wmd-blockquote">
   <p class="wmd-paragraph"><strong>Results map</strong> (4.4, Q1, D2): a rectangle for the screen with one circle per point at its position. Each circle holds an integer score 0-100 = round(100 x max(0, 1 - error_deg / 3)), where the error is the per-point gaze error in degrees averaged over the valid eyes. Colours (design tokens): <strong>green</strong> 1 deg or less, <strong>amber</strong> up to 2 deg, <strong>red</strong> above 2 deg; a point with no valid eye is a grey circle with "-". Amber and red points get a thicker ring, and the line under the map counts them ("All points are good." when none). No overall score here; the Setup badge keeps "Calibrated, 5 points, 1.8°".
@@ -651,6 +651,30 @@ body.wmd-root {
 +------------------------------------------------------------------------------+</code></pre>
 <blockquote class="wmd-blockquote">
   <p class="wmd-paragraph">The head-position widget from SPEC-gaze-stability-and-positioning (face in the head box, Close-Far bar, hint line), as a panel over the dimmed results map. The button toggles between <strong>Show Monitor</strong> and <strong>Hide Monitor</strong>. Typical use: a red or amber point, fix the seating with the face green, then Improve calibration.</p>
+</blockquote>
+<h3 class="wmd-h3">State 6 · Check accuracy (added 2026-10-14, SPEC 4.8 R3)</h3>
+<pre class="wmd-code-block"><code data-lang="text">+------------------------------------------------------------------------------+
+|                                                                         x    |
+|      ( + )          ( + )          ( + )          ( + )                      |
+|                       o-o~o                                                  |
+|                            \                                                 |
+|              ( + )          o@( + )          ( + )                          |
+|                                                                              |
+|      ( + )          ( + )          ( + )          ( + )                      |
+|                                                                              |
+|  Left eye: 5 of 5 points valid                                               |
+|  Right eye: 5 of 5 points valid                                              |
+|   [Repeat calibration]   [Results]                                 [Done]    |
++------------------------------------------------------------------------------+</code></pre>
+<blockquote class="wmd-blockquote">
+  <p class="wmd-paragraph"><strong>Check accuracy</strong>: opened by <strong>Check accuracy</strong> on the results map; a copy of Gazepoint Control's after-calibration window (<code>resources/images/window-after-calibration.png</code>). The child or operator looks at any ring; the green trail shows where the tracker puts the gaze.</p>
+  <ul class="wmd-list">
+  <li class="wmd-list-item">11 rings, 4-3-4: x 18 / 39 / 61 / 82 % (top, bottom rows) and 29 / 50 / 71 % (middle row), y 18 / 50 / 82 %. Thin ring, radius 3°, small &quot;+&quot; at its centre; dark on white or grey, light on black (same background as the calibration).</li>
+  <li class="wmd-list-item">Green trail (o-o~o above): the last 1 s of valid gaze, unsmoothed (it shows the calibration, not the cursor filter), small circles joined by a thin line. No gaze for 0.5 s: the trail fades and the line &quot;No gaze. Check the head position.&quot; replaces the eye lines.</li>
+  <li class="wmd-list-item">Eye lines (green, bottom left): valid points per eye from the calibration result.</li>
+  <li class="wmd-list-item">Repeat calibration = Improve calibration (full re-run, then the results map). Results returns to the map. Done, Esc or x = Back: closes the window and keeps the result.</li>
+  <li class="wmd-list-item">The Gazepoint Control screen has no such state: Control shows its own window.</li>
+</ul>
 </blockquote>
 <hr class="wmd-separator" />
 <h3 class="wmd-h3">Fallback alert (shown on the opening page afterwards)</h3>

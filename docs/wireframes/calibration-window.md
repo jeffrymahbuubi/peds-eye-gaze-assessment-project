@@ -2,7 +2,7 @@
 
 ## Calibration window (App, Grid 3 style)
 
-> SPEC-app-drawn-calibration.md 4.1-4.6. A frameless **full-screen window** on the tracked monitor, over the taskbar, opened by **Do Calibration** (Setup) or **Calibrate** (Start-test page) when "Calibration screen" = App. The nav bar above is only the wireframe's; the real window has none. Reference: the Grid 3 recording, `docs/calibration-video/frames/`. Five states, shown one after another below.
+> SPEC-app-drawn-calibration.md 4.1-4.6. A frameless **full-screen window** on the tracked monitor, over the taskbar, opened by **Do Calibration** (Setup) or **Calibrate** (Start-test page) when "Calibration screen" = App. The nav bar above is only the wireframe's; the real window has none. Reference: the Grid 3 recording, `docs/calibration-video/frames/`. Six states, shown one after another below (state 6 added 2026-10-14).
 
 ---
 
@@ -40,7 +40,7 @@
 +------------------------------------------------------------------------------+
 ```
 
-> At most DELAY after the point started, the icon has shrunk to the small size and **holds still** until that point's `CALIB_RESULT_PT`, because Control samples gaze from then on. Order of the 5 points: top-left, bottom-right, top-right, bottom-left, centre, at 10 % / 90 % (9 points add the edge midpoints).
+> At most DELAY after the point started, the icon has shrunk to the small size and **holds still** until that point's `CALIB_RESULT_PT`, because Control samples gaze from then on. Order of the 5 points (revised 2026-10-14, SPEC 4.8 R1): **centre first**, then top-left, bottom-right, top-right, bottom-left, at 10 % / 90 % (9 points add the edge midpoints).
 
 ### State 3 · Processing
 
@@ -74,7 +74,7 @@
 |        1 point needs attention. Check the head position, then Improve        |
 |        calibration.                                                          |
 |                                                                              |
-|   [Improve calibration]   [Show Monitor]                           [Back]    |
+|   [Improve calibration]   [Show Monitor]   [Check accuracy]        [Back]    |
 +------------------------------------------------------------------------------+
 ```
 
@@ -101,6 +101,31 @@
 ```
 
 > The head-position widget from SPEC-gaze-stability-and-positioning (face in the head box, Close-Far bar, hint line), as a panel over the dimmed results map. The button toggles between **Show Monitor** and **Hide Monitor**. Typical use: a red or amber point, fix the seating with the face green, then Improve calibration.
+
+### State 6 · Check accuracy (added 2026-10-14, SPEC 4.8 R3)
+
+```text
++------------------------------------------------------------------------------+
+|                                                                         x    |
+|      ( + )          ( + )          ( + )          ( + )                      |
+|                       o-o~o                                                  |
+|                            \                                                 |
+|              ( + )          o@( + )          ( + )                          |
+|                                                                              |
+|      ( + )          ( + )          ( + )          ( + )                      |
+|                                                                              |
+|  Left eye: 5 of 5 points valid                                               |
+|  Right eye: 5 of 5 points valid                                              |
+|   [Repeat calibration]   [Results]                                 [Done]    |
++------------------------------------------------------------------------------+
+```
+
+> **Check accuracy**: opened by **Check accuracy** on the results map; a copy of Gazepoint Control's after-calibration window (`resources/images/window-after-calibration.png`). The child or operator looks at any ring; the green trail shows where the tracker puts the gaze.
+> - **11 rings**, 4-3-4: x 18 / 39 / 61 / 82 % (top, bottom rows) and 29 / 50 / 71 % (middle row), y 18 / 50 / 82 %. Thin ring, radius 3°, small "+" at its centre; dark on white or grey, light on black (same background as the calibration).
+> - **Green trail** (`o-o~o` above): the last 1 s of valid gaze, unsmoothed (it shows the calibration, not the cursor filter), small circles joined by a thin line. No gaze for 0.5 s: the trail fades and the line "No gaze. Check the head position." replaces the eye lines.
+> - **Eye lines** (green, bottom left): valid points per eye from the calibration result.
+> - **Repeat calibration** = Improve calibration (full re-run, then the results map). **Results** returns to the map. **Done**, Esc or **x** = Back: closes the window and keeps the result.
+> - The Gazepoint Control screen has no such state: Control shows its own window.
 
 ---
 
