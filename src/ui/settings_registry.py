@@ -34,6 +34,7 @@ from .choice_lists import (  # re-exported: the dialog and the tests import them
 )
 from .choice_settings import CHOICE_LIVE, CHOICE_STRUCTURAL, CHOICE_TIMEOUT, choice_cards
 from .gaze_settings import GAZE_DEPENDS_ON, GAZE_GREYED_BY, GAZE_LIVE, gaze_live_values
+from .scanning_settings import SCANNING_GREYED_BY, SCANNING_STRUCTURAL
 from .setting_types import (  # re-exported: the two records live in setting_types.py
     MS_PER_S,
     LiveSetting,
@@ -210,6 +211,7 @@ STRUCTURAL_SETTINGS: list[StructuralSetting] = [
     StructuralSetting(
         "layout.n_icons", "Number of icons", "int", 2, 8, 1, applies_to=("scanning",)
     ),
+    *SCANNING_STRUCTURAL,  # Search mode, Start each trial from the centre (scanning_settings.py)
     StructuralSetting(
         "motion.path",
         "Movement path",
@@ -424,6 +426,7 @@ _GREYED_BY: dict[str, tuple[tuple[str, str], ...]] = {
     "dwell.progress_ring": (("input.selection", SELECTION_SWITCH),),
     "feedback.target_glow": (("input.selection", SELECTION_DWELL),),
     **GAZE_GREYED_BY,
+    **SCANNING_GREYED_BY,
 }
 # The cards in order of clinical weight (SPEC-design-system-phase2.md H6, V4): (id, title,
 # column, hint, control keys in order). Column 0 holds what the clinician sets first (the
@@ -436,7 +439,7 @@ _CARDS = (
     ("test", "Test", 0, None, ("test.name", "test.config_name", "trials", "test.notes")),
     ("input", "Input", 0, None, ("input.pointer", "input.selection")),
     ("target", "Target", 0, None, ("target.size",)),
-    ("icons", "Icons", 0, HINT_ICON_FIT, ("layout.size", "layout.n_icons")),
+    ("icons", "Icons", 0, HINT_ICON_FIT, ("layout.size", "layout.n_icons", "search_mode", "sample_reminder", "start_dot")),
     ("grid", "Grid Layout", 1, HINT_GRID_FIT, ("grid.rows", "grid.cols", "grid.gap")),
     ("motion", "Motion", 1, None, ("motion.path", "motion.speed_frac_per_s")),
     ("timing", "Timing", 1, None, (

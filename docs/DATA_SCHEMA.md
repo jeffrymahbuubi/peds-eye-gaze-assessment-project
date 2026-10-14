@@ -117,7 +117,7 @@ The complete configuration the run used, written from the final merged config
 |-----|------|-------|
 | `config_name` | str\|null | `"Standard"` or the saved configuration's name; null for a standalone run |
 | `live` | object | flat, keyed by dotted setting key: `dwell.threshold_ms`, `dwell.refractory_ms`, `dwell.jitter_tolerance_px`, `dwell.visual_cursor`, `dwell.progress_ring`, `dwell.instant_feedback`, `dwell.pointer_signal` (`best` = App smoothing on the raw gaze / `assistive` = Gazepoint Assistive, its APOG signal: the card's "Cursor stabilisation"; the retired `fixation` of older sessions reads as "Fixation (FPOG), no longer offered", and a profile that still says it loads as `best`), `dwell.aac_filter_samples` (the Assistive window length, **null unless `dwell.pointer_signal` is `assistive`**), `dwell.smoothing.enabled` (as saved: Gazepoint Assistive runs have no app smoothing whatever it says, see `smoothing_applied`), `dwell.smoothing.type` (`ema` / `one_euro`), `dwell.smoothing.alpha`, `dwell.smoothing.min_cutoff_hz` and `dwell.smoothing.beta` (the One Euro filter's Steadiness and Responsiveness), `task.timeout_ms`, `task.inter_trial_interval_ms`, and `motion.speed_frac_per_s` for `follow_moving` only |
-| `structural` | object | nested like the task's YAML block: one entry per control of the task (trial count, target size, grid rows / columns / gap, motion path, icon count and layout, ...), `feedback.hit_sound` / `feedback.miss_sound` where the task has them, plus `theme` and `feedback.particles` (recorded, not offered as controls) |
+| `structural` | object | nested like the task's YAML block: one entry per control of the task (trial count, target size, grid rows / columns / gap, motion path, icon count and layout, `search_mode`, `sample_reminder` and `start_dot` for `scanning`, ...), `feedback.hit_sound` / `feedback.miss_sound` where the task has them, plus `theme` and `feedback.particles` (recorded, not offered as controls) |
 
 Sessions recorded before the Compass-style redesign may carry a partial or no
 `settings` block, and may also hold `source`, `profile_saved_at` and
@@ -158,6 +158,15 @@ dropped by a pause is not written (its re-presentation is).
 | `on_target_ms` | float\|"" | Follow the Target only: milliseconds of those the pointer was inside the target's hitbox (radius plus `hitbox_margin_px`) at that frame; blank for the other tasks |
 | `time_on_target_pct` | float\|"" | `100 * on_target_ms / valid_ms`; blank when `valid_ms` is 0 or for the other tasks |
 | `mean_dist_px` | float\|"" | Follow the Target only: mean distance from the pointer to the target's centre over the valid frames, in canvas logical px; blank with none |
+| `search_mode` | str | Scanning Search only: `pop_out` (the target is the one icon in colour) or `match_sample` (the shape was shown and spoken first, then every icon is bright and only the shape tells them apart); the `search_mode` setting of the run. Blank for the other tasks |
+| `target_shape` | str | Scanning Search only: the target's shape by name (`circle`, `square`, `triangle`, `diamond`, `hexagon` or `star`) |
+| `field_shapes` | str | Scanning Search only: the shape in every icon slot in slot order, names joined by `\|` (`circle\|square\|triangle\|diamond`); the entry at `slot_index` is `target_shape`. In `pop_out` the field is fixed, the same in every trial; in `match_sample` it is reshuffled every trial and holds the target's shape exactly once |
+| `start_dot_ms` | float\|"" | Scanning Search only, with the centre start dot on (`start_dot`): milliseconds from the dot appearing to its going, the 300 ms hold included; blank when the dot timed out, and with the start dot off |
+| `start_dot_timeout` | 0/1\|"" | Scanning Search only, with the start dot on: 1 when the gaze did not rest on the dot within 5 s and the trial went on anyway, else 0; blank with the start dot off |
+| `first_icon_looked_at_slot` | int\|"" | Scanning Search in `match_sample` only: the slot of the first icon the pointer entered after the field appeared (the same hit area as the target's: its radius plus `hitbox_margin_px`, and the nearest slot), counting the field's first frame; blank when the pointer entered none, and in `pop_out` |
+| `first_icon_looked_at_shape` | str | the shape name of that icon (`first_icon_looked_at_slot` in `field_shapes`); it tells whether the child went straight to the match. Blank as above |
+| `wrong_selections` | int\|"" | Scanning Search in `match_sample` only: how many times the child selected an icon that was not the target during the trial, 0 when none: a completed dwell on it (the test's own dwell threshold) with a Dwell selection, a switch press while the pointer was on it with a Switch selection. Blank in `pop_out` and for the other tasks |
+| `wrong_selection_shapes` | str | the shapes of those wrong selections in the order they happened, joined by `;` (`star;circle`); empty when `wrong_selections` is 0 or blank |
 
 **Follow the Target rows** (`specs/SPEC-input-selection-and-follow.md` H6, H7, H9): nothing
 is selected, so every trial lasts exactly `task.timeout_ms` ("Trial duration", default 10 s)
@@ -168,6 +177,19 @@ find"). The four columns above are computed live from the smoothed pointer, per 
 a Mouse run with no tracker has them too. A folder whose `trials.csv` header has no
 `on_target_ms` is an older Follow & Click run: `is_hit` there is a click on the target in its
 selection window and `is_timeout` a trial that ran out.
+
+**Scanning Search rows** (`specs/SPEC-scanning-search-cues.md` 4.2-4.4, 4.6): a trial starts when the
+field appears, so `t_target_shown_ns`, `t_selectable_start_ns`, the timeout and the reaction times all
+count from there, never from the start dot or the sample before it (those are the `START_DOT_*` and
+`SAMPLE_START` events, and `start_dot_ms`). `first_icon_looked_at_*` records where the pointer went
+first. In `match_sample` selecting an icon that is not the target is a *wrong selection* (`wrong_selections`,
+`wrong_selection_shapes`, one `WRONG_SELECTION` event each): with a Dwell selection a completed dwell on it, with a
+Switch selection a counted press while the pointer is on it (judged at the same point as the press itself, a blink's
+fallback included; a press on no icon, an ignored press and a press before the field are not). Nothing is shown or
+played for it and the trial goes on to the target or the timeout. After a dwell's the icon has to be left (the pointer
+off it for the dwell's hold grace) before it can count again, and the dwell's refractory applies; every counted press
+counts. It is not a click: a Dwell one adds nothing to `attempts` or `click_errors`, and a Switch press that is one stays
+a `MISS_CLICK`, an attempt and a click error, as always. `pop_out` has none: a dwell only ever builds on the target there.
 
 Directly loadable with `pandas.read_csv` or R.
 
@@ -338,12 +360,17 @@ One JSON object per line: `{"t_ns": ..., "kind": "...", ...payload}`.
 
 | kind | payload | meaning |
 |------|---------|---------|
-| `TARGET_SHOWN` | `trial`, `x`, `y` | a trial's target appeared |
+| `TARGET_SHOWN` | `trial`, `x`, `y` | a trial's target appeared (in Scanning Search's Match the sample: the field appeared, after the sample) |
+| `START_DOT_SHOWN` | `trial` | Scanning Search with the centre start dot on: the dot appeared at the centre of the screen, before the trial (and before its sample). A trial re-presented after a pause shows it again |
+| `START_DOT_DONE` | `trial`, `result` (`fixated` or `timeout`), `elapsed_ms` | the dot went: the gaze (or the mouse) rested within 2 degrees of it for 300 ms, or 5 s passed without (`elapsed_ms` is from `START_DOT_SHOWN`; the trial goes on either way) |
+| `SAMPLE_START` | `trial`, `shape`, `duration_ms`, `duration_source` (`wav` or `default`) | Scanning Search in Match the sample: the target's shape is shown alone at the centre and its spoken prompt (`prompt_<shape>.wav`) starts; selection is closed. `duration_ms` is the longer of 1500 ms and the prompt (`wav`), or 1500 ms alone when the file is missing (`default`); the field appears that long after |
+| `WRONG_SELECTION` | `trial`, `slot`, `shape` | Scanning Search in Match the sample: an icon that is not the target was selected, by a dwell completed on it (Dwell) or a press while the pointer was on it (Switch; the press is also a `MISS_CLICK`); `t_ns` is when. `slot` and `shape` name that icon. Counted in the trial's `wrong_selections`; nothing is shown or played and the trial continues |
+| `FIELD_SHOWN` | `trial` | Scanning Search in Match the sample: the field appeared (every icon bright, the target's shape once) and the trial's clock started; the same instant as that trial's `TARGET_SHOWN` |
 | `HIT`, `TIMEOUT`, `SKIPPED` | `trial` | how the trial ended |
 | `FOLLOWED`, `NOT_FOLLOWED` | `trial`, `time_on_target_pct` | how a Follow the Target trial ended (instead of `HIT` / `TIMEOUT`): at least 50 % of the valid time on the target, or less. A skipped Follow trial is `SKIPPED` as everywhere |
 | `MISS_CLICK` | `x`, `y`, `selectable`; a switch press adds `reason` (`"no_gaze"`) or `used_fallback` (true) when they apply | an off-target selection |
 | `SWITCH_PRESS` | `trial`, `x`, `y`, `on_target`, `used_fallback`, and `reason` (`"no_gaze"`) when no valid pointer lay within 150 ms | one switch press counted while a target was up. `x`, `y` are the pointer the press was judged at; `used_fallback` is true when the pointer was invalid at the press (a blink) and the last valid one within 150 ms was used |
-| `SWITCH_IGNORED` | `phase` (`iti`, `ready`, `done`, `paused` or `target`), `x`, `y`, and `reason` (`"refractory"`) for `phase` `target` | a switch press that counted for nothing: made while no target was up (between trials, before the first, after the last, or while paused), or, with a target up, within `dwell.refractory_ms` of the previous counted press of the same trial (the switch's debounce; the window restarts with each trial and an ignored press does not extend it). Not a click and not a Click error |
+| `SWITCH_IGNORED` | `phase` (`iti`, `ready`, `done`, `paused`, `target`, and Scanning Search's `start_dot` or `sample`), `x`, `y`, and `reason` (`"refractory"`) for `phase` `target` | a switch press that counted for nothing: made while no target was up (between trials, before the first, after the last, or while paused), or, with a target up, within `dwell.refractory_ms` of the previous counted press of the same trial (the switch's debounce; the window restarts with each trial and an ignored press does not extend it). Not a click and not a Click error |
 | `PAUSED` | `trial`, `interrupted` | the operator paused; `interrupted` is true if a trial was running |
 | `TRIAL_INTERRUPTED` | `trial`, `reason`, `elapsed_ms` | the running trial was dropped by a pause |
 | `RESUMED` | none | the pause ended |

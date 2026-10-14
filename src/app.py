@@ -99,10 +99,11 @@ from .tasks.base_task import (
     gaze_geometry_from_screen,
     screen_size_mismatch,
 )
+from .tasks.search_cues import apply_search_cues, search_cues_log_line
 from .ui.main_window import MainWindow, TaskRunView
 from .ui.run_cursor import RunCursor
 from .ui.run_dialogs import confirm_quit
-from .ui.scene_audio import SceneAudio
+from .ui.scene_audio import SceneAudio, SearchAudio
 from .ui.settings_registry import apply_live_values_to_config, get_nested, initial_live_values
 from .ui.settings_snapshot import run_settings
 from .ui.task_settings_dialog import TaskSettingsDialog
@@ -740,7 +741,9 @@ class AssessmentApp:
             self.canvas,
             self.theme,
             self.config.get("task", {}).get("feedback", {}),
-            scene_audio=SceneAudio.from_task_config(self.config.get("task", {})),
+            # Choice-making's prompts and effects, or Scanning Search's spoken sample (Match the sample).
+            scene_audio=SceneAudio.from_task_config(self.config.get("task", {}))
+            or SearchAudio.from_task_config(self.config.get("task", {})),
         )
         # Before build_task: tasks read the resolved ``radius_px`` (``target``'s,
         # or ``layout``'s for scanning).
@@ -873,6 +876,11 @@ class AssessmentApp:
         text_info = apply_prompt_text(task_cfg, scale, distance)
         if text_info is not None:
             self.recorder.log(prompt_text_log_line(text_info))
+        # Scanning Search's start dot and sample lettering, by visual angle on the same scale
+        # (SPEC-scanning-search-cues.md 4.3, 4.4); only a run with either on has any.
+        cues_info = apply_search_cues(task_cfg, scale, distance)
+        if cues_info is not None:
+            self.recorder.log(search_cues_log_line(cues_info))
 
     def _install_key_handler(self) -> None:
         original = self.canvas.keyPressEvent

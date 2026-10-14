@@ -25,6 +25,7 @@ from ..inputs.gaze_signal import (
 )
 from ..tasks.choice_layout import normalise_prompt_mode
 from ..tasks.follow_moving import MOTION_PATH_LABELS
+from ..tasks.search_cues import SEARCH_MODE_NAMES, normalise_search_mode
 from .report_util import NOT_RECORDED, seconds_text
 
 # What every value ``metadata.input_mode`` takes means as (pointer, selection)
@@ -295,6 +296,33 @@ def prompt_mode_text(value: Any) -> str:
     return PROMPT_MODE_NAMES[normalise_prompt_mode(value)]
 
 
+def search_mode_text(value: Any) -> str:
+    """The Test Configuration's "Search mode" value (SPEC-scanning-search-cues.md 4.5): Pop-out or
+    Match the sample, an unknown value read as the default Pop-out; ``not recorded`` when the run has
+    none (a run made before the setting)."""
+    if value is None or value == "":
+        return NOT_RECORDED
+    return SEARCH_MODE_NAMES[normalise_search_mode(value)]
+
+
+def _scanning_rows(rows: list[tuple[str, str]], snapshot: dict[str, Any]) -> list[tuple[str, str]]:
+    """Scanning Search's version of the rows: the search mode, whether the sample stayed on screen as a
+    reminder, and whether each trial started from the centre dot, after the layout."""
+    start_dot = setting(snapshot, None, "start_dot")
+    reminder = setting(snapshot, None, "sample_reminder")
+    extra = [
+        ("Search mode", search_mode_text(setting(snapshot, None, "search_mode"))),
+        ("Sample reminder", NOT_RECORDED if reminder is None else ("On" if reminder else "Off")),
+        ("Centre start", NOT_RECORDED if start_dot is None else ("On" if start_dot else "Off")),
+    ]
+    out: list[tuple[str, str]] = []
+    for label, value in rows:
+        out.append((label, value))
+        if label == "Layout":
+            out += extra
+    return out
+
+
 def _choice_rows(
     rows: list[tuple[str, str]], snapshot: dict[str, Any], meta: dict[str, Any], geometry: Any
 ) -> list[tuple[str, str]]:
@@ -360,6 +388,7 @@ def build_config_rows(
     a fixed time, so "Trial timeout" reads **Trial duration**. Choice-making's rows are
     :func:`_choice_rows` (21: the button size, time to choose, pause after the animation, scene,
     prompt, visual cue and idle animation in place of the target size, timeout, interval and theme).
+    Scanning Search's are 20: the search mode and the centre start after the layout.
     """
     snapshot = snapshot if isinstance(snapshot, dict) else {}
     meta = metadata or {}
@@ -397,4 +426,6 @@ def build_config_rows(
     ]
     if task == "choice_making":
         return _choice_rows(rows, snapshot, meta, geometry)
+    if task == "scanning":
+        rows = _scanning_rows(rows, snapshot)
     return [row for row in rows if not (follow_layout and row[0] == "Selection")]

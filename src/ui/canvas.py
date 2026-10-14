@@ -15,6 +15,7 @@ from PySide6.QtWidgets import QWidget
 
 from ..engine.target_size import ICON_DRAW_FRAC, grid_cell_geometry
 from ..inputs.base import norm_to_px, outside_distance
+from ..tasks.search_cues import MATCH_SAMPLE
 from .canvas_cursor import (
     _CURSOR_ALPHA,
     _CURSOR_ALPHA_DIM,
@@ -25,7 +26,9 @@ from .canvas_cursor import (
     _CURSOR_STROKE_PX,
     _clamp_to_canvas,
 )
+from .canvas_search import bright_gradient, draw_search_scene
 from .canvas_shapes import SHAPE_CIRCLE, shape_path
+from .canvas_trace import draw_dwell_trace, draw_instant_ring, draw_selectable_outline
 from .scene_canvas import SceneView
 
 # The target glow (SPEC-input-selection-and-follow.md H3, I5e, I10): a soft halo that
@@ -316,6 +319,13 @@ class TaskCanvas(QWidget):
         shapes = self.scene.get("shapes") or []
         if not slots:
             return
+        # Scanning Search's start dot, sample and Match the sample's bright field (canvas_search.py);
+        # the plain Pop-out field is drawn below.
+        if draw_search_scene(
+            painter, self.scene, w, h, hit_radius=self.target_radius_px, colour=self.target_color,
+            dot_colour=QColor(self.theme.get("cursor_color", "#ffffff")), active_slot=self.active_slot,
+        ):
+            return
 
         r = self.target_radius_px * ICON_DRAW_FRAC
         distractor = QColor(self.theme.get("cursor_color", "#ffffff"))
@@ -340,36 +350,35 @@ class TaskCanvas(QWidget):
             return self.target_radius_px * ICON_DRAW_FRAC
         return self.target_radius_px
 
+    def _target_shape(self) -> int:
+        """The glyph the target is drawn as: its own in the ``icons`` scene (the rings follow it),
+        a circle everywhere else."""
+        if self.scene.get("mode", "single") == "icons" and self.active_slot >= 0:
+            shapes = self.scene.get("shapes") or []
+            return shapes[self.active_slot] if self.active_slot < len(shapes) else SHAPE_CIRCLE
+        return SHAPE_CIRCLE
+
     def _draw_target(self, painter: QPainter, x: float, y: float) -> None:
         r = self.target_radius_px
         color = self.target_color if self.selectable else self.target_color.darker(180)
-        grad = QRadialGradient(QPointF(x, y), r)
-        grad.setColorAt(0.0, color.lighter(130))
-        grad.setColorAt(1.0, color)
-        painter.setBrush(grad)
+        painter.setBrush(bright_gradient(x, y, r, color))
         painter.setPen(Qt.PenStyle.NoPen)
 
-        mode = self.scene.get("mode", "single")
-        if mode == "icons" and self.active_slot >= 0:
+        shape = self._target_shape()
+        if self.scene.get("mode", "single") == "icons" and self.active_slot >= 0:
             # Keep the target's silhouette so the child matches shape, not
             # just brightness/colour -- a plain circle would turn a search
             # task into pop-out. Ported from resources/diki.
-            shapes = self.scene.get("shapes") or []
-            shape = shapes[self.active_slot] if self.active_slot < len(shapes) else SHAPE_CIRCLE
             painter.drawPath(shape_path(x, y, r * ICON_DRAW_FRAC, shape))
         else:
             painter.drawEllipse(QPointF(x, y), r, r)
 
-        if self.selectable:
-            # bright "catch me now" outline during the selectable window.
-            # Must be a freshly-constructed QPen, not painter.pen() mutated in
-            # place -- the painter's current pen is NoPen (just used for the
-            # gradient fill above), and changing a NoPen pen's color/width
-            # does not change its style, so the outline silently never drew.
-            painter.setPen(QPen(QColor("#ffffff"), 4))
-            painter.setBrush(Qt.BrushStyle.NoBrush)
-            ring = self._ring_base_radius() + 4
-            painter.drawEllipse(QPointF(x, y), ring, ring)
+        # The bright "catch me now" outline of a selectable target, round the glyph (SPEC-scanning-
+        # search-cues.md 4.1). In Match the sample it would give the answer away before the pointer
+        # is on the target, so it waits for it (4.3).
+        outline_waits = self.scene.get("search_mode") == MATCH_SAMPLE and not self.on_target
+        if self.selectable and not outline_waits:
+            draw_selectable_outline(painter, x, y, self._ring_base_radius(), shape)
 
     def _draw_glow(self, painter: QPainter, x: float, y: float) -> None:
         """A soft halo round the target while the pointer is on it (SPEC-input-
@@ -398,22 +407,17 @@ class TaskCanvas(QWidget):
         identical. This is a full-brightness ring drawn the instant on_target
         is true, not gated by dwell progress at all.
         """
-        r = self._ring_base_radius() + 10
-        painter.setPen(QPen(QColor(self.theme.get("cursor_color", "#ffffff")), 5))
-        painter.setBrush(Qt.BrushStyle.NoBrush)
-        painter.drawEllipse(QPointF(x, y), r, r)
+        draw_instant_ring(
+            painter, x, y, self._ring_base_radius(), self._target_shape(),
+            QColor(self.theme.get("cursor_color", "#ffffff")),
+        )
 
     def _draw_progress_ring(self, painter: QPainter, x: float, y: float) -> None:
-        r = self._ring_base_radius() + 16
-        # Same NoPen-carryover fix as _draw_instant_feedback/_draw_target: a
-        # fresh QPen, not painter.pen() mutated in place -- this arc was
-        # silently never drawn before, which is very likely the real cause
-        # behind SPEC-2026-09-02.md item 1's "toggling dwell.progress_ring
-        # produced no visible change" observation.
-        painter.setPen(QPen(QColor(self.theme.get("cursor_color", "#ffffff")), 8))
-        painter.setBrush(Qt.BrushStyle.NoBrush)
-        span = int(-360 * 16 * max(0.0, min(1.0, self.dwell_progress)))
-        painter.drawArc(int(x - r), int(y - r), int(2 * r), int(2 * r), 90 * 16, span)
+        """The dwell progress, traced along the glyph's own outline from the top, clockwise."""
+        draw_dwell_trace(
+            painter, x, y, self._ring_base_radius(), self._target_shape(),
+            QColor(self.theme.get("cursor_color", "#ffffff")), self.dwell_progress,
+        )
 
     def _cursor_draw_position(self) -> tuple[tuple[float, float], bool] | None:
         """Where to draw the gaze marker, and whether that position is frozen.

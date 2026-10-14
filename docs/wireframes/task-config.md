@@ -181,7 +181,7 @@ Input card: Pointer only, no Selection radio. No Dwell card. Feedback: gaze curs
 
 Icon size Small / (*) Medium / Large. Number of icons 4. Warning alert "Icons will be shrunk to ≈ N px to fit K icons" when needed.
 
-Then, under Number of icons (SPEC-scanning-search-cues 4.5, added 2026-10-14): **Search mode** (*) Pop-out: the target is the coloured icon / ( ) Match the sample: find the shape shown first. **[ ] Start each trial from the centre** (off by default). See `scanning-search.md` for the run screens.
+Then, under Number of icons (SPEC-scanning-search-cues 4.5, added 2026-10-14): **Search mode** (*) Pop-out: the target is the coloured icon / ( ) Match the sample: find the shape shown first. **[ ] Show the shape while searching** (off by default, greyed for Pop-out; 2026-10-14). **[ ] Start each trial from the centre** (off by default). See `scanning-search.md` for the run screens.
 
 :::
 

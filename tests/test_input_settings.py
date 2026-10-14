@@ -153,6 +153,8 @@ def test_the_greying_rules_of_4_1(task_id):
         "dwell.progress_ring": (("input.selection", "switch"),),
         "feedback.target_glow": (("input.selection", "dwell"),),
         **smoothing,
+        # Scanning's Match-the-sample reminder (SPEC-scanning-search-cues.md S9).
+        **({"sample_reminder": (("search_mode", "pop_out"),)} if task_id == "scanning" else {}),
     }
     # Refractory and jitter tolerance stay active under Switch: the debounce and the
     # hitbox apply to it too. Only the three smoothing numbers are both greyed by a choice (the

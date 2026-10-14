@@ -128,8 +128,18 @@ def test_icons_stays_one_card_with_size_and_count_in_column_a(qapp):
     assert "icons" in make_page("scanning").cards
     icons = [g for g in config_groups_for_task("scanning") if g.id == "icons"]
     assert len(icons) == 1 and icons[0].column == 0
-    assert [c.key for c in icons[0].controls] == ["layout.size", "layout.n_icons"]
+    # Size and count, then the three search cues under Number of icons (SPEC-scanning-search-cues.md 4.5).
+    assert [c.key for c in icons[0].controls] == ["layout.size", "layout.n_icons", "search_mode", "sample_reminder", "start_dot"]
     assert not any(g.id == "target" for g in config_groups_for_task("scanning"))
+
+
+def test_the_sample_reminder_is_greyed_while_the_search_mode_is_pop_out(qapp):
+    page = make_page("scanning")
+    mode, reminder = page._form.controls["search_mode"], page._form.controls["sample_reminder"]
+    assert mode.value() == "pop_out" and not reminder.isEnabled() and not reminder.isChecked()
+    mode.setValue("match_sample")
+    page._refresh()
+    assert reminder.isEnabled()
 
 
 # -- alerts under their cards (H3, Q6) ---------------------------------------------------------------------
