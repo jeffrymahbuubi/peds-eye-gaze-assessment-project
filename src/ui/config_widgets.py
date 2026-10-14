@@ -59,6 +59,14 @@ CONFIG_TOOLTIPS: dict[str, str] = {
     "grid.gap": "The space between neighbouring cells. Looking at the gap selects nothing,"
     " so a wider gap makes it less likely that a look lands on the wrong cell.",
     "layout.n_icons": "How many icons are on screen at once. One of them is the one to find.",
+    "search_mode": "How the child knows which icon to find. Pop-out: the target is the one icon in"
+    " colour. Match the sample: the shape is shown and spoken first, then every icon is in colour"
+    " and only the shape tells them apart.",
+    "sample_reminder": "Match the sample only. Keep the shape to find small at the top of the screen"
+    " while the child searches. Off: the shape is shown only before the search, so the child's eyes"
+    " are not drawn away from the icons.",
+    "start_dot": "Show a small dot in the middle of the screen before each trial. The trial goes on"
+    " when the child has looked at it for a moment, or after 5 seconds.",
     "motion.path": "The route the moving target follows across the screen.",
     "input.pointer": "What moves the pointer on the screen: the child's gaze (needs the tracker), or"
     " the mouse. A Mouse test is recorded too, and records gaze alongside when the tracker is"

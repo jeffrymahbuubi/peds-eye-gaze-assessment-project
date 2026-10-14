@@ -85,7 +85,7 @@
 
 ```text
 +------------------------------------------------------------------------------+
-|                                   /\  <- small reminder, top centre          |
+|                                                                              |
 |                                                                              |
 |          ( RED * )                           ( RED O )                       |
 |                                                                              |
@@ -95,4 +95,4 @@
 +------------------------------------------------------------------------------+
 ```
 
-> Every icon is drawn bright in the target colour, so only the shape tells them apart. The shapes are reshuffled every trial and the target's shape appears once. The reminder stays at top centre at half size (top-left if a slot would overlap it). No outline marks the target until the gaze is on it; then the on-target ring and the dwell trace follow its shape. The trial clock and the timeout start when the field appears. A hit plays the sparkle burst and the hit sound as today.
+> Every icon is drawn bright in the target colour, so only the shape tells them apart. The shapes are reshuffled every trial and the target's shape appears once. Nothing else is drawn. Only with the setting "Show the shape while searching" on (off by default; S9, 2026-10-14) does a half-size copy of the shape stay at top centre (top-left if a slot would overlap it). No outline marks the target until the gaze is on it; then the on-target ring and the dwell trace follow its shape. The trial clock and the timeout start when the field appears. A hit plays the sparkle burst and the hit sound as today.

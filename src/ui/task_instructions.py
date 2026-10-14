@@ -23,6 +23,7 @@ from ..tasks.choice_layout import (
     PROMPT_VOICE_TEXT,
     normalise_prompt_mode,
 )
+from ..tasks.search_cues import MATCH_SAMPLE, normalise_search_mode
 from .settings_registry import get_nested, initial_live_values
 
 
@@ -41,7 +42,14 @@ class Instructions:
     clinician: tuple[str, ...]
 
 
+# Scanning Search with Search mode = Match the sample (SPEC-scanning-search-cues.md 4.5) has its own
+# steps, keyed apart from the task's (Pop-out) ones.
+_SCANNING_SAMPLE = "scanning_match_sample"
+
 _DOT = "The small dot on the screen shows where you are looking. "
+# Scanning Search with "Start each trial from the centre" on (SPEC-scanning-search-cues.md 4.5, user
+# 2026-10-14): PLACEHOLDER text like the rest, the first step of either search mode.
+_START_DOT_STEP = "{dot}Each time, first look at the small dot in the middle."
 _RING = " A ring will fill up around it."
 
 # The wording of the two input choices (SPEC-input-selection-and-follow.md W1; read aloud,
@@ -56,6 +64,7 @@ _SWITCH_STEPS: dict[str, tuple[str, str]] = {
     "click_static": ("Look at the circle, then press the button.", "circle"),
     "click_grid": ("Look at the lit square, then press the button.", "square"),
     "scanning": ("Find the bright shape, look at it, then press the button.", "shape"),
+    _SCANNING_SAMPLE: ("Find the same shape, look at it, then press the button.", "shape"),
     "choice_making": ("Look at that button, then press the switch.", "button"),
 }
 _GLOW = " The {noun} glows while you are looking at it."
@@ -137,6 +146,17 @@ _TEMPLATES: dict[str, tuple[tuple[str, ...], str]] = {
         ),
         "NOTE: If the shape is not selected within {timeout}, the next shape will light up.",
     ),
+    # PLACEHOLDER wording (SPEC-scanning-search-cues.md 4.5), FOR CLINICIAN REVIEW like the rest: the
+    # sentence in the first step is the SPEC's; the others are written to go with it.
+    _SCANNING_SAMPLE: (
+        (
+            "{dot}You will see and hear which shape to find. Then look at the same shape among the others.",
+            "Keep looking at that shape for about {dwell}.{ring}",
+            "When it is selected, you will see and hear the next shape to find.",
+            "Continue until no more shapes appear.",
+        ),
+        "NOTE: If the shape is not selected within {timeout}, the next shape to find will appear.",
+    ),
     # PLACEHOLDER wording (SPEC-scene-cause-effect-task.md section 9, Q3, user 2026-10-11: keep it):
     # written so the Start page works for the new test. FOR CLINICIAN REVIEW together with the
     # other four tests' texts above -- do not treat it as final.
@@ -204,11 +224,18 @@ def build_instructions(
         "prompt_hint": prompt_hint,
         "prompt_end": prompt_end,
     }
-    steps, note = _TEMPLATES[task_id]
+    key = task_id
+    if task_id == "scanning" and normalise_search_mode(cfg.get("task", {}).get("search_mode")) == MATCH_SAMPLE:
+        key = _SCANNING_SAMPLE
+    steps, note = _TEMPLATES[key]
+    if task_id == "scanning" and cfg.get("task", {}).get("start_dot") is True:
+        # The dot comes before everything else each trial, so its sentence leads, and takes the
+        # gaze-dot sentence (which led the first step) with it.
+        steps = (_START_DOT_STEP, *(s.removeprefix("{dot}") for s in steps))
     glow = get_nested(cfg.get("task", {}), "feedback.target_glow", True)
-    if choice.is_switch and task_id in _SWITCH_STEPS:
+    if choice.is_switch and key in _SWITCH_STEPS:
         # The dwell step becomes a press (W1); the glow sentence only with the glow on.
-        sentence, noun = _SWITCH_STEPS[task_id]
+        sentence, noun = _SWITCH_STEPS[key]
         if glow is not False:
             sentence += _GLOW.format(noun=noun)
         steps = tuple(sentence if "{dwell}" in s else s for s in steps)

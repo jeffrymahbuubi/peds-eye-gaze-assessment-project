@@ -20,6 +20,13 @@ layout:
   arrangement: grid          # row | ring | grid -- grid is real 2D visual search
   margin_frac: 0.14          # inset from screen edge, as a fraction of screen size
 
+# Search cues (SPEC-scanning-search-cues.md). The Standard configuration is today's task.
+search_mode: pop_out        # pop_out (the target is the one coloured icon) | match_sample (the shape is shown and
+                            # spoken first, then every icon is bright and only the shape tells them apart)
+sample_reminder: false      # match_sample: true = the shape stays small at the top while the child searches
+start_dot: false            # true = a small dot at the centre before each trial; the gaze rests on it to go on
+sample_ms: 1500             # match_sample: the sample shows at least this long (longer if its spoken prompt is)
+
 feedback:
   hit_sound: true
   miss_sound: true

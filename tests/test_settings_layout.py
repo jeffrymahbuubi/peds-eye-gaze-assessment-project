@@ -81,7 +81,7 @@ EXPECTED = {
     "scanning": [
         ("test", 0, None, TEST_CARD),
         ("input", 0, None, INPUT),
-        ("icons", 0, HINT_ICON_FIT, ["layout.size", "layout.n_icons"]),
+        ("icons", 0, HINT_ICON_FIT, ["layout.size", "layout.n_icons", "search_mode", "sample_reminder", "start_dot"]),
         ("timing", 1, None, TIMING),
         ("feedback", 1, None, FEEDBACK),
         ("selection", 2, None, SELECTION),
@@ -126,6 +126,7 @@ def test_task_specific_controls_appear_only_on_their_task():
         ("grid.rows", "click_grid"), ("grid.cols", "click_grid"), ("grid.gap", "click_grid"),
         ("motion.path", "follow_moving"), ("motion.speed_frac_per_s", "follow_moving"),
         ("layout.size", "scanning"), ("layout.n_icons", "scanning"),
+        ("search_mode", "scanning"), ("start_dot", "scanning"), ("sample_reminder", "scanning"),  # SPEC-scanning-search-cues.md 4.5
     ):
         assert [t for t in TASKS if key in {c.key for c in _controls(t)}] == [only], key
     # ... and what Follow the Target gave up is on the other three only.

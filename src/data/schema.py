@@ -16,6 +16,13 @@ from typing import Any
 
 SCHEMA_VERSION = 1
 
+# Scanning Search's columns of ``trials.csv`` (SPEC-scanning-search-cues.md 4.6), in file order; they
+# sit after Follow the Target's and before Choice-making's, whose columns stay the last of the file.
+SCANNING_COLUMNS: tuple[str, ...] = (
+    "search_mode", "target_shape", "field_shapes", "start_dot_ms", "start_dot_timeout",
+    "first_icon_looked_at_slot", "first_icon_looked_at_shape", "wrong_selections", "wrong_selection_shapes",
+)
+
 # Choice-making's look-back and waiting-phase columns of ``trials.csv`` (the last of the file).
 LOOKBACK_COLUMNS: tuple[str, ...] = (
     "lookback", "lookback_latency_ms", "lookback_dwell_ms", "lookback_fraction",
@@ -137,6 +144,24 @@ class TrialRecord:
     button_side: str = ""
     selected_object: str = ""
     rt_ms: float | None = None
+    # Scanning Search (SPEC-scanning-search-cues.md 4.6): the search mode the trial ran in
+    # (``pop_out`` / ``match_sample``); the target's shape and the shape in every slot, by name
+    # (``field_shapes`` joined by ``|`` in slot order); the time from the centre start dot appearing to
+    # its going (the hold included, ms) with whether it timed out instead (None / blank when the
+    # start dot is off, and ``start_dot_ms`` blank on a timeout); and, in Match the sample, the slot
+    # and shape of the first icon the pointer entered after the field appeared (blank if none) and,
+    # how many times the child selected an icon that was not the target (a completed dwell, or a
+    # switch press while on it), with their shapes in order joined by ``;`` ("star;circle"). Pop-out
+    # and every other task: blank.
+    search_mode: str = ""
+    target_shape: str = ""
+    field_shapes: str = ""
+    start_dot_ms: float | None = None
+    start_dot_timeout: bool | None = None
+    first_icon_looked_at_slot: int | None = None
+    first_icon_looked_at_shape: str = ""
+    wrong_selections: int | None = None
+    wrong_selection_shapes: str = ""
     # Choice-making's look-back to the effect and where the gaze was while the child chose
     # (SPEC-scene-cause-effect-task.md 4.6, 4.9, S7). Not known when the trial ends: they are
     # worked out from the device-rate gaze (or the Mouse pointer) after the run and written into
@@ -231,6 +256,15 @@ class TrialRecord:
             "on_target_ms": _blank(_round(self.on_target_ms, 1)),
             "time_on_target_pct": _blank(_round(self.time_on_target_pct)),
             "mean_dist_px": _blank(_round(self.mean_dist_px)),
+            "search_mode": self.search_mode,
+            "target_shape": self.target_shape,
+            "field_shapes": self.field_shapes,
+            "start_dot_ms": _blank(_round(self.start_dot_ms, 1)),
+            "start_dot_timeout": "" if self.start_dot_timeout is None else int(self.start_dot_timeout),
+            "first_icon_looked_at_slot": _blank(self.first_icon_looked_at_slot),
+            "first_icon_looked_at_shape": self.first_icon_looked_at_shape,
+            "wrong_selections": _blank(self.wrong_selections),
+            "wrong_selection_shapes": self.wrong_selection_shapes,
             "prompt_object": self.prompt_object,
             "button_side": self.button_side,
             "selected_object": self.selected_object,
@@ -277,6 +311,7 @@ class TrialRecord:
             "on_target_ms",
             "time_on_target_pct",
             "mean_dist_px",
+            *SCANNING_COLUMNS,
             "prompt_object",
             "button_side",
             "selected_object",

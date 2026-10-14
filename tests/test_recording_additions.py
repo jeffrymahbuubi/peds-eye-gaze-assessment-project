@@ -18,7 +18,7 @@ from src.data.recorder import (
     TARGET_TRACK_FILENAME,
     NullRecorder,
 )
-from src.data.schema import LOOKBACK_COLUMNS, SessionMetadata, TrialRecord
+from src.data.schema import LOOKBACK_COLUMNS, SCANNING_COLUMNS, SessionMetadata, TrialRecord
 from src.engine.config import load_task_config
 from src.engine.feedback import NullFeedback
 from src.engine.task_runner import build_task, run_headless_replay
@@ -47,6 +47,7 @@ def test_the_new_columns_follow_is_skipped_in_the_agreed_order():
     assert header[header.index("is_skipped") :] == [
         "is_skipped", "entries", "end_x", "end_y", "slot_index", "clicks", "click_errors",
         "valid_ms", "on_target_ms", "time_on_target_pct", "mean_dist_px",
+        *SCANNING_COLUMNS,  # Scanning Search's nine (SPEC-scanning-search-cues.md 4.6)
         "prompt_object", "button_side", "selected_object", "rt_ms", *LOOKBACK_COLUMNS,
     ]
     assert "outcome" not in header
