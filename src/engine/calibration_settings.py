@@ -168,10 +168,11 @@ def settings_state(settings: CalibrationSettings) -> dict[str, Any]:
 
 # -- the point layout (D5) ----------------------------------------------------------------------
 
-# Grid 3's order: top-left, bottom-right, top-right, bottom-left, centre, at 10 / 90 %; the
-# 9-point layout adds the edge midpoints (top, right, bottom, left) at 10 / 50 / 90 %.
+# Centre first (D9, 4.8 R1), then Grid 3's corners in its order: top-left, bottom-right,
+# top-right, bottom-left, at 10 / 90 %; the 9-point layout adds the edge midpoints (top, right,
+# bottom, left) at 10 / 50 / 90 %.
 _APP_LAYOUT: tuple[tuple[float, float], ...] = (
-    (0.1, 0.1), (0.9, 0.9), (0.9, 0.1), (0.1, 0.9), (0.5, 0.5),
+    (0.5, 0.5), (0.1, 0.1), (0.9, 0.9), (0.9, 0.1), (0.1, 0.9),
     (0.5, 0.1), (0.9, 0.5), (0.5, 0.9), (0.1, 0.5),
 )
 LAYOUT_APP = "grid3"
@@ -179,8 +180,8 @@ LAYOUT_CONTROL = "vendor"
 
 
 def app_layout(n_points: int) -> list[tuple[float, float]]:
-    """The first ``n_points`` points of the Grid 3 layout, as (X, Y) fractions of the screen.
-    Raises ``ValueError`` outside 4-9 (Control rejects fewer than 4)."""
+    """The first ``n_points`` points of the app's layout (centre first), as (X, Y) fractions of
+    the screen. Raises ``ValueError`` outside 4-9 (Control rejects fewer than 4)."""
     if not 4 <= n_points <= len(_APP_LAYOUT):
         raise ValueError(f"Unsupported calibration point count: {n_points} (must be 4-{len(_APP_LAYOUT)})")
     return list(_APP_LAYOUT[:n_points])
@@ -340,6 +341,7 @@ def record_for(settings: CalibrationSettings, mode: str, improve_runs: int = 0) 
         "background": settings.background,
         "layout": LAYOUT_APP if mode == MODE_APP else LAYOUT_CONTROL,
         "improve_runs": int(improve_runs),
+        "accuracy_checked": False,
     }
 
 
@@ -348,6 +350,42 @@ def with_improve_runs(result: CalibrationResult, improve_runs: int) -> Calibrati
     record = dict(result.record or {})
     record["improve_runs"] = int(improve_runs)
     return replace(result, record=record)
+
+
+def with_accuracy_checked(result: CalibrationResult, checked: bool) -> CalibrationResult:
+    """``result`` with its record's ``accuracy_checked`` set: whether the Check accuracy view
+    (4.8 R3) was opened before Back."""
+    record = dict(result.record or {})
+    record["accuracy_checked"] = bool(checked)
+    return replace(result, record=record)
+
+
+def any_eye_valid(per_point: tuple[dict[str, Any], ...] | list[dict[str, Any]] | None) -> bool:
+    """Whether any eye of any point of a ``CALIB_RESULT`` was valid (the run's ``valid``)."""
+    return bool(per_point) and any(
+        eye is not None and eye.get("valid") for point in per_point for eye in (point["left"], point["right"])
+    )
+
+
+class EyeCounts(NamedTuple):
+    """How many points each eye was valid on, of ``total`` (the Check accuracy view's lines)."""
+
+    left: int
+    right: int
+    total: int
+
+
+def eye_counts(per_point: tuple[dict[str, Any], ...] | list[dict[str, Any]] | None) -> EyeCounts | None:
+    """The valid points per eye of a ``CALIB_RESULT``; None without per-point data."""
+    if not per_point:
+        return None
+
+    def valid(point: dict[str, Any], side: str) -> bool:
+        return point.get(side) is not None and bool(point[side].get("valid"))
+
+    return EyeCounts(
+        sum(valid(p, "left") for p in per_point), sum(valid(p, "right") for p in per_point), len(per_point)
+    )
 
 
 def mean_error_px(per_point: tuple[dict[str, Any], ...] | None, geometry: Geometry) -> float | None:
@@ -367,11 +405,19 @@ def annotate_result(
     result: CalibrationResult, settings: CalibrationSettings, mode: str, geometry: Geometry | None
 ) -> CalibrationResult:
     """``result`` with the settings record and each point's score and error added. Without a
-    geometry only the record is added. An app-drawn result has no number from Control (the
-    summary is retained state), so its mean error in px is computed here from ``CALIB_RESULT``."""
+    geometry only the record is added.
+
+    One error measure for every mode (D11, 4.8 R2): when ``CALIB_RESULT`` gave per-point data,
+    the badge's ``mean_error_px`` and ``valid`` are computed from it, whichever screen made the
+    run, and Control's own ``AVE_ERROR`` (the summary, retained state that does not follow the
+    per-point data) is left to the timing log. A result without per-point data (``CALIB_RESULT``
+    never came) keeps what the run reported."""
     if geometry is not None and result.per_point:
         scored = annotate_per_point(result.per_point, score_points(result.per_point, geometry))
-        result = replace(result, per_point=scored)
-        if mode == MODE_APP:
-            result = replace(result, mean_error_px=mean_error_px(result.per_point, geometry))
+        result = replace(
+            result,
+            per_point=scored,
+            mean_error_px=mean_error_px(result.per_point, geometry),
+            valid=any_eye_valid(result.per_point),
+        )
     return replace(result, record=record_for(settings, mode))

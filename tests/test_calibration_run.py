@@ -292,6 +292,69 @@ def test_the_control_screen_gets_the_same_pair_and_gives_controls_own_back(contr
     assert run.result.record["mode"] == MODE_CONTROL and run.result.record["speed"] == speed
 
 
+# -- A15: one error measure for both screens (4.8 R2, D11) -------------------------------------------------
+
+RIG = settings_module.geometry_for_screen(1920, 1080, 527.0 / 1920, 1.0, 650.0)
+
+
+def _calib_result_points():
+    """One CALIB_RESULT point whose two eyes are 0.01 of the screen width off the target."""
+    eye = lambda dx: {"x": 0.5 + dx, "y": 0.5, "valid": True}  # noqa: E731
+    return ({"point": 1, "target_x": 0.5, "target_y": 0.5, "left": eye(0.01), "right": eye(-0.01)},)
+
+
+@pytest.mark.parametrize("path", ["control", "fallback"])
+def test_the_control_screen_and_the_fallback_report_the_calib_result_measure_not_ave_error(control, path):
+    """What ``Calibration.run()`` gives for Control's window is Control's ``AVE_ERROR`` (999 px
+    here) and ``VALID_POINTS > 0``; the run's result is the one computed from ``CALIB_RESULT``
+    (the same measure as the App screen), with the per-point scores added."""
+    from_summary = CalibrationResult(5, 999.0, False, per_point=_calib_result_points())
+    client = control.client()
+    if path == "fallback":
+        control.state.silent_runs = 1  # the app's screen never answers: Control's window runs
+        run = run_calibration(
+            client, settings(), make_control=CapturingControl(from_summary), timing=FAST, grace_s=0.3, geometry=RIG
+        )
+        assert run.mode == MODE_FALLBACK
+    else:
+        run = run_calibration(
+            client, settings(screen="control"), make_control=CapturingControl(from_summary), timing=FAST, geometry=RIG
+        )
+        assert run.mode == MODE_CONTROL
+    result = run.result
+    assert result.mean_error_px == pytest.approx(0.01 * 1920)  # not 999.0
+    assert result.valid  # an eye was valid in CALIB_RESULT, whatever the summary said
+    assert [p["score"] for p in result.per_point] == [round(100 * (1 - RIG.px_to_deg(0.01 * 1920) / 3))]
+    assert result.record["mode"] == run.mode
+
+
+def test_with_no_calib_result_the_control_screen_keeps_what_its_summary_reported():
+    """The ``calib_result_never`` path: nothing to compute from, so today's behaviour stays."""
+    summary_only = CalibrationResult(5, 12.5, True)
+    run = run_calibration(None, settings(screen="control"), make_control=CapturingControl(summary_only), geometry=RIG)
+    assert (run.result.mean_error_px, run.result.valid, run.result.per_point) == (12.5, True, None)
+
+
+def test_the_control_screens_ave_error_goes_only_to_the_timing_log(control, tmp_path, monkeypatch):
+    """Against the fake Control: the result's number is the CALIB_RESULT one; Control's own summary
+    (the fake reports it as if the screen were 3840 x 2160, so it differs) is in the timing log as
+    ``control_ave_error_px`` and is not the result."""
+    monkeypatch.setattr(control.module, "CAL_SCREEN_PX", (3840, 2160))
+    log = tmp_path / "calibration_timing.jsonl"
+    client = control.client()
+    run = run_calibration(
+        client, settings(screen="control"), make_control=control_factory(client, log), timing=(0.05, 0.05), geometry=RIG
+    )
+    expected = math.hypot(0.003 * 1920, 0.002 * 1080)  # the fake gaze's offset, in px of the 1920 x 1080 screen
+    assert run.mode == MODE_CONTROL and run.result.valid
+    assert run.result.mean_error_px == pytest.approx(expected, abs=0.01)
+    assert all("score" in p and "error_deg" in p for p in run.result.per_point)
+    record = json.loads(log.read_text(encoding="utf-8").splitlines()[-1])
+    assert record["mode"] == MODE_CONTROL and "mean_error_px" not in record
+    assert isinstance(record["control_ave_error_px"], float)
+    assert record["control_ave_error_px"] != pytest.approx(run.result.mean_error_px)
+
+
 def test_controls_timing_is_read_and_restored_by_the_helpers(control):
     client = control.client()
     saved = read_device_timing(client._sock)

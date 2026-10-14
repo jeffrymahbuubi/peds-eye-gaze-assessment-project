@@ -10,9 +10,11 @@ software on the PC keeps its settings (4.3b).
 
 Records that matter (probes P1-P3, feasibility 6.1): a ``CALIB_RESULT_PT`` above the point count
 is ignored; ``CALIB_RESULT`` is the only end marker and the only source of the result;
-``CALIBRATE_RESULT_SUMMARY`` is retained state and is never asked for. If Control sends nothing when it should
-(4.2) the run falls back to Control's own window; Esc/X (``cancel``) stops it with
-``CALIBRATE_START STATE="0"``.
+``CALIBRATE_RESULT_SUMMARY`` is retained state and the app screen never asks for it. The Control
+screen's poll still does (today's path), but :func:`annotate` takes that run's mean error and
+validity from ``CALIB_RESULT`` too, so both screens report one measure (4.8 R2); Control's
+``AVE_ERROR`` is left to the timing log. If Control sends nothing when it should (4.2) the run
+falls back to Control's own window; Esc/X (``cancel``) stops it with ``CALIBRATE_START STATE="0"``.
 
 Qt-free and socket-level, like :mod:`src.engine.calibration`; the reader thread is paused around
 all socket use for the same reason (SPEC-calibration-result-timeout.md S4.1).
@@ -44,6 +46,7 @@ from .calibration_settings import (
     MODE_FALLBACK,
     CalibrationSettings,
     annotate_result,
+    any_eye_valid,
     app_layout,
 )
 
@@ -192,7 +195,8 @@ def annotate(
     run: CalibrationRun, settings: CalibrationSettings, geometry: Geometry | None
 ) -> CalibrationRun:
     """``run`` with the settings record and each point's score and error added to its result
-    (4.7). Without a geometry only the record is added."""
+    (4.7), and its mean error and validity taken from ``CALIB_RESULT`` whichever screen made the
+    run (4.8 R2). Without a geometry only the record is added."""
     return replace(run, result=annotate_result(run.result, settings, run.mode, geometry))
 
 
@@ -383,10 +387,7 @@ def _result_from_calib_result(n: int, per_point: list[dict[str, Any]] | None) ->
     mean error in px needs the monitor's size, so :func:`annotate` adds it. Without
     ``CALIB_RESULT`` there is no result at all."""
     breakdown = tuple(per_point) if per_point else None
-    valid = bool(breakdown) and any(
-        eye is not None and eye["valid"] for point in breakdown for eye in (point["left"], point["right"])
-    )
-    return CalibrationResult(n_points=n, mean_error_px=None, valid=valid, per_point=breakdown)
+    return CalibrationResult(n_points=n, mean_error_px=None, valid=any_eye_valid(breakdown), per_point=breakdown)
 
 
 class _TimingLog:

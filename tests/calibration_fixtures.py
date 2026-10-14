@@ -13,6 +13,7 @@ import time
 from pathlib import Path
 from types import SimpleNamespace
 
+from src.data.schema import GazeSample
 from src.engine.calibration import Calibration
 
 FAKE_PATH = Path(__file__).resolve().parents[1] / "tools" / "fake_gazepoint_server.py"
@@ -111,3 +112,35 @@ def wait_until(condition, seconds: float = 5.0) -> None:
     while not condition():
         assert time.monotonic() < deadline, "timed out"
         time.sleep(0.005)
+
+
+class FakeGaze:
+    """What the tracker client's ``latest()`` is (the Check accuracy view's gaze source): the
+    newest sample, replaced by ``look`` (a new ``t_ns`` each time, as a new REC would) or ``lose``
+    (the link is gone)."""
+
+    def __init__(self) -> None:
+        self.sample: GazeSample | None = None
+        self._n = 0
+
+    def __call__(self) -> GazeSample | None:
+        return self.sample
+
+    def look(self, x: float, y: float, valid: bool = True) -> None:
+        self._n += 1
+        self.sample = GazeSample(t_ns=self._n, x=x, y=y, valid=valid)
+
+    def lose(self) -> None:
+        self.sample = None
+
+
+def has_green(image, x: float, y: float, reach: int = 6) -> bool:
+    """Whether a green-ish pixel of the ``QImage`` is within ``reach`` px of (x, y): the gaze
+    trail's colour, which neither the background nor the (dark or light) ink of the rings is."""
+    for px in range(int(x) - reach, int(x) + reach + 1):
+        for py in range(int(y) - reach, int(y) + reach + 1):
+            if 0 <= px < image.width() and 0 <= py < image.height():
+                colour = image.pixelColor(px, py)
+                if colour.green() - colour.red() >= 25 and colour.green() - colour.blue() >= 15:
+                    return True
+    return False

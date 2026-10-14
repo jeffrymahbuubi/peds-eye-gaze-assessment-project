@@ -2,18 +2,21 @@
 ``docs/wireframes/calibration-window.md``).
 
 A frameless full-screen window on the tracked monitor, over the taskbar, opened by Do Calibration
-(Setup) or Calibrate (Start page) when "Calibration screen" is App. It has five states:
+(Setup) or Calibrate (Start page) when "Calibration screen" is App. It has six states:
 
 * **waiting / running** (:class:`~src.ui.calibration_stage.CalibrationStage`): a plain background and
   the icon, no text, no sound, only a faint close x top right; the mouse cursor stays visible;
 * **processing**: "Processing calibration results" until ``CALIB_RESULT``;
 * **results**: the map of per-point scores (:class:`~src.ui.calibration_map.ResultsMap`), the line
-  under it, and Improve calibration, Show Monitor and Back;
-* **monitor**: the head-position widget over the dimmed map.
+  under it, and Improve calibration, Show Monitor, Check accuracy and Back;
+* **monitor**: the head-position widget over the dimmed map;
+* **check**: the Check accuracy view (:class:`~src.ui.calibration_check.CalibrationCheckView`, 4.8 R3):
+  eleven rings and a live gaze trail, with Repeat calibration (= Improve), Results and Done (= Back).
 
 Esc or the x asks to cancel (``cancelRequested``): during a run that cancels it, on the results map
-it is Back (the flow decides, see :class:`~src.ui.calibration_flow.CalibrationFlow`). The window only
-draws and reports what was pressed; :class:`~src.ui.calibration_flow.CalibrationFlow` runs the calibration behind it.
+and in the check view it is Back (the flow decides, see :class:`~src.ui.calibration_flow.CalibrationFlow`).
+The window only draws and reports what was pressed; :class:`~src.ui.calibration_flow.CalibrationFlow`
+runs the calibration behind it.
 """
 
 from __future__ import annotations
@@ -41,7 +44,8 @@ from ..engine.calibration_run import (
     EVENT_START_POINT,
     CalibrationEvent,
 )
-from ..engine.calibration_settings import CalibrationSettings, PointScore, attention_text
+from ..engine.calibration_settings import CalibrationSettings, EyeCounts, PointScore, attention_text
+from .calibration_check import CHECK_ACCURACY, CalibrationCheckView, GazeSource
 from .calibration_map import MAP_MARGIN_PX, ResultsMap
 from .calibration_stage import CalibrationStage
 from .design_tokens import INK, TEXT_SECONDARY, TYPE_BODY_LARGE, TYPE_HEADING
@@ -53,6 +57,7 @@ STATE_RUNNING = "running"  # a point is on (glide, then hold)
 STATE_PROCESSING = "processing"  # the last point is done, waiting for CALIB_RESULT
 STATE_RESULTS = "results"
 STATE_MONITOR = "monitor"  # results, with the head-position widget over the map
+STATE_CHECK = "check"  # the Check accuracy view (rings and the live gaze trail)
 
 SHOW_MONITOR = "Show Monitor"
 HIDE_MONITOR = "Hide Monitor"
@@ -74,6 +79,7 @@ class CalibrationWindow(QWidget):
         viewing_distance_mm: float,
         *,
         head_source: HeadPositionSource | None = None,
+        gaze_source: GazeSource | None = None,
         clock: Callable[[], float] = time.monotonic,
         parent: QWidget | None = None,
     ) -> None:
@@ -84,6 +90,7 @@ class CalibrationWindow(QWidget):
         self._dismissed = False
         self._aspect = 16 / 9
         self._scores: list[PointScore] = []
+        self._accuracy_checked = False
 
         self._layout = QStackedLayout(self)
         self._layout.setContentsMargins(0, 0, 0, 0)
@@ -91,6 +98,11 @@ class CalibrationWindow(QWidget):
         self._layout.addWidget(self.stage)
         self._results = self._build_results(head_source)
         self._layout.addWidget(self._results)
+        self.check = CalibrationCheckView(settings, mm_per_px, viewing_distance_mm, gaze_source=gaze_source, clock=clock)
+        self.check.repeatRequested.connect(self.improveRequested)  # Repeat calibration = Improve
+        self.check.resultsRequested.connect(self._close_check)
+        self.check.doneRequested.connect(self.backRequested)  # Done = Back
+        self._layout.addWidget(self.check)
         self._layout.setCurrentWidget(self.stage)
 
         # The faint x, always on top; Esc does the same.
@@ -129,9 +141,11 @@ class CalibrationWindow(QWidget):
         row.setSpacing(12)
         self.improve_button = self._button("calibrationImprove", IMPROVE, "wtmhGhost", self.improveRequested.emit)
         self.monitor_button = self._button("calibrationMonitor", SHOW_MONITOR, "wtmhGhost", self._toggle_monitor)
+        self.check_button = self._button("calibrationCheck", CHECK_ACCURACY, "wtmhGhost", self._open_check)
         self.back_button = self._button("calibrationBack", BACK, "wtmhPrimary", self.backRequested.emit)
         row.addWidget(self.improve_button)
         row.addWidget(self.monitor_button)
+        row.addWidget(self.check_button)
         row.addStretch(1)
         row.addWidget(self.back_button)
         outer.addLayout(row)
@@ -175,6 +189,7 @@ class CalibrationWindow(QWidget):
         """The flow is done with the window: stop drawing and close without a cancel."""
         self._dismissed = True
         self.stage.stop()
+        self.check.stop()
         self.monitor_card.hide()
         self.close()
 
@@ -183,6 +198,7 @@ class CalibrationWindow(QWidget):
             self._dismissed = True  # e.g. Alt+F4: it is a cancel
             self.cancelRequested.emit()
         self.stage.stop()
+        self.check.stop()
         super().closeEvent(event)
 
     def resizeEvent(self, event: QResizeEvent) -> None:  # noqa: N802 (Qt naming)
@@ -203,7 +219,10 @@ class CalibrationWindow(QWidget):
 
     def begin_run(self) -> None:
         """A run (the first, or Improve calibration's) is about to start: back to the empty
-        stage, the icon off screen."""
+        stage, the icon off screen. The check of the previous result is over with it: a new
+        run's ``accuracy_checked`` starts false (4.8 R3, user 2026-10-14)."""
+        self._accuracy_checked = False
+        self.check.stop()
         self.monitor_card.hide()
         self.map.set_dimmed(False)
         self.monitor_button.setText(SHOW_MONITOR)
@@ -225,11 +244,14 @@ class CalibrationWindow(QWidget):
         elif event.kind == EVENT_FALLBACK:
             self.dismiss()  # Control's own window takes over (4.2)
 
-    def show_results(self, scores: list[PointScore], note: str = "") -> None:
+    def show_results(self, scores: list[PointScore], note: str = "", eyes: EyeCounts | None = None) -> None:
         """The run is over: draw the map of ``scores``. ``note`` replaces the line under it
-        (e.g. when no per-point data came)."""
+        (e.g. when no per-point data came); ``eyes`` are the valid points per eye the Check
+        accuracy view's lines give."""
         self._scores = list(scores)
         self.stage.stop()
+        self.check.stop()
+        self.check.set_result(eyes)
         self.map.set_scores(self._scores, self._aspect)
         self.attention_label.setText(note or attention_text(self._scores))
         self._layout.setCurrentWidget(self._results)
@@ -252,6 +274,38 @@ class CalibrationWindow(QWidget):
             self.monitor_card.raise_()
         self.map.set_dimmed(showing)
         self.monitor_button.setText(HIDE_MONITOR if showing else SHOW_MONITOR)
+
+    def checking(self) -> bool:
+        return self._state == STATE_CHECK
+
+    def accuracy_checked(self) -> bool:
+        """Whether the Check accuracy view was opened for the current result (the record's
+        ``accuracy_checked``, 4.8 R3): reset when a new run begins (Repeat / Improve)."""
+        return self._accuracy_checked
+
+    def _open_check(self) -> None:
+        """Check accuracy: from the results map (with or without Show Monitor) to the rings and
+        the live trail. Not before there is a result."""
+        if self._state not in (STATE_RESULTS, STATE_MONITOR):
+            return
+        if self._state == STATE_MONITOR:
+            self._toggle_monitor()  # the head panel goes, the map is plain again behind it
+        self._accuracy_checked = True
+        self._layout.setCurrentWidget(self.check)
+        self._state = STATE_CHECK
+        self.check.start()
+        self.close_button.raise_()
+        self.setFocus()
+
+    def _close_check(self) -> None:
+        """Results: back to the map."""
+        if self._state != STATE_CHECK:
+            return
+        self.check.stop()
+        self._layout.setCurrentWidget(self._results)
+        self._state = STATE_RESULTS
+        self.close_button.raise_()
+        self.setFocus()
 
     def hold_report(self) -> list[dict[str, float | int | None]]:
         return self.stage.hold_report()

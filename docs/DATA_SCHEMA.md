@@ -289,9 +289,9 @@ change** (a loader reads named keys and treats a missing one as unknown).
 |-------|------|-------|
 | `subject_id` | str | the verbatim Subject ID |
 | `n_points` | int | points calibrated |
-| `mean_error_px` | float\|null | the mean calibration error in pixels of the tracked monitor: Gazepoint Control's `AVE_ERROR` for `mode` `control` and `control_fallback`; for `app_drawn` computed from `CALIB_RESULT` (the mean distance of each valid eye's estimate from its target, over every point), because the summary Control keeps is retained state |
-| `valid` | bool | at least one valid point (`app_drawn`: any eye of any point was valid in `CALIB_RESULT`) |
-| `per_point` | list\|null | one entry per point of `CALIB_RESULT`: `point`, `target_x`, `target_y`, and per eye (`left`, `right`: `x`, `y`, `valid`, or null); null when `CALIB_RESULT` never arrived. An app-drawn run adds `score` and `error_deg` to each entry |
+| `mean_error_px` | float\|null | the mean calibration error in pixels of the tracked monitor, **the same measure for every `mode`**: computed from `CALIB_RESULT` (the mean distance of each valid eye's estimate from its target, over every valid eye of every point). Gazepoint Control's own `AVE_ERROR` is not kept here (retained state, it does not follow the per-point data): it is logged in `calibration_timing.jsonl` as `control_ave_error_px`. Only a run that got no `CALIB_RESULT` (`per_point` null) keeps the number its run reported |
+| `valid` | bool | any eye of any point was valid in `CALIB_RESULT` (every `mode`); a run with no `CALIB_RESULT` keeps what it reported |
+| `per_point` | list\|null | one entry per point of `CALIB_RESULT`: `point`, `target_x`, `target_y`, and per eye (`left`, `right`: `x`, `y`, `valid`, or null); null when `CALIB_RESULT` never arrived. Every run with data adds `score` and `error_deg` to each entry (`app_drawn`, `control` and `control_fallback`) |
 | `calibrated_at` | str | UTC timestamp |
 | `mode` | str | `"app_drawn"` (the app's calibration window), `"control"` (the operator chose Gazepoint Control's own window) or `"control_fallback"` (the app's window did not respond, so Control's own was used) |
 | `speed` | str | `"slow"`, `"normal"` or `"fast"` |
@@ -299,8 +299,9 @@ change** (a loader reads named keys and treats a missing one as unknown).
 | `icon` | str | the target icon: `bee`, `star`, `ball`, `fish`, `flower` or `car` (drawn by the app screen only) |
 | `size` | str | `"small"`, `"normal"` or `"large"` (degrees of visual angle, app screen only) |
 | `background` | str | `"white"`, `"black"` or `"grey"` (app screen only) |
-| `layout` | str | `"grid3"` (the app's 10 % / 90 % layout, in the order top-left, bottom-right, top-right, bottom-left, centre, then the edge midpoints) or `"vendor"` (Control's own 0.15 / 0.85 layout) |
+| `layout` | str | `"grid3"` (the app's 10 % / 90 % layout, in the order centre, top-left, bottom-right, top-right, bottom-left, then the edge midpoints: top, right, bottom, left; the centre comes first since 2026-10-14, a file written before that has the centre last) or `"vendor"` (Control's own 0.15 / 0.85 layout) |
 | `improve_runs` | int | how many times Improve calibration re-ran all points before Back |
+| `accuracy_checked` | bool | whether the Check accuracy view of the calibration window (rings and a live gaze trail, `app_drawn` only) was opened for the kept result before Back or Done (reset by Repeat / Improve: a check of an earlier run does not count); always `false` for `control` and `control_fallback`. The view itself records nothing |
 | `per_point[].score` | int | `round(100 x max(0, 1 - error_deg / 3))`, 0 when no eye was valid |
 | `per_point[].error_deg` | float\|null | the point's gaze error in degrees of visual angle, the mean over the valid eyes; null when no eye was valid |
 
@@ -308,7 +309,7 @@ The settings (screen, points, speed, target, size, background) are saved per PC 
 state (`configs/local_state.json`, `calibration` block), never in the data folder.
 
 `_system/diagnostics/calibration_timing.jsonl` gains `mode` on every record (`"control"`,
-`"control_fallback"` with `fallback_reason`, or `"app_drawn"`). An app-drawn run writes one record
+`"control_fallback"` with `fallback_reason`, or `"app_drawn"`). A Gazepoint Control run (`control`, `control_fallback`) logs Control's own `AVE_ERROR` as `control_ave_error_px` (what its `CALIBRATE_RESULT_SUMMARY` reported; for comparison only: the result's error is the `CALIB_RESULT` one in `calibration.json`; it replaces the `mean_error_px` key these records had before 2026-10-14). An app-drawn run writes one record
 with `outcome` (`calib_result`, `calib_result_never`, `cancelled`, `fallback`, `socket_error`),
 `delay_s`, `timeout_s` and `points`: for each point `t_start_s`, `t_result_s`, `t_glide_end_s` and
 `t_hold_start_s`, in seconds after `CALIBRATE_START`. The hold rule (the icon is still and small no

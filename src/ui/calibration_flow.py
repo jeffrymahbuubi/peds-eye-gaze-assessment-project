@@ -7,10 +7,11 @@ forwards the engine's records to it, shows the results map when a run ends, runs
 on Improve calibration (Q2: a full re-run, counted), and ends with one
 :class:`CalibrationOutcome` for the page that started it:
 
-* **Back**: the last run's result, with ``improve_runs`` set;
+* **Back** (also the check view's Done): the last run's result, with ``improve_runs`` and
+  ``accuracy_checked`` set;
 * **Esc / x** during a run (glide, hold, processing): ``cancelled``; the page keeps what it had
-  (4.1). On the results map (and Show Monitor) the run is over and Control already holds the new
-  calibration, so Esc / x is Back and the result is kept;
+  (4.1). On the results map (and Show Monitor, and the Check accuracy view) the run is over and
+  Control already holds the new calibration, so Esc / x is Back and the result is kept;
 * **fallback** (4.2): the window is gone and Control's own window made the result, with the alert.
 
 The page supplies ``make_thread`` (its calibration thread, so a test can stand in for the device).
@@ -35,9 +36,12 @@ from ..engine.calibration_run import FALLBACK_ALERT, CalibrationRun
 from ..engine.calibration_settings import (
     MODE_FALLBACK,
     CalibrationSettings,
+    eye_counts,
     score_points,
+    with_accuracy_checked,
     with_improve_runs,
 )
+from .calibration_check import GazeSource
 from .calibration_window import CalibrationWindow
 from .head_position_panel import HeadPositionSource
 
@@ -66,6 +70,7 @@ class CalibrationFlow(QObject):
         mm_per_px: float,
         viewing_distance_mm: float,
         head_source: HeadPositionSource | None = None,
+        gaze_source: GazeSource | None = None,
         timing_log_path: str | Path | None = None,
         window_factory: Callable[..., CalibrationWindow] = CalibrationWindow,
         clock: Callable[[], float] = time.monotonic,
@@ -79,6 +84,7 @@ class CalibrationFlow(QObject):
         self._mm_per_px = mm_per_px
         self._distance_mm = viewing_distance_mm
         self._head_source = head_source
+        self._gaze_source = gaze_source
         self._timing_log_path = timing_log_path
         self._window_factory = window_factory
         self._clock = clock
@@ -98,7 +104,7 @@ class CalibrationFlow(QObject):
         parent = self.parent() if isinstance(self.parent(), QWidget) else None
         window = self.window = self._window_factory(
             self._settings, self._mm_per_px, self._distance_mm,
-            head_source=self._head_source, clock=self._clock, parent=parent,
+            head_source=self._head_source, gaze_source=self._gaze_source, clock=self._clock, parent=parent,
         )
         window.cancelRequested.connect(self._on_cancel)
         window.improveRequested.connect(self._on_improve)
@@ -165,13 +171,14 @@ class CalibrationFlow(QObject):
             self._finish(self._outcome(run))
             return
         if self.window is not None:
-            self.window.show_results(score_points(run.result.per_point, self._geometry))
+            self.window.show_results(
+                score_points(run.result.per_point, self._geometry), eyes=eye_counts(run.result.per_point)
+            )
 
     def _outcome(self, run: CalibrationRun, alert: str = "") -> CalibrationOutcome:
-        return CalibrationOutcome(
-            result=with_improve_runs(run.result, self.improve_runs),
-            alert=alert, mode=run.mode, improve_runs=self.improve_runs,
-        )
+        checked = self.window is not None and self.window.accuracy_checked()  # the Check accuracy view (4.8 R3)
+        result = with_accuracy_checked(with_improve_runs(run.result, self.improve_runs), checked)
+        return CalibrationOutcome(result=result, alert=alert, mode=run.mode, improve_runs=self.improve_runs)
 
     # -- what the window's buttons ask ---------------------------------------------------------
 

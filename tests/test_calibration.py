@@ -642,6 +642,10 @@ def test_timing_log_records_a_calib_result_that_arrived_inside_the_grace_window(
     # The gap is the whole point of the diagnostic: positive (it arrived after
     # the ACK) and inside the window that caught it.
     assert 0 < record["gap_s"] < record["grace_s"]
+    # Control's own AVE_ERROR is logged for comparison only, under its own name (SPEC-app-drawn-
+    # calibration.md 4.8 R2): the result's mean error comes from CALIB_RESULT.
+    assert record["control_ave_error_px"] == pytest.approx(19.43)
+    assert "mean_error_px" not in record
 
 
 def test_timing_log_records_a_calib_result_that_never_arrived(tmp_path):

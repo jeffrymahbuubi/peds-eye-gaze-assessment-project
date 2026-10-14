@@ -1,6 +1,7 @@
 """The App-screen calibration from the Setup page and the Start page (SPEC-app-drawn-calibration.md
-A3, A4, A6, A7, A10b, A12, A13): the real calibration thread against a fake Gazepoint Control that
-answers a calibration with ``CAL`` records, with the calibration window on the offscreen platform.
+A3, A4, A6, A7, A10b, A12, A13, and the flow side of A14-A16 of the 4.8 revision): the real
+calibration thread against a fake Gazepoint Control that answers a calibration with ``CAL``
+records, with the calibration window on the offscreen platform.
 
 No device. ``SPEEDS`` is shortened for the run so a point is 0.22 s; ``configs/local_state.json``
 is never written (``save_local_state`` is replaced).
@@ -26,6 +27,7 @@ from src.engine.display_check import check_display
 from src.engine.input_choice import CALIBRATION_BLOCKER, TRACKER_BLOCKER
 from src.ui import setup_page as setup_page_module
 from src.ui.calibration_window import (
+    STATE_CHECK,
     STATE_MONITOR,
     STATE_PROCESSING,
     STATE_RESULTS,
@@ -36,7 +38,7 @@ from src.ui.dashboard_flow import Flow
 from src.ui.setup_page import SetupPage
 from src.ui.setup_status import CALIBRATING_BLOCKER
 from src.ui.start_test_page import StartTestPage
-from tests.calibration_fixtures import FakeControl
+from tests.calibration_fixtures import FakeControl, FakeGaze, has_green
 from tests.dashboard_fixtures import close_window, make_window, new_test
 from tests.run_flow_fixtures import open_start
 
@@ -109,6 +111,15 @@ def window_of(page: SetupPage):
     return flow.window
 
 
+def calib_result_error_px(page: SetupPage) -> float:
+    """The fake Control's default gaze offset (0.003, 0.002 of the screen on every eye) in the
+    physical px of the screen the page calibrates on: what ``CALIB_RESULT`` gives."""
+    screen = page.screen()
+    ratio = float(screen.devicePixelRatio())
+    size = screen.geometry()
+    return math.hypot(0.003 * size.width() * ratio, 0.002 * size.height() * ratio)
+
+
 def run_to_results(page: SetupPage):
     pump(lambda: page._calibration_flow is not None and page._calibration_flow.window is not None
          and page._calibration_flow.window.state() == STATE_RESULTS)
@@ -129,6 +140,11 @@ def test_do_calibration_opens_the_window_runs_the_points_and_shows_the_map(page,
     looks = window.map.looks()
     assert [look.point for look in looks] == [1, 2, 3, 4, 5]
     assert all(look.band == cs.BAND_GOOD for look in looks)  # the fake gaze is 0.1 degree off
+    # The centre was point 1 (A14); the map still shows each point where it is.
+    assert [(score.x, score.y) for score in window._scores] == cs.app_layout(5)
+    assert (window._scores[0].x, window._scores[0].y) == (0.5, 0.5)
+    assert control.commands("CALIBRATE_ADDPOINT")[0] == '<SET ID="CALIBRATE_ADDPOINT" X="0.5" Y="0.5" />'
+
     assert window.attention_label.text() == "All points are good."
     assert page._calibration_result is None  # nothing is taken in until Back
     # (the icon's positions, in the order sent, are checked in test_calibration_run.py and test_calibration_window.py)
@@ -143,6 +159,7 @@ def test_do_calibration_opens_the_window_runs_the_points_and_shows_the_map(page,
     assert page.calibration_alert.kind() == "success" and "Calibration measured: 5 points" in page.calibration_alert_label.text()
     assert page.view_details_button.isEnabled() and page.do_calibration_button.isEnabled()
     assert result.record["mode"] == "app_drawn" and result.record["improve_runs"] == 0
+    assert result.record["accuracy_checked"] is False  # the Check accuracy view was not opened
     assert all("score" in point and "error_deg" in point for point in result.per_point)
     assert (control.state.delay, control.state.timeout) == (0.5, 1.5)  # Control's own, restored
 
@@ -186,6 +203,130 @@ def test_show_monitor_works_during_the_results(page, control):
     window.monitor_button.click()
     assert window.state() == STATE_MONITOR and window.head_panel.isVisible()
     assert window.head_panel.reading().state.name == "NO_EYES"  # connected tracker, no eye data
+    window.back_button.click()
+    pump(lambda: page._calibration_flow is None)
+
+
+# -- A16: Check accuracy (4.8 R3) -----------------------------------------------------------------------
+
+
+def test_the_page_hands_the_view_the_clients_latest_sample_and_nothing_without_a_tracker(page, control):
+    gaze = FakeGaze()
+    page._client.latest = gaze  # the client's own newest sample: no new socket
+    gaze.look(0.4, 0.6)
+    assert page.gaze_input() is gaze.sample
+    page._client.is_connected = lambda: False  # the link is down
+    assert page.gaze_input() is None
+    client, page._client = page._client, None
+    assert page.gaze_input() is None  # no tracker
+    page._client = client
+
+
+def test_check_accuracy_shows_the_clients_live_gaze_and_done_keeps_the_result_and_records_the_check(page, control):
+    gaze = FakeGaze()
+    page._client.latest = gaze
+    page.do_calibration_button.click()
+    window = run_to_results(page)
+    window.check_button.click()
+    assert window.state() == STATE_CHECK and window.check.isVisible()
+    assert window.check.status_lines() == ["Left eye: 5 of 5 points valid", "Right eye: 5 of 5 points valid"]
+    gaze.look(0.5, 0.35)  # the tracker puts the gaze here (unsmoothed, from the client)
+    pump(lambda: window.check.trail_centres())
+    where = (0.5 * window.check.width() + 4, 0.35 * window.check.height())
+    assert has_green(window.check.grab().toImage(), *where)  # painted
+    starts_before = len(control.commands("CALIBRATE_START"))
+    window.check.done_button.click()
+    pump(lambda: page._calibration_flow is None and page._calibration_thread is None)
+    assert not window.isVisible() and not page._busy()
+    result = page.calibration_result
+    assert result.valid and result.record["accuracy_checked"] is True and result.record["improve_runs"] == 0
+    assert page.calibration_badge.kind() == "calibrated"
+    control.sync(page._client)
+    assert len(control.commands("CALIBRATE_START")) == starts_before  # Done is Back: nothing re-run
+
+
+def test_results_goes_back_to_the_map_and_the_check_stays_recorded(page, control):
+    page.do_calibration_button.click()
+    window = run_to_results(page)
+    window.check_button.click()
+    window.check.results_button.click()
+    assert window.state() == STATE_RESULTS and window.map.isVisible()
+    window.back_button.click()
+    pump(lambda: page._calibration_flow is None)
+    assert page.calibration_result.record["accuracy_checked"] is True  # it was opened before Back
+
+
+def test_repeat_calibration_in_the_check_view_is_a_full_rerun_and_then_the_map(page, control):
+    page.do_calibration_button.click()
+    window = run_to_results(page)
+    window.check_button.click()
+    runs_before = control.state.runs
+    window.check.repeat_button.click()
+    assert window.state() == STATE_WAITING and page._busy() and not window.check.isVisible()
+    run_to_results(page)  # the map again, from a new full run
+    assert control.state.runs == runs_before + 1 and len(window.map.looks()) == 5
+    window.back_button.click()
+    pump(lambda: page._calibration_flow is None)
+    record = page.calibration_result.record
+    # The view was opened for the first result only: the kept (re-run) result was not checked.
+    assert record["improve_runs"] == 1 and record["accuracy_checked"] is False
+
+
+def test_accuracy_checked_describes_the_kept_result_not_an_earlier_one(page, control):
+    """User 2026-10-14: open the check, Repeat, Done without opening it again is false; opening
+    it after the re-run (and keeping that result) is true."""
+    page.do_calibration_button.click()
+    window = run_to_results(page)
+    window.check_button.click()
+    assert window.accuracy_checked()
+    window.check.repeat_button.click()
+    assert not window.accuracy_checked()  # reset as the new run begins
+    run_to_results(page)
+    window.check_button.click()  # now checked for the re-run's result
+    assert window.accuracy_checked()
+    window.check.repeat_button.click()  # ... and repeated again
+    run_to_results(page)
+    window.back_button.click()  # Done without opening it for the third result
+    pump(lambda: page._calibration_flow is None)
+    assert page.calibration_result.record["improve_runs"] == 2
+    assert page.calibration_result.record["accuracy_checked"] is False
+
+    page.do_calibration_button.click()
+    window = run_to_results(page)
+    window.check_button.click()
+    window.check.repeat_button.click()
+    run_to_results(page)
+    window.check_button.click()  # opened after the re-run
+    window.check.done_button.click()
+    pump(lambda: page._calibration_flow is None and page._calibration_thread is None)
+    assert page.calibration_result.record["improve_runs"] == 1
+    assert page.calibration_result.record["accuracy_checked"] is True
+
+
+@pytest.mark.parametrize("how", ["escape", "x", "close"])
+def test_escape_or_x_in_the_check_view_is_done_and_keeps_the_result(page, control, how):
+    page.do_calibration_button.click()
+    window = run_to_results(page)
+    window.check_button.click()
+    starts_before = len(control.commands("CALIBRATE_START"))
+    {"escape": window._escape.activated.emit, "x": window.close_button.click, "close": window.close}[how]()
+    pump(lambda: page._calibration_flow is None)
+    control.sync(page._client)
+    assert page.calibration_result is not None and page.calibration_result.valid
+    assert page.calibration_result.record["accuracy_checked"] is True
+    assert page.calibration_badge.kind() == "calibrated" and not page._busy()
+    assert len(control.commands("CALIBRATE_START")) == starts_before  # no CALIBRATE_START STATE="0"
+
+
+def test_show_monitor_and_check_accuracy_work_in_either_order(page, control):
+    page.do_calibration_button.click()
+    window = run_to_results(page)
+    window.monitor_button.click()
+    window.check_button.click()
+    assert window.state() == STATE_CHECK and not window.monitor_card.isVisible()
+    window.check.results_button.click()
+    window.monitor_button.click()
+    assert window.state() == STATE_MONITOR and window.monitor_card.isVisible()
     window.back_button.click()
     pump(lambda: page._calibration_flow is None)
 
@@ -286,6 +427,8 @@ def test_a_silent_control_falls_back_to_its_own_window_with_the_alert(page, cont
     result = page.calibration_result
     assert result is not None and result.valid and result.record["mode"] == "control_fallback"
     assert result.record["layout"] == "vendor"
+    assert result.mean_error_px == pytest.approx(calib_result_error_px(page), abs=0.01)  # A15: from CALIB_RESULT
+    assert all("score" in point and "error_deg" in point for point in result.per_point)
     assert page.calibration_alert.kind() == "warning"
     assert page.calibration_alert_label.text().startswith(calibration_run.FALLBACK_ALERT)
     assert "Calibration measured" in page.calibration_alert_label.text()
@@ -302,6 +445,10 @@ def test_the_control_screen_runs_todays_path_without_the_window(page, control):
     pump(lambda: page._calibration_thread is None, seconds=20)
     result = page.calibration_result
     assert result.valid and result.record["mode"] == "control" and result.record["speed"] == "slow"
+    assert result.record["accuracy_checked"] is False  # the check view is the App screen's only
+    assert result.mean_error_px == pytest.approx(calib_result_error_px(page), abs=0.01)  # A15: from CALIB_RESULT
+    assert result.mean_error_px != pytest.approx(float(control.state.ave_error))  # not Control's AVE_ERROR
+    assert all("score" in point and "error_deg" in point for point in result.per_point)
     assert control.commands("CALIBRATE_SHOW")[-1].endswith('STATE="1" />')  # CALIBRATE_SHOW STATE="1"
     assert f'<SET ID="CALIBRATE_DELAY" VALUE="{QUICK.glide_s}" />' in control.commands("CALIBRATE_DELAY")
     assert page.calibration_alert.kind() == "success"

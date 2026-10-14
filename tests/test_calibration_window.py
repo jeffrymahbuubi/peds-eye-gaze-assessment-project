@@ -233,7 +233,7 @@ def test_every_built_in_icon_is_there_and_is_drawn(qapp, icon):
     assert icon_path(icon).is_file()
     window, clock = make_window(qapp, target=icon)
     t0 = clock.now
-    start(window, clock, 5)  # the centre
+    start(window, clock, 1)  # the centre (it comes first, 4.8 R1)
     clock.now = t0 + DELAY
     assert not window.stage._pixmap.isNull()
     image = window.stage.grab().toImage()

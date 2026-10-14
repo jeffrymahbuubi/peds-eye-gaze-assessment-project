@@ -122,6 +122,7 @@ class CalibrationResult:
 # The keys of CalibrationResult.record, written at the top level of calibration.json.
 RECORD_KEYS = (
     "mode", "speed", "delay_s", "timeout_s", "icon", "size", "background", "layout", "improve_runs",
+    "accuracy_checked",
 )
 
 
@@ -538,7 +539,10 @@ class Calibration:
                         "min_calibration_s": round(self._min_calibration_s, 4),
                         "per_point_captured": bool(result.per_point),
                         "valid": result.valid,
-                        "mean_error_px": result.mean_error_px,
+                        # Control's own AVE_ERROR, kept for comparison only: the app's result
+                        # takes its mean error from CALIB_RESULT (SPEC-app-drawn-calibration.md
+                        # 4.8 R2), the summary being retained state that does not follow it.
+                        "control_ave_error_px": result.mean_error_px,
                         **self.timing_extra,
                     },
                 )

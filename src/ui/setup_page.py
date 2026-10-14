@@ -37,6 +37,7 @@ from PySide6.QtWidgets import (
     QWidget,
 )
 
+from ..data.schema import GazeSample
 from ..engine.calibration import (
     Calibration,
     CalibrationFileError,
@@ -538,6 +539,17 @@ class SetupPage(QWidget):
             return False, None
         latest = getattr(client, "latest_eye_position", None)
         return True, latest() if latest is not None else None
+
+    def gaze_input(self) -> GazeSample | None:
+        """The tracker's newest gaze sample, unsmoothed (the session's POG as recorded), for the
+        calibration window's Check accuracy view (SPEC-app-drawn-calibration.md 4.8 R3); None
+        without a connected tracker. Reads the client's latest sample: no new socket. Reads state
+        only."""
+        client = self._client
+        if client is None or not client.is_connected():
+            return None
+        latest = getattr(client, "latest", None)
+        return latest() if latest is not None else None
 
     # -- UI -----------------------------------------------------------------
 
@@ -1153,6 +1165,7 @@ class SetupPage(QWidget):
                 mm_per_px=scale.mm_per_px,
                 viewing_distance_mm=distance,
                 head_source=self.head_position_input,
+                gaze_source=self.gaze_input,
                 timing_log_path=calibration_timing_log_path(self.output_root),
                 parent=self,
             )

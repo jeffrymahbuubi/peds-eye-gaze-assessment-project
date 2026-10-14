@@ -116,17 +116,20 @@ def test_the_scores_are_written_beside_each_point_for_calibration_json():
     assert cs.annotate_per_point(points, []) is points and cs.annotate_per_point(None, []) is None
 
 
-# -- D5: the layout --------------------------------------------------------------------------------
+# -- D5, D9: the layout ----------------------------------------------------------------------------
 
 
-def test_the_layout_is_grid3s_tl_br_tr_bl_c_at_10_and_90_percent():
-    assert cs.app_layout(5) == [(0.1, 0.1), (0.9, 0.9), (0.9, 0.1), (0.1, 0.9), (0.5, 0.5)]
+def test_the_layout_is_the_centre_first_then_grid3s_tl_br_tr_bl_at_10_and_90_percent():
+    """A14 (4.8 R1): C, TL, BR, TR, BL; the positions are unchanged, only the order."""
+    assert cs.app_layout(5) == [(0.5, 0.5), (0.1, 0.1), (0.9, 0.9), (0.9, 0.1), (0.1, 0.9)]
+    assert set(cs.app_layout(5)) == {(0.1, 0.1), (0.9, 0.9), (0.9, 0.1), (0.1, 0.9), (0.5, 0.5)}
 
 
 def test_the_nine_point_layout_adds_the_edge_midpoints_after_the_five():
+    """A14: top, right, bottom, left after the five; the first five are the five-point layout."""
     nine = cs.app_layout(9)
     assert nine[:5] == cs.app_layout(5)
-    assert set(nine[5:]) == {(0.5, 0.1), (0.9, 0.5), (0.5, 0.9), (0.1, 0.5)}
+    assert nine[5:] == [(0.5, 0.1), (0.9, 0.5), (0.5, 0.9), (0.1, 0.5)]
     assert len(set(nine)) == 9
 
 
@@ -228,6 +231,7 @@ def test_the_record_holds_the_mode_speed_timing_icon_size_background_layout_and_
     assert record_for(settings, MODE_APP, 2) == {
         "mode": "app_drawn", "speed": "slow", "delay_s": 1.0, "timeout_s": 1.5, "icon": "fish",
         "size": "small", "background": "grey", "layout": "grid3", "improve_runs": 2,
+        "accuracy_checked": False,  # until the Check accuracy view is opened (4.8 R3)
     }
     assert record_for(settings, MODE_FALLBACK)["layout"] == "vendor"
 
@@ -255,20 +259,51 @@ def test_the_record_and_the_scores_reach_the_file_and_load_back(tmp_path):
     assert loaded == result
 
 
-def test_the_app_drawn_mean_error_is_computed_from_calib_result_and_control_keeps_its_own():
+def test_every_mode_takes_the_mean_error_and_validity_from_calib_result_not_from_controls_summary():
+    """A15 (4.8 R2, D11): app_drawn, control and control_fallback all report the number computed
+    from ``CALIB_RESULT``; Control's ``AVE_ERROR`` (the value the run carried in) is not kept."""
     points = (per_point((0.5, 0.5), 0.5, 0.5), per_point((0.1, 0.1), 1.5, None, point=2))
     expected = [px_for_degrees(0.5), px_for_degrees(0.5), px_for_degrees(1.5)]
     assert cs.mean_error_px(points, RIG) == pytest.approx(sum(expected) / 3, rel=1e-6)  # valid eyes only
     assert cs.mean_error_px((per_point((0.5, 0.5), 0.5, 0.5, left_valid=False, right_valid=False),), RIG) is None
     assert cs.mean_error_px(None, RIG) is None
     settings = cs.CalibrationSettings()
-    got = {"app_drawn": None, "control": 42.0}
-    for mode, device_value in got.items():
-        result = cs.annotate_result(CalibrationResult(5, device_value, True, per_point=points), settings, mode, RIG)
-        if mode == "app_drawn":
-            assert result.mean_error_px == pytest.approx(sum(expected) / 3, rel=1e-6)
-        else:
-            assert result.mean_error_px == 42.0  # Control's own window: its own number, as today
+    for mode in (cs.MODE_APP, cs.MODE_CONTROL, cs.MODE_FALLBACK):
+        result = cs.annotate_result(CalibrationResult(5, 42.0, False, per_point=points), settings, mode, RIG)
+        assert result.mean_error_px == pytest.approx(sum(expected) / 3, rel=1e-6), mode  # not Control's 42.0
+        assert result.valid, mode  # an eye was valid, whatever the summary said
+        assert [p["score"] for p in result.per_point] == [83, 50], mode  # scores for every mode
+
+
+def test_a_calib_result_with_no_valid_eye_is_not_valid_in_any_mode_even_if_the_summary_said_so():
+    points = (per_point((0.5, 0.5), 0.5, 0.5, left_valid=False, right_valid=False),)
+    for mode in (cs.MODE_APP, cs.MODE_CONTROL, cs.MODE_FALLBACK):
+        result = cs.annotate_result(CalibrationResult(5, 42.0, True, per_point=points), cs.CalibrationSettings(), mode, RIG)
+        assert not result.valid and result.mean_error_px is None, mode
+
+
+def test_without_calib_result_data_or_geometry_the_run_keeps_what_it_reported():
+    """The ``calib_result_never`` path (and a caller with no geometry): today's behaviour."""
+    for mode in (cs.MODE_APP, cs.MODE_CONTROL, cs.MODE_FALLBACK):
+        no_data = cs.annotate_result(CalibrationResult(5, 42.0, True), cs.CalibrationSettings(), mode, RIG)
+        assert (no_data.mean_error_px, no_data.valid, no_data.per_point) == (42.0, True, None)
+        no_geometry = cs.annotate_result(
+            CalibrationResult(5, 42.0, True, per_point=(per_point((0.5, 0.5), 0.5, 0.5),)), cs.CalibrationSettings(), mode, None
+        )
+        assert no_geometry.mean_error_px == 42.0 and no_geometry.record["mode"] == mode
+
+
+def test_any_eye_valid_and_the_valid_points_per_eye():
+    points = (
+        per_point((0.5, 0.5), 0.5, 0.5),
+        per_point((0.1, 0.1), 1.0, None, point=2),  # right eye never reported
+        per_point((0.9, 0.9), 1.0, 1.0, point=3, left_valid=False),
+        per_point((0.9, 0.1), 1.0, 1.0, point=4, left_valid=False, right_valid=False),
+    )
+    assert cs.any_eye_valid(points) and not cs.any_eye_valid(()) and not cs.any_eye_valid(None)
+    assert not cs.any_eye_valid((per_point((0.5, 0.5), 0.5, None, left_valid=False),))
+    assert cs.eye_counts(points) == cs.EyeCounts(left=2, right=2, total=4)
+    assert cs.eye_counts(()) is None and cs.eye_counts(None) is None
 
 
 def test_the_modes_are_app_drawn_control_and_control_fallback():
@@ -285,6 +320,20 @@ def test_an_old_calibration_file_without_a_record_still_loads(tmp_path):
 def test_improve_runs_is_set_on_a_copy():
     result = CalibrationResult(5, 1.0, True, record={"mode": "app_drawn", "improve_runs": 0})
     assert with_improve_runs(result, 2).record["improve_runs"] == 2 and result.record["improve_runs"] == 0
+
+
+def test_accuracy_checked_is_set_on_a_copy_and_reaches_the_file(tmp_path):
+    """A16 (4.8 R3): ``accuracy_checked`` is in the record, in ``calibration.json`` and loads back."""
+    result = CalibrationResult(5, 1.0, True, record={"mode": "app_drawn", "accuracy_checked": False})
+    checked = cs.with_accuracy_checked(result, True)
+    assert checked.record["accuracy_checked"] is True and result.record["accuracy_checked"] is False
+    assert cs.with_accuracy_checked(CalibrationResult(5, 1.0, True), True).record == {"accuracy_checked": True}
+    path = tmp_path / "calibration.json"
+    save_calibration_result(path, "P001", checked)
+    assert json.loads(path.read_text(encoding="utf-8"))["accuracy_checked"] is True
+    assert load_calibration_result(path).result.record["accuracy_checked"] is True
+    save_calibration_result(path, "P001", result)
+    assert json.loads(path.read_text(encoding="utf-8"))["accuracy_checked"] is False
 
 
 # -- the motion's helpers ---------------------------------------------------------------------------
