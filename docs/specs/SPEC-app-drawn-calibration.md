@@ -1,10 +1,10 @@
 ---
 name: SPEC-app-drawn-calibration
 title: Grid 3-style calibration drawn by the app (own icons, glide, results map, Improve calibration) with Gazepoint Control's window as fallback
-status: REVISION 4.8 IMPLEMENTED + LIVE-CHECKED 2026-10-14 (A14-A17 PASSED on the GP3 HD); first version `8db9e56`
+status: REVISION 4.9 (Hsieh feedback: slower Slow, no shrink) APPROVED 2026-10-22 (section 9 Q1, Q2, Q4 answered), wireframe drawn, awaiting the wireframe look (GATE 1); revision 4.8 IMPLEMENTED + LIVE-CHECKED 2026-10-14 (A14-A17 PASSED); first version `8db9e56`
 created: 2026-10-13
-last_updated: 2026-10-14
-next_step: none for 4.8; still open from the first version: Fast-speed hold (A9), display scaling (A10), multi-monitor placement
+last_updated: 2026-10-22
+next_step: 4.9 - the user looks at the wireframe (calibration-window State 2, setup Speed list; GATE 1), then spec-implementer (plan step 10); still open from the first version: Fast-speed hold (A9), display scaling (A10), multi-monitor placement
 related:
   - SPEC-grid3-calibration-parklife-feasibility.md (verdicts C1-C19, probes P1-P3 PASSED 6.1, answers Q1-Q8 7.1)
   - SPEC-gaze-stability-and-positioning.md (head-position widget, reused here as "Show Monitor")
@@ -17,7 +17,7 @@ related:
 
 # SPEC-app-drawn-calibration
 
-**Status: revision 4.8 IMPLEMENTED and live-checked 2026-10-14 (A14-A17 passed); the first version is IMPLEMENTED 2026-10-13 (`8db9e56`).**
+**Status: revision 4.9 (Hsieh feedback) DESIGNED 2026-10-22, awaiting user approval (section 9, questions 1-4); revision 4.8 IMPLEMENTED and live-checked 2026-10-14 (A14-A17 passed); the first version is IMPLEMENTED 2026-10-13 (`8db9e56`). Still open: A9, A10, multi-monitor placement.**
 
 ## 1. Origin
 
@@ -54,6 +54,8 @@ related:
 | D9 | **Centre point first** (amends D5's order): C, TL, BR, TR, BL; the 9-point layout then adds the edge midpoints as before. Positions stay at 10 % / 90 % (user, 2026-10-14, 4.8). |
 | D10 | **Check accuracy view after the results map** (a copy of Gazepoint Control's after-calibration window: target circles plus a live green gaze trail), opened by a **Check accuracy** button on the map (user, 2026-10-14, 4.8). |
 | D11 | **One error measure for both screens:** the badge's mean error comes from `CALIB_RESULT` for the Gazepoint Control screen too, not from Control's `AVE_ERROR` (hub proposal from the 2026-10-14 data, agreed by the user 2026-10-14, 4.8). |
+| D12 | **Slow gets slower** (amends D1 for Slow only): three presets stay, Normal and Fast keep their numbers. Slow's new pair is open (section 9, revision 4.9) (Hsieh's feedback, user 2026-10-22, 4.9 R4). |
+| D13 | **No shrink:** the picture keeps its large size at every point, during the hold too (amends 4.1 step 3 and 4.3b's size table) (Hsieh's feedback, user 2026-10-22, 4.9 R5). |
 
 ## 3. Current code (as of `5a035d7`)
 
@@ -86,6 +88,8 @@ related:
    - then it shrinks to the small size (about 1.5-2 %) and **holds still** until that point's
      `CALIB_RESULT_PT`. The hold must start no later than DELAY after `CALIB_START_PT`, because
      sampling begins then (feasibility 4.3 risk).
+     *Revision 4.9 R5 (D13) replaces the shrink: the icon settles at the point at its large size
+     and holds still at that size.*
    - Before the first point, the icon enters from the top-left corner (video).
 4. A `CALIB_RESULT_PT` whose PT is above the point count is ignored (feasibility 6.1).
 5. After the last point, the window shows "**Processing calibration results**" with a spinner
@@ -147,6 +151,9 @@ The settings sit on the Setup Calibration card, above Do Calibration:
 | Normal | 0.8 s | 1.0 s | 9 s |
 | Fast | 1.8 s | 0.4 s (confirmed or raised at probe P4) | 11 s |
 
+*Revision 4.9 R4 (D12): Slow becomes slower; the proposed pair is DELAY 2.5 s / TIMEOUT 1.5 s
+(section 9, revision 4.9, question 1).*
+
 - API 3.5 and 3.6: TIMEOUT > 0 and DELAY >= 0, both read/write floats. Probe P3 measured each
   point at DELAY + TIMEOUT + 10-70 ms.
 - The same pair applies to the **Gazepoint Control** screen too, so Speed stays active for both
@@ -178,6 +185,8 @@ greyed for Gazepoint Control.
 - The hold size stays small on purpose: it is the point the child must fixate, and Control
   assumes the gaze is on the point's centre. Size never changes what Control measures; it changes
   only what the child sees.
+- *Revision 4.9 R5 (D13) drops the Holding column: each preset is one constant size (the Gliding
+  value), and the paragraph above no longer applies.*
 
 ### 4.3a Calibrate from the Start-test page (D4, C19)
 
@@ -217,7 +226,7 @@ greyed for Gazepoint Control.
 - They are stored in `configs/assets/calibration/`, next to the scene art in `configs/assets/scenes/park/`, with an `ASSETS.md` source record like the scene's. The user
   approves each one.
 - A gentle motion keeps the icon interesting: a slow wobble of ±8° while gliding, and still
-  during the hold so the gaze can settle.
+  during the hold so the gaze can settle. (Kept by revision 4.9 R5; only the shrink goes.)
 
 ### 4.7 Recording
 
@@ -299,6 +308,157 @@ a copy of Gazepoint Control's after-calibration window
   Repeat / Improve).
 - The Gazepoint Control screen is unchanged: Control shows its own window there.
 
+### 4.9 Hsieh feedback revision (2026-10-22)
+
+**Origin.** Hsieh, a clinical collaborator (`resources/hsieh/suggestion.txt`):
+
+> "Calibration: It would be helpful if the speed of the moving path could be adjusted to a slower
+> pace (in slow mode), giving children enough time to look at each target and complete the
+> calibration properly. The pictures look nice, and it would be great if they could remain large
+> throughout the process rather than shrinking when they reach the four corners."
+
+User decisions, 2026-10-22:
+- **U1 -> D12:** make the existing **Slow** preset slower. Three presets stay (Slow / Normal /
+  Fast); only Slow's numbers change.
+- **U2 -> D13:** the picture **stays large at every point, no shrink**. Hsieh saw it at the
+  corners, but the code shrinks it at every point while Control samples. The icon keeps its large
+  size during the hold too.
+
+**Finding: today's Slow glides faster than Fast.** The glide is DELAY less the shrink and the
+50 ms safety margin (`calibration_motion.schedule`). On the lab rig (24-inch, 1920 x 1080, 65 cm)
+the longest leg of the 5-point order (TL -> BR and TR -> BL, about 41 deg) gives:
+
+| Preset (DELAY / TIMEOUT) | Glide | Still before sampling | Mean speed, 41 deg leg | Peak (eased) |
+|---|---|---|---|---|
+| Slow 1.0 / 1.5 s (today) | 0.70 s | 0.30 s | 59 deg/s | 92 deg/s |
+| Normal 0.8 / 1.0 s | 0.53 s | 0.27 s | 78 deg/s | 123 deg/s |
+| Fast 1.8 / 0.4 s | 1.50 s | 0.30 s | 27 deg/s | 43 deg/s |
+
+So Slow is slow only in its hold; the moving path Hsieh watched is the second fastest of the
+three. The fix is mainly a longer DELAY. (The other legs: entry to C 25 deg, C -> TL 21 deg,
+BR -> TR 20 deg.)
+
+**R4 - Slower Slow (D12).** Proposed: **Slow = DELAY 2.5 s / TIMEOUT 1.5 s** (question 1).
+- **DELAY (glide, no sampling) 1.0 -> 2.5 s.** With R5's settle (0.5 s cap, question 2) the glide
+  is about 1.95 s: mean 21 deg/s on the longest leg (peak 33), about 10 deg/s on the short legs.
+  The picture now moves clearly slower than with Normal or Fast, slow enough to follow with the
+  eyes instead of jumping after it. Children with CP often have slower, less accurate pursuit and
+  a longer delay before a saccade, so the gain is meant for them; Hsieh confirms on a child (plan
+  step 13).
+- **TIMEOUT (sampling) stays 1.5 s.** That is about 225 samples at 150 Hz and gave A17's 0.30 deg.
+  A longer TIMEOUT asks the child to keep looking longer; it does not add time to *find* the
+  target, which is what the feedback is about. It also keeps one variable fixed for the accuracy
+  check (A21).
+- **Still before sampling:** about 0.55 s (settle 0.5 s + the 50 ms margin), today 0.30 s.
+- **Run time:** 4.0 s per point (plus 10-70 ms; the first point about 1 s more, seen 2026-10-13):
+  5 points about 20 s (today 12.5 s), 9 points about 36 s (today 22.5 s).
+- **Alternatives** (question 1):
+  - **A: 3.0 / 1.5 s** - glide about 2.45 s, 17 deg/s mean; 4.5 s per point, 22.5 s / 40.5 s.
+  - **B: 2.5 / 2.0 s** - the same glide, 0.5 s more looking while Control samples; 4.5 s per
+    point, 22.5 s / 40.5 s.
+  - Not recommended: 2.0 / 1.5 s - glide 1.45 s, hardly slower than Fast's (1.25-1.50 s).
+- **Normal and Fast are unchanged** (U1). Fast's hold is still decided by A9.
+- **Both screens** (4.3b): the Gazepoint Control screen and the fallback get the new Slow pair
+  too; Control animates its own target over the longer DELAY.
+- **API limits:** API 3.5 / 3.6 give only TIMEOUT > 0 and DELAY >= 0, no upper bound
+  (`docs/gazepoints/synthesis/api-reference.md`, rows `CALIBRATE_TIMEOUT` / `CALIBRATE_DELAY`).
+  The wait deadlines already scale with the pair (`calibration_run`: next point within
+  `delay_s + timeout_s + grace_s`; `Calibration`: `max(10 s, n x per-point x 1.75)`), so nothing
+  else changes. That Control accepts 2.5 s is checked live (A22).
+- **Old and new Slow runs stay apart.** `calibration.json` already records `speed`, `delay_s` and
+  `timeout_s` (`calibration_settings.record_for`; `RECORD_KEYS` in `calibration.py`), and
+  `calibration_timing.jsonl` logs the pair. A Slow run before this revision has `delay_s` 1.0,
+  after it 2.5. Analysis must use `delay_s`, not the name `"slow"`. `docs/DATA_SCHEMA.md` gets a
+  line: "Slow was 1.0 / 1.5 s before revision 4.9".
+- **Code:** `SPEEDS["slow"]` in `src/engine/calibration_settings.py` (line 50). The Setup label
+  follows by itself (`calibration_settings_panel._speed_label`: "Slow (glide 2.5 s, hold 1.5 s)").
+
+**R5 - No shrink (D13).**
+- **`TargetMotion`** (`src/engine/calibration_motion.py`): the phases become **glide -> settle ->
+  hold**. The settle takes the shrink's time slot at the end of DELAY: the icon is at the point,
+  at full size, and its wobble fades to 0. The hold is unchanged (still, angle 0, until the next
+  `CALIB_START_PT`), but now at the large size.
+  - `PHASE_SHRINK` -> `PHASE_SETTLE`; `SHRINK_S_MAX` / `SHRINK_FRACTION` -> `SETTLE_S_MAX` /
+    `SETTLE_FRACTION`; `schedule()` returns `(glide_s, settle_s)`. The hold rule (A1: hold no
+    later than DELAY after the record) is unchanged.
+  - `MotionSample.size` is removed: there is one size, so `sample()` no longer blends it.
+  - **Settle cap 0.5 s** (today's shrink cap 0.25 s), fraction stays 0.3 (question 2). Normal is
+    unchanged (its 0.225 s comes from the fraction). Fast: glide 1.50 -> 1.25 s, still 0.30 ->
+    0.55 s. Slow (2.5 s): still 0.55 s. No run time is added: the still time comes out of the
+    glide.
+  - **Wobble:** the rule stays: +-8 deg while gliding, fading in the settle, 0 during the hold
+    (the hold already returns angle 0.0). The eye gets a still target while Control samples.
+- **Size:** `SIZES_DEG` becomes one diameter per preset: **Small 2.2, Normal 3.0, Large 4.0 deg**
+  (today's gliding values). `icon_diameter_px(size, mm_per_px, viewing_distance_mm)` drops its
+  `holding` argument, and `CalibrationStage.diameter_px()` returns that one size. The Target size
+  setting (Small / Normal / Large) now means this constant size (question 4). On the lab rig:
+  90 / 123 / 164 px (4.7 / 6.4 / 8.5 % of the width).
+- **What Control measures does not change.** The icon's centre stays on CALX / CALY; Control
+  assumes the gaze is there.
+- **Knock-on effects:**
+  - Results map (4.4): none (its circles are sized by `CIRCLE_FRACTION`).
+  - Check accuracy (4.8 R3): none (3 deg rings, no icon).
+  - Gazepoint Control screen and the fallback: none; Size never applied there (4.3b). Control's
+    own target still shrinks in its own window.
+  - Entry from the top-left corner: none; the icon already enters at the large size.
+  - Corners: at 10 / 90 % the Large icon's radius (7.6 % of the height on the lab rig) fits
+    inside the 10 % inset. On a smaller 1920 x 1080 screen (for example 14-inch) Large is about
+    26 % of the height and is cut by the screen edge at the corner points, now also while Control
+    samples. Accepted (question 4): the centre never moves, and the operator can pick Normal.
+  - Diagnostics: `hold_painted` keeps its meaning (the first paint of the still hold); the
+    timing log is unchanged.
+  - Record: `calibration.json` adds **`size_deg`** (the drawn diameter, e.g. 4.0). A file without
+    it is from before 4.9 (large while moving, small while sampling). `docs/DATA_SCHEMA.md` is
+    updated.
+  - Docstrings that say "shrinks" (`calibration_motion` module, `CalibrationStage.diameter_px`)
+    are updated.
+- **Tests that change:**
+  - `tests/test_calibration_run.py`: `test_the_speed_presets_are_the_pairs_of_the_spec` (new Slow
+    pair); `test_the_hold_starts_no_later_than_delay_after_each_record_with_a_fake_clock` (no
+    `size == 0.0`; add DELAY 2.5 to its list).
+  - `tests/test_calibration_window.py`:
+    `test_the_icon_enters_from_the_corner_glides_to_each_point_and_holds_by_delay` (the hold is
+    large); `test_the_icon_shrinks_before_the_hold_and_keeps_still_in_it` (becomes "settles,
+    keeps its size, still in the hold"); `test_the_icon_is_drawn_at_the_degrees_of_its_size_preset`
+    (one size in every phase); `test_a_larger_preset_draws_a_larger_icon` (only if
+    `diameter_px` drops its `sample` argument).
+  - `tests/test_calibration_settings.py`: `test_the_size_presets_are_the_degrees_of_the_spec`;
+    `test_normal_is_about_6_percent_and_1_7_percent_of_the_width_on_the_lab_rig` (the 6 % only);
+    `test_the_apparent_size_is_the_same_on_a_monitor_with_other_pixels` (signature);
+    `test_the_record_holds_the_mode_speed_timing_icon_size_background_layout_and_improve_runs`
+    (Slow pair, `size_deg`); `test_ease_runs_from_0_to_1_and_the_schedule_ends_before_delay`
+    (settle; add 2.5).
+  - The flow tests run on shortened `SPEEDS` (`quick` fixture), so they are not affected.
+
+**Risk: a large target may lower accuracy.** Today's hold size (0.6-1.0 deg) is a small spot. A
+4 deg picture lets the eye rest anywhere on it (an ear, a wing, an edge), up to about 2 deg from
+the centre Control assumes. That can widen the fixation spread and raise the error. The settle
+and the still hold help, and the icons are centred, but the size of the effect is unknown.
+- **Measure (A21),** GP3 HD, user as subject, in **one sitting**, set-up as A17 (App screen,
+  5 points, Large, ball, black): 4 runs with the old build (shrink, Slow 1.0 / 1.5 s, a worktree
+  at the commit before 4.9) and 4 with the new build, **interleaved** (old, new, old, new, ...).
+  One sitting, because sitting-to-sitting variation is as large as the effect (2026-10-14: the
+  same build gave 0.68 and 0.39 deg). Reference: the 4.8 baseline, App 0.30 deg mean (corners
+  0.19, centre 0.75; run means 0.23-0.39).
+- **Pass:** the new mean is at most 0.15 deg above the old build's mean of the same sitting, and
+  at most 0.5 deg. If it fails, 4 + 4 more runs at Normal (both builds) show whether the size or
+  the slower glide is the cause.
+- An adult who knows the task is not a child. The real test of "time to look" is a child session
+  with Hsieh (plan step 13); it is logged here but is not an acceptance gate.
+- **If it is worse:** no new setting (U2). The options for the user, decided after A21
+  (question 3): (a) a small fixed dot at the icon's centre during the hold, drawn on the large
+  picture (it stays large but gives the eye a centre); (b) accept the loss for Slow; (c) a slight
+  shrink after all (against U2, listed only for completeness).
+
+**Wireframe impact** (described here; the wireframe is updated at plan step 9, GATE 1):
+- `docs/wireframes/calibration-window.md` State 2 (Hold): the box shows the large icon `(BEE)`
+  still at the point, label "large, still (no shrink)" instead of "shrunk (~1.8 %), still"; the
+  note "has shrunk to the small size and holds still" becomes "has arrived, stopped its wobble
+  and holds still at the same large size". State 1 is unchanged.
+- `docs/wireframes/setup.md` Speed list: "Slow (glide 2.5 s, hold 1.5 s)" (or the chosen pair).
+  Target size keeps its three names (the combo shows names only; there is no tooltip). No new
+  setting.
+
 ## 5. Scope
 
 **In:**
@@ -307,7 +467,8 @@ a copy of Gazepoint Control's after-calibration window
 - the Calibration screen choice replacing the show-window tick box (D6);
 - the Start-test Calibrate button (D4);
 - tests with a fake Control that sends `CAL` records (extend `tools/fake_gazepoint_server.py`);
-- `DATA_SCHEMA.md`.
+- `DATA_SCHEMA.md`;
+- revision 4.9: the slower Slow pair (R4) and the constant icon size (R5).
 
 **Out:**
 - stepped mode (Q3);
@@ -341,6 +502,11 @@ a copy of Gazepoint Control's after-calibration window
 | A15 | (4.8 R2) For every mode the badge's mean error and `valid` come from `CALIB_RESULT`; `AVE_ERROR` only in the timing log; `calibration.json` has per-point `score` / `error_deg` for the Control screen too | unit test |
 | A16 | (4.8 R3) Check accuracy opens from the map; 11 rings at the 4-3-4 positions; the trail shows the last 1 s of valid unsmoothed gaze from the client; no gaze for 0.5 s gives the hint; Repeat = full re-run, Results = map, Done / Esc / X = Back keeping the result; `accuracy_checked` recorded | unit test with the fake Control + fake gaze |
 | A17 | (4.8) On the GP3 HD: 4 runs per screen again; App centre and mean error compared with Control's; the trail sits on the rings the user looks at | live, user as subject |
+| A18 | (4.9 R4) `SPEEDS["slow"]` is the chosen pair; Normal and Fast are unchanged; the pair is sent for both screens, Control's own values are restored, and `delay_s` / `timeout_s` land in `calibration.json`; the Setup label shows the new pair | unit test with the fake Control |
+| A19 | (4.9 R5) The icon has one diameter in glide, settle and hold, equal to its preset's degrees (2.2 / 3.0 / 4.0); it is still (angle 0) in the hold, and the hold starts no later than DELAY after the record for every preset, the new Slow included | unit test with a fake clock |
+| A20 | (4.9 R5) The settle cap is applied (Normal's schedule unchanged, Fast's and Slow's still time as in 4.9); `calibration.json` has `size_deg`; `DATA_SCHEMA.md` lists `size_deg` and the old Slow pair | unit test + review |
+| A21 | (4.9) On the GP3 HD, one sitting: 4 old-build and 4 new-build runs interleaved (App, 5 points, Slow, Large, ball, black); the new mean error is at most 0.15 deg above the old build's mean and at most 0.5 deg | live, user as subject |
+| A22 | (4.9) On the GP3 HD: Control ACKs the new Slow DELAY / TIMEOUT and each point lasts DELAY + TIMEOUT + 10-70 ms (`calibration_timing.jsonl`); the picture stays large at every point, the corners included; the glide looks clearly slower than Normal and Fast | live, user as subject |
 
 ## 7. Plan
 
@@ -356,6 +522,11 @@ a copy of Gazepoint Control's after-calibration window
 6. Commit on the user's OK.
 7. **DONE 2026-10-14 - Revision 4.8** (2026-10-14): wireframe states 4 and 6 DONE (user OK 2026-10-14); then implement R1-R3 (A14-A16), hub review, full pytest.
 8. **DONE 2026-10-14 -** Live on the GP3 HD (A17): 4 + 4 runs with the user as subject, Check accuracy with real gaze; decide whether the corners move to 15/85 %.
+9. **Revision 4.9:** the user answers section 9 (revision 4.9) questions 1, 2 and 4; then the wireframe (calibration-window.md state 2, setup.md Speed list). User GATE 1.
+10. `spec-implementer` implements R4 and R5 (A18-A20) in its own worktree; no commit.
+11. Hub review and the full pytest (A11).
+12. Live on the GP3 HD with the user as subject (A21, A22); question 3 only if A21 fails. Commit on the user's OK.
+13. Afterwards: a child session with Hsieh; the feedback is logged in section 10 (not a gate).
 
 **Depends on:** SPEC-gaze-stability-and-positioning part B (the widget), for Show Monitor only.
 Steps 1-4 can run before it.
@@ -414,6 +585,13 @@ Implementer open questions, revision 4.8 (2026-10-14; none blocked anything; bot
 - **2026-10-14** - **Is Check accuracy offered while Show Monitor is up (wireframe state 5)?** Wireframe state 5 draws `[Improve calibration] [Hide Monitor] [Back]` with no Check accuracy button (state 5 was not touched by the revision), but state 4 and 4.8 R3 put the button on the results page, and the Show Monitor panel is only an overlay on that same page, so the button is still there and works: it takes the head panel away and opens the view (`CalibrationWindow._open_check`). *Answered:* keep as built; no change.
 - **2026-10-14** - **`accuracy_checked` when the view was opened, then Repeat calibration, and Done without opening it again.** The first version read "whether the view was opened before Done" literally (true across Repeat / Improve). *Answered:* it must describe the **kept result**: `_accuracy_checked` is reset in `CalibrationWindow.begin_run`, so a run after Repeat / Improve starts false. Applied; 4.8 R3's wording is updated.
 
+Revision 4.9 (2026-10-22; **open**, for the user; U1 and U2 are already decided and not re-asked):
+
+- **2026-10-22** - **1. Slow's new pair (R4).** *Recommended:* DELAY 2.5 s / TIMEOUT 1.5 s (glide about 1.95 s, 21 deg/s mean on the longest leg; 5 points about 20 s, 9 points about 36 s). *Alternatives:* A 3.0 / 1.5 s (slowest glide, 17 deg/s; 22.5 s / 40.5 s); B 2.5 / 2.0 s (same glide, 0.5 s more sampling; 22.5 s / 40.5 s). Not recommended: 2.0 / 1.5 s (hardly slower than Fast's glide). *Answered 2026-10-22 by the user:* the recommendation, DELAY 2.5 s / TIMEOUT 1.5 s.
+- **2026-10-22** - **2. Settle cap (R5).** *Recommended:* 0.5 s (today's shrink cap 0.25 s): about 0.55 s of still picture before Control samples on Slow and Fast; Normal unchanged; Fast's glide 1.50 -> 1.25 s; no run time added. *Alternative:* keep 0.25 s, so Normal and Fast do not change at all (Slow then has 0.30 s of still picture). *Answered 2026-10-22 by the user:* the recommendation, settle cap 0.5 s.
+- **2026-10-22** - **3. If A21 shows the large target is less accurate.** *Recommended:* a small fixed dot at the icon's centre during the hold, on the large picture (no new setting). *Alternatives:* accept the loss for Slow; a slight shrink (against U2). Asked only if A21 fails.
+- **2026-10-22** - **4. Target size = the one constant size (R5).** *Recommended:* Small / Normal / Large stay 2.2 / 3.0 / 4.0 deg (today's gliding sizes), and on small screens the cut edge of a Large icon at the corner points is accepted (the centre never moves; the operator can pick Normal). *Alternative:* cap the drawn size automatically at what fits the 10 % inset (twice the inset: 20 % of the screen height), so a Large icon on a 14-inch 1920 x 1080 screen (about 26 % of the height) is drawn at about 3.0 deg there; no new setting. *Answered 2026-10-22 by the user:* the recommendation, 2.2 / 3.0 / 4.0 deg, the cut edge on small screens is accepted.
+
 ## 10. Log
 
 - **2026-10-13** - Draft written by the hub from the feasibility study (verdicts C1-C19, probes
@@ -430,3 +608,6 @@ Implementer open questions, revision 4.8 (2026-10-14; none blocked anything; bot
 - **2026-10-14** - Revision 4.8 hub review: diff within scope, A14-A16 by test; hub full pytest (4 shards, JUnit) 4355 tests, 4350 passed, 5 failed = the known fresh-worktree baseline. Implementer section 9 questions answered by the user: Check accuracy stays available during Show Monitor; `accuracy_checked` describes the kept result (reset on Repeat / Improve).
 - **2026-10-14** - Finding from all 16 earlier runs (both screens): `CALIB_RESULT`'s per-point estimates are the leftovers of Control's 5-point fit. Per axis they sum to zero, the 4 corners share one sign and the centre is about 4x the corners in the opposite direction. So with 5 points the centre always reads about 4x the corner error on either screen; it is not a weak centre. An 8-run check with the OLD build in the afternoon gave App 0.39 deg / Control 0.36 deg mean (the morning gap was sitting-to-sitting variation). The user keeps the per-point colours (Grid 3 style).
 - **2026-10-14** - **Live check A17 PASSED** (revision build from worktree `calib-revision-48`, GP3 HD, user as subject, Slow / Large / ball / black background, subjects GRID3STYLE-R2-1..4 and GAZEPOINTSTYLE-R2-1..4 in that worktree's sessions): App screen 0.30 deg mean (corners 0.19, centre 0.75; run means 0.23-0.39) vs Control screen 0.46 (0.29, 1.14; 0.20-0.79). Centre first in every App run (A14). Control badges now from `CALIB_RESULT` (e.g. 8.2 px vs Control's own `AVE_ERROR` 17.4 px, logged as `control_ave_error_px`) (A15). Check accuracy opened in runs 1 and 3 (`accuracy_checked` true), run 4 used Repeat twice and recorded false for the kept result (A16). User: the green trail lands in the ring looked at, centre included. The saved App centres were all green (0.57-0.98 deg); the user saw 2 brown centres, probably in run 4's replaced runs. Committed on the user's OK.
+- **2026-10-22** - Revision 4.9 DESIGNED from Hsieh's feedback (`resources/hsieh/suggestion.txt`: slower moving path in Slow, pictures stay large instead of shrinking at the corners). User decisions U1 (only Slow changes, D12) and U2 (no shrink at any point, D13). Finding from `calibration_motion.schedule`: today's Slow glides in 0.70 s (59 deg/s mean on the 41 deg leg), faster than Fast's 1.50 s. New section 4.9 (R4 Slow pair, proposed 2.5 / 1.5 s; R5 no shrink: glide -> settle -> hold at one size, settle cap 0.5 s, `size_deg` in `calibration.json`), forward notes in 4.1 step 3, 4.3b and 4.6, acceptance A18-A22, plan steps 9-13, section 9 questions 1-4. Design only: no code, wireframe or test changed. Next: the user answers questions 1, 2 and 4 and approves; then the wireframe (GATE 1).
+
+- **2026-10-22** - Section 9 questions 1, 2 and 4 answered by the user (all three recommendations): Slow = DELAY 2.5 s / TIMEOUT 1.5 s; settle cap 0.5 s; Small / Normal / Large = 2.2 / 3.0 / 4.0 deg with the cut edge accepted on small screens. Question 3 is asked only if A21 fails. Next: the user approves 4.9, then the wireframe (plan step 9).- **2026-10-22** - The user APPROVED revision 4.9 ("approve, go ahead"). Plan step 9 wireframe drawn by the hub: `docs/wireframes/calibration-window.md` State 2 shows the large icon "large, still (no shrink)" and the note says it holds still at the same large size after a settle of at most 0.5 s; `docs/wireframes/setup.md` Speed list reads "Slow (glide 2.5 s, hold 1.5 s)"; both re-rendered with the WTMH theme. Waiting for the user's look (GATE 1).

@@ -35,12 +35,12 @@
 |                                                                              |
 |                                                                              |
 |                                                                              |
-|                                                                   (b)        |
-|                                                     shrunk (~1.8 %), still  |
+|                                                                 (BEE)        |
+|                                                    large, still (no shrink)  |
 +------------------------------------------------------------------------------+
 ```
 
-> At most DELAY after the point started, the icon has shrunk to the small size and **holds still** until that point's `CALIB_RESULT_PT`, because Control samples gaze from then on. Order of the 5 points (revised 2026-10-14, SPEC 4.8 R1): **centre first**, then top-left, bottom-right, top-right, bottom-left, at 10 % / 90 % (9 points add the edge midpoints).
+> At most DELAY after the point started, the icon has arrived, stopped its wobble and **holds still at the same large size** (revised 2026-10-22, SPEC 4.9 R5: no shrink; the settle before the hold is at most 0.5 s) until that point's `CALIB_RESULT_PT`, because Control samples gaze from then on. Order of the 5 points (revised 2026-10-14, SPEC 4.8 R1): **centre first**, then top-left, bottom-right, top-right, bottom-left, at 10 % / 90 % (9 points add the edge midpoints).
 
 ### State 3 · Processing
 

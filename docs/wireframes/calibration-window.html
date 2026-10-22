@@ -562,8 +562,8 @@ body.wmd-root {
   <div class="wmd-nav-content">
     <img src="../../configs/assets/branding/wtmh_logo.png" alt="WTMH logo" class="wmd-brand-logo">
     <div class="wmd-brand">Pediatric Eye-Gaze Assessment</div>
-    <a href="./setup.html" class="wmd-nav-item">1 · Setup</a>
-    <a href="./test-list.html" class="wmd-nav-item">2 · Tests</a>
+    <a href="./setup.md" class="wmd-nav-item">1 · Setup</a>
+    <a href="./test-list.md" class="wmd-nav-item">2 · Tests</a>
   </div>
 </nav>
 <h2 class="wmd-h2">Calibration window (App, Grid 3 style)</h2>
@@ -595,11 +595,11 @@ body.wmd-root {
 |                                                                              |
 |                                                                              |
 |                                                                              |
-|                                                                   (b)        |
-|                                                     shrunk (~1.8 %), still  |
+|                                                                 (BEE)        |
+|                                                    large, still (no shrink)  |
 +------------------------------------------------------------------------------+</code></pre>
 <blockquote class="wmd-blockquote">
-  <p class="wmd-paragraph">At most DELAY after the point started, the icon has shrunk to the small size and <strong>holds still</strong> until that point's <code>CALIB_RESULT_PT</code>, because Control samples gaze from then on. Order of the 5 points (revised 2026-10-14, SPEC 4.8 R1): <strong>centre first</strong>, then top-left, bottom-right, top-right, bottom-left, at 10 % / 90 % (9 points add the edge midpoints).</p>
+  <p class="wmd-paragraph">At most DELAY after the point started, the icon has arrived, stopped its wobble and <strong>holds still at the same large size</strong> (revised 2026-10-22, SPEC 4.9 R5: no shrink; the settle before the hold is at most 0.5 s) until that point's <code>CALIB_RESULT_PT</code>, because Control samples gaze from then on. Order of the 5 points (revised 2026-10-14, SPEC 4.8 R1): <strong>centre first</strong>, then top-left, bottom-right, top-right, bottom-left, at 10 % / 90 % (9 points add the edge midpoints).</p>
 </blockquote>
 <h3 class="wmd-h3">State 3 · Processing</h3>
 <pre class="wmd-code-block"><code data-lang="text">+------------------------------------------------------------------------------+

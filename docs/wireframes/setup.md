@@ -92,7 +92,7 @@ Points
 
 Speed
 [Normal______________v]
-- Slow (glide 1.0 s, hold 1.5 s)
+- Slow (glide 2.5 s, hold 1.5 s)
 - Normal (glide 0.8 s, hold 1.0 s)
 - Fast (glide 1.8 s, hold 0.4 s)
 
