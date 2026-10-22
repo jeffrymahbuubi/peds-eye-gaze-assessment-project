@@ -34,8 +34,17 @@ from PySide6.QtWidgets import (
 )
 
 from src.engine.config import load_task_config
+from src.ui import (
+    alert_box,
+    dialog_theme,
+    frozen_table,
+    map_legend,
+    run_bar,
+    run_dialogs,
+    test_list_style,
+    wtmh_theme,
+)
 from src.ui import design_tokens as tokens
-from src.ui import alert_box, dialog_theme, frozen_table, map_legend, run_bar, run_dialogs, wtmh_theme
 from src.ui.dashboard_window import apply_application_font
 from src.ui.design_tokens import CONTRAST_PAIRS, TYPE_SCALE
 from src.ui.start_test_page import StartTestPage
@@ -66,6 +75,11 @@ SHEET_MODULES = (
     "target_map_follow",
     "map_legend",
     "report_pdf",
+    # SPEC-test-list-visual-identity.md: the Test List's table, its command panel and their sheets
+    "test_list_page",
+    "test_list_table",
+    "test_list_panel",
+    "test_list_style",
 )
 SHEETS = {
     "STYLESHEET": STYLESHEET,
@@ -75,6 +89,8 @@ SHEETS = {
     "frozen table": frozen_table._STYLE,
     "alert box": alert_box.ALERT_STYLESHEET,
     "map legend": map_legend.LEGEND_STYLE,
+    "test list table": test_list_style.TABLE_STYLE,
+    "test list panel": test_list_style.PANEL_STYLE,
 }
 HEX = re.compile(r"(?<![\w&])#[0-9A-Fa-f]{3,8}\b")
 

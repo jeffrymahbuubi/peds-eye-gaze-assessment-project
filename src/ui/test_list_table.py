@@ -7,6 +7,11 @@ helpers (:func:`natural_key`, :func:`status_text`, :func:`date_cells`,
 :func:`status_badge_state`), the cell that sorts by a key rather than by its text, and the
 table that turns Delete / F2 / Enter into signals.
 
+The look is direction A "Ledger" of SPEC-test-list-visual-identity.md: no vertical grid lines, a
+1 px BORDER_SUBTLE rule at the foot of every row, the hovered row tinted ACCENT_SUBTLE (both
+painted by :class:`_RowDelegate`), Task and Configuration in TEXT_SECONDARY, and the dates right-
+aligned with tabular figures.
+
 The Status column shows a :class:`~src.ui.status_badge.StatusBadge` (glyph and word) in a
 cell widget over its item. The item keeps the status text and the sort key, so sorting by
 Status and the cell texts are as they were; the badge is only a view of them. Qt moves a
@@ -20,10 +25,12 @@ from collections.abc import Callable
 from datetime import datetime
 from typing import Any
 
-from PySide6.QtCore import Qt, Signal
+from PySide6.QtCore import QEvent, QRect, Qt, Signal
+from PySide6.QtGui import QBrush, QColor, QFont
 from PySide6.QtWidgets import (
     QHBoxLayout,
     QHeaderView,
+    QStyle,
     QStyledItemDelegate,
     QStyleOptionViewItem,
     QTableWidget,
@@ -33,6 +40,7 @@ from PySide6.QtWidgets import (
 
 from ..engine.subject_tests import STATUS_ENDED_EARLY, STATUS_NOT_DONE, SubjectTest
 from ..engine.task_info import TASK_INFO
+from .design_tokens import ACCENT_SUBTLE, BORDER_SUBTLE, TEXT_SECONDARY
 from .status_badge import StatusBadge
 
 COL_NAME, COL_TASK, COL_CONFIG, COL_STATUS, COL_DATE = range(5)
@@ -44,6 +52,7 @@ OTHER_COLUMN_WIDTHS = (180, 200, 180, 140)
 NAME_MIN_WIDTH = 240
 NO_DATE = "—"
 DATA_MISSING = " · data missing"
+DATE_ALIGNMENT = Qt.AlignmentFlag.AlignRight | Qt.AlignmentFlag.AlignVCenter  # the cells and the header label
 
 
 def natural_key(text: str) -> list[Any]:
@@ -126,7 +135,20 @@ class _BadgeCell(QWidget):
         self.badge = badge
 
 
-class _StatusDelegate(QStyledItemDelegate):
+class _RowDelegate(QStyledItemDelegate):
+    """Paints what the Ledger look adds to every cell: the tint of the hovered row (not the chosen
+    one: that keeps its own fill) under the cell, and a 1 px BORDER_SUBTLE rule at its foot."""
+
+    def paint(self, painter, option: QStyleOptionViewItem, index) -> None:
+        rect = option.rect
+        chosen = bool(option.state & QStyle.StateFlag.State_Selected)
+        if not chosen and index.row() == self.parent().hover_row:
+            painter.fillRect(rect, QColor(ACCENT_SUBTLE))
+        super().paint(painter, option, index)
+        painter.fillRect(QRect(rect.left(), rect.bottom(), rect.width(), 1), QColor(BORDER_SUBTLE))
+
+
+class _StatusDelegate(_RowDelegate):
     """Paints the Status cell without its text: the item holds the status text for the sort
     and for ``row_texts``, but the badge over it says the state."""
 
@@ -144,6 +166,10 @@ class SubjectTestTable(QTableWidget):
 
     def __init__(self, rows: int, columns: int, parent: QWidget | None = None) -> None:
         super().__init__(rows, columns, parent)
+        self._hover_row = -1
+        self.setMouseTracking(True)
+        self.setShowGrid(False)  # the rules are the delegate's: horizontal only
+        self.setItemDelegate(_RowDelegate(self))
         self.setItemDelegateForColumn(COL_STATUS, _StatusDelegate(self))
         self.setHorizontalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAlwaysOff)
         header = self.horizontalHeader()
@@ -155,6 +181,20 @@ class SubjectTestTable(QTableWidget):
         # four fixed columns always show in full; the table never asks for more than this.
         self.setMinimumWidth(NAME_MIN_WIDTH + sum(OTHER_COLUMN_WIDTHS) + 2 * self.frameWidth())
 
+    @property
+    def hover_row(self) -> int:
+        """The row under the mouse, or -1."""
+        return self._hover_row
+
+    def _set_hover_row(self, row: int) -> None:
+        if row == self._hover_row:
+            return
+        old, self._hover_row = self._hover_row, row
+        for each in (old, row):
+            if each >= 0:
+                top = self.rowViewportPosition(each)
+                self.viewport().update(QRect(0, top, self.viewport().width(), self.rowHeight(each)))
+
     def badge_at(self, row: int) -> StatusBadge | None:
         """The Status badge of ``row``."""
         cell = self.cellWidget(row, COL_STATUS)
@@ -164,6 +204,10 @@ class SubjectTestTable(QTableWidget):
         """Fill the rows from ``tests`` (signals blocked, selection cleared). Every cell
         carries the test id; the Status cell also holds the badge (nothing is bold any more:
         the badge, not the weight, says a test is not done)."""
+        secondary = QBrush(QColor(TEXT_SECONDARY))
+        dates = QFont(self.font())
+        if hasattr(QFont, "Tag"):  # QFont.setFeature is Qt 6.7+
+            dates.setFeature(QFont.Tag("tnum"), 1)
         self.blockSignals(True)
         try:
             for row in range(self.rowCount()):
@@ -187,6 +231,11 @@ class SubjectTestTable(QTableWidget):
                     item.setData(Qt.ItemDataRole.UserRole, test.test_id)
                     item.setFlags(Qt.ItemFlag.ItemIsEnabled | Qt.ItemFlag.ItemIsSelectable)
                     item.setToolTip(tip)
+                    if column in (COL_TASK, COL_CONFIG):
+                        item.setForeground(secondary)
+                    elif column == COL_DATE:
+                        item.setTextAlignment(DATE_ALIGNMENT)
+                        item.setFont(dates)
                     self.setItem(row, column, item)
                 badge = StatusBadge(*status_badge_state(test, missing))
                 # the full status as a sentence (the item's own text keeps the "· data missing"
@@ -196,6 +245,15 @@ class SubjectTestTable(QTableWidget):
             self.clearSelection()
         finally:
             self.blockSignals(False)
+
+    def mouseMoveEvent(self, event) -> None:  # noqa: N802 (Qt naming)
+        self._set_hover_row(self.rowAt(int(event.position().y())))
+        super().mouseMoveEvent(event)
+
+    def viewportEvent(self, event) -> bool:  # noqa: N802 (Qt naming)
+        if event.type() == QEvent.Type.Leave:
+            self._set_hover_row(-1)
+        return super().viewportEvent(event)
 
     def keyPressEvent(self, event) -> None:  # noqa: N802 (Qt naming)
         key = event.key()

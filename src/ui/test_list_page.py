@@ -18,10 +18,11 @@ it (Test Name by a natural key, so "Grid Click 2" comes before "Grid Click 10"; 
 Complete with a dash first) and the order and the selection are kept across a reload.
 
 Layout (SPEC-design-system-phase2.md H5, V2; section 9, 2026-10-09): the table fills the
-window (Test Name stretches, the other columns keep their widths) and the button column sits
-24 px to its right, at the window's right side, top-aligned. Run Test is the only primary
-button; Delete Test is a secondary one with the red danger glyph; Back to Setup is a tertiary
-one.
+window (Test Name stretches, the other columns keep their widths) and the command panel sits
+24 px to its right, at the window's right side, top-aligned. The look is direction A "Ledger" of
+SPEC-test-list-visual-identity.md: the table in ``test_list_table.py``, the seven buttons as the
+rows of one card in ``test_list_panel.py``. Run Test is the only primary button; the other six
+and Back to Setup are tertiary ones, Delete Test with the red danger glyph.
 """
 
 from __future__ import annotations
@@ -29,7 +30,7 @@ from __future__ import annotations
 from collections.abc import Callable
 from pathlib import Path
 
-from PySide6.QtCore import QSize, Qt, Signal
+from PySide6.QtCore import Qt, Signal
 from PySide6.QtWidgets import (
     QAbstractItemView,
     QFrame,
@@ -62,13 +63,16 @@ from ..engine.subject_tests import (
     subject_tests_dir,
 )
 from .add_test_dialog import AddTestDialog
-from .design_tokens import DANGER, TABLE_ROW_HEIGHT, TEXT_DISABLED
+from .design_tokens import TABLE_ROW_HEIGHT
 from .folder_opener import open_folder
-from .glyphs import GLYPH_SQUARE, glyph_icon
 from .rename_editor import RenameEditor
 from .run_dialogs import DANGER_TIER, PRIMARY, ask_choice
+from .test_list_panel import ActionPanel
+from .test_list_style import TABLE_STYLE
 from .test_list_table import (
+    COL_DATE,
     COL_NAME,
+    DATE_ALIGNMENT,
     HEADERS,
     SubjectTestTable,
 )
@@ -76,10 +80,6 @@ from .test_list_table import (
 NO_SUBJECT_TEXT = "Enter a Subject ID in Setup."
 NO_TESTS_TEXT = "No tests yet. Choose Add New Test."
 SAVED_TEXT = "Changes are saved automatically."
-
-# Local sheet for the table: the theme pads every header section by 6 px 8 px, the hidden
-# vertical header included, which makes each row about 13 px taller than its text.
-_TABLE_STYLE = "QHeaderView::section:vertical { padding: 0px; border: none; }"
 
 
 class SubjectTestListPage(QWidget):
@@ -215,8 +215,9 @@ class SubjectTestListPage(QWidget):
 
         self.table = SubjectTestTable(0, len(HEADERS))
         self.table.setObjectName("wtmhTestTable")
-        self.table.setStyleSheet(_TABLE_STYLE)
+        self.table.setStyleSheet(TABLE_STYLE)
         self.table.setHorizontalHeaderLabels(list(HEADERS))
+        self.table.horizontalHeaderItem(COL_DATE).setTextAlignment(DATE_ALIGNMENT)
         self.table.setEditTriggers(QAbstractItemView.EditTrigger.NoEditTriggers)
         self.table.setSelectionBehavior(QAbstractItemView.SelectionBehavior.SelectRows)
         self.table.setSelectionMode(QAbstractItemView.SelectionMode.SingleSelection)
@@ -254,22 +255,16 @@ class SubjectTestListPage(QWidget):
         left.addWidget(self.unreadable_label)
         left.addWidget(self.message_label)
 
-        # The button column, top-aligned; disabled buttons stay visible and grey.
-        column = QVBoxLayout()
-        column.setSpacing(10)
-        self.add_button = self._button("Add New Test", "wtmhGhost", column)
-        self.configure_button = self._button("Configure Test", "wtmhGhost", column)
-        self.run_button = self._button("Run Test", PRIMARY, column)
-        self.report_button = self._button("View Report", "wtmhGhost", column)
-        self.copy_button = self._button("Copy Test", "wtmhGhost", column)
-        self.delete_button = self._button("Delete Test", "wtmhGhost", column)
-        self.delete_button.setIcon(glyph_icon(GLYPH_SQUARE, DANGER, TEXT_DISABLED))  # V2
-        self.delete_button.setIconSize(QSize(12, 12))
-        # Outside the row matrix: on whenever the subject has a folder (SPEC-subject-data-
-        # layout.md H6, wireframe W2), whichever row is selected.
-        self.open_folder_button = self._button("Open Subject Folder", "wtmhGhost", column)
-        column.addStretch(1)
-        body.addLayout(column)
+        # The command panel, top-aligned; disabled buttons stay visible and grey.
+        self.actions = ActionPanel()
+        self.add_button = self.actions.add_button
+        self.configure_button = self.actions.configure_button
+        self.run_button = self.actions.run_button
+        self.report_button = self.actions.report_button
+        self.copy_button = self.actions.copy_button
+        self.delete_button = self.actions.delete_button
+        self.open_folder_button = self.actions.open_folder_button
+        body.addWidget(self.actions, 0, Qt.AlignmentFlag.AlignTop)
 
         footer = QHBoxLayout()
         footer.setSpacing(16)
@@ -297,15 +292,6 @@ class SubjectTestListPage(QWidget):
         self.table.renameRequested.connect(self.start_rename)
         self.table.activateRequested.connect(self._activate)
         header.sectionClicked.connect(self._on_header_clicked)
-
-    @staticmethod
-    def _button(text: str, tier: str, layout: QVBoxLayout) -> QPushButton:
-        button = QPushButton(text)
-        button.setObjectName(tier)
-        button.setAutoDefault(False)
-        button.setMinimumWidth(170)
-        layout.addWidget(button)
-        return button
 
     # -- table contents ----------------------------------------------------------------
 

@@ -1,7 +1,10 @@
 """SPEC-design-system-phase2.md H5, H12, V2 (Q2, Q4): the Test List's Status cells are status
 badges (glyph + word) over items that keep their text and sort key, so sorting still works;
 bold marks nothing; the table fills the window, Test Name stretching and the other columns keeping their widths; Run Test is the only primary button, Delete
-Test carries the danger glyph and Back to Setup is tertiary. Offscreen Qt."""
+Test carries the danger glyph and Back to Setup is tertiary. Offscreen Qt.
+
+SPEC-test-list-visual-identity.md, direction A (T7): the seven buttons are the rows of one command panel
+(``page.actions``), which is the right-hand column the geometry tests measure."""
 
 from __future__ import annotations
 
@@ -230,10 +233,10 @@ def test_the_table_has_no_maximum_width_and_fills_the_window(qapp, root, width):
     page.resize(width, 700)
     page.show()
     QApplication.processEvents()
-    buttons_left = page.add_button.mapTo(page, QPoint(0, 0)).x()
+    panel_left = page.actions.mapTo(page, QPoint(0, 0)).x()
     table_left = page.table.mapTo(page, QPoint(0, 0)).x()
     assert table_left == 32
-    assert table_left + page.table.width() + 24 == buttons_left  # the table runs up to the button column
+    assert table_left + page.table.width() + 24 == panel_left  # the table runs up to the command panel
     header = page.table.horizontalHeader()
     # the other four columns keep their widths, Test Name takes the rest of the viewport
     assert [header.sectionSize(c) for c in range(1, 5)] == [180, 200, 180, 140]
@@ -274,23 +277,24 @@ def test_many_rows_leave_the_four_fixed_columns_whole_and_test_name_gives_up_the
     page.close()
 
 
-def test_the_button_column_is_24_px_right_of_the_table_at_the_windows_right_side_and_top_aligned(qapp, root):
+def test_the_command_panel_is_24_px_right_of_the_table_at_the_windows_right_side_and_top_aligned(qapp, root):
     four_states(root)
     page = page_for(root)
     page.resize(1600, 700)
     page.show()
     QApplication.processEvents()
+    panel = page.actions
     table_left = page.table.mapTo(page, QPoint(0, 0))
-    gap = page.add_button.mapTo(page, QPoint(0, 0)).x() - (table_left.x() + page.table.width())
+    gap = panel.mapTo(page, QPoint(0, 0)).x() - (table_left.x() + page.table.width())
     assert gap == 24
-    assert page.add_button.mapTo(page, QPoint(0, 0)).y() == table_left.y()  # top-aligned
-    # the column is the right side of the page: its widest button ends at the right gutter
-    right = max(
-        b.mapTo(page, QPoint(b.width(), 0)).x()
-        for b in (page.add_button, page.configure_button, page.run_button, page.report_button,
-                  page.copy_button, page.delete_button, page.open_folder_button)
-    )
-    assert right == page.width() - 32
+    assert panel.mapTo(page, QPoint(0, 0)).y() == table_left.y()  # top-aligned
+    # the panel is the right side of the page: it ends at the right gutter
+    assert panel.mapTo(page, QPoint(panel.width(), 0)).x() == page.width() - 32
+    # and every button is a row inside it, 8 px in from its edges (the panel's padding)
+    for b in (page.add_button, page.configure_button, page.run_button, page.report_button,
+              page.copy_button, page.delete_button, page.open_folder_button):
+        assert b.parentWidget() is panel
+        assert (b.x(), panel.width() - b.x() - b.width()) == (8, 8), b.text()
     page.close()
 
 
@@ -304,16 +308,16 @@ def test_the_empty_state_is_one_line_inside_a_frame_that_follows_the_tables_widt
         page.resize(width, 700)
         page.show()
         QApplication.processEvents()
-        # the frame takes the room the table takes: from the left gutter up to 24 px before the buttons
+        # the frame takes the room the table takes: from the left gutter up to 24 px before the panel
         assert frame.width() == page.center.width()
-        assert frame.width() == page.add_button.mapTo(page, QPoint(0, 0)).x() - 24 - 32
+        assert frame.width() == page.actions.mapTo(page, QPoint(0, 0)).x() - 24 - 32
     assert page.empty_label.text() == "No tests yet. Choose Add New Test."
 
 
 # -- the button tiers (V2, Q4) ---------------------------------------------------------------------------------
 
 
-def test_run_test_is_the_only_primary_button_and_the_others_are_secondary(qapp, root):
+def test_run_test_is_the_only_primary_button_and_the_others_are_tertiary(qapp, root):
     four_states(root)
     page = page_for(root)
     side = [
@@ -322,16 +326,16 @@ def test_run_test_is_the_only_primary_button_and_the_others_are_secondary(qapp, 
     ]
     assert [b.objectName() for b in side if b.objectName() == "wtmhPrimary"] == ["wtmhPrimary"]
     assert page.run_button.objectName() == "wtmhPrimary"
-    assert {b.objectName() for b in side if b is not page.run_button} == {"wtmhGhost"}  # secondary
+    assert {b.objectName() for b in side if b is not page.run_button} == {"wtmhTertiary"}  # direction A
     primaries = [b for b in page.findChildren(QPushButton) if b.objectName() == "wtmhPrimary"]
     assert primaries == [page.run_button]
 
 
-def test_delete_test_is_secondary_with_the_red_danger_glyph(qapp, root):
+def test_delete_test_is_a_tertiary_row_with_the_red_danger_glyph(qapp, root):
     four_states(root)
     page = page_for(root)
     button = page.delete_button
-    assert button.text() == "Delete Test" and button.objectName() == "wtmhGhost"
+    assert button.text() == "Delete Test" and button.objectName() == "wtmhTertiary"
     assert not button.icon().isNull() and isinstance(button.icon(), QIcon)
     on = button.icon().pixmap(12, 12, QIcon.Mode.Normal).toImage()
     off = button.icon().pixmap(12, 12, QIcon.Mode.Disabled).toImage()

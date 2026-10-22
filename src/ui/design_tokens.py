@@ -116,6 +116,13 @@ CONTRAST_PAIRS: tuple[tuple[str, str, float], ...] = (
     # disabled checked box (non-text, 3:1) and on the danger button's hover.
     (PANEL, BORDER_STRONG, 3.32),
     (PANEL, DANGER_TEXT, 7.79),
+    # The Test List's hovered row and button rows (SPEC-test-list-visual-identity.md): the ink and the
+    # secondary text on the hover tint and on the chosen row, and the Delete glyph (non-text, 3:1)
+    # on a hovered button.
+    (INK, ACCENT_SUBTLE, 15.37),
+    (TEXT_SECONDARY, ACCENT_SUBTLE, 6.64),
+    (TEXT_SECONDARY, ROW_SELECTED, 5.88),
+    (DANGER, ACCENT_SUBTLE, 4.25),
     # Report map and data-viz (proposal 2.2): the digits on a hit, then the marks on white. The
     # overlay is a non-text mark, which needs 3:1, as composited over the canvas.
     (INK, MAP_HIT_FILL, 13.63),

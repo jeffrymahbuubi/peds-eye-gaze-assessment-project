@@ -295,7 +295,72 @@ contrast rows; test updates; the chosen wireframe as `docs/wireframes/test-list.
 
 ## 8. Impl log
 
-(empty)
+### Direction A "Ledger" - 2026-10-22 (worktree `testlist-a` at `11f4006`, claude-sonnet-5-5, not committed)
+
+Built so the user can compare A, B and C side by side. User decisions of 2026-10-22 applied over the
+wireframe: HEADER band kept (Q2), button rows radius 4 inside 8 px panel padding (Q5), Date and its
+header label right-aligned with tabular figures (Q6), no new glyph.
+
+**Files changed**
+- `src/ui/test_list_panel.py` (new, 65 lines): `ActionPanel(QFrame)`, object name `wtmhCard`, spacing 0,
+  8 px padding, minimum width 200. Seven buttons in the old order; Run Test `wtmhPrimary`, the other six
+  `wtmhTertiary`; three 1 px rules (`QFrame#wtmhTestRule`) after Add New Test, after View Report and after
+  Delete Test (TA5; the groups of 4.2 read "Add / Configure, Run, View Report / Copy, Delete / Open
+  Subject Folder"). Delete Test keeps the 12 px DANGER square. `autoDefault` off as before.
+- `src/ui/test_list_style.py` (new, 28 lines): `TABLE_STYLE` (the old vertical-header rule, plus 16 px
+  right padding on the last header section and on the table's items) and `PANEL_STYLE` (left-aligned
+  tertiary label; the rule colour BORDER_SUBTLE). Both are set on the Test List's own widgets, so the
+  global sheets are untouched and no other table or card changes.
+- `src/ui/test_list_table.py` (209 to 267 lines): `setShowGrid(False)`; `_RowDelegate` paints the hovered
+  row's ACCENT_SUBTLE tint (never over the chosen row) and a 1 px BORDER_SUBTLE rule at every cell's foot
+  (`_StatusDelegate` now extends it); `hover_row` from mouse tracking (`mouseMoveEvent`, `viewportEvent`
+  Leave); Task and Configuration items `setForeground(TEXT_SECONDARY)`; Date items right-aligned with a
+  `tnum` font; `DATE_ALIGNMENT`.
+- `src/ui/test_list_page.py` (485 to 471 lines): builds `ActionPanel`, keeps `add_button` ... `open_folder_button`
+  as aliases of the panel's buttons, `body.addWidget(self.actions, 0, AlignTop)`; right-aligns the Date header
+  label; `TABLE_STYLE` replaces `_TABLE_STYLE`; docstring updated. No function, signal, key or matrix changed.
+- `src/ui/design_tokens.py`: only four new `CONTRAST_PAIRS` rows (INK / TEXT_SECONDARY on ACCENT_SUBTLE,
+  TEXT_SECONDARY on ROW_SELECTED, DANGER on ACCENT_SUBTLE). ACCENT on ROW_SELECTED (4.58) is not added: only
+  B and C use it.
+
+**Tests**
+- New `tests/test_test_list_ledger.py`, 18 tests: no grid and 40 px rows; a 1 px rule under every row in
+  every column (badge cell too) and no vertical line (pixels of the themed page); selected row ROW_SELECTED,
+  hovered row ACCENT_SUBTLE, a hovered chosen row keeps ROW_SELECTED, the tint follows the mouse, leaves with
+  it, survives a sort and a reload; Task and Configuration TEXT_SECONDARY, the rest ink; Date and its header
+  right-aligned, `tnum`; the 16 px right padding in the sheet; other dashboard tables keep their grid and
+  header band; the panel is one `wtmhCard` with the seven buttons in order, three rules, margins 8, spacing 0;
+  rows tertiary and left-aligned (first accent pixel of Add New Test), Run Test the one primary; the tertiary
+  hover / disabled / radius rules of the theme; disabled rows grey, disabled Run Test pale blue, 40 px;
+  the four new contrast rows. Mutation-checked: six deliberate breaks each failed a test.
+- `tests/test_test_list_badges.py`: five tests adapted, no weaker: the three geometry tests measure the panel
+  (24 px right of the table, top-aligned, ends at the right gutter, each button 8 px in from both edges);
+  the tier test and the Delete Test test expect `wtmhTertiary` (T2: secondary set became tertiary).
+- `tests/test_design_tokens.py`: `test_list_page`, `test_list_table`, `test_list_panel`, `test_list_style` join
+  `SHEET_MODULES`; the two new sheets join `SHEETS` (T3). No assertion changed.
+- `tests/test_test_list_page.py` and `tests/test_test_list_actions.py`: unchanged and green (T1).
+
+**Result:** `5 failed, 4644 passed in 1532.03s` (4649 collected, 18 of them new). The 5 failures are
+`test_config_flow.py::test_a_new_test_opens_at_standard_with_the_task_defaults` and the four
+`test_task_config_page.py::test_a_new_test_opens_with_standard_and_the_defaults[...]` (`dwell.smoothing.alpha`
+0.35, not the 0.22 of the local YAML): they fail the same way on an untouched `git archive HEAD` export, so they
+are the worktree's missing local config, not this change. `ruff check` is clean on every file touched (two
+older findings remain in `calibration_flow.py` and `report_page.py`, not touched). Largest file: 471 lines.
+
+**Deviations from the wireframe / SPEC:** none against section 6 (TA1-TA6, T1-T8, T10). Differences from the
+wireframe text, all inside the user's decisions or forced by Qt:
+- Row hover is a true row tint (a delegate plus mouse tracking), not the "item-hover QSS rule" the wireframe
+  names: QSS `::item:hover` tints one cell, not the row.
+- The row rules are painted by the delegate (`setShowGrid(False)` has no horizontal-only mode).
+- The Date column has 16 px on its right (header section and items) so the sort arrow, which Qt draws at the
+  section's right edge, does not sit on the right-aligned label.
+
+**For the live look (T9, T11), not measurable offscreen** (the offscreen font draws boxes, so sizes of text are
+wrong): the panel's real width (minimum 200; `Open Subject Folder` should fit without growing it); whether the
+Date header label and the dates share the right edge to the pixel (offscreen they differ by about 3 px: Qt's
+header text margin is 4, the item's 3); the look of the centred Run Test row between five left-aligned rows
+(the SPEC says only "Run Test primary"); the separators sit inside the 8 px padding with no extra margin, as
+spacing 0 says. The wireframe (`test-list-alt-a.md`) and `test-list.md` are not touched.
 
 ## 9. Open decisions (for the user)
 
