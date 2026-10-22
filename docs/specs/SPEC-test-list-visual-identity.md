@@ -1,7 +1,7 @@
 ---
 name: SPEC-test-list-visual-identity
 title: "Test List: a look of our own for the test rows and the right-side buttons (look only, design system unchanged)"
-status: DESIGNED 2026-10-22, awaiting the user's choice of direction (section 9)
+status: DESIGNED 2026-10-22; all three directions being built in worktrees testlist-a/-b/-c for the user to try (section 9 Q1)
 created: 2026-10-22
 last_updated: 2026-10-22
 next_step: the user answers section 9 (Q1 direction, then the questions of that direction; GATE 1), then the chosen wireframe becomes docs/wireframes/test-list.md and spec-implementer runs plan step 3
@@ -302,22 +302,28 @@ contrast rows; test updates; the chosen wireframe as `docs/wireframes/test-list.
 - **Q1. Which direction?** A "Ledger", B "Record cards", C "Signal", or A + C's seven button glyphs.
   *Hub recommendation: A* (4.7): it changes the right-side buttons most visibly, needs no new asset,
   and is the cheapest. Glyphs can follow later if A still looks too close to Compass.
+  *Answered 2026-10-22 by the user:* build all three (A, B, C), each in its own worktree (`testlist-a/-b/-c`), so the user can try them in the app and then choose.
 - **Q2. (if A) Keep or drop the grey HEADER band?** Dropping it is a deviation from proposal 2.5
   ("header labels on the header fill") and makes the clickable sort headers less obvious.
   *Hub recommendation: keep the band;* the rest of A carries the identity.
+  *Answered 2026-10-22 by the user:* keep the band.
 - **Q3. (if C or A + C) Do new painted glyphs count as icons within the unchanged design system?**
   They use only token colours and the existing glyph mechanism, but they add action and task shapes
   to a set that today holds state shapes only. *Hub recommendation: yes, icons, not a design-system
   change, provided they are drawn in `glyphs.py` at the existing 1.5 px stroke and token colours.*
+  *Answered 2026-10-22 by the user:* yes, icons; C gets all 11 (7 button + 4 task glyphs).
 - **Q4. What happens to the two unchosen wireframes?** (a) keep them as `test-list-alt-*.md`
   marked "not chosen" for the record, or (b) delete them. *Hub recommendation: (a), with a one-line
   "not chosen 2026-10-xx" note at the top of each, so Hsieh's question has its trail.*
+  *Open:* decided after the user's choice.
 - **Q5. (if A) Radius of the button rows inside the panel?** The wireframe sets radius 0; proposal
   2.5 gives buttons radius 4. *Hub recommendation: radius 4 with 8 px panel padding*, so the hover
   fill and the filled Run Test are rounded like every other button.
+  *Answered 2026-10-22 by the user:* radius 4, 8 px panel padding.
 - **Q6. Right-aligned Date with tabular figures, in any direction?** Proposal 2.5 already asks for
   it ("Numeric columns right-aligned with tabular figures"); A and C include it, B does not say.
   *Hub recommendation: yes, in every direction* (the header label "Date Complete" right-aligned too).
+  *Answered 2026-10-22 by the user:* yes, in all three directions.
 
 ## 10. Log
 
@@ -326,3 +332,5 @@ contrast rows; test updates; the chosen wireframe as `docs/wireframes/test-list.
   renders). Decisions D1-D3 recorded. Code claims checked against `b0833d2`; two flags added to
   the brainstorm's: A's radius-0 button rows (2.5) and the 500-line limit of `test_list_page.py`.
   Hub recommendation A with the HEADER band and radius 4. Awaiting the user's choice (section 9).
+
+- **2026-10-22** - User answers: Q1 build all three directions for a side-by-side try in the app (worktrees `testlist-a`, `testlist-b`, `testlist-c` at `11f4006`, one `spec-implementer` each, in parallel); Q2 keep the HEADER band; Q3 C gets all 11 painted glyphs; Q5 radius 4 with 8 px panel padding; Q6 right-aligned Date in all three. Q4 waits for the choice.
