@@ -1,7 +1,8 @@
-"""The calibration window (SPEC-app-drawn-calibration.md 4.1, 4.3b, 4.4, 4.5, 4.6; A1, A5, A10, A10b).
+"""The calibration window (SPEC-app-drawn-calibration.md 4.1, 4.3b, 4.4, 4.5, 4.6, 4.9; A1, A5, A10,
+A10b, A19).
 
 Offscreen Qt with a fake clock: the icon's pose is a function of the clock, so the glide, the
-hold and the sizes are read without waiting. Nothing here touches a device.
+settle, the hold and the sizes are read without waiting. Nothing here touches a device.
 """
 
 from __future__ import annotations
@@ -17,7 +18,13 @@ from PySide6.QtGui import QColor
 from PySide6.QtTest import QTest
 from PySide6.QtWidgets import QApplication
 
-from src.engine.calibration_motion import PHASE_GLIDE, PHASE_HOLD, PHASE_IDLE, PHASE_SHRINK
+from src.engine.calibration_motion import (
+    PHASE_GLIDE,
+    PHASE_HOLD,
+    PHASE_IDLE,
+    PHASE_SETTLE,
+    WOBBLE_DEG,
+)
 from src.engine.calibration_run import (
     EVENT_FALLBACK,
     EVENT_PROCESSING,
@@ -106,31 +113,38 @@ def test_the_icon_enters_from_the_corner_glides_to_each_point_and_holds_by_delay
         assert (first.x, first.y) == previous and first.phase == PHASE_GLIDE  # leaves where it was
         clock.now = t0 + 0.2
         mid = window.stage.sample()
-        assert mid.phase == PHASE_GLIDE and mid.size == 1.0  # large while moving
+        assert mid.phase == PHASE_GLIDE
+        large = icon_diameter_px("normal", MM_PER_PX, DISTANCE)  # the preset's one size, also while moving
+        assert window.stage.diameter_px() == pytest.approx(large)
         assert min(previous[0], x) <= mid.x <= max(previous[0], x)
         assert min(previous[1], y) <= mid.y <= max(previous[1], y) and (mid.x, mid.y) != (x, y)  # on its way
         clock.now = t0 + DELAY
         hold = window.stage.sample()
-        assert (hold.phase, hold.x, hold.y, hold.size, hold.angle_deg) == (PHASE_HOLD, x, y, 0.0, 0.0)  # still, small
+        assert (hold.phase, hold.x, hold.y, hold.angle_deg) == (PHASE_HOLD, x, y, 0.0)  # still
+        assert window.stage.diameter_px() == pytest.approx(large)  # and as large as in the glide (4.9 R5)
         clock.now = t0 + DELAY + 1.0  # the rest of the point: it does not move
         assert window.stage.sample() == hold
         previous = (x, y)
         clock.now += 0.001
 
 
-def test_the_icon_shrinks_before_the_hold_and_keeps_still_in_it(qapp):
+def test_the_icon_settles_before_the_hold_keeps_its_size_and_is_still_in_the_hold(qapp):
     window, clock = make_window(qapp)
     t0 = clock.now
     start(window, clock, 1)
+    large = icon_diameter_px("normal", MM_PER_PX, DISTANCE)
     phases = []
     for step in range(0, 81):
         clock.now = t0 + step * 0.01
         sample = window.stage.sample()
         phases.append(sample.phase)
+        assert window.stage.diameter_px() == pytest.approx(large)  # never smaller (4.9 R5)
         if sample.phase == PHASE_HOLD:
-            assert sample.size == 0 and sample.angle_deg == 0
-    assert phases[0] == PHASE_GLIDE and PHASE_SHRINK in phases and phases[-1] == PHASE_HOLD
-    assert phases == sorted(phases, key=[PHASE_GLIDE, PHASE_SHRINK, PHASE_HOLD].index)  # never back to moving
+            assert sample.angle_deg == 0
+        if sample.phase == PHASE_SETTLE:
+            assert abs(sample.angle_deg) <= WOBBLE_DEG  # the wobble only fades
+    assert phases[0] == PHASE_GLIDE and PHASE_SETTLE in phases and phases[-1] == PHASE_HOLD
+    assert phases == sorted(phases, key=[PHASE_GLIDE, PHASE_SETTLE, PHASE_HOLD].index)  # never back to moving
 
 
 def test_the_first_paint_in_the_hold_is_no_later_than_delay_after_the_record(qapp):
@@ -174,23 +188,21 @@ def test_result_points_processing_and_the_fallback_event(qapp):
 
 @pytest.mark.parametrize("size", sorted(SIZES_DEG))
 def test_the_icon_is_drawn_at_the_degrees_of_its_size_preset(qapp, size):
+    """A19: one diameter in the glide, the settle and the hold, equal to the preset's degrees."""
     window, clock = make_window(qapp, size=size)
     t0 = clock.now
     start(window, clock, 1)
-    gliding_deg, holding_deg = SIZES_DEG[size]
-    assert window.stage.diameter_px(window.stage.sample()) == pytest.approx(
-        icon_diameter_px(size, False, MM_PER_PX, DISTANCE)
-    )
-    clock.now = t0 + DELAY
-    assert window.stage.diameter_px(window.stage.sample()) == pytest.approx(
-        icon_diameter_px(size, True, MM_PER_PX, DISTANCE)
-    )
+    expected = icon_diameter_px(size, MM_PER_PX, DISTANCE)
+    seen = set()
+    for step in range(0, 101):  # the whole point, past the hold's start
+        clock.now = t0 + step * 0.01
+        seen.add(window.stage.sample().phase)
+        assert window.stage.diameter_px() == pytest.approx(expected)
+    assert seen == {PHASE_GLIDE, PHASE_SETTLE, PHASE_HOLD}
     # ... and those pixels are the preset's visual angle at the viewing distance.
     import math
 
-    px = icon_diameter_px(size, False, MM_PER_PX, DISTANCE)
-    assert 2 * math.degrees(math.atan(px * MM_PER_PX / 2 / DISTANCE)) == pytest.approx(gliding_deg)
-    assert 2 * math.degrees(math.atan(icon_diameter_px(size, True, MM_PER_PX, DISTANCE) * MM_PER_PX / 2 / DISTANCE)) == pytest.approx(holding_deg)
+    assert 2 * math.degrees(math.atan(expected * MM_PER_PX / 2 / DISTANCE)) == pytest.approx(SIZES_DEG[size])
 
 
 def test_a_larger_preset_draws_a_larger_icon(qapp):
@@ -198,7 +210,7 @@ def test_a_larger_preset_draws_a_larger_icon(qapp):
     for size in ("small", "normal", "large"):
         window, clock = make_window(qapp, size=size)
         start(window, clock, 1)
-        diameters.append(window.stage.diameter_px(window.stage.sample()))
+        diameters.append(window.stage.diameter_px())
     assert diameters == sorted(diameters) and len(set(diameters)) == 3
 
 

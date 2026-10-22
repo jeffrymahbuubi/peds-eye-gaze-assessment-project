@@ -121,8 +121,8 @@ class CalibrationResult:
 
 # The keys of CalibrationResult.record, written at the top level of calibration.json.
 RECORD_KEYS = (
-    "mode", "speed", "delay_s", "timeout_s", "icon", "size", "background", "layout", "improve_runs",
-    "accuracy_checked",
+    "mode", "speed", "delay_s", "timeout_s", "icon", "size", "size_deg", "background", "layout",
+    "improve_runs", "accuracy_checked",
 )
 
 

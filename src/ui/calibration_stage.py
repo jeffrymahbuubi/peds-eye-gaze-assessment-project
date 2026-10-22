@@ -115,12 +115,10 @@ class CalibrationStage(QWidget):
     def sample(self) -> MotionSample:
         return self._motion.sample(self._clock())
 
-    def diameter_px(self, sample: MotionSample) -> float:
-        """The icon's diameter in logical px: the preset's large size while gliding, shrinking to
-        its small one for the hold."""
-        large = icon_diameter_px(self._settings.size, False, self._mm_per_px, self._distance_mm)
-        small = icon_diameter_px(self._settings.size, True, self._mm_per_px, self._distance_mm)
-        return small + (large - small) * sample.size
+    def diameter_px(self) -> float:
+        """The icon's diameter in logical px: the preset's one size, the same in the glide, the
+        settle and the hold (4.9 R5: the icon never shrinks)."""
+        return icon_diameter_px(self._settings.size, self._mm_per_px, self._distance_mm)
 
     def center_px(self, sample: MotionSample) -> QPointF:
         """The icon's centre in logical px of this widget (a fraction of its size)."""
@@ -154,7 +152,7 @@ class CalibrationStage(QWidget):
             times = self._times.get(self._current_point)
             if times is not None and times["hold_painted"] is None:
                 times["hold_painted"] = self._clock()
-        diameter = self.diameter_px(sample)
+        diameter = self.diameter_px()
         centre = self.center_px(sample)
         painter.save()
         painter.translate(centre)

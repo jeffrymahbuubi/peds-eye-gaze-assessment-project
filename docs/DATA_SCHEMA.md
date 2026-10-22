@@ -316,10 +316,11 @@ change** (a loader reads named keys and treats a missing one as unknown).
 | `per_point` | list\|null | one entry per point of `CALIB_RESULT`: `point`, `target_x`, `target_y`, and per eye (`left`, `right`: `x`, `y`, `valid`, or null); null when `CALIB_RESULT` never arrived. Every run with data adds `score` and `error_deg` to each entry (`app_drawn`, `control` and `control_fallback`) |
 | `calibrated_at` | str | UTC timestamp |
 | `mode` | str | `"app_drawn"` (the app's calibration window), `"control"` (the operator chose Gazepoint Control's own window) or `"control_fallback"` (the app's window did not respond, so Control's own was used) |
-| `speed` | str | `"slow"`, `"normal"` or `"fast"` |
-| `delay_s`, `timeout_s` | float | `CALIBRATE_DELAY` (the glide, before sampling) and `CALIBRATE_TIMEOUT` (the hold, while Control samples) that the speed sent |
+| `speed` | str | `"slow"`, `"normal"` or `"fast"`. The name alone does not say how slow: **Slow was 1.0 / 1.5 s before revision 4.9** (2026-10-22) and is 2.5 / 1.5 s after it, so analysis must use `delay_s` and `timeout_s`, not the name |
+| `delay_s`, `timeout_s` | float | `CALIBRATE_DELAY` (the glide and settle, before sampling) and `CALIBRATE_TIMEOUT` (the hold, while Control samples) that the speed sent. Normal is 0.8 / 1.0 s, Fast 1.8 / 0.4 s, Slow 2.5 / 1.5 s (1.0 / 1.5 s in a file written before revision 4.9) |
 | `icon` | str | the target icon: `bee`, `star`, `ball`, `fish`, `flower` or `car` (drawn by the app screen only) |
 | `size` | str | `"small"`, `"normal"` or `"large"` (degrees of visual angle, app screen only) |
+| `size_deg` | float | the icon's drawn diameter in degrees of visual angle, **the same at every point and in every phase** (`2.2`, `3.0` or `4.0`; app screen only, like `size`). **A file without it is from before revision 4.9**: the icon was large while moving (2.2 / 3.0 / 4.0 degrees) and shrank to 0.6 / 0.8 / 1.0 degrees while Control sampled |
 | `background` | str | `"white"`, `"black"` or `"grey"` (app screen only) |
 | `layout` | str | `"grid3"` (the app's 10 % / 90 % layout, in the order centre, top-left, bottom-right, top-right, bottom-left, then the edge midpoints: top, right, bottom, left; the centre comes first since 2026-10-14, a file written before that has the centre last) or `"vendor"` (Control's own 0.15 / 0.85 layout) |
 | `improve_runs` | int | how many times Improve calibration re-ran all points before Back |
@@ -334,7 +335,7 @@ state (`configs/local_state.json`, `calibration` block), never in the data folde
 `"control_fallback"` with `fallback_reason`, or `"app_drawn"`). A Gazepoint Control run (`control`, `control_fallback`) logs Control's own `AVE_ERROR` as `control_ave_error_px` (what its `CALIBRATE_RESULT_SUMMARY` reported; for comparison only: the result's error is the `CALIB_RESULT` one in `calibration.json`; it replaces the `mean_error_px` key these records had before 2026-10-14). An app-drawn run writes one record
 with `outcome` (`calib_result`, `calib_result_never`, `cancelled`, `fallback`, `socket_error`),
 `delay_s`, `timeout_s` and `points`: for each point `t_start_s`, `t_result_s`, `t_glide_end_s` and
-`t_hold_start_s`, in seconds after `CALIBRATE_START`. The hold rule (the icon is still and small no
+`t_hold_start_s`, in seconds after `CALIBRATE_START`. The hold rule (the icon is still, at its one size, no
 later than `delay_s` after `CALIB_START_PT`) can be read as `t_hold_start_s - t_start_s`. A second
 record, `"kind": "app_window"`, lists per run and point `hold_scheduled_s` and `hold_painted_s`,
 seconds after the point's start, as the window kept them.

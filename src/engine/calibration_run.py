@@ -410,7 +410,7 @@ class _TimingLog:
     def write(self, outcome: str, *, result: CalibrationResult | None = None, reason: str = "") -> None:
         if self._path is None:
             return
-        glide, shrink = schedule(self._delay_s)
+        glide, settle = schedule(self._delay_s)
         rows = []
         for point in sorted(self._points):
             times = self._points[point]
@@ -421,7 +421,7 @@ class _TimingLog:
                     "t_start_s": None if start is None else round(start - self.t_start, 4),
                     "t_result_s": None if done is None else round(done - self.t_start, 4),
                     "t_glide_end_s": None if start is None else round(start + glide - self.t_start, 4),
-                    "t_hold_start_s": None if start is None else round(start + glide + shrink - self.t_start, 4),
+                    "t_hold_start_s": None if start is None else round(start + glide + settle - self.t_start, 4),
                 }
             )
         _append_timing_record(

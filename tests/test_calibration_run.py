@@ -89,16 +89,16 @@ def test_the_commands_sent_hide_control_and_set_the_pair_and_the_layout(control)
 
 
 def test_the_hold_starts_no_later_than_delay_after_each_record_with_a_fake_clock():
-    """A1 with a fake clock: whenever the window gets a point (``t0``), the icon is still and
-    small by ``t0 + DELAY``, and was moving before."""
-    for delay in (0.1, 0.8, 1.0, 1.8):
+    """A1 and A19 with a fake clock: whenever the window gets a point (``t0``), the icon is still
+    by ``t0 + DELAY``, and was moving before. Slow's DELAY of 2.5 s (4.9 R4) is in the list."""
+    for delay in (0.1, 0.8, 1.0, 1.8, 2.5):
         motion = TargetMotion()
         t0 = 100.0
         for x, y in app_layout(5):
             motion.begin_point(x, y, t0, delay)
             assert motion.hold_start() <= t0 + delay
             assert motion.sample(t0 + delay).phase == PHASE_HOLD
-            assert motion.sample(motion.hold_start()).size == 0.0
+            assert motion.sample(motion.hold_start()).angle_deg == 0.0  # still: the wobble is over
             assert motion.sample(t0 + delay).x == x and motion.sample(t0 + delay).y == y
             if delay >= 0.5:
                 assert motion.sample(t0 + 0.1).phase == PHASE_GLIDE
@@ -272,7 +272,21 @@ def test_each_speed_preset_sends_its_pair_on_the_app_screen_and_restores_control
 
 
 def test_the_speed_presets_are_the_pairs_of_the_spec():
-    assert SPEEDS == {"slow": Speed(1.0, 1.5), "normal": Speed(0.8, 1.0), "fast": Speed(1.8, 0.4)}
+    """A18: Slow is 2.5 / 1.5 s since revision 4.9 (it was 1.0 / 1.5 s); Normal and Fast keep theirs."""
+    assert SPEEDS == {"slow": Speed(2.5, 1.5), "normal": Speed(0.8, 1.0), "fast": Speed(1.8, 0.4)}
+
+
+def test_the_new_slow_pair_reaches_the_control_screen_and_the_record_and_controls_own_is_restored(control):
+    """A18 (4.9 R4): the real Slow pair (the app screen's socket test above runs it too) is handed to
+    the Control-window run, lands in the record that becomes ``calibration.json``, and Control's own
+    DELAY and TIMEOUT come back."""
+    client = control.client()
+    capture = CapturingControl(CalibrationResult(5, None, False))
+    run = run_calibration(client, settings(screen="control", speed="slow"), make_control=capture)
+    control.sync(client)
+    assert (capture.calls[0]["point_delay_s"], capture.calls[0]["point_timeout_s"]) == (2.5, 1.5)
+    assert (run.result.record["delay_s"], run.result.record["timeout_s"]) == (2.5, 1.5)
+    assert (control.state.delay, control.state.timeout) == (0.7, 1.3)
 
 
 @pytest.mark.parametrize("speed", ["slow", "normal", "fast"])

@@ -1,6 +1,7 @@
-"""SPEC-app-drawn-calibration.md acceptance A5, A7 (the record), A10b (the size in degrees) and A12
-(the old ``calibration.show`` value) as pure maths: the settings, the Grid 3 layout, the per-point
-score and its colour band, and what ``calibration.json`` keeps.
+"""SPEC-app-drawn-calibration.md acceptance A5, A7 (the record), A10b (the size in degrees), A12
+(the old ``calibration.show`` value), A18 (the Slow pair) and A20 (the settle, ``size_deg``) as pure
+maths: the settings, the Grid 3 layout, the per-point score and its colour band, and what
+``calibration.json`` keeps.
 
 No Qt and no device.
 """
@@ -143,28 +144,27 @@ def test_fewer_than_four_points_are_not_a_layout():
 # -- A10b: the size in degrees ---------------------------------------------------------------------
 
 
-@pytest.mark.parametrize(
-    ("size", "gliding", "holding"), [("small", 2.2, 0.6), ("normal", 3.0, 0.8), ("large", 4.0, 1.0)]
-)
-def test_the_size_presets_are_the_degrees_of_the_spec(size, gliding, holding):
-    assert cs.SIZES_DEG[size] == (gliding, holding)
+@pytest.mark.parametrize(("size", "degrees"), [("small", 2.2), ("normal", 3.0), ("large", 4.0)])
+def test_the_size_presets_are_the_degrees_of_the_spec(size, degrees):
+    """4.9 R5 (A19): one diameter per preset, the old gliding size; there is no holding size."""
+    assert cs.SIZES_DEG[size] == degrees
     mm_per_px = 527.0 / 1920
-    for holding_now, degrees in ((False, gliding), (True, holding)):
-        px = cs.icon_diameter_px(size, holding_now, mm_per_px, 650.0)
-        assert px * mm_per_px == pytest.approx(2 * 650.0 * math.tan(math.radians(degrees) / 2), rel=1e-9)
+    px = cs.icon_diameter_px(size, mm_per_px, 650.0)
+    assert px * mm_per_px == pytest.approx(2 * 650.0 * math.tan(math.radians(degrees) / 2), rel=1e-9)
 
 
-def test_normal_is_about_6_percent_and_1_7_percent_of_the_width_on_the_lab_rig():
-    """4.3b: close to Grid 3's measured ~5-6.5 % gliding and ~1.5-2 % holding."""
+def test_normal_is_about_6_percent_of_the_width_on_the_lab_rig():
+    """4.3b: close to Grid 3's measured ~5-6.5 % while moving; now also while sampling (4.9 R5)."""
     mm_per_px = 527.0 / 1920
-    gliding = cs.icon_diameter_px("normal", False, mm_per_px, 650.0) / 1920
-    holding = cs.icon_diameter_px("normal", True, mm_per_px, 650.0) / 1920
-    assert 0.055 <= gliding <= 0.07 and 0.015 <= holding <= 0.02
+    assert 0.055 <= cs.icon_diameter_px("normal", mm_per_px, 650.0) / 1920 <= 0.07
+    # 4.9: about 90 / 123 / 164 px (4.7 / 6.4 / 8.5 % of the width) for Small / Normal / Large
+    widths = [cs.icon_diameter_px(size, mm_per_px, 650.0) for size in ("small", "normal", "large")]
+    assert widths == pytest.approx([90, 123, 164], abs=1.5)
 
 
 def test_the_apparent_size_is_the_same_on_a_monitor_with_other_pixels():
-    big_pixels = cs.icon_diameter_px("normal", False, 0.5, 650.0)
-    small_pixels = cs.icon_diameter_px("normal", False, 0.25, 650.0)
+    big_pixels = cs.icon_diameter_px("normal", 0.5, 650.0)
+    small_pixels = cs.icon_diameter_px("normal", 0.25, 650.0)
     assert big_pixels * 0.5 == pytest.approx(small_pixels * 0.25)
 
 
@@ -229,11 +229,25 @@ def test_a_saved_choice_wins_over_the_config_default():
 def test_the_record_holds_the_mode_speed_timing_icon_size_background_layout_and_improve_runs():
     settings = cs.CalibrationSettings("app", 5, "slow", "fish", "small", "grey")
     assert record_for(settings, MODE_APP, 2) == {
-        "mode": "app_drawn", "speed": "slow", "delay_s": 1.0, "timeout_s": 1.5, "icon": "fish",
-        "size": "small", "background": "grey", "layout": "grid3", "improve_runs": 2,
+        "mode": "app_drawn", "speed": "slow", "delay_s": 2.5, "timeout_s": 1.5, "icon": "fish",
+        "size": "small", "size_deg": 2.2, "background": "grey", "layout": "grid3", "improve_runs": 2,
         "accuracy_checked": False,  # until the Check accuracy view is opened (4.8 R3)
     }
     assert record_for(settings, MODE_FALLBACK)["layout"] == "vendor"
+
+
+@pytest.mark.parametrize(("size", "degrees"), [("small", 2.2), ("normal", 3.0), ("large", 4.0)])
+def test_the_record_keeps_the_drawn_diameter_in_degrees(size, degrees):
+    """A20: ``size_deg`` is the one diameter the icon was drawn at (4.9 R5)."""
+    assert record_for(cs.CalibrationSettings(size=size), MODE_APP)["size_deg"] == degrees
+
+
+def test_the_slow_preset_is_the_pair_of_revision_4_9_and_the_others_are_unchanged():
+    """A18: Slow was 1.0 / 1.5 s before revision 4.9; Normal and Fast keep their pairs."""
+    assert cs.SPEEDS["slow"] == (2.5, 1.5)
+    assert cs.SPEEDS["normal"] == (0.8, 1.0) and cs.SPEEDS["fast"] == (1.8, 0.4)
+    slow = cs.CalibrationSettings(speed="slow")
+    assert (slow.delay_s, slow.timeout_s) == (2.5, 1.5)
 
 
 def test_the_record_and_the_scores_reach_the_file_and_load_back(tmp_path):
@@ -251,6 +265,7 @@ def test_the_record_and_the_scores_reach_the_file_and_load_back(tmp_path):
     assert (data["icon"], data["size"], data["background"], data["layout"], data["improve_runs"]) == (
         "star", "large", "black", "grid3", 3,
     )
+    assert data["size_deg"] == 4.0
     assert [p["score"] for p in data["per_point"]] == [83, 50]
     assert data["per_point"][0]["error_deg"] == pytest.approx(0.5, abs=0.01)
 
@@ -342,6 +357,17 @@ def test_accuracy_checked_is_set_on_a_copy_and_reaches_the_file(tmp_path):
 def test_ease_runs_from_0_to_1_and_the_schedule_ends_before_delay():
     assert ease(0) == 0 and ease(1) == 1 and ease(0.5) == pytest.approx(0.5)
     assert ease(-1) == 0 and ease(2) == 1
-    for delay in (0.0, 0.05, 0.8, 1.0, 1.8):
-        glide, shrink = schedule(delay)
-        assert glide >= 0 and shrink >= 0 and glide + shrink <= delay
+    for delay in (0.0, 0.05, 0.8, 1.0, 1.8, 2.5):
+        glide, settle = schedule(delay)
+        assert glide >= 0 and settle >= 0 and glide + settle <= delay
+
+
+def test_the_settle_is_capped_at_half_a_second_and_normals_schedule_is_unchanged():
+    """A20 (4.9 R5): Normal's settle is its 30 % share (as the shrink was); Fast's and Slow's
+    settle hits the 0.5 s cap, which leaves 0.55 s of still picture with the 50 ms margin."""
+    glide, settle = schedule(0.8)
+    assert (glide, settle) == pytest.approx((0.525, 0.225))
+    for delay, expected_glide in ((1.8, 1.25), (2.5, 1.95)):
+        glide, settle = schedule(delay)
+        assert settle == pytest.approx(0.5) and glide == pytest.approx(expected_glide)
+        assert delay - glide == pytest.approx(0.55)
