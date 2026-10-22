@@ -47,18 +47,19 @@ class Speed(NamedTuple):
 
 
 SPEEDS: dict[str, Speed] = {
-    "slow": Speed(1.0, 1.5),
+    "slow": Speed(2.5, 1.5),  # 1.0 / 1.5 s before revision 4.9 (SPEC 4.9 R4)
     "normal": Speed(0.8, 1.0),
     "fast": Speed(1.8, 0.4),  # the hold is confirmed or raised at probe P4 (SPEC 4.3b)
 }
 DEFAULT_SPEED = "normal"
 SPEED_NAMES: dict[str, str] = {"slow": "Slow", "normal": "Normal", "fast": "Fast"}
 
-# (gliding, holding) diameters in degrees of visual angle (4.3b).
-SIZES_DEG: dict[str, tuple[float, float]] = {
-    "small": (2.2, 0.6),
-    "normal": (3.0, 0.8),
-    "large": (4.0, 1.0),
+# The icon's one diameter, in degrees of visual angle, at every point of the run (4.3b, 4.9 R5:
+# no shrink; before revision 4.9 the icon shrank to 0.6 / 0.8 / 1.0 degrees for the hold).
+SIZES_DEG: dict[str, float] = {
+    "small": 2.2,
+    "normal": 3.0,
+    "large": 4.0,
 }
 DEFAULT_SIZE = "normal"
 SIZE_NAMES: dict[str, str] = {"small": "Small", "normal": "Normal", "large": "Large"}
@@ -190,14 +191,11 @@ def app_layout(n_points: int) -> list[tuple[float, float]]:
 # -- the size on screen (4.3b) ------------------------------------------------------------------
 
 
-def icon_diameter_px(
-    size: str, holding: bool, mm_per_px: float, viewing_distance_mm: float | None = None
-) -> float:
+def icon_diameter_px(size: str, mm_per_px: float, viewing_distance_mm: float | None = None) -> float:
     """Diameter of the icon in the pixels ``mm_per_px`` is per: ``2 * D * tan(deg / 2) / mm_per_px``
-    for the preset's gliding (large) or holding (small) angle. ``mm_per_px`` is per Qt logical px
+    for the preset's angle (the same in glide, settle and hold). ``mm_per_px`` is per Qt logical px
     (:func:`src.engine.target_size.screen_scale`) for a widget that paints in logical px."""
-    gliding, holding_deg = SIZES_DEG[_pick(size, SIZES_DEG, DEFAULT_SIZE)]
-    degrees = holding_deg if holding else gliding
+    degrees = SIZES_DEG[_pick(size, SIZES_DEG, DEFAULT_SIZE)]
     distance = viewing_distance_mm if viewing_distance_mm and viewing_distance_mm > 0 else DEFAULT_VIEWING_DISTANCE_MM
     scale = mm_per_px if mm_per_px and mm_per_px > 0 else REFERENCE_MM_PER_PX
     return 2.0 * distance * math.tan(math.radians(degrees) / 2.0) / scale
@@ -338,6 +336,7 @@ def record_for(settings: CalibrationSettings, mode: str, improve_runs: int = 0) 
         "timeout_s": settings.timeout_s,
         "icon": settings.target,
         "size": settings.size,
+        "size_deg": SIZES_DEG[_pick(settings.size, SIZES_DEG, DEFAULT_SIZE)],
         "background": settings.background,
         "layout": LAYOUT_APP if mode == MODE_APP else LAYOUT_CONTROL,
         "improve_runs": int(improve_runs),

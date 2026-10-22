@@ -476,6 +476,18 @@ def test_the_old_tick_box_and_point_spin_are_gone_and_the_card_has_the_new_contr
     assert [b.text() for b in panel.screen_choice.buttons().values()] == ["App (Grid 3 style)", "Gazepoint Control"]
 
 
+def test_the_speed_list_shows_each_preset_with_its_pair_and_slow_is_the_new_one(qapp):
+    """A18 (4.9 R4): the label follows the SPEEDS table by itself. Built without the ``quick``
+    fixture, so it reads the real pairs."""
+    from src.ui.calibration_settings_panel import CalibrationSettingsPanel
+
+    panel = CalibrationSettingsPanel(cs.CalibrationSettings())
+    labels = [panel.speed_combo.itemText(i) for i in range(panel.speed_combo.count())]
+    assert labels == [
+        "Slow (glide 2.5 s, hold 1.5 s)", "Normal (glide 0.8 s, hold 1.0 s)", "Fast (glide 1.8 s, hold 0.4 s)"
+    ]
+
+
 # -- A7: the settings persist per PC ----------------------------------------------------------------------------
 
 
