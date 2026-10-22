@@ -22,6 +22,10 @@ window (Test Name stretches, the other columns keep their widths) and the button
 24 px to its right, at the window's right side, top-aligned. Run Test is the only primary
 button; Delete Test is a secondary one with the red danger glyph; Back to Setup is a tertiary
 one.
+
+Look (SPEC-test-list-visual-identity.md, direction B "Record cards"): the rows are painted as
+cards (:mod:`~src.ui.test_list_row_cards`) and the buttons sit in a "Selected test" card that
+names the selected test (:mod:`~src.ui.test_list_side_card`). Nothing else changed.
 """
 
 from __future__ import annotations
@@ -29,7 +33,7 @@ from __future__ import annotations
 from collections.abc import Callable
 from pathlib import Path
 
-from PySide6.QtCore import QSize, Qt, Signal
+from PySide6.QtCore import Qt, Signal
 from PySide6.QtWidgets import (
     QAbstractItemView,
     QFrame,
@@ -62,11 +66,12 @@ from ..engine.subject_tests import (
     subject_tests_dir,
 )
 from .add_test_dialog import AddTestDialog
-from .design_tokens import DANGER, TABLE_ROW_HEIGHT, TEXT_DISABLED
+from .design_tokens import TABLE_ROW_HEIGHT
 from .folder_opener import open_folder
-from .glyphs import GLYPH_SQUARE, glyph_icon
 from .rename_editor import RenameEditor
 from .run_dialogs import DANGER_TIER, PRIMARY, ask_choice
+from .test_list_row_cards import EMPTY_STYLE, ROW_SECTION, TABLE_STYLE
+from .test_list_side_card import SelectedTestCard
 from .test_list_table import (
     COL_NAME,
     HEADERS,
@@ -76,10 +81,6 @@ from .test_list_table import (
 NO_SUBJECT_TEXT = "Enter a Subject ID in Setup."
 NO_TESTS_TEXT = "No tests yet. Choose Add New Test."
 SAVED_TEXT = "Changes are saved automatically."
-
-# Local sheet for the table: the theme pads every header section by 6 px 8 px, the hidden
-# vertical header included, which makes each row about 13 px taller than its text.
-_TABLE_STYLE = "QHeaderView::section:vertical { padding: 0px; border: none; }"
 
 
 class SubjectTestListPage(QWidget):
@@ -215,32 +216,38 @@ class SubjectTestListPage(QWidget):
 
         self.table = SubjectTestTable(0, len(HEADERS))
         self.table.setObjectName("wtmhTestTable")
-        self.table.setStyleSheet(_TABLE_STYLE)
+        self.table.setStyleSheet(TABLE_STYLE)
         self.table.setHorizontalHeaderLabels(list(HEADERS))
         self.table.setEditTriggers(QAbstractItemView.EditTrigger.NoEditTriggers)
         self.table.setSelectionBehavior(QAbstractItemView.SelectionBehavior.SelectRows)
         self.table.setSelectionMode(QAbstractItemView.SelectionMode.SingleSelection)
         self.table.verticalHeader().hide()
-        self.table.verticalHeader().setDefaultSectionSize(TABLE_ROW_HEIGHT)
+        self.table.verticalHeader().setDefaultSectionSize(ROW_SECTION)
         header = self.table.horizontalHeader()
         header.setSectionsClickable(True)
         header.setHighlightSections(False)
         header.setSortIndicatorShown(False)
 
-        # Page 0 is the table; page 1 is the empty-state line that stands in for it, inside a
-        # frame that fills the same room.
+        # Page 0 is the table; page 1 is the empty-state line that stands in for it, as one card
+        # (a row's height) across the table's width.
         self.center = QStackedWidget()
         self.center.addWidget(self.table)
         empty_page = QFrame()
         empty_page.setObjectName("wtmhEmptyTable")
+        empty_page.setStyleSheet(EMPTY_STYLE)
+        empty_page.setMinimumHeight(TABLE_ROW_HEIGHT)
         empty_layout = QVBoxLayout(empty_page)
-        empty_layout.setContentsMargins(16, 12, 16, 12)
+        empty_layout.setContentsMargins(16, 8, 16, 8)
         self.empty_label = QLabel(NO_SUBJECT_TEXT)
         self.empty_label.setObjectName("wtmhMuted")
         self.empty_label.setWordWrap(True)
         empty_layout.addWidget(self.empty_label)
-        empty_layout.addStretch(1)
-        self.center.addWidget(empty_page)
+        empty_host = QWidget()
+        host_layout = QVBoxLayout(empty_host)
+        host_layout.setContentsMargins(0, 0, 0, 0)
+        host_layout.addWidget(empty_page)
+        host_layout.addStretch(1)
+        self.center.addWidget(empty_host)
         left.addWidget(self.center, stretch=1)
 
         self.unreadable_label = QLabel("")
@@ -254,22 +261,20 @@ class SubjectTestListPage(QWidget):
         left.addWidget(self.unreadable_label)
         left.addWidget(self.message_label)
 
-        # The button column, top-aligned; disabled buttons stay visible and grey.
-        column = QVBoxLayout()
-        column.setSpacing(10)
-        self.add_button = self._button("Add New Test", "wtmhGhost", column)
-        self.configure_button = self._button("Configure Test", "wtmhGhost", column)
-        self.run_button = self._button("Run Test", PRIMARY, column)
-        self.report_button = self._button("View Report", "wtmhGhost", column)
-        self.copy_button = self._button("Copy Test", "wtmhGhost", column)
-        self.delete_button = self._button("Delete Test", "wtmhGhost", column)
-        self.delete_button.setIcon(glyph_icon(GLYPH_SQUARE, DANGER, TEXT_DISABLED))  # V2
-        self.delete_button.setIconSize(QSize(12, 12))
-        # Outside the row matrix: on whenever the subject has a folder (SPEC-subject-data-
-        # layout.md H6, wireframe W2), whichever row is selected.
-        self.open_folder_button = self._button("Open Subject Folder", "wtmhGhost", column)
-        column.addStretch(1)
-        body.addLayout(column)
+        # The button column: the "Selected test" card, top-aligned; disabled buttons stay
+        # visible and grey. Open Subject Folder is outside the row matrix (on whenever the
+        # subject has a folder, SPEC-subject-data-layout.md H6, wireframe W2).
+        self.side_card = SelectedTestCard()
+        body.addWidget(self.side_card, 0, Qt.AlignmentFlag.AlignTop)
+        (
+            self.add_button,
+            self.configure_button,
+            self.run_button,
+            self.report_button,
+            self.copy_button,
+            self.delete_button,
+            self.open_folder_button,
+        ) = self.side_card.buttons
 
         footer = QHBoxLayout()
         footer.setSpacing(16)
@@ -297,15 +302,6 @@ class SubjectTestListPage(QWidget):
         self.table.renameRequested.connect(self.start_rename)
         self.table.activateRequested.connect(self._activate)
         header.sectionClicked.connect(self._on_header_clicked)
-
-    @staticmethod
-    def _button(text: str, tier: str, layout: QVBoxLayout) -> QPushButton:
-        button = QPushButton(text)
-        button.setObjectName(tier)
-        button.setAutoDefault(False)
-        button.setMinimumWidth(170)
-        layout.addWidget(button)
-        return button
 
     # -- table contents ----------------------------------------------------------------
 
@@ -368,6 +364,7 @@ class SubjectTestListPage(QWidget):
         self.report_button.setToolTip(
             "The recorded data for this test is missing from the subject folder." if missing else ""
         )
+        self.side_card.show_test(test, missing)
 
     def _on_open_folder(self) -> None:
         folder = self._subject_path

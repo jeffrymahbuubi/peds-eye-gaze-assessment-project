@@ -11,6 +11,10 @@ The Status column shows a :class:`~src.ui.status_badge.StatusBadge` (glyph and w
 cell widget over its item. The item keeps the status text and the sort key, so sorting by
 Status and the cell texts are as they were; the badge is only a view of them. Qt moves a
 cell widget with its item when the table sorts.
+
+The rows are painted as record cards (:mod:`~src.ui.test_list_row_cards`, direction B of
+SPEC-test-list-visual-identity.md): no frame, no grid, a card per row, the Date right-aligned.
+The table only tells the delegate which row is under the mouse (:attr:`hover_row`).
 """
 
 from __future__ import annotations
@@ -20,12 +24,11 @@ from collections.abc import Callable
 from datetime import datetime
 from typing import Any
 
-from PySide6.QtCore import Qt, Signal
+from PySide6.QtCore import QEvent, Qt, Signal
 from PySide6.QtWidgets import (
+    QFrame,
     QHBoxLayout,
     QHeaderView,
-    QStyledItemDelegate,
-    QStyleOptionViewItem,
     QTableWidget,
     QTableWidgetItem,
     QWidget,
@@ -34,6 +37,7 @@ from PySide6.QtWidgets import (
 from ..engine.subject_tests import STATUS_ENDED_EARLY, STATUS_NOT_DONE, SubjectTest
 from ..engine.task_info import TASK_INFO
 from .status_badge import StatusBadge
+from .test_list_row_cards import CardHeader, CardRowDelegate
 
 COL_NAME, COL_TASK, COL_CONFIG, COL_STATUS, COL_DATE = range(5)
 HEADERS = ("Test Name", "Task", "Configuration", "Status", "Date Complete")
@@ -126,15 +130,6 @@ class _BadgeCell(QWidget):
         self.badge = badge
 
 
-class _StatusDelegate(QStyledItemDelegate):
-    """Paints the Status cell without its text: the item holds the status text for the sort
-    and for ``row_texts``, but the badge over it says the state."""
-
-    def initStyleOption(self, option: QStyleOptionViewItem, index) -> None:  # noqa: N802 (Qt naming)
-        super().initStyleOption(option, index)
-        option.text = ""
-
-
 class SubjectTestTable(QTableWidget):
     """The table, with the three keys of 4A.4 turned into signals."""
 
@@ -144,7 +139,17 @@ class SubjectTestTable(QTableWidget):
 
     def __init__(self, rows: int, columns: int, parent: QWidget | None = None) -> None:
         super().__init__(rows, columns, parent)
-        self.setItemDelegateForColumn(COL_STATUS, _StatusDelegate(self))
+        self.hover_row = -1  # the row under the mouse; the delegate paints it
+        self.setFrameShape(QFrame.Shape.NoFrame)
+        self.setShowGrid(False)
+        self.setMouseTracking(True)
+        self.setHorizontalHeader(CardHeader(self, right_columns=(COL_DATE,)))
+        # The Status cell paints no text: the item holds the status text for the sort and for
+        # ``row_texts``, but the badge over it says the state.
+        self.setItemDelegate(CardRowDelegate(self))
+        self.setItemDelegateForColumn(COL_NAME, CardRowDelegate(self, semibold=True))
+        self.setItemDelegateForColumn(COL_STATUS, CardRowDelegate(self, text=False))
+        self.setItemDelegateForColumn(COL_DATE, CardRowDelegate(self, tabular=True))
         self.setHorizontalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAlwaysOff)
         header = self.horizontalHeader()
         header.setSectionResizeMode(COL_NAME, QHeaderView.ResizeMode.Stretch)
@@ -187,6 +192,8 @@ class SubjectTestTable(QTableWidget):
                     item.setData(Qt.ItemDataRole.UserRole, test.test_id)
                     item.setFlags(Qt.ItemFlag.ItemIsEnabled | Qt.ItemFlag.ItemIsSelectable)
                     item.setToolTip(tip)
+                    if column == COL_DATE:  # a numeric column, right-aligned like its label
+                        item.setTextAlignment(Qt.AlignmentFlag.AlignRight | Qt.AlignmentFlag.AlignVCenter)
                     self.setItem(row, column, item)
                 badge = StatusBadge(*status_badge_state(test, missing))
                 # the full status as a sentence (the item's own text keeps the "· data missing"
@@ -196,6 +203,26 @@ class SubjectTestTable(QTableWidget):
             self.clearSelection()
         finally:
             self.blockSignals(False)
+
+    def _hover_at(self, row: int) -> None:
+        if row != self.hover_row:
+            self.hover_row = row
+            self.viewport().update()
+
+    def viewportEvent(self, event: QEvent) -> bool:  # noqa: N802 (Qt naming)
+        if event.type() == QEvent.Type.MouseMove:
+            self._hover_at(self.rowAt(event.position().toPoint().y()))
+        elif event.type() == QEvent.Type.Leave:
+            self._hover_at(-1)
+        return super().viewportEvent(event)
+
+    def focusInEvent(self, event) -> None:  # noqa: N802 (Qt naming)
+        super().focusInEvent(event)
+        self.viewport().update()  # the selected card's edge is the focus border
+
+    def focusOutEvent(self, event) -> None:  # noqa: N802 (Qt naming)
+        super().focusOutEvent(event)
+        self.viewport().update()
 
     def keyPressEvent(self, event) -> None:  # noqa: N802 (Qt naming)
         key = event.key()

@@ -1,7 +1,8 @@
 """SPEC-design-system-phase2.md H5, H12, V2 (Q2, Q4): the Test List's Status cells are status
 badges (glyph + word) over items that keep their text and sort key, so sorting still works;
 bold marks nothing; the table fills the window, Test Name stretching and the other columns keeping their widths; Run Test is the only primary button, Delete
-Test carries the danger glyph and Back to Setup is tertiary. Offscreen Qt."""
+Test carries the danger glyph and Back to Setup is tertiary. Offscreen Qt. Since SPEC-test-list-visual-identity.md
+(direction B) the button column is the "Selected test" card (``page.side_card``): the geometry tests point at it."""
 
 from __future__ import annotations
 
@@ -230,7 +231,7 @@ def test_the_table_has_no_maximum_width_and_fills_the_window(qapp, root, width):
     page.resize(width, 700)
     page.show()
     QApplication.processEvents()
-    buttons_left = page.add_button.mapTo(page, QPoint(0, 0)).x()
+    buttons_left = page.side_card.mapTo(page, QPoint(0, 0)).x()
     table_left = page.table.mapTo(page, QPoint(0, 0)).x()
     assert table_left == 32
     assert table_left + page.table.width() + 24 == buttons_left  # the table runs up to the button column
@@ -281,16 +282,12 @@ def test_the_button_column_is_24_px_right_of_the_table_at_the_windows_right_side
     page.show()
     QApplication.processEvents()
     table_left = page.table.mapTo(page, QPoint(0, 0))
-    gap = page.add_button.mapTo(page, QPoint(0, 0)).x() - (table_left.x() + page.table.width())
+    card = page.side_card
+    gap = card.mapTo(page, QPoint(0, 0)).x() - (table_left.x() + page.table.width())
     assert gap == 24
-    assert page.add_button.mapTo(page, QPoint(0, 0)).y() == table_left.y()  # top-aligned
-    # the column is the right side of the page: its widest button ends at the right gutter
-    right = max(
-        b.mapTo(page, QPoint(b.width(), 0)).x()
-        for b in (page.add_button, page.configure_button, page.run_button, page.report_button,
-                  page.copy_button, page.delete_button, page.open_folder_button)
-    )
-    assert right == page.width() - 32
+    assert card.mapTo(page, QPoint(0, 0)).y() == table_left.y()  # top-aligned
+    # the column is the right side of the page: the card ends at the right gutter
+    assert card.mapTo(page, QPoint(card.width(), 0)).x() == page.width() - 32
     page.close()
 
 
@@ -306,7 +303,7 @@ def test_the_empty_state_is_one_line_inside_a_frame_that_follows_the_tables_widt
         QApplication.processEvents()
         # the frame takes the room the table takes: from the left gutter up to 24 px before the buttons
         assert frame.width() == page.center.width()
-        assert frame.width() == page.add_button.mapTo(page, QPoint(0, 0)).x() - 24 - 32
+        assert frame.width() == page.side_card.mapTo(page, QPoint(0, 0)).x() - 24 - 32
     assert page.empty_label.text() == "No tests yet. Choose Add New Test."
 
 

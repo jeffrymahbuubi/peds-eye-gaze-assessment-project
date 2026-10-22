@@ -92,6 +92,14 @@ CONTRAST_PAIRS: tuple[tuple[str, str, float], ...] = (
     (ACCENT_FOCUS, PAGE, 4.02),
     (ACCENT, ACCENT_SUBTLE, 5.17),
     (ACCENT_DISABLED_TEXT, ACCENT_DISABLED_FILL, 4.62),  # the disabled primary's text, on its pale blue
+    # The Test List's record cards (SPEC-test-list-visual-identity.md, direction B): ink and the column
+    # labels on the hover fill, the selected card's accent edge and its focus border (non-text, 3:1),
+    # and the Delete glyph on a hovered button.
+    (INK, ACCENT_SUBTLE, 15.37),
+    (TEXT_SECONDARY, ACCENT_SUBTLE, 6.64),
+    (ACCENT, ROW_SELECTED, 4.58),
+    (ACCENT_FOCUS, ROW_SELECTED, 3.33),
+    (DANGER, ACCENT_SUBTLE, 4.25),
     # The proposal prints 4.51, the teal-era figure; with the blue accent it is 3.56 (a track
     # is a non-text part, which needs 3:1).
     (SLIDER_GROOVE, ACCENT, 3.56),

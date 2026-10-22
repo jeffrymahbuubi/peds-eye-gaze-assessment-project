@@ -295,7 +295,73 @@ contrast rows; test updates; the chosen wireframe as `docs/wireframes/test-list.
 
 ## 8. Impl log
 
-(empty)
+- **2026-10-22 - Direction B "Record cards"** (`spec-implementer`, model `claude-sonnet-5-5`, worktree
+  `testlist-b`, branch `testlist-b` from `11f4006`; not committed, nothing staged). Built so the user can
+  compare A, B and C side by side. User decisions of 2026-10-22 applied: Q6 yes (Date right-aligned with
+  tabular figures, its label right-aligned too); no new glyph icons.
+  - **New** `src/ui/test_list_row_cards.py` (229 lines): `CardRowDelegate` (paints one card across the row,
+    clipped per cell so the cells join without a seam; text 14 px INK, Test Name at 600, Date with `tnum`),
+    `CardHeader` (floating 12 px / 600 TEXT_SECONDARY labels on PAGE, ACCENT_SUBTLE under the mouse, ACCENT sort
+    arrow, right-aligned Date label), `card_colours()`, `TABLE_STYLE` and `EMPTY_STYLE` (set on the Test List's
+    own table and empty frame, so the global dashboard table rule is untouched), and the constants `CARD_GAP` 8,
+    `ROW_SECTION` 48, `HEADER_HEIGHT` 32 (all spacing-scale values).
+  - **New** `src/ui/test_list_side_card.py` (153 lines): `SelectedTestCard` (`QFrame#wtmhCard`, 24 px padding,
+    8 px between buttons; heading = the selected test's name in `wtmhSectionTitle` with its `StatusBadge`
+    under it, or "No test selected"; the seven buttons moved here unchanged: order, tiers, Delete glyph) and
+    `ElidedLabel` (one line, never widens the card, full name as the tooltip when cut).
+  - **Changed** `src/ui/test_list_table.py` (no frame, no grid, mouse tracking and `hover_row`, `CardHeader`,
+    one `CardRowDelegate` per column kind, Date items right-aligned, focus in/out repaints);
+    `src/ui/test_list_page.py` (482 lines, was 485: table sheet and row height from the helper, the button
+    column replaced by `self.side_card` with the seven button attributes kept, the empty state as one
+    row-high card in a host widget, `_update_buttons()` ends with `side_card.show_test(test, missing)`);
+    `src/ui/design_tokens.py` (5 `CONTRAST_PAIRS` rows, nothing else: INK/ACCENT_SUBTLE 15.37,
+    TEXT_SECONDARY/ACCENT_SUBTLE 6.64, ACCENT/ROW_SELECTED 4.58, ACCENT_FOCUS/ROW_SELECTED 3.33,
+    DANGER/ACCENT_SUBTLE 4.25).
+  - **Tests.** New `tests/test_test_list_cards.py` (27 tests: card colours, gap and edge pixels, selected /
+    hover / focus states, header labels, hover and sort arrow direction, Date alignment, badge centring,
+    rename editor row, side card order / padding / spacing / heading text / no-selection / sort, rename and
+    reload / long name, empty-state card, another dashboard table unchanged, sheets scoped). Updated
+    `tests/test_test_list_badges.py` (three geometry tests now measure `page.side_card` instead of the first
+    button: the table to card gap 24, top-aligned, right gutter 32, empty frame width) and
+    `tests/test_design_tokens.py` (`SHEET_MODULES` += `test_list_page`, `test_list_table`,
+    `test_list_row_cards`, `test_list_side_card`; `SHEETS` += the two new sheets). `test_test_list_page.py`
+    and `test_test_list_actions.py` pass with no assertion changed (T1).
+  - **pytest.** Full run in the worktree: **4652 passed, 5 failed**. The 5 are
+    `test_config_flow.py::test_a_new_test_opens_at_standard_with_the_task_defaults` and
+    `test_task_config_page.py::test_a_new_test_opens_with_standard_and_the_defaults[click_static|click_grid|
+    follow_moving|scanning]`; they fail identically on a pristine `git archive HEAD` copy of `11f4006`
+    (config-default expectations, unrelated to the Test List), and the known
+    `test_config_merges_task_over_default` did not fail in this worktree. Two small edits came after that
+    run started (the heading label set to plain text; `test_list_page` / `test_list_table` added to
+    `SHEET_MODULES`); the affected files were rerun: **405 passed, 0 failed**. `ruff` is clean on every touched
+    file (the `I001` in `tests/test_design_tokens.py` is on `HEAD` too). No `src/` file I touched or added is
+    over 500 lines (the new test file is 594, as several existing test files are).
+  - **Choices where the SPEC / wireframe is silent** (visual, one line each to flip):
+    (1) a selected card keeps ROW_SELECTED under the mouse (selected wins over hover);
+    (2) the card is centred in its 48 px section, so there are 4 px of PAGE above and below it and 8 px
+    between cards, and the Status badge cell (full section height) stays centred on the card; a click in
+    the 4 px gap selects the row;
+    (3) "No test selected" uses the existing `cfgAdvancedTitle` style (20 px / 600 TEXT_SECONDARY), so no new
+    style and the muted-label sweep test passes unchanged; the name label keeps `wtmhSectionTitle` with an
+    own `margin-bottom: 0` and indent 0 so it sits flush with the buttons and the badge;
+    (4) the badge sits under the name (not beside it: the card's content is about 160 px wide) and both
+    headings share one slot, so the buttons do not move when the selection changes;
+    (5) the empty state is one card the height of a row (`TABLE_ROW_HEIGHT`, radius 4) at the top of the list
+    area, the `wtmhEmptyTable` frame and its text kept;
+    (6) column padding 16 / 8 / 16 (first, middle, last), the header labels use the same;
+    (7) the header is painted by `CardHeader.paintSection` because QSS cannot colour the sort arrow
+    without an image asset; the arrow is an 8 x 5 px ACCENT triangle after the label (before it in the
+    right-aligned Date column), up for ascending;
+    (8) each cell wipes itself to PAGE first: the view fills a selected cell with the style's row colour before
+    the delegate runs, which showed ROW_SELECTED in the gaps above and below the selected card.
+  - **Deviations from the wireframe:** the badge is under the name, not on the same line (see 4); the
+    card is about 211 px wide at the real Segoe UI (content-driven, as the old column was: the tier rule's
+    QSS `min-width` overrides the 170 px `setMinimumWidth`), the wireframe says "about 220". The SPEC
+    itself: none.
+  - **Not done / for the hub.** No screenshots (T9) and no live look (T11); the offscreen platform here has
+    no Segoe UI (text is boxes), so the tests sample fills and edges away from the text, and sizes were not
+    judged offscreen. `docs/wireframes/test-list.md` not touched. Expect trivial merge conflicts with A and C
+    in `design_tokens.py` (`CONTRAST_PAIRS`), `test_design_tokens.py` (`SHEET_MODULES`) and this section.
 
 ## 9. Open decisions (for the user)
 
