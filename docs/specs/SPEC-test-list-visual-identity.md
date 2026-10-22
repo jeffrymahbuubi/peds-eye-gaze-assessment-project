@@ -295,7 +295,97 @@ contrast rows; test updates; the chosen wireframe as `docs/wireframes/test-list.
 
 ## 8. Impl log
 
-(empty)
+### 2026-10-22 - Direction C "Signal" (worktree `testlist-c`, branch `testlist-c` at `11f4006`; not committed)
+
+Implemented by `claude-sonnet-5-5` as `spec-implementer`, from the hub's brief and the user's decisions of
+2026-10-22 (all 11 painted icons count as icons, Q3; right-aligned Date with tabular figures and a right-aligned
+"Date Complete" header, Q6; grid, header band, widths and selected row as today; row hover ACCENT_SUBTLE).
+
+**Files changed**
+- `src/ui/glyphs.py` (122 -> 224 lines): `STATE_GLYPHS` (the old seven), `ACTION_GLYPHS` (plus, sliders, play,
+  document, copy = two squares, folder), `TASK_GLYPHS` (task_static = dot in a ring, task_grid = 3 x 3 block, task_follow
+  = path with arrow head, task_search = magnifier), `GLYPHS` = all three; the new shapes are drawn by
+  `_draw_signal` on a 12 x 12 grid (1.5 px stroke at 12 px, whole-pixel squares for the grid, strokes centred on
+  x.25 / x.75 so a 1.5 px line is one full pixel row and a half one). `glyph_pixmap(..., slot=0)`: a `slot` larger
+  than the glyph makes a transparent `slot` x `slot` square with the glyph centred. `glyph_icon(..., slot=0)` now holds
+  pixmaps at `ICON_DPRS` = 1.0 / 1.25 / 1.5 / 2.0 for Normal, Active and Selected (all the colour; so Qt does not tint
+  a task glyph on a selected row) and Disabled (the disabled colour).
+- `src/ui/test_list_style.py` (new, 68 lines): `TABLE_STYLE`, `BUTTON_STYLE` (`QPushButton { text-align: left; }`),
+  `TASK_GLYPH` (task id -> shape), `style_action_button()`, `task_icon()`.
+- `src/ui/test_list_page.py` (485 -> 492 lines): the seven `_button()` calls take their glyph (Delete keeps the DANGER
+  square), `TABLE_STYLE` and `table.set_headers()` replace the local `_TABLE_STYLE` / `setHorizontalHeaderLabels`;
+  docstring.
+- `src/ui/test_list_table.py` (209 -> 275 lines): Task item icons (`setIcon`, `setIconSize(12 x 12)`), Date cells
+  right-aligned with the `tnum` font, `set_headers()` (right-aligned Date label), `_RowDelegate` (row hover) with
+  `SubjectTestTable.hover_row` / `viewportEvent`, `_on_sort_indicator()` (the `sortedByDate` property).
+- `src/ui/design_tokens.py`: three new `CONTRAST_PAIRS` rows only: (INK, ACCENT_SUBTLE, 15.37), (ACCENT, ROW_SELECTED, 4.58),
+  (DANGER, ACCENT_SUBTLE, 4.25). No new token, colour, font, size or radius.
+- `tests/test_design_tokens.py`: `test_list_page`, `test_list_table`, `test_list_style` join `SHEET_MODULES`; the table and
+  button sheets join `SHEETS`; one test for the three new pairs (+ the pairs the glyphs already sit on).
+- `docs/specs/SPEC-test-list-visual-identity.md`: this entry and the open question in section 9.
+
+**Tests added**: `tests/test_signal_glyphs.py` (69 collected: set, one sampled drawing test per new shape, corners empty,
+colour, dpr 1.25 / 1.5 / 2.0, slot, icon modes and pixel ratios) and `tests/test_test_list_signal.py` (24 collected:
+each button's icon pixel-identical to the expected glyph and colour in both states, the glyph colour equals the tier's
+`color` in the dashboard sheet, painted glyph colour per state through the matrix, equal button widths, label starts
+after the slot, focus moves neither glyph nor label, task icons per task / on a selected row / after a sort, Date and
+header alignment and tabular figures, Date text and header end together, sort-arrow room, row hover across five
+columns, selected row keeps its fill, hover survives a sort). Changed: `tests/test_design_tokens.py` (above).
+No existing assertion was changed; T1 and the existing tier / geometry tests pass as they were.
+
+**pytest** (worktree, full; counted from the progress lines, `-q` on top of `addopts = -q` hides the summary line): 4718 passed, 5 failed. The 5 are `tests/test_config_flow.py::test_a_new_test_opens_at_standard_with_the_task_defaults`
+and `tests/test_task_config_page.py::test_a_new_test_opens_with_standard_and_the_defaults[click_static|click_grid|follow_moving|scanning]`
+(`0.35 == 0.22`, the smoothing alpha of the committed `configs/default.yaml`): verified to fail identically on a clean
+`git archive 11f4006` export, so they are not caused by this change (this clean worktree does not have the local
+`default.yaml`, and `test_config_merges_task_over_default` passes here). After the final docstring edit of
+`test_list_page.py` the focused set (`test_test_list_*`, `test_signal_glyphs`, `test_design_tokens`, `test_status_badge`)
+was rerun: 387 passed (`387 passed in 42.19s`). `ruff check` is clean on every file touched (2 older findings remain in `calibration_flow.py`
+and `report_page.py`, untouched). No file over 500 lines (`test_list_page.py` 492).
+
+**Deviations from the wireframe / SPEC** (the look is as specified in each case)
+1. **Row hover is painted by a small delegate, not by a QSS `::item:hover` rule.** `::item:hover` fills only the cell
+   under the pointer, not the row (verified in a render). `_RowDelegate` paints ACCENT_SUBTLE under every cell of the
+   hovered row, except the selected row, which keeps ROW_SELECTED; `hover_row` follows the viewport's hover events.
+2. **The Date header has two sheet rules in `TABLE_STYLE`**: `padding-right: 11px` (8 px + the 3 px an item's text keeps
+   from its cell edge) so the right-aligned label ends over the dates (measured: otherwise 4 px off), and 27 px while
+   the list is sorted by Date, because the sort arrow sits at the right end of the section and overlapped the last
+   letter of the right-aligned label (verified in a zoomed render). Scoped to the Test List table's own sheet.
+3. **The 24 px slot is a 24 x 24 icon with the 12 px glyph centred**, so the glyph starts 22 px and the label about
+   44 px from the button's left edge (1 px border + 15 px padding + 6 + 12 + 6 + Qt's 4 px icon-label gap). This keeps
+   `QIcon.pixmap(12, 12)` of the Delete icon square, which the existing Delete test samples.
+4. **The button column is about 19 px wider** (about 189 px; was 170) because the longest label, "Open Subject Folder",
+   now sits after the slot ("or wider for the longest label" in the wireframe). The table gives that room up; all
+   four fixed columns and the no-sideways-scroll rule still hold at 1920 and 1366 (existing width tests pass).
+5. `glyph_icon` now holds four pixel ratios and the Active / Selected modes also for the existing Delete icon (it was
+   dpr 1.0 only): sharper on a scaled display, no change at 100 %.
+6. The wireframe's `task_glyph_pixmap()` is not a separate function: the task shapes go through the same `glyph_pixmap`
+   / `glyph_icon` as every other glyph, and `task_icon()` (in `test_list_style.py`) builds the item icon.
+
+**Left undone / for the hub**: Choice-making rows had no task glyph (section 9, implementer question; answered and done in the follow-up note below); the hub's live
+look (T9, T11) and the screenshots; the renders I made offscreen with real Segoe UI (1500 and 1366 px, 100 % and
+a 1.5 scale factor) looked right but are not the maximized 1920 x 1080 window capture T9 asks for. Pre-existing, not
+touched: `glyph_pixmap()` with an unknown shape aborts the process (the `ValueError` leaves the painter active on the
+pixmap), so the unknown-shape test calls `draw_glyph` on a `QImage`.
+
+### 2026-10-22 (later) - Direction C follow-up: Choice-making task glyph
+
+Answer to the section 9 question (user via the hub): a fifth task glyph. `claude-sonnet-5-5`, same worktree, not committed.
+- `src/ui/glyphs.py` (224 -> 230 lines): `GLYPH_TASK_CHOICE` = a filled 5 px square (the one picked) beside an outlined
+  5 px square (1.5 px stroke, 2 x 2 px hollow), vertically centred, same style, token colour, dpr-aware as the other four;
+  `TASK_GLYPHS` has five shapes, `GLYPHS` 18. Two squares kept as the hub suggested: at 12 px a 1.5 px outline needs a
+  5 px square to show its hole, so the squares are 5 px with a 1 px gap and take 0.5 .. 11.5 of the width (the other
+  task glyphs take 1 .. 11), the filled one has half-covered edges like every 1.5 px stroke. Three small squares (the
+  middle one larger) were tried and read worse.
+- `src/ui/test_list_style.py` (68 -> 70 lines): `choice_making` -> `GLYPH_TASK_CHOICE` in `TASK_GLYPH`. The names of all
+  five tasks now line up (checked in a 1500 px render).
+- Tests: `tests/test_signal_glyphs.py` 69 -> 75 collected (a sampled drawing test for the new shape; it joins the
+  corner, colour and dpr 1.25 / 1.5 / 2.0 parametrised tests; the set test now says 5 task shapes, 18 in all);
+  `tests/test_test_list_signal.py` 24 -> 25 collected (Choice-making row has its glyph; every key of `TASK_INFO` has an
+  entry in `TASK_GLYPH`, so a task added later cannot silently lose the alignment).
+- Focused set (`test_test_list_badges`, `test_test_list_page`, `test_test_list_actions`, `test_test_list_signal`,
+  `test_signal_glyphs`, `test_design_tokens`, `test_status_badge`): 394 passed. `ruff check` clean on the touched
+  files. The full suite was not rerun for this follow-up (only glyph / task-icon code changed; the 5 pre-existing
+  `0.35 == 0.22` config failures of the entry above are unaffected).
 
 ## 9. Open decisions (for the user)
 
@@ -318,6 +408,18 @@ contrast rows; test updates; the chosen wireframe as `docs/wireframes/test-list.
 - **Q6. Right-aligned Date with tabular figures, in any direction?** Proposal 2.5 already asks for
   it ("Numeric columns right-aligned with tabular figures"); A and C include it, B does not say.
   *Hub recommendation: yes, in every direction* (the header label "Date Complete" right-aligned too).
+
+### Implementer open questions (Direction C)
+
+- **2026-10-22 - Choice-making has no task glyph.** The Task column gets four glyphs (Static Click, Grid
+  Click, Follow the Target, Scanning Search), but `src/engine/task_info.py` has a fifth task,
+  Choice-making, offered in Add New Test. Its rows have no icon, so its name starts about 18 px
+  further left than the names in the other rows (visible in the 1500 px render). Not decided by the
+  implementer; options: (a) a blank 12 px slot for tasks without a glyph, so every name lines up (about
+  two lines in `SubjectTestTable.populate`); (b) a fifth painted glyph (a speaker, a hand ...); (c) leave
+  it as it is. Only the Task cell of Choice-making rows is affected; the rest of direction C is done.
+  **Answered 2026-10-22 (user, relayed by the hub): (b), add a fifth task glyph for Choice-making.** Done,
+  see the follow-up note in section 8.
 
 ## 10. Log
 

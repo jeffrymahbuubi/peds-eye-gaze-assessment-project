@@ -127,6 +127,11 @@ CONTRAST_PAIRS: tuple[tuple[str, str, float], ...] = (
     (MAP_PATH_LIGHT, PANEL, 4.42),
     (MAP_FIXATION, PANEL, 6.08),
     (MAP_OVERLAY_ON_PANEL, PANEL, 3.85),
+    # The Test List (SPEC-test-list-visual-identity.md): the ink of a hovered row, the task glyph on
+    # the selected row (non-text, 3:1) and the Delete Test square on a hovered button (non-text).
+    (INK, ACCENT_SUBTLE, 15.37),
+    (ACCENT, ROW_SELECTED, 4.58),
+    (DANGER, ACCENT_SUBTLE, 4.25),
 )
 
 # -- type scale (proposal 2.1): the only sizes a sheet may use -------------------------------

@@ -34,8 +34,17 @@ from PySide6.QtWidgets import (
 )
 
 from src.engine.config import load_task_config
+from src.ui import (
+    alert_box,
+    dialog_theme,
+    frozen_table,
+    map_legend,
+    run_bar,
+    run_dialogs,
+    test_list_style,
+    wtmh_theme,
+)
 from src.ui import design_tokens as tokens
-from src.ui import alert_box, dialog_theme, frozen_table, map_legend, run_bar, run_dialogs, wtmh_theme
 from src.ui.dashboard_window import apply_application_font
 from src.ui.design_tokens import CONTRAST_PAIRS, TYPE_SCALE
 from src.ui.start_test_page import StartTestPage
@@ -66,6 +75,10 @@ SHEET_MODULES = (
     "target_map_follow",
     "map_legend",
     "report_pdf",
+    # SPEC-test-list-visual-identity.md (direction C): the Test List's page, table and look
+    "test_list_page",
+    "test_list_table",
+    "test_list_style",
 )
 SHEETS = {
     "STYLESHEET": STYLESHEET,
@@ -75,6 +88,8 @@ SHEETS = {
     "frozen table": frozen_table._STYLE,
     "alert box": alert_box.ALERT_STYLESHEET,
     "map legend": map_legend.LEGEND_STYLE,
+    "test list table": test_list_style.TABLE_STYLE,
+    "test list buttons": test_list_style.BUTTON_STYLE,
 }
 HEX = re.compile(r"(?<![\w&])#[0-9A-Fa-f]{3,8}\b")
 
@@ -445,6 +460,26 @@ def test_a_table_has_square_corners_a_header_fill_and_ink_header_text():
 def test_a_focused_table_has_the_accent_focus_border():
     assert f"QTableWidget:focus {{ border: 2px solid {tokens.ACCENT_FOCUS}; }}" in STYLESHEET
     assert f"QTableView#reportTrialTable:focus {{ border: 2px solid {tokens.ACCENT_FOCUS}; }}" in frozen_table._STYLE
+
+
+def test_the_test_lists_new_pairs_are_contrast_rows_and_read_as_their_ratios():
+    """SPEC-test-list-visual-identity.md 4.6: the ink of a hovered row, the task glyph on the selected row
+    and the Delete Test square on a hovered button are rows of the table (the glyphs are non-text, 3:1)."""
+    rows = {(fg, bg): minimum for fg, bg, minimum in CONTRAST_PAIRS}
+    for fg, bg, expected in (
+        (tokens.INK, tokens.ACCENT_SUBTLE, 15.37),
+        (tokens.ACCENT, tokens.ROW_SELECTED, 4.58),
+        (tokens.DANGER, tokens.ACCENT_SUBTLE, 4.25),
+    ):
+        assert rows[(fg, bg)] == expected
+        assert contrast(QColor(fg), QColor(bg)) == pytest.approx(expected, abs=0.01)
+    # every other pair a Test List glyph or label sits on is already a row
+    for pair in (
+        (tokens.ACCENT, tokens.PANEL), (tokens.ACCENT, tokens.ACCENT_SUBTLE), (tokens.PANEL, tokens.ACCENT),
+        (tokens.PANEL, tokens.ACCENT_HOVER), (tokens.DANGER, tokens.PANEL),
+        (tokens.TEXT_DISABLED, tokens.DISABLED_FILL), (tokens.ACCENT_DISABLED_TEXT, tokens.ACCENT_DISABLED_FILL),
+    ):
+        assert pair in rows, pair
 
 
 def test_the_table_row_is_40_px():

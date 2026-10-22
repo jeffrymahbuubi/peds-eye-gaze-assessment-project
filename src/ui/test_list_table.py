@@ -7,6 +7,10 @@ helpers (:func:`natural_key`, :func:`status_text`, :func:`date_cells`,
 :func:`status_badge_state`), the cell that sorts by a key rather than by its text, and the
 table that turns Delete / F2 / Enter into signals.
 
+The Task column shows a painted glyph before each task's name (an item icon, drawn by Qt) and the
+Date column is right-aligned with tabular figures, header included (SPEC-test-list-visual-
+identity.md, direction C).
+
 The Status column shows a :class:`~src.ui.status_badge.StatusBadge` (glyph and word) in a
 cell widget over its item. The item keeps the status text and the sort key, so sorting by
 Status and the cell texts are as they were; the badge is only a view of them. Qt moves a
@@ -20,10 +24,12 @@ from collections.abc import Callable
 from datetime import datetime
 from typing import Any
 
-from PySide6.QtCore import Qt, Signal
+from PySide6.QtCore import QEvent, QSize, Qt, Signal
+from PySide6.QtGui import QColor, QFont, QIcon
 from PySide6.QtWidgets import (
     QHBoxLayout,
     QHeaderView,
+    QStyle,
     QStyledItemDelegate,
     QStyleOptionViewItem,
     QTableWidget,
@@ -33,7 +39,9 @@ from PySide6.QtWidgets import (
 
 from ..engine.subject_tests import STATUS_ENDED_EARLY, STATUS_NOT_DONE, SubjectTest
 from ..engine.task_info import TASK_INFO
+from .design_tokens import ACCENT_SUBTLE
 from .status_badge import StatusBadge
+from .test_list_style import GLYPH_PX, task_icon
 
 COL_NAME, COL_TASK, COL_CONFIG, COL_STATUS, COL_DATE = range(5)
 HEADERS = ("Test Name", "Task", "Configuration", "Status", "Date Complete")
@@ -43,6 +51,7 @@ HEADERS = ("Test Name", "Task", "Configuration", "Status", "Date Complete")
 OTHER_COLUMN_WIDTHS = (180, 200, 180, 140)
 NAME_MIN_WIDTH = 240
 NO_DATE = "—"
+ALIGN_DATE = Qt.AlignmentFlag.AlignRight | Qt.AlignmentFlag.AlignVCenter
 DATA_MISSING = " · data missing"
 
 
@@ -126,7 +135,21 @@ class _BadgeCell(QWidget):
         self.badge = badge
 
 
-class _StatusDelegate(QStyledItemDelegate):
+class _RowDelegate(QStyledItemDelegate):
+    """Paints the hovered row's fill under every cell of the row. A style sheet's ``::item:hover``
+    fills only the cell under the pointer, and the selected row keeps its own fill."""
+
+    def __init__(self, table: SubjectTestTable) -> None:
+        super().__init__(table)
+        self._table = table
+
+    def paint(self, painter, option, index) -> None:
+        if index.row() == self._table.hover_row and not option.state & QStyle.StateFlag.State_Selected:
+            painter.fillRect(option.rect, QColor(ACCENT_SUBTLE))
+        super().paint(painter, option, index)
+
+
+class _StatusDelegate(_RowDelegate):
     """Paints the Status cell without its text: the item holds the status text for the sort
     and for ``row_texts``, but the badge over it says the state."""
 
@@ -144,9 +167,14 @@ class SubjectTestTable(QTableWidget):
 
     def __init__(self, rows: int, columns: int, parent: QWidget | None = None) -> None:
         super().__init__(rows, columns, parent)
+        self.hover_row = -1  # the row under the pointer, -1 for none
+        self.viewport().setAttribute(Qt.WidgetAttribute.WA_Hover)
+        self.setItemDelegate(_RowDelegate(self))
         self.setItemDelegateForColumn(COL_STATUS, _StatusDelegate(self))
+        self.setIconSize(QSize(GLYPH_PX, GLYPH_PX))
         self.setHorizontalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAlwaysOff)
         header = self.horizontalHeader()
+        header.sortIndicatorChanged.connect(self._on_sort_indicator)
         header.setSectionResizeMode(COL_NAME, QHeaderView.ResizeMode.Stretch)
         for column, width in zip((COL_TASK, COL_CONFIG, COL_STATUS, COL_DATE), OTHER_COLUMN_WIDTHS, strict=True):
             header.setSectionResizeMode(column, QHeaderView.ResizeMode.Fixed)
@@ -154,6 +182,32 @@ class SubjectTestTable(QTableWidget):
         # The stretching column takes what a vertical scroll bar takes from the viewport, so the
         # four fixed columns always show in full; the table never asks for more than this.
         self.setMinimumWidth(NAME_MIN_WIDTH + sum(OTHER_COLUMN_WIDTHS) + 2 * self.frameWidth())
+
+    def set_headers(self, labels: tuple[str, ...]) -> None:
+        """The column labels; the Date label sits right, over its right-aligned cells."""
+        self.setHorizontalHeaderLabels(list(labels))
+        self.horizontalHeaderItem(COL_DATE).setTextAlignment(ALIGN_DATE)
+
+    def _on_sort_indicator(self, section: int, _order: Qt.SortOrder) -> None:
+        """The sort arrow takes the right end of its section, where the right-aligned Date label
+        ends: while the list is sorted by Date the sheet pads that header (``TABLE_STYLE``)."""
+        header = self.horizontalHeader()
+        header.setProperty("sortedByDate", section == COL_DATE)
+        header.style().unpolish(header)
+        header.style().polish(header)
+
+    def viewportEvent(self, event) -> bool:  # noqa: N802 (Qt naming)
+        kind = event.type()
+        if kind in (QEvent.Type.HoverEnter, QEvent.Type.HoverMove):
+            self._set_hover_row(self.rowAt(event.position().toPoint().y()))
+        elif kind in (QEvent.Type.HoverLeave, QEvent.Type.Leave):
+            self._set_hover_row(-1)
+        return super().viewportEvent(event)
+
+    def _set_hover_row(self, row: int) -> None:
+        if row != self.hover_row:
+            self.hover_row = row
+            self.viewport().update()
 
     def badge_at(self, row: int) -> StatusBadge | None:
         """The Status badge of ``row``."""
@@ -165,6 +219,10 @@ class SubjectTestTable(QTableWidget):
         carries the test id; the Status cell also holds the badge (nothing is bold any more:
         the badge, not the weight, says a test is not done)."""
         self.blockSignals(True)
+        icons: dict[str, QIcon | None] = {}  # one icon per task for this fill, not one per row
+        date_font = QFont(self.font())
+        if hasattr(QFont, "Tag"):  # QFont.setFeature is Qt 6.7+: tabular figures line the digits up
+            date_font.setFeature(QFont.Tag("tnum"), 1)
         try:
             for row in range(self.rowCount()):
                 self.removeCellWidget(row, COL_STATUS)
@@ -187,6 +245,14 @@ class SubjectTestTable(QTableWidget):
                     item.setData(Qt.ItemDataRole.UserRole, test.test_id)
                     item.setFlags(Qt.ItemFlag.ItemIsEnabled | Qt.ItemFlag.ItemIsSelectable)
                     item.setToolTip(tip)
+                    if column == COL_TASK:
+                        if test.task_id not in icons:
+                            icons[test.task_id] = task_icon(test.task_id)
+                        if icons[test.task_id] is not None:
+                            item.setIcon(icons[test.task_id])
+                    elif column == COL_DATE:
+                        item.setTextAlignment(ALIGN_DATE)
+                        item.setFont(date_font)
                     self.setItem(row, column, item)
                 badge = StatusBadge(*status_badge_state(test, missing))
                 # the full status as a sentence (the item's own text keeps the "· data missing"

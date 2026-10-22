@@ -20,8 +20,9 @@ Complete with a dash first) and the order and the selection are kept across a re
 Layout (SPEC-design-system-phase2.md H5, V2; section 9, 2026-10-09): the table fills the
 window (Test Name stretches, the other columns keep their widths) and the button column sits
 24 px to its right, at the window's right side, top-aligned. Run Test is the only primary
-button; Delete Test is a secondary one with the red danger glyph; Back to Setup is a tertiary
-one.
+button; the other right-side buttons are secondary and each carries a painted glyph before its
+left-aligned label (Delete Test's is the red danger glyph; ``test_list_style``, SPEC-test-list-
+visual-identity.md); Back to Setup is a tertiary one.
 """
 
 from __future__ import annotations
@@ -29,7 +30,7 @@ from __future__ import annotations
 from collections.abc import Callable
 from pathlib import Path
 
-from PySide6.QtCore import QSize, Qt, Signal
+from PySide6.QtCore import Qt, Signal
 from PySide6.QtWidgets import (
     QAbstractItemView,
     QFrame,
@@ -62,11 +63,20 @@ from ..engine.subject_tests import (
     subject_tests_dir,
 )
 from .add_test_dialog import AddTestDialog
-from .design_tokens import DANGER, TABLE_ROW_HEIGHT, TEXT_DISABLED
+from .design_tokens import DANGER, TABLE_ROW_HEIGHT
 from .folder_opener import open_folder
-from .glyphs import GLYPH_SQUARE, glyph_icon
+from .glyphs import (
+    GLYPH_COPY,
+    GLYPH_DOCUMENT,
+    GLYPH_FOLDER,
+    GLYPH_PLAY,
+    GLYPH_PLUS,
+    GLYPH_SLIDERS,
+    GLYPH_SQUARE,
+)
 from .rename_editor import RenameEditor
 from .run_dialogs import DANGER_TIER, PRIMARY, ask_choice
+from .test_list_style import TABLE_STYLE, style_action_button
 from .test_list_table import (
     COL_NAME,
     HEADERS,
@@ -76,10 +86,6 @@ from .test_list_table import (
 NO_SUBJECT_TEXT = "Enter a Subject ID in Setup."
 NO_TESTS_TEXT = "No tests yet. Choose Add New Test."
 SAVED_TEXT = "Changes are saved automatically."
-
-# Local sheet for the table: the theme pads every header section by 6 px 8 px, the hidden
-# vertical header included, which makes each row about 13 px taller than its text.
-_TABLE_STYLE = "QHeaderView::section:vertical { padding: 0px; border: none; }"
 
 
 class SubjectTestListPage(QWidget):
@@ -215,8 +221,8 @@ class SubjectTestListPage(QWidget):
 
         self.table = SubjectTestTable(0, len(HEADERS))
         self.table.setObjectName("wtmhTestTable")
-        self.table.setStyleSheet(_TABLE_STYLE)
-        self.table.setHorizontalHeaderLabels(list(HEADERS))
+        self.table.setStyleSheet(TABLE_STYLE)
+        self.table.set_headers(HEADERS)
         self.table.setEditTriggers(QAbstractItemView.EditTrigger.NoEditTriggers)
         self.table.setSelectionBehavior(QAbstractItemView.SelectionBehavior.SelectRows)
         self.table.setSelectionMode(QAbstractItemView.SelectionMode.SingleSelection)
@@ -257,17 +263,15 @@ class SubjectTestListPage(QWidget):
         # The button column, top-aligned; disabled buttons stay visible and grey.
         column = QVBoxLayout()
         column.setSpacing(10)
-        self.add_button = self._button("Add New Test", "wtmhGhost", column)
-        self.configure_button = self._button("Configure Test", "wtmhGhost", column)
-        self.run_button = self._button("Run Test", PRIMARY, column)
-        self.report_button = self._button("View Report", "wtmhGhost", column)
-        self.copy_button = self._button("Copy Test", "wtmhGhost", column)
-        self.delete_button = self._button("Delete Test", "wtmhGhost", column)
-        self.delete_button.setIcon(glyph_icon(GLYPH_SQUARE, DANGER, TEXT_DISABLED))  # V2
-        self.delete_button.setIconSize(QSize(12, 12))
+        self.add_button = self._button("Add New Test", "wtmhGhost", column, GLYPH_PLUS)
+        self.configure_button = self._button("Configure Test", "wtmhGhost", column, GLYPH_SLIDERS)
+        self.run_button = self._button("Run Test", PRIMARY, column, GLYPH_PLAY)
+        self.report_button = self._button("View Report", "wtmhGhost", column, GLYPH_DOCUMENT)
+        self.copy_button = self._button("Copy Test", "wtmhGhost", column, GLYPH_COPY)
+        self.delete_button = self._button("Delete Test", "wtmhGhost", column, GLYPH_SQUARE, DANGER)  # V2
         # Outside the row matrix: on whenever the subject has a folder (SPEC-subject-data-
         # layout.md H6, wireframe W2), whichever row is selected.
-        self.open_folder_button = self._button("Open Subject Folder", "wtmhGhost", column)
+        self.open_folder_button = self._button("Open Subject Folder", "wtmhGhost", column, GLYPH_FOLDER)
         column.addStretch(1)
         body.addLayout(column)
 
@@ -299,11 +303,14 @@ class SubjectTestListPage(QWidget):
         header.sectionClicked.connect(self._on_header_clicked)
 
     @staticmethod
-    def _button(text: str, tier: str, layout: QVBoxLayout) -> QPushButton:
+    def _button(
+        text: str, tier: str, layout: QVBoxLayout, glyph: str, glyph_colour: str | None = None
+    ) -> QPushButton:
         button = QPushButton(text)
         button.setObjectName(tier)
         button.setAutoDefault(False)
         button.setMinimumWidth(170)
+        style_action_button(button, glyph, primary=tier == PRIMARY, colour=glyph_colour)
         layout.addWidget(button)
         return button
 
