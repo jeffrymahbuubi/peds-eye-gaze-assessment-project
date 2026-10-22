@@ -1,10 +1,10 @@
 ---
 name: SPEC-test-list-visual-identity
 title: "Test List: a look of our own for the test rows and the right-side buttons (look only, design system unchanged)"
-status: DESIGNED 2026-10-22; all three directions being built in worktrees testlist-a/-b/-c for the user to try (section 9 Q1)
+status: THREE DIRECTIONS BUILT 2026-10-22 for comparison, each committed on its own branch and pushed (testlist-a `c8f7d7b` A Ledger, testlist-b `de497c6` B Record cards, testlist-c `756e55b` C Signal; all on top of `6c4f96f`, not merged); awaiting the doctor's choice (demo 2026-10-23)
 created: 2026-10-22
 last_updated: 2026-10-22
-next_step: the user answers section 9 (Q1 direction, then the questions of that direction; GATE 1), then the chosen wireframe becomes docs/wireframes/test-list.md and spec-implementer runs plan step 3
+next_step: the user reports the doctor's choice (section 9 Q1); then merge that branch into feature/compass-task-flow (its section 8 Impl log comes with it; expect small conflicts in sections 9/10 of this SPEC and in design_tokens.py CONTRAST_PAIRS), update docs/wireframes/test-list.md to the chosen look (plan step 2), answer Q4, remove the other two worktrees and branches (local + origin)
 related:
   - SPEC-compass-task-flow.md (4A.4: the Test List page, its buttons, enable matrix and keys)
   - SPEC-design-system-phase1.md (tokens, contrast table, H1)
@@ -285,11 +285,11 @@ contrast rows; test updates; the chosen wireframe as `docs/wireframes/test-list.
 1. **GATE 1 -** The user answers section 9: Q1 (direction) and the questions of that direction.
 2. The chosen wireframe becomes `docs/wireframes/test-list.md` (updated with the answers: header,
    radius, glyphs); the other two per Q4. Hub commits the SPEC and wireframes on the user's OK.
-3. `spec-implementer` in its own worktree. **Worktrees made by the Agent tool start from `main`:**
+3. **DONE 2026-10-22 for all three directions -** `spec-implementer` in its own worktree. **Worktrees made by the Agent tool start from `main`:**
    the implementer first resets the worktree to `feature/compass-task-flow` (`git reset --hard
    feature/compass-task-flow` inside the new worktree, checked with `git log -1`), then implements
    section 4 for the chosen direction and section 6; appends to section 8; does not commit.
-4. Hub review and the full pytest (T1-T10).
+4. **DONE 2026-10-22 for all three -** Hub review and the full pytest (T1-T10).
 5. Live look by the user, window maximized (T9, T11). Commit on the user's OK; merge into
    `feature/compass-task-flow`; remove the worktree.
 
@@ -334,3 +334,4 @@ contrast rows; test updates; the chosen wireframe as `docs/wireframes/test-list.
   Hub recommendation A with the HEADER band and radius 4. Awaiting the user's choice (section 9).
 
 - **2026-10-22** - User answers: Q1 build all three directions for a side-by-side try in the app (worktrees `testlist-a`, `testlist-b`, `testlist-c` at `11f4006`, one `spec-implementer` each, in parallel); Q2 keep the HEADER band; Q3 C gets all 11 painted glyphs; Q5 radius 4 with 8 px panel padding; Q6 right-aligned Date in all three. Q4 waits for the choice.
+- **2026-10-22** - Plan steps 3-4 done for ALL THREE directions (user's Q1 answer): one `spec-implementer` per direction in hand-made worktrees `.claude/worktrees/testlist-a/-b/-c` (base `11f4006`). Each branch's own section 8 holds its Impl log (main's section 8 stays empty until the chosen branch is merged). Hub review: every diff stays in the Test List files plus CONTRAST_PAIRS rows only (no new token); full pytest per worktree A 4644 / B 4652 / C 4718 passed, each with the 5 known fresh-worktree config-default failures (alpha 0.35 vs 0.22). C: the user added a 5th task glyph for Choice-making (two squares, one filled). The user tried all three; the branches were fast-forwarded to `6c4f96f` (calibration revision 4.9) for the demo, committed (`c8f7d7b`, `de497c6`, `756e55b`) and pushed with feature/compass-task-flow `1520898`. The user shows them to the doctor on 2026-10-23 and then chooses.
