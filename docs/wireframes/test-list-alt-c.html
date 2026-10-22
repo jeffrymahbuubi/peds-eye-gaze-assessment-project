@@ -1,0 +1,794 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>wiremd Mockup</title>
+  <link rel="icon" href="../../configs/assets/branding/WTMH.ico">
+  <style>
+a.wmd-button { text-decoration: none; color: inherit; }
+
+.wmd-tab-headers { display: flex; gap: 0; border-bottom: 2px solid #e0e0e0; margin-bottom: 12px; }
+.wmd-tab-header { display: inline-block; padding: 8px 16px; border: none; border-bottom: 2px solid transparent; margin-bottom: -2px; font-size: 14px; font-weight: 500; color: #5C7684; background: transparent; cursor: pointer; font-family: inherit; transition: color 0.15s; }
+.wmd-tab-header:hover { color: #122B3A; }
+.wmd-tab-header.wmd-active { border-bottom-color: currentColor; color: #1A6F95; font-weight: 600; }
+.wmd-tab-panel[hidden] { display: none; }
+.wmd-tab-panels { padding: 12px 0; }
+
+.wmd-row { display: flex; align-items: center; gap: 0.75rem; flex-wrap: wrap; }
+.wmd-row > .wmd-grid-item { flex: 0 1 auto; min-width: 0; }
+.wmd-row.wmd-right { justify-content: flex-end; }
+.wmd-row.wmd-center { justify-content: center; }
+.wmd-align-left { margin-right: auto; }
+.wmd-align-right { margin-left: auto; }
+.wmd-align-center { margin: auto; }
+.wmd-container-button-group > .wmd-input,
+.wmd-container-button-group > .wmd-select,
+.wmd-row > .wmd-grid-item > .wmd-input,
+.wmd-row > .wmd-grid-item > .wmd-select { display: inline-block; width: auto; }
+
+.wmd-demo { display: grid; grid-template-columns: 1fr 1fr; border: 1px solid #d0d0d0; border-radius: 6px; overflow: hidden; margin: 1rem 0; }
+.wmd-demo-preview { padding: 1.5rem; border-right: 1px solid #d0d0d0; }
+.wmd-demo-code { background: #f6f8fa; overflow: auto; display: flex; flex-direction: column; }
+.wmd-demo-code-toolbar { display: flex; justify-content: flex-end; padding: 0.5rem 0.75rem 0; }
+.wmd-demo-copy { background: none; border: 1px solid #ccc; border-radius: 4px; padding: 2px 8px; font-size: 0.75em; color: #666; cursor: pointer; font-family: inherit; }
+.wmd-demo-copy:hover { background: #e8e8e8; color: #333; }
+.wmd-demo-code pre { margin: 0; padding: 0.75rem 1.5rem 1.25rem; font-size: 0.8em; font-family: 'Courier New', Courier, monospace; line-height: 1.6; white-space: pre; }
+.wmd-demo-code code { display: block; color: #444; }
+
+/* wiremd Clean Style - Minimal modern wireframes */
+* {
+  box-sizing: border-box;
+}
+
+body.wmd-root {
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+  background: #F5F9FB;
+  color: #122B3A;
+  padding: 40px;
+  margin: 0;
+  line-height: 1.6;
+}
+
+/* Headings */
+.wmd-h1, .wmd-h2, .wmd-h3, .wmd-h4, .wmd-h5, .wmd-h6 {
+  font-weight: 600;
+  margin: 1.5em 0 0.75em;
+  color: #122B3A;
+  letter-spacing: -0.02em;
+}
+
+.wmd-h1 { font-size: 2.5em; border-bottom: 2px solid #DBE6EC; padding-bottom: 0.3em; }
+.wmd-h2 { font-size: 2em; }
+.wmd-h3 { font-size: 1.5em; }
+.wmd-h4 { font-size: 1.25em; }
+.wmd-h5 { font-size: 1.1em; }
+.wmd-h6 { font-size: 1em; }
+
+/* Paragraph */
+.wmd-paragraph {
+  margin: 0.75em 0;
+  color: #5C7684;
+}
+
+/* Buttons */
+.wmd-button {
+  display: inline-block;
+  padding: 10px 20px;
+  margin: 6px;
+  background: transparent;
+  color: #122B3A;
+  border: 1px solid #DBE6EC;
+  border-radius: 6px;
+  font-family: inherit;
+  font-size: 14px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.wmd-button:hover {
+  background: #DCF0F5;
+  border-color: #1F7A9C;
+}
+
+.wmd-button-primary, .wmd-button.wmd-primary {
+  background: linear-gradient(90deg, #2FA8C4, #1A6F95);
+  color: #fff;
+  border-color: #1A6F95;
+}
+
+.wmd-button-primary:hover, .wmd-button.wmd-primary:hover {
+  background: #1A6F95;
+}
+
+.wmd-button-secondary, .wmd-button.wmd-secondary {
+  background: #DCF0F5;
+  color: #0F5670;
+  border: 2px solid #DCF0F5;
+}
+
+.wmd-button-danger, .wmd-button.wmd-danger {
+  background: #E15353;
+  color: #fff;
+  border-color: #C23E3E;
+}
+
+.wmd-button[disabled], .wmd-button.wmd-state-disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+/* Pills / Badges */
+.wmd-badge {
+  display: inline-block;
+  padding: 2px 10px;
+  margin: 0 2px;
+  border-radius: 12px;
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  background: #E6EDF1;
+  color: #5C7684;
+}
+.wmd-badge-primary { background: #DCF0F5; color: #0F5670; }
+.wmd-badge-success { background: #2F9E6E; color: #ffffff; }
+/* warning/error badges here mark INACTIVE states ("not connected", "none") --
+   per the WTMH palette these read as neutral, not alarm colors. */
+.wmd-badge-warning { background: #E6EDF1; color: #5C7684; }
+.wmd-badge-error { background: #E6EDF1; color: #5C7684; }
+/* reserved for a real danger state (e.g. a future "SIGNAL LOST" badge) --
+   unused by setup.md/tasks.md today. */
+.wmd-badge-danger { background: #E15353; color: #ffffff; }
+
+/* Inputs */
+.wmd-input, .wmd-textarea, .wmd-select {
+  display: block;
+  width: 100%;
+  max-width: 400px;
+  padding: 10px 12px;
+  margin: 6px 0;
+  font-family: inherit;
+  font-size: 14px;
+  background: #FFFFFF;
+  color: #122B3A;
+  border: 1px solid #DBE6EC;
+  border-radius: 6px;
+  transition: border-color 0.2s;
+}
+
+.wmd-input:focus, .wmd-textarea:focus, .wmd-select:focus {
+  outline: none;
+  border-color: #1F7A9C;
+  box-shadow: 0 0 0 3px rgba(31, 122, 156, 0.15);
+}
+
+.wmd-input[disabled], .wmd-input.wmd-state-disabled,
+.wmd-textarea[disabled], .wmd-textarea.wmd-state-disabled,
+.wmd-select[disabled], .wmd-select.wmd-state-disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+  background: #E6EDF1;
+  border-color: #DBE6EC;
+}
+
+.wmd-textarea {
+  resize: vertical;
+  min-height: 100px;
+}
+
+/* Checkboxes and Radios */
+.wmd-checkbox, .wmd-radio {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin: 8px 0;
+  cursor: pointer;
+}
+
+.wmd-checkbox input[type="checkbox"],
+.wmd-radio input[type="radio"] {
+  width: 18px;
+  height: 18px;
+  cursor: pointer;
+}
+
+/* Icons */
+.wmd-icon {
+  display: inline-block;
+  width: 1.2em;
+  height: 1.2em;
+  margin: 0 4px;
+  vertical-align: middle;
+  color: #666;
+}
+
+
+/* Containers */
+.wmd-container-hero, .wmd-container-card, .wmd-container-modal {
+  background: #F5F9FB;
+  border: 1px solid #DBE6EC;
+  border-radius: 8px;
+  padding: 32px;
+  margin: 24px 0;
+}
+
+/* alerts (::: alert ...) get no dedicated rule from wiremd's "clean" style at
+   all -- confirmed by reading src/renderer/styles.ts and the rendered output,
+   the warning/info/success word after "alert" isn't captured as a CSS class
+   either, so per-severity coloring isn't available. One consistent
+   informational card treatment is used for all of them instead. */
+.wmd-container-alert {
+  background: #DCF0F5;
+  border: 1px solid #BFE3ED;
+  border-left: 4px solid #1F7A9C;
+  border-radius: 6px;
+  padding: 16px 20px;
+  margin: 16px 0;
+  color: #122B3A;
+}
+
+.wmd-container-hero {
+  background: linear-gradient(135deg, #F5F9FB 0%, #DCF0F5 100%);
+  text-align: center;
+  padding: 60px 32px;
+}
+
+.wmd-container-card {
+  background: #FFFFFF;
+  box-shadow: 0 2px 8px rgba(18,43,58,0.08);
+}
+
+.wmd-container-modal {
+  max-width: 500px;
+  margin: 40px auto;
+  background: #FFFFFF;
+  box-shadow: 0 4px 16px rgba(18,43,58,0.15);
+}
+
+/* Radio Groups */
+.wmd-radio-group {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  margin: 12px 0;
+}
+
+.wmd-radio-group-inline {
+  flex-direction: row;
+  flex-wrap: wrap;
+  gap: 16px;
+}
+
+.wmd-radio-group-inline .wmd-radio {
+  margin: 0;
+}
+
+/* Icons */
+.wmd-icon {
+  display: inline-block;
+  font-size: 1.1em;
+  line-height: 1;
+  vertical-align: middle;
+  margin: 0 0.25em;
+}
+
+/* Navigation */
+.wmd-nav {
+  background: #12374A;
+  border: 1px solid #1B4A61;
+  border-radius: 8px;
+  padding: 16px 24px;
+  margin: 24px 0;
+  box-shadow: 0 1px 3px rgba(0,0,0,0.2);
+}
+
+.wmd-nav-content {
+  display: flex;
+  align-items: center;
+  gap: 24px;
+  flex-wrap: wrap;
+}
+
+.wmd-brand {
+  font-weight: 600;
+  font-size: 1.25em;
+  margin-right: auto;
+  color: #CFE6EE;
+  display: inline-flex;
+  align-items: center;
+}
+
+.wmd-nav-item {
+  display: inline-flex;
+  align-items: center;
+  color: #CFE6EE;
+  text-decoration: none;
+  font-weight: 500;
+  padding: 8px 16px;
+  background: rgba(255,255,255,0.08);
+  border: 1px solid rgba(255,255,255,0.16);
+  border-radius: 6px;
+  transition: all 0.2s;
+}
+
+.wmd-nav-item:hover {
+  background: rgba(255,255,255,0.16);
+  border-color: rgba(255,255,255,0.32);
+  transform: translateY(-1px);
+  box-shadow: 0 2px 4px rgba(0,0,0,0.2);
+}
+
+.wmd-nav-item.wmd-active {
+  background: rgba(255,255,255,0.08);
+  color: #ffffff;
+  border-color: transparent;
+  border-bottom: 3px solid #2FA8C4;
+}
+
+.wmd-brand-logo {
+  height: 28px;
+  width: auto;
+  margin-right: 4px;
+  vertical-align: middle;
+}
+
+.wmd-breadcrumbs {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-wrap: wrap;
+  margin: 8px 0;
+  font-size: 0.9em;
+}
+
+.wmd-breadcrumb-item a {
+  color: #495057;
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+
+.wmd-breadcrumb-current {
+  font-weight: 600;
+  color: #212529;
+}
+
+.wmd-breadcrumb-sep {
+  color: #adb5bd;
+}
+
+/* Sidebar */
+.wmd-container-sidebar {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  width: 180px;
+  padding: 12px;
+  background: #DCF0F5;
+  border: 2px solid #1F7A9C;
+  border-radius: 8px;
+}
+.wmd-container-sidebar .wmd-button { display: block; width: 100%; text-align: left; margin: 0; }
+.wmd-container-sidebar .wmd-h4 { margin: 12px 0 4px; font-size: 0.85em; opacity: 0.6; text-transform: uppercase; }
+.wmd-container-sidebar .wmd-separator { margin: 8px 0; }
+
+/* Layout: sidebar-main */
+.wmd-container-layout.wmd-sidebar-main {
+  display: grid;
+  grid-template-columns: 220px 1fr;
+  gap: 16px;
+  align-items: start;
+}
+.wmd-layout-sidebar {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+.wmd-layout-sidebar .wmd-container-sidebar { width: 100%; }
+.wmd-layout-sidebar .wmd-button { display: block; width: 100%; text-align: left; margin: 2px 0; }
+.wmd-layout-sidebar .wmd-h4 { margin: 12px 0 4px; font-size: 0.85em; opacity: 0.6; text-transform: uppercase; }
+.wmd-layout-sidebar .wmd-separator { margin: 8px 0; }
+.wmd-layout-main { min-width: 0; }
+
+/* Grid */
+.wmd-grid {
+  display: grid;
+  grid-template-columns: repeat(var(--grid-columns, 3), 1fr);
+  gap: 24px;
+  margin: 32px 0;
+  align-items: center;
+}
+
+.wmd-grid-item { min-width: 0; }
+
+.wmd-col-span-1 { grid-column: span 1; }
+.wmd-col-span-2 { grid-column: span 2; }
+.wmd-col-span-3 { grid-column: span 3; }
+.wmd-col-span-4 { grid-column: span 4; }
+
+.wmd-grid-item-card {
+  background: #FFFFFF;
+  border: 1px solid #DBE6EC;
+  border-radius: 8px;
+  padding: 24px;
+  transition: box-shadow 0.2s;
+}
+.wmd-grid-item-card:hover {
+  box-shadow: 0 4px 12px rgba(0,0,0,0.08);
+}
+
+/* Lists */
+.wmd-list {
+  margin: 16px 0;
+  padding-left: 28px;
+}
+
+.wmd-list-item {
+  margin: 6px 0;
+}
+
+/* Blockquote */
+.wmd-blockquote {
+  border-left: 3px solid #1F7A9C;
+  padding-left: 20px;
+  margin: 20px 0;
+  color: #5C7684;
+}
+
+/* Code */
+.wmd-code-inline {
+  background: #f5f5f5;
+  border: 1px solid #e0e0e0;
+  border-radius: 3px;
+  padding: 2px 6px;
+  font-family: 'SF Mono', Monaco, Consolas, monospace;
+  font-size: 0.9em;
+  color: #d63384;
+}
+
+.wmd-code-block {
+  background: #f8f9fa;
+  border: 1px solid #e0e0e0;
+  border-radius: 6px;
+  padding: 16px;
+  margin: 16px 0;
+  overflow-x: auto;
+}
+
+.wmd-code-block code {
+  font-family: 'SF Mono', Monaco, Consolas, monospace;
+  font-size: 0.9em;
+  color: #1a1a1a;
+}
+
+/* Separator */
+.wmd-separator {
+  border: none;
+  border-top: 1px solid #DBE6EC;
+  margin: 32px 0;
+}
+
+/* State Containers */
+.wmd-container-loading-state {
+  background: #f5f7fa;
+  border: 1px solid #d0d0d0;
+  border-radius: 8px;
+  padding: 40px;
+  margin: 24px 0;
+  text-align: center;
+  position: relative;
+}
+
+.wmd-container-loading-state::before {
+  content: '';
+  display: block;
+  width: 40px;
+  height: 40px;
+  margin: 0 auto 20px;
+  border: 3px solid #e0e0e0;
+  border-top-color: #0066cc;
+  border-radius: 50%;
+  animation: spin 1s linear infinite;
+}
+
+.wmd-container-empty-state {
+  background: #fafafa;
+  border: 1px dashed #d0d0d0;
+  border-radius: 8px;
+  padding: 60px 40px;
+  margin: 24px 0;
+  text-align: center;
+  color: #888;
+}
+
+.wmd-container-empty-state::before {
+  content: '📭';
+  display: block;
+  font-size: 72px;
+  margin-bottom: 20px;
+  opacity: 0.4;
+  filter: grayscale(30%);
+}
+
+.wmd-container-error-state {
+  background: #fff5f5;
+  border: 1px solid #dc3545;
+  border-radius: 8px;
+  padding: 40px;
+  margin: 24px 0;
+  text-align: center;
+  box-shadow: 0 2px 8px rgba(220, 53, 69, 0.1);
+}
+
+.wmd-container-error-state::before {
+  content: '⚠️';
+  display: block;
+  font-size: 48px;
+  margin-bottom: 20px;
+}
+
+/* Responsive */
+@media (max-width: 768px) {
+  body.wmd-root {
+    padding: 20px;
+  }
+
+  .wmd-grid {
+    grid-template-columns: 1fr !important;
+  }
+
+  .wmd-col-span-1,
+  .wmd-col-span-2,
+  .wmd-col-span-3,
+  .wmd-col-span-4 {
+    grid-column: span 1;
+  }
+
+  .wmd-nav-content {
+    flex-direction: column;
+    align-items: stretch;
+  }
+}
+
+@keyframes spin {
+  from { transform: rotate(0deg); }
+  to { transform: rotate(360deg); }
+}
+
+  </style>
+</head>
+<body class="wmd-root wmd-clean">
+  <nav class="wmd-nav">
+  <div class="wmd-nav-content">
+    <img src="../../configs/assets/branding/wtmh_logo.png" alt="WTMH logo" class="wmd-brand-logo">
+    <div class="wmd-brand">Pediatric Eye-Gaze Assessment</div>
+    <a href="./setup.html" class="wmd-nav-item">1 · Setup</a>
+    <a href="./test-list.html" class="wmd-nav-item">2 · Tests</a>
+  </div>
+</nav>
+<h2 class="wmd-h2">Test List for TESTING — Direction C &quot;Signal&quot;</h2>
+<blockquote class="wmd-blockquote">
+  <p class="wmd-paragraph"><strong>Alternative C of 3</strong> (Hsieh's feedback 2026-10-22). <strong>Look only</strong>: same elements, same order, same positions, same workflow as <code>test-list.md</code>. <strong>Design system unchanged</strong>: uses tokens PANEL, PAGE, INK, TEXT_SECONDARY, TEXT_DISABLED, HEADER, BORDER_SUBTLE, ROW_SELECTED, ACCENT, ACCENT_HOVER, ACCENT_SUBTLE, ACCENT_FOCUS, ACCENT_DISABLED_FILL, ACCENT_DISABLED_TEXT, DISABLED_FILL, DANGER, SUCCESS_TEXT, WARNING_TEXT, TYPE_BODY, TYPE_CAPTION, RADIUS, TABLE_ROW_HEIGHT, BUTTON_HEIGHT, the existing button tiers, the status badge and the painted-glyph vocabulary of <code>glyphs.py</code>. No new token, colour, font, size or radius. <strong>New assets, flagged:</strong> eleven small painted glyphs (seven action glyphs for the buttons, four task glyphs for the Task column), drawn with QPainter in the same way as the existing state glyphs, coloured only with existing tokens.</p>
+</blockquote>
+<blockquote class="wmd-blockquote">
+  <p class="wmd-paragraph"><strong>One-line idea:</strong> keep the grid Compass operators know, but give every row and every button a <strong>signal</strong>: a glyph. Task cells get a task glyph, the Status badge stays, and each right-side button carries a 12 px action glyph before its label, left-aligned, so the column reads as a toolbar rather than a stack of text boxes.</p>
+</blockquote>
+<div class="wmd-grid wmd-grid-2" style="--grid-columns: 2">
+  <div class="wmd-grid-item">
+    <h3 class="wmd-h3">Tests</h3>
+    <table class="wmd-table">
+  <thead>
+    <tr>
+      <th class="wmd-table-cell wmd-align-left">Test Name</th>
+    <th class="wmd-table-cell wmd-align-left">Task</th>
+    <th class="wmd-table-cell wmd-align-left">Configuration</th>
+    <th class="wmd-table-cell wmd-align-left">Status</th>
+    <th class="wmd-table-cell wmd-align-left">Date Complete</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+    <td class="wmd-table-cell wmd-align-left">Grid Click 1</td>
+    <td class="wmd-table-cell wmd-align-left">▦ Grid Click</td>
+    <td class="wmd-table-cell wmd-align-left">Standard</td>
+    <td class="wmd-table-cell wmd-align-left">○ Not done</td>
+    <td class="wmd-table-cell wmd-align-left">—</td>
+  </tr>
+    <tr>
+    <td class="wmd-table-cell wmd-align-left">Static Click 1</td>
+    <td class="wmd-table-cell wmd-align-left">◎ Static Click</td>
+    <td class="wmd-table-cell wmd-align-left">Standard</td>
+    <td class="wmd-table-cell wmd-align-left">● Done</td>
+    <td class="wmd-table-cell wmd-align-left">2026-10-06</td>
+  </tr>
+    <tr>
+    <td class="wmd-table-cell wmd-align-left">Follow the Target 1</td>
+    <td class="wmd-table-cell wmd-align-left">➚ Follow the Target</td>
+    <td class="wmd-table-cell wmd-align-left">Slow path</td>
+    <td class="wmd-table-cell wmd-align-left">◐ Ended early 4/6</td>
+    <td class="wmd-table-cell wmd-align-left">2026-10-06</td>
+  </tr>
+    <tr>
+    <td class="wmd-table-cell wmd-align-left">Scanning Search 1</td>
+    <td class="wmd-table-cell wmd-align-left">⌕ Scanning Search</td>
+    <td class="wmd-table-cell wmd-align-left">Standard</td>
+    <td class="wmd-table-cell wmd-align-left">▲ Data missing</td>
+    <td class="wmd-table-cell wmd-align-left">2026-10-05</td>
+  </tr>
+    <tr>
+    <td class="wmd-table-cell wmd-align-left">Grid Click 2</td>
+    <td class="wmd-table-cell wmd-align-left">▦ Grid Click</td>
+    <td class="wmd-table-cell wmd-align-left">Large targets</td>
+    <td class="wmd-table-cell wmd-align-left">○ Not done</td>
+    <td class="wmd-table-cell wmd-align-left">—</td>
+  </tr>
+  </tbody>
+</table>
+  </div>
+  <div class="wmd-grid-item wmd-align-right">
+    
+    <button class="wmd-button wmd-outline">＋ Add New Test</button>
+    <button class="wmd-button wmd-outline">⚙ Configure Test</button>
+    <button class="wmd-button wmd-button-primary">▶ Run Test</button>
+    <button class="wmd-button wmd-outline wmd-state-disabled" disabled>▤ View Report</button>
+    <button class="wmd-button wmd-outline">⧉ Copy Test</button>
+    <button class="wmd-button wmd-outline">■ Delete Test</button>
+    <button class="wmd-button wmd-outline">▭ Open Subject Folder</button>
+  </div>
+</div>
+<blockquote class="wmd-blockquote">
+  <p class="wmd-paragraph"><strong>Table:</strong> the HEADER band, the 40 px rows and the BORDER_SUBTLE grid stay as today (this direction keeps the Compass grid on purpose). What changes: the <strong>Task cell</strong> shows a 12 px task glyph in ACCENT before the name (one shape per task type: a dot in a ring for Static Click, a 3 × 3 block for Grid Click, an arrow path for Follow the Target, a magnifier for Scanning Search), the <strong>Status badge</strong> stays glyph + word, and the <strong>Date</strong> column is right-aligned with tabular figures. Selected row ROW_SELECTED; hover ACCENT_SUBTLE.</p>
+</blockquote>
+<blockquote class="wmd-blockquote">
+  <p class="wmd-paragraph"><strong>Buttons:</strong> the existing tiers and order; every button gets a <strong>12 px action glyph</strong> in a fixed 24 px slot at the left and a <strong>left-aligned label</strong> (today: centred text, no glyph). Glyph colours are the tier's text colour: ACCENT on a secondary button, white on the primary Run Test, TEXT_DISABLED when disabled; Delete Test keeps the existing red square (DANGER) and is the only button whose glyph differs in colour from its label. Glyph shapes: plus (Add), sliders (Configure), play triangle (Run), document (View Report), two overlapping squares (Copy), the existing danger square (Delete), folder (Open Subject Folder). The mockup uses Unicode stand-ins; the real glyphs are painted pixmaps like the status glyphs, so they cannot fall back to a missing font character.</p>
+</blockquote>
+<blockquote class="wmd-blockquote">
+  <p class="wmd-paragraph"><strong>Selected row:</strong> "Grid Click 1" (Not done). Button matrix as in <code>test-list.md</code>; disabled buttons stay visible with TEXT_DISABLED text and glyph on DISABLED_FILL.</p>
+</blockquote>
+<hr class="wmd-separator" />
+<h3 class="wmd-h3">What differs from Compass (element by element)</h3>
+<table class="wmd-table">
+  <thead>
+    <tr>
+      <th class="wmd-table-cell wmd-align-left">Element</th>
+    <th class="wmd-table-cell wmd-align-left">Compass</th>
+    <th class="wmd-table-cell wmd-align-left">Today (<code class="wmd-code-inline">test-list.md</code>)</th>
+    <th class="wmd-table-cell wmd-align-left">Direction C</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+    <td class="wmd-table-cell wmd-align-left">Header row</td>
+    <td class="wmd-table-cell wmd-align-left">grey band</td>
+    <td class="wmd-table-cell wmd-align-left">HEADER band, 14 px / 600 INK</td>
+    <td class="wmd-table-cell wmd-align-left">unchanged (kept on purpose), sort arrow ACCENT</td>
+  </tr>
+    <tr>
+    <td class="wmd-table-cell wmd-align-left">Grid lines</td>
+    <td class="wmd-table-cell wmd-align-left">full grid</td>
+    <td class="wmd-table-cell wmd-align-left">full grid, BORDER_SUBTLE</td>
+    <td class="wmd-table-cell wmd-align-left">unchanged</td>
+  </tr>
+    <tr>
+    <td class="wmd-table-cell wmd-align-left">Task cell</td>
+    <td class="wmd-table-cell wmd-align-left">plain text (&quot;Pointing&quot;)</td>
+    <td class="wmd-table-cell wmd-align-left">plain text</td>
+    <td class="wmd-table-cell wmd-align-left"><strong>task glyph (ACCENT) + text</strong></td>
+  </tr>
+    <tr>
+    <td class="wmd-table-cell wmd-align-left">Status</td>
+    <td class="wmd-table-cell wmd-align-left">plain text, bold = not run</td>
+    <td class="wmd-table-cell wmd-align-left">status badge</td>
+    <td class="wmd-table-cell wmd-align-left">status badge (unchanged)</td>
+  </tr>
+    <tr>
+    <td class="wmd-table-cell wmd-align-left">Date</td>
+    <td class="wmd-table-cell wmd-align-left">plain text</td>
+    <td class="wmd-table-cell wmd-align-left">plain text</td>
+    <td class="wmd-table-cell wmd-align-left">right-aligned, tabular figures</td>
+  </tr>
+    <tr>
+    <td class="wmd-table-cell wmd-align-left">Selected row</td>
+    <td class="wmd-table-cell wmd-align-left">saturated blue, white text</td>
+    <td class="wmd-table-cell wmd-align-left">ROW_SELECTED</td>
+    <td class="wmd-table-cell wmd-align-left">ROW_SELECTED (unchanged)</td>
+  </tr>
+    <tr>
+    <td class="wmd-table-cell wmd-align-left">Hover row</td>
+    <td class="wmd-table-cell wmd-align-left">none</td>
+    <td class="wmd-table-cell wmd-align-left">none</td>
+    <td class="wmd-table-cell wmd-align-left">ACCENT_SUBTLE</td>
+  </tr>
+    <tr>
+    <td class="wmd-table-cell wmd-align-left">Button column</td>
+    <td class="wmd-table-cell wmd-align-left">text-only boxes, centred bold</td>
+    <td class="wmd-table-cell wmd-align-left">outlined blue, centred, 170 px</td>
+    <td class="wmd-table-cell wmd-align-left"><strong>glyph + left-aligned label</strong>, outlined blue, 170 px (or wider for the longest label)</td>
+  </tr>
+    <tr>
+    <td class="wmd-table-cell wmd-align-left">Run Test</td>
+    <td class="wmd-table-cell wmd-align-left">same box as the others</td>
+    <td class="wmd-table-cell wmd-align-left">primary filled</td>
+    <td class="wmd-table-cell wmd-align-left">primary filled with a white play glyph</td>
+  </tr>
+    <tr>
+    <td class="wmd-table-cell wmd-align-left">Delete Test</td>
+    <td class="wmd-table-cell wmd-align-left">plain box</td>
+    <td class="wmd-table-cell wmd-align-left">red square glyph + centred text</td>
+    <td class="wmd-table-cell wmd-align-left">red square glyph in the glyph slot + left-aligned text</td>
+  </tr>
+  </tbody>
+</table>
+<h3 class="wmd-h3">States</h3>
+<table class="wmd-table">
+  <thead>
+    <tr>
+      <th class="wmd-table-cell wmd-align-left">State</th>
+    <th class="wmd-table-cell wmd-align-left">Row</th>
+    <th class="wmd-table-cell wmd-align-left">Button</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+    <td class="wmd-table-cell wmd-align-left">Normal</td>
+    <td class="wmd-table-cell wmd-align-left">PANEL, INK text, task glyph ACCENT</td>
+    <td class="wmd-table-cell wmd-align-left">secondary: ACCENT glyph + ACCENT text on PANEL, ACCENT border · Run Test: white glyph + white text on ACCENT</td>
+  </tr>
+    <tr>
+    <td class="wmd-table-cell wmd-align-left">Hover</td>
+    <td class="wmd-table-cell wmd-align-left">ACCENT_SUBTLE fill</td>
+    <td class="wmd-table-cell wmd-align-left">ACCENT_SUBTLE (secondary) · ACCENT_HOVER (primary)</td>
+  </tr>
+    <tr>
+    <td class="wmd-table-cell wmd-align-left">Selected / pressed</td>
+    <td class="wmd-table-cell wmd-align-left">ROW_SELECTED, INK text, glyph stays ACCENT (6.08:1 on PANEL; on ROW_SELECTED 4.58:1, non-text)</td>
+    <td class="wmd-table-cell wmd-align-left">pressed = hover</td>
+  </tr>
+    <tr>
+    <td class="wmd-table-cell wmd-align-left">Focus (keyboard)</td>
+    <td class="wmd-table-cell wmd-align-left">table: 2 px ACCENT_FOCUS border (existing)</td>
+    <td class="wmd-table-cell wmd-align-left">2 px ACCENT_FOCUS border (existing)</td>
+  </tr>
+    <tr>
+    <td class="wmd-table-cell wmd-align-left">Disabled</td>
+    <td class="wmd-table-cell wmd-align-left">n/a</td>
+    <td class="wmd-table-cell wmd-align-left">TEXT_DISABLED glyph + text on DISABLED_FILL · Run Test: ACCENT_DISABLED_TEXT glyph + text on ACCENT_DISABLED_FILL · Delete Test: the square turns TEXT_DISABLED (existing <code class="wmd-code-inline">glyph_icon</code> disabled mode)</td>
+  </tr>
+    <tr>
+    <td class="wmd-table-cell wmd-align-left">Done / Not done / Ended early / Data missing</td>
+    <td class="wmd-table-cell wmd-align-left">status badge</td>
+    <td class="wmd-table-cell wmd-align-left">View Report on only with data</td>
+  </tr>
+  </tbody>
+</table>
+<h3 class="wmd-h3">Accessibility</h3>
+<ul class="wmd-list">
+  <li class="wmd-list-item">Text contrast unchanged from today: INK on PANEL 18.10:1, INK on HEADER 13.71:1, INK on ROW_SELECTED 13.62:1, ACCENT on PANEL 6.08:1, white on ACCENT 6.08:1, TEXT_DISABLED on DISABLED_FILL 3.81:1 (disabled, exempt).</li>
+  <li class="wmd-list-item">Glyphs are non-text marks (3:1 needed): ACCENT on PANEL 6.08:1, ACCENT on ACCENT_SUBTLE 5.17:1, white on ACCENT 6.08:1, DANGER on PANEL 5.00:1. The ACCENT task glyph on ROW_SELECTED is 4.58:1 (computed from the tokens; not a row of CONTRAST_PAIRS yet, so the implementer adds it).</li>
+  <li class="wmd-list-item">Not colour-only: every glyph sits next to its word (task name, button label, status word); the glyphs add a second channel and never replace text. Disabled = grey fill + grey text + grey glyph.</li>
+  <li class="wmd-list-item">Targets unchanged: 40 px rows, 40 px buttons at least 170 px wide.</li>
+  <li class="wmd-list-item">Tooltips on the task glyphs are not needed (the word is beside the glyph).</li>
+</ul>
+<h3 class="wmd-h3">Implementation cost (PySide6)</h3>
+<ul class="wmd-list">
+  <li class="wmd-list-item">Table: small painting + QSS. A QIcon on each Task item (QTableWidgetItem.setIcon, from a new task_glyph_pixmap() beside glyph_pixmap() in glyphs.py; Qt draws item icons natively, no delegate) with setIconSize(QSize(12, 12)); an item-hover rule with the ACCENT_SUBTLE fill; right-aligned tabular Date via setTextAlignment and the tabular-figures font frozen_table.table_fonts() already builds. Four new glyph drawings (about 60 lines), unit-tested like the existing seven.</li>
+  <li class="wmd-list-item">Buttons: assets + QSS, low. setIcon(glyph_icon(shape, ACCENT, TEXT_DISABLED)) on the six secondary buttons (the pattern delete_button already uses) and a white/ACCENT_DISABLED_TEXT icon on Run Test; text-align: left; padding-left: 12px in the test-list button rules; setIconSize(QSize(12, 12)). Seven new action glyphs in glyphs.py (about 90 lines). Optional: QIcon.Mode.Active is not needed because hover keeps the glyph colour.</li>
+  <li class="wmd-list-item">Tests: glyph drawing tests (one per new shape), the button-tier tests unchanged, a test that each button has an icon.</li>
+  <li class="wmd-list-item">Flag for the SPEC writer: this is the only direction that adds assets (painted glyphs, no PNG files). They use existing tokens only, but they extend the glyph vocabulary of proposal 2.5 (today: state shapes only) with action and task shapes. The hub should confirm that is &quot;icons&quot;, not &quot;a design-system change&quot;.</li>
+</ul>
+<h3 class="wmd-h3">Risk for operators who know Compass</h3>
+<ul class="wmd-list">
+  <li class="wmd-list-item">Lowest. The grid, header, labels, order, widths and the greyed-out matrix are unchanged, so nothing has to be relearned; the glyphs only speed up scanning. The identity shift is real but modest: a toolbar of glyph + label buttons and task glyphs in the list are things Compass does not have, while the screen still reads as &quot;the test list&quot;.</li>
+  <li class="wmd-list-item">Possible objection: eleven glyphs is a lot of new drawing to keep crisp at 100 / 125 / 150 % scaling (the existing glyph_pixmap handles dpr, so the mechanism exists). If the glyph set is cut, keep the seven button glyphs and drop the four task glyphs: the buttons carry most of the identity.</li>
+</ul>
+<blockquote class="wmd-blockquote">
+  <p class="wmd-paragraph"><strong>Wireframe notes:</strong> the glyphs in the mockup (＋ ⚙ ▶ ▤ ⧉ ■ ▭, ▦ ◎ ➚ ⌕) are Unicode stand-ins for painted 12 px pixmaps; their exact drawings are the implementer's, at the stroke weight of <code>glyphs.py</code> (1.5 px at 12 px). wiremd centres button text, the real buttons are left-aligned with the glyph in a 24 px slot. The retint pass still uses the older teal palette; the token names in this file are the design-system values of <code>src/ui/design_tokens.py</code>.</p>
+</blockquote>
+<hr class="wmd-separator" />
+<p class="wmd-paragraph"><a href="#">Back to Setup</a></p>
+<p class="wmd-paragraph">Changes are saved automatically.</p>
+<blockquote class="wmd-blockquote">
+  <p class="wmd-paragraph">Footer, empty states, unreadable-file line, keyboard rules and all modals: unchanged, see <code>test-list.md</code>.</p>
+</blockquote>
+</body>
+</html>

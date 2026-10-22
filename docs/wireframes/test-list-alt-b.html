@@ -1,0 +1,780 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>wiremd Mockup</title>
+  <link rel="icon" href="../../configs/assets/branding/WTMH.ico">
+  <style>
+a.wmd-button { text-decoration: none; color: inherit; }
+
+.wmd-tab-headers { display: flex; gap: 0; border-bottom: 2px solid #e0e0e0; margin-bottom: 12px; }
+.wmd-tab-header { display: inline-block; padding: 8px 16px; border: none; border-bottom: 2px solid transparent; margin-bottom: -2px; font-size: 14px; font-weight: 500; color: #5C7684; background: transparent; cursor: pointer; font-family: inherit; transition: color 0.15s; }
+.wmd-tab-header:hover { color: #122B3A; }
+.wmd-tab-header.wmd-active { border-bottom-color: currentColor; color: #1A6F95; font-weight: 600; }
+.wmd-tab-panel[hidden] { display: none; }
+.wmd-tab-panels { padding: 12px 0; }
+
+.wmd-row { display: flex; align-items: center; gap: 0.75rem; flex-wrap: wrap; }
+.wmd-row > .wmd-grid-item { flex: 0 1 auto; min-width: 0; }
+.wmd-row.wmd-right { justify-content: flex-end; }
+.wmd-row.wmd-center { justify-content: center; }
+.wmd-align-left { margin-right: auto; }
+.wmd-align-right { margin-left: auto; }
+.wmd-align-center { margin: auto; }
+.wmd-container-button-group > .wmd-input,
+.wmd-container-button-group > .wmd-select,
+.wmd-row > .wmd-grid-item > .wmd-input,
+.wmd-row > .wmd-grid-item > .wmd-select { display: inline-block; width: auto; }
+
+.wmd-demo { display: grid; grid-template-columns: 1fr 1fr; border: 1px solid #d0d0d0; border-radius: 6px; overflow: hidden; margin: 1rem 0; }
+.wmd-demo-preview { padding: 1.5rem; border-right: 1px solid #d0d0d0; }
+.wmd-demo-code { background: #f6f8fa; overflow: auto; display: flex; flex-direction: column; }
+.wmd-demo-code-toolbar { display: flex; justify-content: flex-end; padding: 0.5rem 0.75rem 0; }
+.wmd-demo-copy { background: none; border: 1px solid #ccc; border-radius: 4px; padding: 2px 8px; font-size: 0.75em; color: #666; cursor: pointer; font-family: inherit; }
+.wmd-demo-copy:hover { background: #e8e8e8; color: #333; }
+.wmd-demo-code pre { margin: 0; padding: 0.75rem 1.5rem 1.25rem; font-size: 0.8em; font-family: 'Courier New', Courier, monospace; line-height: 1.6; white-space: pre; }
+.wmd-demo-code code { display: block; color: #444; }
+
+/* wiremd Clean Style - Minimal modern wireframes */
+* {
+  box-sizing: border-box;
+}
+
+body.wmd-root {
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+  background: #F5F9FB;
+  color: #122B3A;
+  padding: 40px;
+  margin: 0;
+  line-height: 1.6;
+}
+
+/* Headings */
+.wmd-h1, .wmd-h2, .wmd-h3, .wmd-h4, .wmd-h5, .wmd-h6 {
+  font-weight: 600;
+  margin: 1.5em 0 0.75em;
+  color: #122B3A;
+  letter-spacing: -0.02em;
+}
+
+.wmd-h1 { font-size: 2.5em; border-bottom: 2px solid #DBE6EC; padding-bottom: 0.3em; }
+.wmd-h2 { font-size: 2em; }
+.wmd-h3 { font-size: 1.5em; }
+.wmd-h4 { font-size: 1.25em; }
+.wmd-h5 { font-size: 1.1em; }
+.wmd-h6 { font-size: 1em; }
+
+/* Paragraph */
+.wmd-paragraph {
+  margin: 0.75em 0;
+  color: #5C7684;
+}
+
+/* Buttons */
+.wmd-button {
+  display: inline-block;
+  padding: 10px 20px;
+  margin: 6px;
+  background: transparent;
+  color: #122B3A;
+  border: 1px solid #DBE6EC;
+  border-radius: 6px;
+  font-family: inherit;
+  font-size: 14px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.wmd-button:hover {
+  background: #DCF0F5;
+  border-color: #1F7A9C;
+}
+
+.wmd-button-primary, .wmd-button.wmd-primary {
+  background: linear-gradient(90deg, #2FA8C4, #1A6F95);
+  color: #fff;
+  border-color: #1A6F95;
+}
+
+.wmd-button-primary:hover, .wmd-button.wmd-primary:hover {
+  background: #1A6F95;
+}
+
+.wmd-button-secondary, .wmd-button.wmd-secondary {
+  background: #DCF0F5;
+  color: #0F5670;
+  border: 2px solid #DCF0F5;
+}
+
+.wmd-button-danger, .wmd-button.wmd-danger {
+  background: #E15353;
+  color: #fff;
+  border-color: #C23E3E;
+}
+
+.wmd-button[disabled], .wmd-button.wmd-state-disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+/* Pills / Badges */
+.wmd-badge {
+  display: inline-block;
+  padding: 2px 10px;
+  margin: 0 2px;
+  border-radius: 12px;
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  background: #E6EDF1;
+  color: #5C7684;
+}
+.wmd-badge-primary { background: #DCF0F5; color: #0F5670; }
+.wmd-badge-success { background: #2F9E6E; color: #ffffff; }
+/* warning/error badges here mark INACTIVE states ("not connected", "none") --
+   per the WTMH palette these read as neutral, not alarm colors. */
+.wmd-badge-warning { background: #E6EDF1; color: #5C7684; }
+.wmd-badge-error { background: #E6EDF1; color: #5C7684; }
+/* reserved for a real danger state (e.g. a future "SIGNAL LOST" badge) --
+   unused by setup.md/tasks.md today. */
+.wmd-badge-danger { background: #E15353; color: #ffffff; }
+
+/* Inputs */
+.wmd-input, .wmd-textarea, .wmd-select {
+  display: block;
+  width: 100%;
+  max-width: 400px;
+  padding: 10px 12px;
+  margin: 6px 0;
+  font-family: inherit;
+  font-size: 14px;
+  background: #FFFFFF;
+  color: #122B3A;
+  border: 1px solid #DBE6EC;
+  border-radius: 6px;
+  transition: border-color 0.2s;
+}
+
+.wmd-input:focus, .wmd-textarea:focus, .wmd-select:focus {
+  outline: none;
+  border-color: #1F7A9C;
+  box-shadow: 0 0 0 3px rgba(31, 122, 156, 0.15);
+}
+
+.wmd-input[disabled], .wmd-input.wmd-state-disabled,
+.wmd-textarea[disabled], .wmd-textarea.wmd-state-disabled,
+.wmd-select[disabled], .wmd-select.wmd-state-disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+  background: #E6EDF1;
+  border-color: #DBE6EC;
+}
+
+.wmd-textarea {
+  resize: vertical;
+  min-height: 100px;
+}
+
+/* Checkboxes and Radios */
+.wmd-checkbox, .wmd-radio {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin: 8px 0;
+  cursor: pointer;
+}
+
+.wmd-checkbox input[type="checkbox"],
+.wmd-radio input[type="radio"] {
+  width: 18px;
+  height: 18px;
+  cursor: pointer;
+}
+
+/* Icons */
+.wmd-icon {
+  display: inline-block;
+  width: 1.2em;
+  height: 1.2em;
+  margin: 0 4px;
+  vertical-align: middle;
+  color: #666;
+}
+
+
+/* Containers */
+.wmd-container-hero, .wmd-container-card, .wmd-container-modal {
+  background: #F5F9FB;
+  border: 1px solid #DBE6EC;
+  border-radius: 8px;
+  padding: 32px;
+  margin: 24px 0;
+}
+
+/* alerts (::: alert ...) get no dedicated rule from wiremd's "clean" style at
+   all -- confirmed by reading src/renderer/styles.ts and the rendered output,
+   the warning/info/success word after "alert" isn't captured as a CSS class
+   either, so per-severity coloring isn't available. One consistent
+   informational card treatment is used for all of them instead. */
+.wmd-container-alert {
+  background: #DCF0F5;
+  border: 1px solid #BFE3ED;
+  border-left: 4px solid #1F7A9C;
+  border-radius: 6px;
+  padding: 16px 20px;
+  margin: 16px 0;
+  color: #122B3A;
+}
+
+.wmd-container-hero {
+  background: linear-gradient(135deg, #F5F9FB 0%, #DCF0F5 100%);
+  text-align: center;
+  padding: 60px 32px;
+}
+
+.wmd-container-card {
+  background: #FFFFFF;
+  box-shadow: 0 2px 8px rgba(18,43,58,0.08);
+}
+
+.wmd-container-modal {
+  max-width: 500px;
+  margin: 40px auto;
+  background: #FFFFFF;
+  box-shadow: 0 4px 16px rgba(18,43,58,0.15);
+}
+
+/* Radio Groups */
+.wmd-radio-group {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  margin: 12px 0;
+}
+
+.wmd-radio-group-inline {
+  flex-direction: row;
+  flex-wrap: wrap;
+  gap: 16px;
+}
+
+.wmd-radio-group-inline .wmd-radio {
+  margin: 0;
+}
+
+/* Icons */
+.wmd-icon {
+  display: inline-block;
+  font-size: 1.1em;
+  line-height: 1;
+  vertical-align: middle;
+  margin: 0 0.25em;
+}
+
+/* Navigation */
+.wmd-nav {
+  background: #12374A;
+  border: 1px solid #1B4A61;
+  border-radius: 8px;
+  padding: 16px 24px;
+  margin: 24px 0;
+  box-shadow: 0 1px 3px rgba(0,0,0,0.2);
+}
+
+.wmd-nav-content {
+  display: flex;
+  align-items: center;
+  gap: 24px;
+  flex-wrap: wrap;
+}
+
+.wmd-brand {
+  font-weight: 600;
+  font-size: 1.25em;
+  margin-right: auto;
+  color: #CFE6EE;
+  display: inline-flex;
+  align-items: center;
+}
+
+.wmd-nav-item {
+  display: inline-flex;
+  align-items: center;
+  color: #CFE6EE;
+  text-decoration: none;
+  font-weight: 500;
+  padding: 8px 16px;
+  background: rgba(255,255,255,0.08);
+  border: 1px solid rgba(255,255,255,0.16);
+  border-radius: 6px;
+  transition: all 0.2s;
+}
+
+.wmd-nav-item:hover {
+  background: rgba(255,255,255,0.16);
+  border-color: rgba(255,255,255,0.32);
+  transform: translateY(-1px);
+  box-shadow: 0 2px 4px rgba(0,0,0,0.2);
+}
+
+.wmd-nav-item.wmd-active {
+  background: rgba(255,255,255,0.08);
+  color: #ffffff;
+  border-color: transparent;
+  border-bottom: 3px solid #2FA8C4;
+}
+
+.wmd-brand-logo {
+  height: 28px;
+  width: auto;
+  margin-right: 4px;
+  vertical-align: middle;
+}
+
+.wmd-breadcrumbs {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-wrap: wrap;
+  margin: 8px 0;
+  font-size: 0.9em;
+}
+
+.wmd-breadcrumb-item a {
+  color: #495057;
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+
+.wmd-breadcrumb-current {
+  font-weight: 600;
+  color: #212529;
+}
+
+.wmd-breadcrumb-sep {
+  color: #adb5bd;
+}
+
+/* Sidebar */
+.wmd-container-sidebar {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  width: 180px;
+  padding: 12px;
+  background: #DCF0F5;
+  border: 2px solid #1F7A9C;
+  border-radius: 8px;
+}
+.wmd-container-sidebar .wmd-button { display: block; width: 100%; text-align: left; margin: 0; }
+.wmd-container-sidebar .wmd-h4 { margin: 12px 0 4px; font-size: 0.85em; opacity: 0.6; text-transform: uppercase; }
+.wmd-container-sidebar .wmd-separator { margin: 8px 0; }
+
+/* Layout: sidebar-main */
+.wmd-container-layout.wmd-sidebar-main {
+  display: grid;
+  grid-template-columns: 220px 1fr;
+  gap: 16px;
+  align-items: start;
+}
+.wmd-layout-sidebar {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+.wmd-layout-sidebar .wmd-container-sidebar { width: 100%; }
+.wmd-layout-sidebar .wmd-button { display: block; width: 100%; text-align: left; margin: 2px 0; }
+.wmd-layout-sidebar .wmd-h4 { margin: 12px 0 4px; font-size: 0.85em; opacity: 0.6; text-transform: uppercase; }
+.wmd-layout-sidebar .wmd-separator { margin: 8px 0; }
+.wmd-layout-main { min-width: 0; }
+
+/* Grid */
+.wmd-grid {
+  display: grid;
+  grid-template-columns: repeat(var(--grid-columns, 3), 1fr);
+  gap: 24px;
+  margin: 32px 0;
+  align-items: center;
+}
+
+.wmd-grid-item { min-width: 0; }
+
+.wmd-col-span-1 { grid-column: span 1; }
+.wmd-col-span-2 { grid-column: span 2; }
+.wmd-col-span-3 { grid-column: span 3; }
+.wmd-col-span-4 { grid-column: span 4; }
+
+.wmd-grid-item-card {
+  background: #FFFFFF;
+  border: 1px solid #DBE6EC;
+  border-radius: 8px;
+  padding: 24px;
+  transition: box-shadow 0.2s;
+}
+.wmd-grid-item-card:hover {
+  box-shadow: 0 4px 12px rgba(0,0,0,0.08);
+}
+
+/* Lists */
+.wmd-list {
+  margin: 16px 0;
+  padding-left: 28px;
+}
+
+.wmd-list-item {
+  margin: 6px 0;
+}
+
+/* Blockquote */
+.wmd-blockquote {
+  border-left: 3px solid #1F7A9C;
+  padding-left: 20px;
+  margin: 20px 0;
+  color: #5C7684;
+}
+
+/* Code */
+.wmd-code-inline {
+  background: #f5f5f5;
+  border: 1px solid #e0e0e0;
+  border-radius: 3px;
+  padding: 2px 6px;
+  font-family: 'SF Mono', Monaco, Consolas, monospace;
+  font-size: 0.9em;
+  color: #d63384;
+}
+
+.wmd-code-block {
+  background: #f8f9fa;
+  border: 1px solid #e0e0e0;
+  border-radius: 6px;
+  padding: 16px;
+  margin: 16px 0;
+  overflow-x: auto;
+}
+
+.wmd-code-block code {
+  font-family: 'SF Mono', Monaco, Consolas, monospace;
+  font-size: 0.9em;
+  color: #1a1a1a;
+}
+
+/* Separator */
+.wmd-separator {
+  border: none;
+  border-top: 1px solid #DBE6EC;
+  margin: 32px 0;
+}
+
+/* State Containers */
+.wmd-container-loading-state {
+  background: #f5f7fa;
+  border: 1px solid #d0d0d0;
+  border-radius: 8px;
+  padding: 40px;
+  margin: 24px 0;
+  text-align: center;
+  position: relative;
+}
+
+.wmd-container-loading-state::before {
+  content: '';
+  display: block;
+  width: 40px;
+  height: 40px;
+  margin: 0 auto 20px;
+  border: 3px solid #e0e0e0;
+  border-top-color: #0066cc;
+  border-radius: 50%;
+  animation: spin 1s linear infinite;
+}
+
+.wmd-container-empty-state {
+  background: #fafafa;
+  border: 1px dashed #d0d0d0;
+  border-radius: 8px;
+  padding: 60px 40px;
+  margin: 24px 0;
+  text-align: center;
+  color: #888;
+}
+
+.wmd-container-empty-state::before {
+  content: '📭';
+  display: block;
+  font-size: 72px;
+  margin-bottom: 20px;
+  opacity: 0.4;
+  filter: grayscale(30%);
+}
+
+.wmd-container-error-state {
+  background: #fff5f5;
+  border: 1px solid #dc3545;
+  border-radius: 8px;
+  padding: 40px;
+  margin: 24px 0;
+  text-align: center;
+  box-shadow: 0 2px 8px rgba(220, 53, 69, 0.1);
+}
+
+.wmd-container-error-state::before {
+  content: '⚠️';
+  display: block;
+  font-size: 48px;
+  margin-bottom: 20px;
+}
+
+/* Responsive */
+@media (max-width: 768px) {
+  body.wmd-root {
+    padding: 20px;
+  }
+
+  .wmd-grid {
+    grid-template-columns: 1fr !important;
+  }
+
+  .wmd-col-span-1,
+  .wmd-col-span-2,
+  .wmd-col-span-3,
+  .wmd-col-span-4 {
+    grid-column: span 1;
+  }
+
+  .wmd-nav-content {
+    flex-direction: column;
+    align-items: stretch;
+  }
+}
+
+@keyframes spin {
+  from { transform: rotate(0deg); }
+  to { transform: rotate(360deg); }
+}
+
+  </style>
+</head>
+<body class="wmd-root wmd-clean">
+  <nav class="wmd-nav">
+  <div class="wmd-nav-content">
+    <img src="../../configs/assets/branding/wtmh_logo.png" alt="WTMH logo" class="wmd-brand-logo">
+    <div class="wmd-brand">Pediatric Eye-Gaze Assessment</div>
+    <a href="./setup.html" class="wmd-nav-item">1 · Setup</a>
+    <a href="./test-list.html" class="wmd-nav-item">2 · Tests</a>
+  </div>
+</nav>
+<h2 class="wmd-h2">Test List for TESTING — Direction B &quot;Record cards&quot;</h2>
+<blockquote class="wmd-blockquote">
+  <p class="wmd-paragraph"><strong>Alternative B of 3</strong> (Hsieh's feedback 2026-10-22). <strong>Look only</strong>: same elements, same order, same positions, same workflow as <code>test-list.md</code>. <strong>Design system unchanged</strong>: uses tokens PAGE, PANEL, INK, TEXT_SECONDARY, TEXT_DISABLED, BORDER_SUBTLE, BORDER_STRONG, ROW_SELECTED, ACCENT, ACCENT_HOVER, ACCENT_SUBTLE, ACCENT_FOCUS, ACCENT_DISABLED_FILL, ACCENT_DISABLED_TEXT, DISABLED_FILL, DANGER, TYPE_BODY, TYPE_CAPTION, TYPE_HEADING, RADIUS, TABLE_ROW_HEIGHT, BUTTON_HEIGHT, spacing 8 / 16 / 24, the card style (<code>QFrame#wtmhCard</code>), the existing button tiers and the status badge. No new token, colour, font, size or radius.</p>
+</blockquote>
+<blockquote class="wmd-blockquote">
+  <p class="wmd-paragraph"><strong>One-line idea:</strong> every test is a <strong>record card</strong>, not a spreadsheet row. The rows sit as white cards on the PAGE background, 8 px apart, with the column labels floating above them; the right column becomes a <strong>"Selected test" card</strong> that names the test the buttons act on, so the greyed-out buttons explain themselves.</p>
+</blockquote>
+<h3 class="wmd-h3">Tests</h3>
+<table class="wmd-table">
+  <thead>
+    <tr>
+      <th class="wmd-table-cell wmd-align-left">Test Name</th>
+    <th class="wmd-table-cell wmd-align-left">Task</th>
+    <th class="wmd-table-cell wmd-align-left">Configuration</th>
+    <th class="wmd-table-cell wmd-align-left">Status</th>
+    <th class="wmd-table-cell wmd-align-left">Date Complete</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+    <td class="wmd-table-cell wmd-align-left">(column labels only: caption size, TEXT_SECONDARY, on the PAGE background, no band, no rule; a click still sorts)</td>
+    <td class="wmd-table-cell wmd-align-left"></td>
+    <td class="wmd-table-cell wmd-align-left"></td>
+    <td class="wmd-table-cell wmd-align-left"></td>
+    <td class="wmd-table-cell wmd-align-left"></td>
+  </tr>
+  </tbody>
+</table>
+<div class="wmd-grid wmd-grid-2" style="--grid-columns: 2">
+  <div class="wmd-grid-item wmd-card wmd-grid-item-card">
+    <h3 class="wmd-h3">Grid Click 1</h3>
+    <p class="wmd-paragraph">Grid Click · Standard · ○ Not done · —</p>
+    <span class="wmd-badge wmd-badge-primary">selected</span>
+  </div>
+  <div class="wmd-grid-item wmd-card wmd-grid-item-card">
+    <h3 class="wmd-h3">Selected test</h3>
+    <p class="wmd-paragraph"><strong>Grid Click 1</strong> ○ Not done</p>
+    <button class="wmd-button wmd-outline">Add New Test</button>
+    <button class="wmd-button wmd-outline">Configure Test</button>
+    <button class="wmd-button wmd-button-primary">Run Test</button>
+    <button class="wmd-button wmd-outline wmd-state-disabled" disabled>View Report</button>
+    <button class="wmd-button wmd-outline">Copy Test</button>
+    <button class="wmd-button wmd-outline">■ Delete Test</button>
+    <button class="wmd-button wmd-outline">Open Subject Folder</button>
+  </div>
+</div>
+<div class="wmd-container-card">
+  <p class="wmd-paragraph"><strong>Static Click 1</strong> · Static Click · Standard · ● Done · 2026-10-06</p>
+</div>
+<div class="wmd-container-card">
+  <p class="wmd-paragraph"><strong>Follow the Target 1</strong> · Follow the Target · Slow path · ◐ Ended early 4/6 · 2026-10-06</p>
+</div>
+<div class="wmd-container-card">
+  <p class="wmd-paragraph"><strong>Scanning Search 1</strong> · Scanning Search · Standard · ▲ Data missing · 2026-10-05</p>
+</div>
+<div class="wmd-container-card">
+  <p class="wmd-paragraph"><strong>Grid Click 2</strong> · Grid Click · Large targets · ○ Not done · —</p>
+</div>
+<blockquote class="wmd-blockquote">
+  <p class="wmd-paragraph"><strong>Reading the mockup:</strong> wiremd cannot draw a table whose rows are cards, so each row is a <code>card</code> block here and the first one shares the grid with the button card. In the real page the five columns stay aligned exactly as in <code>test-list.md</code> (Test Name stretches, Task 180, Configuration 200, Status 180, Date 140); each <strong>row is painted as one card</strong>: PANEL fill, 1 px BORDER_SUBTLE edge, radius 4, 40 px tall, 8 px of PAGE between cards, cell text 14 px INK, no grid lines at all. The table widget's own frame and background go away (background PAGE, no border), so the cards sit directly on the page like the Setup cards do.</p>
+</blockquote>
+<blockquote class="wmd-blockquote">
+  <p class="wmd-paragraph"><strong>Selected card:</strong> ROW_SELECTED fill with a 1 px ACCENT edge (the first row above). <strong>Hover:</strong> ACCENT_SUBTLE fill, edge unchanged. <strong>Keyboard focus:</strong> the card's edge becomes 2 px ACCENT_FOCUS (the existing focus rule) instead of the whole table taking a focus border.</p>
+</blockquote>
+<blockquote class="wmd-blockquote">
+  <p class="wmd-paragraph"><strong>"Selected test" card (right):</strong> the existing seven buttons in the existing order, full width inside one PANEL card (1 px BORDER_SUBTLE, radius 4, 24 px padding, 8 px between buttons). The card's heading is the selected test's name at the heading step (20 px / 600) with its status badge, or "No test selected" in TEXT_SECONDARY. Add New Test stays first and Open Subject Folder last, as today; they are inside the card for alignment only (both stay enabled whatever is selected). Secondary buttons keep the outlined tier; Run Test is the primary tier; Delete Test keeps its red square glyph. Nothing moves: the card sits 24 px to the right of the list, top-aligned, at the right gutter.</p>
+</blockquote>
+<hr class="wmd-separator" />
+<h3 class="wmd-h3">What differs from Compass (element by element)</h3>
+<table class="wmd-table">
+  <thead>
+    <tr>
+      <th class="wmd-table-cell wmd-align-left">Element</th>
+    <th class="wmd-table-cell wmd-align-left">Compass</th>
+    <th class="wmd-table-cell wmd-align-left">Today (<code class="wmd-code-inline">test-list.md</code>)</th>
+    <th class="wmd-table-cell wmd-align-left">Direction B</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+    <td class="wmd-table-cell wmd-align-left">Table frame</td>
+    <td class="wmd-table-cell wmd-align-left">1 px black frame, white sheet</td>
+    <td class="wmd-table-cell wmd-align-left">1 px BORDER_SUBTLE frame, PANEL sheet</td>
+    <td class="wmd-table-cell wmd-align-left"><strong>no frame, no sheet</strong>: cards on the PAGE background</td>
+  </tr>
+    <tr>
+    <td class="wmd-table-cell wmd-align-left">Header row</td>
+    <td class="wmd-table-cell wmd-align-left">grey band with separators</td>
+    <td class="wmd-table-cell wmd-align-left">HEADER band, 14 px / 600 INK</td>
+    <td class="wmd-table-cell wmd-align-left"><strong>floating labels</strong>, 12 px / 600 TEXT_SECONDARY, no band; sort arrow ACCENT</td>
+  </tr>
+    <tr>
+    <td class="wmd-table-cell wmd-align-left">Rows</td>
+    <td class="wmd-table-cell wmd-align-left">16 px tight lines, full grid</td>
+    <td class="wmd-table-cell wmd-align-left">40 px rows, full grid</td>
+    <td class="wmd-table-cell wmd-align-left"><strong>40 px cards 8 px apart</strong>, radius 4, 1 px BORDER_SUBTLE edge, no grid lines</td>
+  </tr>
+    <tr>
+    <td class="wmd-table-cell wmd-align-left">Row text</td>
+    <td class="wmd-table-cell wmd-align-left">12 px, bold = not run</td>
+    <td class="wmd-table-cell wmd-align-left">14 px INK</td>
+    <td class="wmd-table-cell wmd-align-left">14 px INK, Test Name only at weight 600 (a name, not a state)</td>
+  </tr>
+    <tr>
+    <td class="wmd-table-cell wmd-align-left">Selected row</td>
+    <td class="wmd-table-cell wmd-align-left">saturated blue, white text</td>
+    <td class="wmd-table-cell wmd-align-left">ROW_SELECTED</td>
+    <td class="wmd-table-cell wmd-align-left">ROW_SELECTED fill <strong>+ 1 px ACCENT edge</strong></td>
+  </tr>
+    <tr>
+    <td class="wmd-table-cell wmd-align-left">Hover row</td>
+    <td class="wmd-table-cell wmd-align-left">none</td>
+    <td class="wmd-table-cell wmd-align-left">none</td>
+    <td class="wmd-table-cell wmd-align-left">ACCENT_SUBTLE fill</td>
+  </tr>
+    <tr>
+    <td class="wmd-table-cell wmd-align-left">Button column</td>
+    <td class="wmd-table-cell wmd-align-left">7 loose boxes</td>
+    <td class="wmd-table-cell wmd-align-left">7 outlined boxes, Run Test filled</td>
+    <td class="wmd-table-cell wmd-align-left"><strong>one "Selected test" card</strong> with a heading (test name + badge) and the 7 buttons full width inside</td>
+  </tr>
+    <tr>
+    <td class="wmd-table-cell wmd-align-left">Button look</td>
+    <td class="wmd-table-cell wmd-align-left">white box, bold centred text</td>
+    <td class="wmd-table-cell wmd-align-left">outlined blue, 170 px</td>
+    <td class="wmd-table-cell wmd-align-left">outlined blue, full card width (about 220 px), same tiers</td>
+  </tr>
+    <tr>
+    <td class="wmd-table-cell wmd-align-left">Delete Test</td>
+    <td class="wmd-table-cell wmd-align-left">plain box</td>
+    <td class="wmd-table-cell wmd-align-left">outlined, red square glyph</td>
+    <td class="wmd-table-cell wmd-align-left">unchanged</td>
+  </tr>
+  </tbody>
+</table>
+<h3 class="wmd-h3">States</h3>
+<table class="wmd-table">
+  <thead>
+    <tr>
+      <th class="wmd-table-cell wmd-align-left">State</th>
+    <th class="wmd-table-cell wmd-align-left">Row card</th>
+    <th class="wmd-table-cell wmd-align-left">Buttons</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+    <td class="wmd-table-cell wmd-align-left">Normal</td>
+    <td class="wmd-table-cell wmd-align-left">PANEL fill, BORDER_SUBTLE edge, INK text</td>
+    <td class="wmd-table-cell wmd-align-left">secondary: ACCENT text, PANEL fill, ACCENT border · Run Test: white on ACCENT</td>
+  </tr>
+    <tr>
+    <td class="wmd-table-cell wmd-align-left">Hover</td>
+    <td class="wmd-table-cell wmd-align-left">ACCENT_SUBTLE fill, edge unchanged</td>
+    <td class="wmd-table-cell wmd-align-left">ACCENT_SUBTLE fill (secondary) · ACCENT_HOVER (primary)</td>
+  </tr>
+    <tr>
+    <td class="wmd-table-cell wmd-align-left">Selected</td>
+    <td class="wmd-table-cell wmd-align-left">ROW_SELECTED fill, 1 px ACCENT edge, INK text; the card heading on the right repeats the name and badge</td>
+    <td class="wmd-table-cell wmd-align-left">matrix as in <code class="wmd-code-inline">test-list.md</code></td>
+  </tr>
+    <tr>
+    <td class="wmd-table-cell wmd-align-left">Focus (keyboard)</td>
+    <td class="wmd-table-cell wmd-align-left">2 px ACCENT_FOCUS edge on the selected card, nothing moves</td>
+    <td class="wmd-table-cell wmd-align-left">2 px ACCENT_FOCUS border (existing)</td>
+  </tr>
+    <tr>
+    <td class="wmd-table-cell wmd-align-left">Disabled</td>
+    <td class="wmd-table-cell wmd-align-left">n/a</td>
+    <td class="wmd-table-cell wmd-align-left">TEXT_DISABLED on DISABLED_FILL · Run Test: ACCENT_DISABLED_TEXT on ACCENT_DISABLED_FILL</td>
+  </tr>
+    <tr>
+    <td class="wmd-table-cell wmd-align-left">No test selected</td>
+    <td class="wmd-table-cell wmd-align-left">no card has the edge</td>
+    <td class="wmd-table-cell wmd-align-left">heading &quot;No test selected&quot; in TEXT_SECONDARY; only Add New Test and Open Subject Folder on</td>
+  </tr>
+    <tr>
+    <td class="wmd-table-cell wmd-align-left">Done / Not done / Ended early / Data missing</td>
+    <td class="wmd-table-cell wmd-align-left">status badge, as today</td>
+    <td class="wmd-table-cell wmd-align-left">View Report on only with data</td>
+  </tr>
+  </tbody>
+</table>
+<h3 class="wmd-h3">Accessibility</h3>
+<ul class="wmd-list">
+  <li class="wmd-list-item">INK on PANEL 18.10:1 and on ROW_SELECTED 13.62:1; TEXT_SECONDARY on PAGE 7.10:1 (floating column labels, &quot;No test selected&quot;); ACCENT on PANEL 6.08:1 (secondary buttons, selected edge is non-text, 6.08:1); white on ACCENT 6.08:1; BORDER_SUBTLE on PAGE is decorative only (the card edge is not a cue: the selected card has the ACCENT edge and the fill).</li>
+  <li class="wmd-list-item">Targets: row cards 40 px tall, full list width; buttons 40 px tall and the full card width.</li>
+  <li class="wmd-list-item">Not colour-only: selection = fill + edge + the name repeated in the right card&#039;s heading (a third, textual cue, new in this direction); status = glyph + word; disabled = grey fill + grey text.</li>
+  <li class="wmd-list-item">The floating labels are still buttons for sorting; they show the ACCENT sort arrow and ACCENT_SUBTLE on hover so they are discoverable.</li>
+</ul>
+<h3 class="wmd-h3">Implementation cost (PySide6)</h3>
+<ul class="wmd-list">
+  <li class="wmd-list-item">Table: a row delegate (custom painting), medium. Keep QTableWidget (sorting, rename editor, Delete / F2 / Enter, selection all stay). setShowGrid(False), viewport background PAGE, frame NoFrame, row height 48 (= TABLE_ROW_HEIGHT 40 + the 8 px gap, both tokens) and a QStyledItemDelegate.paint that draws, per row, a rounded PANEL rect from the first to the last column (rounded corners only on the outer cells, the 8 px gap left blank), then the text; ROW_SELECTED + ACCENT pen when selected, ACCENT_SUBTLE under the mouse (QStyle.State_MouseOver), 2 px ACCENT_FOCUS when the table has focus. The Status cell widget (_BadgeCell) keeps working. About 80-100 lines in test_list_table.py; frozen_table.py already shows the pattern of a delegate painting over cells.</li>
+  <li class="wmd-list-item">Header: QSS only. QHeaderView::section for the test table: PAGE fill, TYPE_CAPTION, TEXT_SECONDARY, no border.</li>
+  <li class="wmd-list-item">Buttons: layout + QSS, low. Wrap the column in a QFrame#wtmhCard with 24 px padding and 8 px spacing; add a QLabel#wtmhSectionTitle (name) and a StatusBadge on top, updated in _update_buttons() from selected_test(). No new assets.</li>
+  <li class="wmd-list-item">Tests: the phase-2 Test List tests that read widths, the table frame and the button geometry need updating; a new test for the heading text.</li>
+</ul>
+<h3 class="wmd-h3">Risk for operators who know Compass</h3>
+<ul class="wmd-list">
+  <li class="wmd-list-item">Medium. The list no longer looks like a grid, so the first impression is &quot;a different app&quot;; this is the strongest identity of the three. Sorting by the floating labels is less discoverable than a header band (mitigated by the sort arrow and hover). The &quot;Selected test&quot; heading reduces a known Compass confusion (why is View Report grey?) because the card says what is selected. The 8 px gaps cost height: 5 rows take 232 px instead of 200; a subject with 15+ tests scrolls a little sooner (the list already scrolls).</li>
+  <li class="wmd-list-item">Design-rule tension to confirm: proposal 2.4 gives tables radius 0 and cards radius 4. Here each row is drawn as a card (radius 4), which follows the card rule rather than the table rule; and 2.4 says &quot;a card never holds a card&quot;: the right card holds buttons and a badge, not a card, so that holds.</li>
+</ul>
+<blockquote class="wmd-blockquote">
+  <p class="wmd-paragraph"><strong>Wireframe notes:</strong> wiremd has no "table of cards", so the rows are separate <code>card</code> blocks and the first row sits in a <code>grid-2 card</code> with the "Selected test" card to keep the two columns side by side; in the real page all five rows align under the column labels and the right card is top-aligned next to the first row. The <code>|selected|</code> badge marks the selected card in the mockup only (the real cue is the ROW_SELECTED fill + ACCENT edge). The retint pass still uses the older teal palette; the token names in this file are the design-system values of <code>src/ui/design_tokens.py</code>.</p>
+</blockquote>
+<hr class="wmd-separator" />
+<p class="wmd-paragraph"><a href="#">Back to Setup</a></p>
+<p class="wmd-paragraph">Changes are saved automatically.</p>
+<blockquote class="wmd-blockquote">
+  <p class="wmd-paragraph">Footer, empty states ("Enter a Subject ID in Setup." / "No tests yet. Choose Add New Test." as one card in the list area), unreadable-file line, keyboard rules and all modals: unchanged, see <code>test-list.md</code>.</p>
+</blockquote>
+</body>
+</html>
